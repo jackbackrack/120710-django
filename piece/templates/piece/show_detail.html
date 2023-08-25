@@ -1,0 +1,54 @@
+{% extends 'market/base.html' %}
+
+{% block title %}{{ show.name }}{% endblock %}
+
+{% block content %}
+<div class="col-span-3">
+  <img src="{{ show.image.url }}" class="rounded-xl" width="300" height="300">
+</div>
+<h1 class="mb-6 text-2xl">{{ show.name }}</h1>
+<h2 class="mb-6">Curated by {{ show.curator.name }}</h2>
+<h2 class="mb-6">Opening {{ show.opening }} {{ show.opening_start }} - {{ show.opening_end }}</h2>
+<p class="text-sm">{{ show.description }}</p>
+<br>
+<div class="grid grid-cols-4 gap-1">
+{% for piece in pieces %}
+<div class="mt-1 px-2 py-2 bg-gray-100 rounded-xl">
+    <div>
+      <a href="{% url 'piece:piece_detail' piece.id %}">
+        {% if piece.image %}
+        <div>
+          <img src="{{ piece.image.url }}" class="rounded-t-xl">
+        </div>
+        {% endif %}
+        <div class="p-1 bg-white rounded-b-xl">
+          <h2 class="text-sm">{{ piece.name }}</h2>
+          <h2 class="text-sm">by {% for item in piece.artists.all %}{{item}}{% endfor %},
+            {% if piece.start_year %}
+            {{ piece.start_year }}-
+            {% endif %}
+            {{ piece.end_year }}
+          </h2>
+          <p class="text-gray-500 text-xs"><strong>Medium: </strong>{{ piece.medium }}</p>
+          <p class="text-gray-500 text-xs"><strong>Dimensions: </strong>{{ piece.dimensions }}</p>
+          <p class="text-gray-500 text-sm"><strong>Price:</strong>
+            {% if piece.price %}
+            ${{ piece.price }}
+            {% endif %}
+            {% if piece.pricing %}
+            {{ piece.pricing }}
+            {% endif %}
+            {% if piece.is_sold %}
+            <strong>sold</strong>
+            {% endif %}
+          </p>
+        </div>
+      </a>
+    </div>
+</div>
+{% endfor %}
+</div>
+</div>
+{% endblock %}
+
+
