@@ -6,7 +6,7 @@
   
 {% block content %}
 <div class="mt-6 px-6 py-12 bg-gray-100 rounded-xl">
-  <h2 class="mb-12 text-2xl text-center">Newest Shows</h2>
+  <h2 class="mb-12 text-2xl text-center">Shows</h2>
   <div class="grid grid-cols-3 gap-3">
     {% for show in shows %}
     <div>
@@ -23,53 +23,5 @@
   </div>
 </div>
 
-<div class="mt-6 px-6 py-12 bg-gray-100 rounded-xl">
-  <h2 class="mb-12 text-2xl text-center">Newest pieces</h2>
-  <div class="grid grid-cols-3 gap-3">
-    {% for piece in pieces %}
-    <div>
-      <a href="{% url 'piece:piece_detail' piece.id %}">
-        {% if piece.image %}
-        <div>
-          <img src="{{ piece.image.url }}" class="rounded-t-xl">
-        </div>
-        {% endif %}
-        <div class="p-6 bg-white rounded-b-xl">
-          <h2 class="text-1xl">{{ piece.name }}</h2>
-          <h2 class="text-sm">by {% for item in piece.artists.all %}{{item}}{% endfor %},
-            {% if piece.start_year %}
-            {{ piece.start_year }}-
-            {% endif %}
-            {{ piece.end_year }}
-          </h2>
-          <p class="text-gray-500">Price:
-            {% if piece.price %}
-            ${{ piece.price }}
-            {% endif %}
-            {% if piece.pricing %}
-            {{ piece.pricing }}
-            {% endif %}
-          </p>
-        </div>
-      </a>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-
-<div class="mt-6 px-6 py-12 bg-gray-100 rounded-xl">
-  <h2 class="mb-12 text-2xl text-center">Artists</h2>
-  <div class="grid grid-cols-3 gap-3">
-    {% for artist in artists %}
-    <div>
-      <a href="{% url 'piece:artist_detail' artist.id %}">
-        <div class="p-6 bg-white rounded-b-xl">
-          <h2 class="text-2xl">{{ artist.name }}</h2>
-        </div>
-      </a>
-    </div>
-    {% endfor %}
-  </div>
-</div>
 
 {% endblock %}
