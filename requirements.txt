@@ -6,7 +6,7 @@ Django==4.2.4
 dnspython==2.2.1
 et-xmlfile==1.1.0
 fonttools==4.38.0
-gunicorn==21.2.0
+gunicorn==20.1.0
 kifield==1.0.0
 kiwisolver==1.4.4
 matplotlib==3.6.2
