@@ -9,11 +9,31 @@
   </div>
   <div class="col-span-2 p-6 bg-gray-100 rounded-xl">
     <h1 class="mb-6 text-3xl">{{ piece.name }}</h1>
-    <h2 class="text-2xl">by {% for item in piece.artists.all %}{{item}} {% endfor %}</h2>
+    <h2 class="text-gray-500 text-2xl"><strong>by</strong>{% for artist in piece.artists.all %}<a href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %},
+      {% if piece.start_year %}
+      {{ piece.start_year }}-
+      {% endif %}
+      {{ piece.end_year }}
+    </h2>
     <br>
-    <p class="text-gray-500"><strong>Medium: </strong>{{ piece.medium }}</p>
-    <p class="text-gray-500"><strong>Dimensions: </strong>{{ piece.dimensions }}</p>
-    <p class="text-gray-500"><strong>Price: </strong>${{ piece.price }} {{ piece.pricing }}</p>
+    <p class="text-gray-500 text-sm"><strong>Medium: </strong>{{ piece.medium }}</p>
+    <p class="text-gray-500 text-sm"><strong>Dimensions: </strong>{{ piece.dimensions }}</p>
+    <p class="text-gray-500 text-sm"><strong>Price:</strong>
+      {% if piece.price %}
+      ${{ piece.price }}
+      {% endif %}
+      {% if piece.pricing %}
+      {{ piece.pricing }}
+      {% endif %}
+      {% if piece.is_sold %}
+      <strong>sold</strong>
+      {% endif %}
+    </p>
+    {% if piece.description %}
+    <p class="text-gray-500 text-sm"><strong>Description:</strong>
+      {{ piece.description }}
+    </p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
