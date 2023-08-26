@@ -42,6 +42,11 @@
             <strong>sold</strong>
             {% endif %}
           </p>
+          {% if piece.description %}
+          <p class="text-gray-500 text-sm"><strong>Description:</strong>
+            {{ piece.description }}
+          </p>
+          {% endif %}
         </div>
       </a>
     </div>
