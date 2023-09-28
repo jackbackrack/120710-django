@@ -142,8 +142,8 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = 'us-west-1'
 AWS_S3_CUSTOM_DOMAIN = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
 AWS_S3_FILE_OVERWRITE = False  
-# AWS_DEFAULT_ACL = None  
-AWS_DEFAULT_ACL = 'public-read'
+AWS_DEFAULT_ACL = None  
+# AWS_DEFAULT_ACL = 'public-read'
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Simplified static file serving.
