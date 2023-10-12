@@ -10,7 +10,7 @@ def detail(request, pk):
 
 def show_detail(request, pk):
     show = get_object_or_404(Show, pk=pk)
-    pieces = Piece.objects.filter(shows__id = pk).order_by('name')
+    pieces = Piece.objects.filter(shows__id = pk).order_by('artists__name', 'name')
     return render(request, 'piece/show_detail.html', {
         'show': show,
         'pieces': pieces

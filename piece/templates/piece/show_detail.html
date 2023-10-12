@@ -23,8 +23,11 @@
         </div>
         {% endif %}
         <div class="p-1 bg-white rounded-b-xl">
-          <h2 class="text-sm">{{ piece.name }}</h2>
-          <h2 class="text-gray-500 text-sm"><strong>by</strong>{% for artist in piece.artists.all %}<a href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %},
+          <h2 class="text-sm">{% for artist in piece.artists.all %}<a href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %}
+          </h2>
+          <h2 class="text-sm">{{ piece.name }}
+          </h2>
+          <h2 class="text-sm">
             {% if piece.start_year %}
             {{ piece.start_year }}-
             {% endif %}
