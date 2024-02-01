@@ -43,6 +43,7 @@ class Piece(models.Model):
     image = models.ImageField(upload_to='piece_images', blank=True, null=True)
     price = models.FloatField(blank=True, null=True)
     pricing = models.CharField(max_length=255, blank=True, null=True)
+    replacement_cost = models.FloatField(blank=True, null=True)
     is_sold = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
     installation = models.TextField(blank=True, null=True)
