@@ -17,8 +17,8 @@
         <div class="p-6 bg-white rounded-b-xl">
           <h2 class="text-2xl">{{ show.name }}</h2>
           <h2 class="mb-6">Curated by <a href="{% url 'piece:artist_detail' show.curator.id %}">{{ show.curator.name }}</a></h2>
-          <h2 class="mb-6">Opening {{ show.opening }} {{ show.opening_start }} - {{ show.opening_end }}</h2>
-          <h2 class="mb-6">Closing {{ show.closing }} {{ show.closing_start }} - {{ show.closing_end }}</h2>
+          <h3 class="mb-6">Opening {{ show.opening }} {{ show.opening_start }} - {{ show.opening_end }}<br>
+                           Closing {{ show.closing }} {{ show.closing_start }} - {{ show.closing_end }}</h2>
         </div>
       </a>
     </div>
