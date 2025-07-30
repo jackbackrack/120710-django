@@ -20,6 +20,7 @@ class Show(models.Model):
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
     curator = models.ForeignKey(Artist, related_name='shows', on_delete=models.CASCADE)
+    curators = models.ManyToManyField(Artist)
     opening = models.DateField()
     opening_start = models.TimeField()
     opening_end = models.TimeField()
