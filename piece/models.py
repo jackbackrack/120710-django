@@ -46,7 +46,7 @@ class Event(models.Model):
         ordering = ["date"]
 
     def __str__(self):
-        return self.name
+        return self.show.name + " " + self.name
 
     # def get_absolute_url(self):
     #     return reverse("events:event_detail", kwargs={"pk": self.pk})
