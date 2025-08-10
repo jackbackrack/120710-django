@@ -18,7 +18,7 @@
           <h2 class="text-2xl">{{ show.name }}</h2>
           <h2 class="mb-6">Curated by:
           {% for curator in show.curators.all %}
-            {{ curator.user.first_name }} {{ curator.user.last_name }}
+            {{ curator.name }}
           {% endfor %}
           </h2>
           <h3 class="mb-6">{{ show.start }} - {{ show.end }}</h3>
