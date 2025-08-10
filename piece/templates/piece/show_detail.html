@@ -15,7 +15,7 @@
 {{ show.start }} - {{ show.end }} <br>
 {% for event in show.events.all %}
   <a href="{% url 'piece:event_detail' event.id %}"> {{ event.name }}</a>:
-  {{ event.start }} - {{ event.end }}<br>
+  {{ event.date }}, {{ event.start }} - {{ event.end }}<br>
 {% endfor %}
 </h2>
 <p class="text-sm">{{ show.description|safe }}</p>
