@@ -20,14 +20,12 @@
           {% for curator in show.curators.all %}
             {{ curator.name }}
             {% if not forloop.last %} and {% endif %}
+          {% endfor %} <br>
+          {{ show.start }} - {{ show.end }} <br>
+          {% for event in show.events.all %}
+            {{ event.name }}: {{ event.start }} - {{ event.end }} <br>
           {% endfor %}
           </h2>
-          <h3 class="mb-6">{{ show.start }} - {{ show.end }} <br>
-          {% for event in show.events.all %}
-            <a href="{% url 'piece:event_detail' event.id %}"> {{ event.name }}</a>
-            {{ event.start }} - {{ event.end }} <br>
-          {% endfor %}
-          </h3>
         </div>
       </a>
     </div>

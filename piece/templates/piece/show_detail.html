@@ -9,16 +9,15 @@
 <h1 class="mb-6 text-2xl">{{ show.name }}</h1>
 <h2 class="mb-6">Curated by:
 {% for curator in show.curators.all %}
-  <a href="{% url 'piece:artist_detail' show.curator.id %}"> {{ curator.name }} </a>
+  <a href="{% url 'piece:artist_detail' curator.id %}"> {{ curator.name }} </a>
   {% if not forloop.last %} and {% endif %}
+{% endfor %} <br>
+{{ show.start }} - {{ show.end }} <br>
+{% for event in show.events.all %}
+  <a href="{% url 'piece:event_detail' event.id %}"> {{ event.name }}</a>:
+  {{ event.start }} - {{ event.end }}<br>
 {% endfor %}
 </h2>
-<h3 class="mb-6">{{ show.start }} - {{ show.end }} <br>
-{% for event in show.events.all %}
-  <a href="{% url 'piece:event_detail' event.id %}"> {{ event.name }}</a>
-  {{ event.start }} - {{ event.end }}<br>
-  {% endfor %}
-</h3>
 <p class="text-sm">{{ show.description|safe }}</p>
 <br>
 <div class="grid grid-cols-4 gap-1">
