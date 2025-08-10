@@ -16,11 +16,5 @@
     <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ event.description }}</p>
     {% endif %}
   </div>
-  <div>
-    <p><a href="{% url 'events:event_edit' event.pk %}">Edit</a>
-       <a href="{% url 'events:event_delete' event.pk %}">Delete</a>
-    </p>
-    <p>Back to <a href="{% url 'events:event_list' %}">All Events</a>.</p>
-  </div>
 </div>
 {% endblock %}
