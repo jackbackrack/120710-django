@@ -23,7 +23,7 @@
           {% endfor %} <br>
           {{ show.start }} - {{ show.end }} <br>
           {% for event in show.events.all %}
-            {{ event.name }}: {{ event.start }} - {{ event.end }} <br>
+            {{ event.name }}: {{ event.date }}, {{ event.start }} - {{ event.end }} <br>
           {% endfor %}
           </h2>
         </div>
