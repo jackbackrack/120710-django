@@ -24,12 +24,6 @@ class Show(models.Model):
     curators = models.ManyToManyField(Artist)
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)
-    opening = models.DateField()
-    opening_start = models.TimeField()
-    opening_end = models.TimeField()
-    closing = models.DateField(blank=True, null=True)
-    closing_start = models.TimeField()
-    closing_end = models.TimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
