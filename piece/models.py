@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.db import models
 
 class Artist(models.Model):
+    user = models.ForeignKey(User, related_name='accounts', on_delete=models.CASCADE, blank=True, null=True)
     name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255)
     phone = models.CharField(max_length=255)
