@@ -1,0 +1,10 @@
+{% extends 'market/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<h1>New Artwork</h1>
+<form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+  {{ form|crispy }}
+  <button class="btn btn-success ms-2" type="submit">Save</button>
+</form>
+{% endblock content %}

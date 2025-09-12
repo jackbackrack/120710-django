@@ -1,12 +1,53 @@
 from django.urls import path
 
-from . import views
+from .views import (
+    PieceListView,
+    PieceDetailView,
+    PieceUpdateView,
+    PieceDeleteView,
+    PieceCreateView,
+    ArtistListView,
+    ArtistDetailView,
+    ArtistUpdateView,
+    ArtistDeleteView,
+    ArtistCreateView,
+    ShowListView,
+    ShowDetailView,
+    ShowUpdateView,
+    ShowDeleteView,
+    ShowCreateView,
+    EventListView,
+    EventDetailView,
+    EventUpdateView,
+    EventDeleteView,
+    EventCreateView,
+    )
 
 app_name = 'piece'
 
 urlpatterns = [
-    path('pieces/pieces/<int:pk>/', views.piece_detail, name='piece_detail'),
-    path('pieces/artists/<int:pk>/', views.artist_detail, name='artist_detail'),
-    path('pieces/shows/<int:pk>/', views.show_detail, name='show_detail'),
-    path('pieces/events/<int:pk>/', views.event_detail, name='event_detail'),
+    path('artist/', ArtistListView.as_view(), name='artist_list'),
+    path('artist/<int:pk>/', ArtistDetailView.as_view(), name='artist_detail'),
+    path('artist/<int:pk>/edit/', ArtistUpdateView.as_view(), name='artist_edit'),
+    path('artist/<int:pk>/delete/', ArtistDeleteView.as_view(), name='artist_delete'),
+    path('artist/new/', ArtistCreateView.as_view(), name='artist_new'),
+    path('piece/', PieceListView.as_view(), name='piece_list'),
+    path('piece/<int:pk>/', PieceDetailView.as_view(), name='piece_detail'),
+    path('piece/<int:pk>/edit/', PieceUpdateView.as_view(), name='piece_edit'),
+    path('piece/<int:pk>/delete/', PieceDeleteView.as_view(), name='piece_delete'),
+    path('piece/new/', PieceCreateView.as_view(), name='piece_new'),
+    path('show/', ShowListView.as_view(), name='show_list'),
+    path('show/<int:pk>/', ShowDetailView.as_view(), name='show_detail'),
+    path('show/<int:pk>/edit/', ShowUpdateView.as_view(), name='show_edit'),
+    path('show/<int:pk>/delete/', ShowDeleteView.as_view(), name='show_delete'),
+    path('show/new/', ShowCreateView.as_view(), name='show_new'),
+    path('event/', EventListView.as_view(), name='event_list'),
+    path('event/<int:pk>/', EventDetailView.as_view(), name='event_detail'),
+    path('event/<int:pk>/edit/', EventUpdateView.as_view(), name='event_edit'),
+    path('event/<int:pk>/delete/', EventDeleteView.as_view(), name='event_delete'),
+    path('event/new/', EventCreateView.as_view(), name='event_new'),
+    # path('pieces/<int:pk>/', views.piece_detail, name='piece_detail'),
+    # path('artists/<int:pk>/', views.artist_detail, name='artist_detail'),
+    # path('shows/<int:pk>/', views.show_detail, name='show_detail'),
+    # path('events/<int:pk>/', views.event_detail, name='event_detail'),
 ]    

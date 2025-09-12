@@ -1,0 +1,28 @@
+{% extends 'market/base.html' %}
+
+{% block title %}{{ artist.name }}{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-4 gap-6">
+  {% if artist.image %}
+  <div class="col-span-2">
+    <img src="{{ artist.image.url }}" class="rounded-xl ">
+  </div>
+  {% endif %}
+  <div class="col-span-2 p-6 bg-gray-100 rounded-xl">
+    <h1 class="mb-6 text-3xl">{{ artist.name }}</h1>
+    {% if artist.instagram %}
+    <p class="text-gray-500 text-sm"><strong>Instagram: </strong>{{ artist.instagram }}</p>
+    {% endif %}
+    {% if artist.website %}
+    <p class="text-gray-500 text-sm"><strong>Website: </strong>{{ artist.website }}</p>
+    {% endif %}
+    {% if artist.bio %}
+    <p class="text-gray-500 text-sm"><strong>Bio: </strong>{{ artist.bio }}</p>
+    {% endif %}
+    {% if artist.statement %}
+    <p class="text-gray-500 text-sm"><strong>Statement: </strong>{{ artist.statement }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

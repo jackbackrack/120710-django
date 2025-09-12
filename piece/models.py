@@ -1,6 +1,7 @@
 import datetime
 from django.contrib.auth.models import User
 from django.db import models
+from django.urls import reverse
 
 class Artist(models.Model):
     user = models.ForeignKey(User, related_name='accounts', on_delete=models.CASCADE, blank=True, null=True)
@@ -17,6 +18,9 @@ class Artist(models.Model):
     def __str__(self):
         return self.name
 
+    def get_absolute_url(self):
+        return reverse("piece:artist_detail", kwargs={"pk": self.pk})
+
 class Show(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -28,6 +32,9 @@ class Show(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_absolute_url(self):
+        return reverse("piece:show_detail", kwargs={"pk": self.pk})
 
 class Event(models.Model):
     name = models.CharField(max_length=255)
@@ -45,13 +52,13 @@ class Event(models.Model):
     def __str__(self):
         return self.show.name + " " + self.name
 
-    # def get_absolute_url(self):
-    #     return reverse("events:event_detail", kwargs={"pk": self.pk})
+    def get_absolute_url(self):
+        return reverse("piece:event_detail", kwargs={"pk": self.pk})
 
 class Piece(models.Model):
     name = models.CharField(max_length=255)
-    shows = models.ManyToManyField(Show)
-    artists = models.ManyToManyField(Artist)
+    shows = models.ManyToManyField(Show, related_name="pieces")
+    artists = models.ManyToManyField(Artist, related_name="pieces")
     end_year = models.IntegerField()
     start_year = models.IntegerField(blank=True, null=True)
     medium = models.TextField(blank=True, null=True)
@@ -67,4 +74,7 @@ class Piece(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_absolute_url(self):
+        return reverse("piece:piece_detail", kwargs={"pk": self.pk})
 

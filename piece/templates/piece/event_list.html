@@ -1,0 +1,29 @@
+{% extends 'market/base.html' %}
+
+{% block title %}Events{% endblock title %}
+
+{% block content %}
+{% if user.is_authenticated %}
+  <a href="{% url 'piece:event_new' %}">+ New</a>
+{% endif %}
+{% for event in event_list %}
+<div class="card">
+  <div class="card-header">
+    <span class="fw-bold">
+      <!-- add link here! -->
+      <a href="{{ event.get_absolute_url }}">{{ event.show.name }} / {{ event.name }}</a>
+    </span> &middot;
+  </div>
+  <div class="card-body">
+    {% if event.image %}
+    <img src="{{ event.image.url }}" class="rounded-xl" width="100" height="100">
+    {% endif %}
+  </div>
+  <div class="card-footer text-center text-muted">
+    <a href="{% url 'piece:event_edit' event.pk %}">Edit</a>
+    <a href="{% url 'piece:event_delete' event.pk %}">Delete</a>
+  </div>
+</div>
+<br />
+{% endfor %}
+{% endblock content %}
