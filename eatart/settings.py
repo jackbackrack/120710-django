@@ -36,7 +36,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'cg#p$g+j9tax!#a3cup@1$8obt2_+&k3q+pmu)&5eho*jq')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
+# DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
+DEBUG = True
 
 ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', 'shows.120710.art', '127.0.0.1']
 
@@ -150,7 +151,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 # The absolute path to the directory where collectstatic will collect static files for deployment.
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'static' #files
 STATIC_URL = '/static/'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'

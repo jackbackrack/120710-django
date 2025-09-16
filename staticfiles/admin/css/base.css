@@ -11,8 +11,13 @@ html {
   }
 }
 
+header {
+    margin: 8px;
+}
+
 body {
-  margin-bottom: 60px; /* Margin bottom by footer height */
+    margin: 8px;
+    margin-bottom: 60px; /* Margin bottom by footer height */
 }
 
 .container {

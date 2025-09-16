@@ -8,7 +8,7 @@
   <img src="{{ event.image.url }}" class="card__image" width="300" height="300">
   {% endif %}
   <div class="card__contents">
-    <h1 class="mb-6 text-3xl">{{ event.name }} of {{ event.show.name }}</h1>
+    <h1 class="mb-6 text-3xl"><a href="{{ event.get_absolute_url }}">{{ event.name }} of {{ event.show.name }}</a></h1>
     <p class="mb-6 text-3xl">{{ event.start }} - {{ event.end }}</p>
     {% if event.description %}
     <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ event.description }}</p>
@@ -19,6 +19,7 @@
     <a href="{% url 'piece:event_edit' event.pk %}">Edit</a>
     <a href="{% url 'piece:event_delete' event.pk %}">Delete</a>
     {% endif %}
+    <a href="{{ event.get_absolute_url }}">View</a>
   </div>
 </div>
 {% endblock %}

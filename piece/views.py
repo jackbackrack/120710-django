@@ -182,7 +182,8 @@ class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return super().form_valid(form)
 
     def test_func(self):
-        return self.request.user.is_superuser or self.request.user.groups.filter(name='artist').exists()
+        user = self.request.user
+        return not user.artists.exists() and ( user.is_superuser or user.groups.filter(name='artist').exists() )
 
 class PieceListView(ListView):
     model = Piece

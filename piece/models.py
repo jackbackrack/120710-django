@@ -4,7 +4,7 @@ from django.db import models
 from django.urls import reverse
 
 class Artist(models.Model):
-    user = models.ForeignKey(User, related_name='accounts', on_delete=models.CASCADE, blank=True, null=True)
+    user = models.ForeignKey(User, related_name='artists', on_delete=models.CASCADE, blank=True, null=True)
     name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255)
     phone = models.CharField(max_length=255)
@@ -14,6 +14,9 @@ class Artist(models.Model):
     statement = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='artist_images', null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
@@ -29,6 +32,9 @@ class Show(models.Model):
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
@@ -71,6 +77,9 @@ class Piece(models.Model):
     description = models.TextField(blank=True, null=True)
     installation = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
