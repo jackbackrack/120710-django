@@ -3,18 +3,16 @@
 {% block title %}{{ show.name }}{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-4 gap-6">
+<div class="card">
   {% if show.image %}
-  <div class="col-span-2">
-    <img src="{{ show.image.url }}" class="rounded-xl" width="300" height="300">
-  </div>
+  <img src="{{ show.image.url }}" class="card__image" width="300" height="300">
   {% endif %}
-  <div class="col-span-2 p-6 bg-gray-100 rounded-xl">
+  <div class="card__contents">
     <h1 class="mb-6 text-3xl">{{ show.name }}</h1>
     <p class="mb-6 text-3xl">{{ show.start }} - {{ show.end }}</p>
     <h3 class="mb-6">Curated by:
     {% for curator in show.curators.all %}
-    <a href="{% url 'piece:artist_detail' curator.id %}"> {{ curator.user.first_name }} {{ curator.user.last_name }}</a>
+    <a href="{% url 'piece:artist_detail' curator.id %}"> {{ curator.name }}</a>
     {% endfor %}
     </h3>
     {% if show.description %}
@@ -25,67 +23,76 @@
     {{ event.start }} - {{ event.end }}</h3>
     {% endfor %}
   </div>
+  <div class="card__info">
   {% if user.is_authenticated %}
   <div>
-    <p><a href="{% url 'piece:show_edit' show.pk %}">Edit</a>
-       <a href="{% url 'piece:show_delete' show.pk %}">Delete</a>
-    </p>
-    <p>Back to <a href="{% url 'piece:show_list' %}">All Shows</a>.</p>
+    <a href="{% url 'piece:show_edit' show.pk %}">Edit</a>
+    <a href="{% url 'piece:show_delete' show.pk %}">Delete</a>
   </div>
   {% endif %}
-  <h3>Artworks</h3>
-  <div class="grid">
-  <div class="grid-cards">
-  {% for piece in show.pieces.all %}
-  <div class="grid-cards-inner">
-    <div class="card-header text-center">
-      <span class="fw-bold">
-        <a href="{{ piece.get_absolute_url }}">{{ piece.name }}</a>
-      </span> &middot;
+  </div>
+</div>
+<h3>Artworks</h3>
+<div class="cards">
+{% for piece in show.pieces.all %}
+  <div class="card">
+    {% if piece.image %}
+    <img src="{{ piece.image.url }}" class="card__image" width="100" height="100">
+    {% endif %}
+    <div class="card__contents">
+      <h2 class="text-sm">{% for artist in piece.artists.all %}<a href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %}
+      </h2>
+      <h2 class="text-sm">{{ piece.name }}
+      </h2>
+      <h2 class="text-sm">
+        {% if piece.start_year %}
+        {{ piece.start_year }}-
+        {% endif %}
+        {{ piece.end_year }}
+      </h2>
+      <p class="text-gray-500 text-xs"><strong>Medium: </strong>{{ piece.medium }}</p>
+      <p class="text-gray-500 text-xs"><strong>Dimensions: </strong>{{ piece.dimensions }}</p>
+      <p class="text-gray-500 text-sm"><strong>Price:</strong>
+        {% if piece.price %}
+        ${{ piece.price }}
+        {% endif %}
+        {% if piece.pricing %}
+        {{ piece.pricing }}
+        {% endif %}
+        {% if piece.is_sold %}
+        <strong>sold</strong>
+        {% endif %}
+      </p>
     </div>
-    <div class="card-body text-center">
-      {% if piece.image %}
-      <img src="{{ piece.image.url }}" class="rounded-xl" width="100" height="100">
-      {% endif %}
-    </div>
-    {% if user.is_authenticated %}
-    <div class="card-footer text-center text-muted">
+    <div class="card__info">  
+      {% if user.is_authenticated %}
       <a href="{% url 'piece:piece_edit' piece.pk %}">Edit</a>
       <a href="{% url 'piece:piece_delete' piece.pk %}">Delete</a>
+      {% endif %}
+      <a href="{{ piece.get_absolute_url }}">View</a>
     </div>
-    {% endif %}
   </div>
-  <br />
-  {% endfor %}
-  </div>
-  </div>
-  <h3>Artists</h3>
-  <div class="grid">
-  <div class="grid-cards">
+{% endfor %}
+</div>
+<h3>Artists</h3>
+<div class="cards">
   <!-- todo: remove dups and sort -->
   {% for piece in show.pieces.all %}
   {% for artist in piece.artists.all %}
-  <div class="grid-cards-inner">
-    <div class="card-header">
-      <span class="fw-bold">
-        <!-- add link here! -->
-        <a href="{{ artist.get_absolute_url }}">{{ artist.user.first_name }} {{ artist.user.last_name }}</a>
-      </span> &middot;
-    </div>
-    <div class="card-body">
-      {% if artist.image %}
-      <img src="{{ artist.image.url }}" class="rounded-xl" width="100" height="100">
+  <div class="card">
+    {% if artist.image %}
+    <img src="{{ artist.image.url }}" class="card__image" width="100" height="100">
+    {% endif %}
+    <div class="card__contents">{{ artist.name }}</div>
+    <div class="card__info">
+      {% if user.is_authenticated %}
+        <a href="{% url 'piece:artist_edit' artist.pk %}">Edit</a>
+        <a href="{% url 'piece:artist_delete' artist.pk %}">Delete</a>
       {% endif %}
-    </div>
-    <div class="card-footer text-center text-muted">
-      <a href="{% url 'piece:artist_edit' artist.pk %}">Edit</a>
-      <a href="{% url 'piece:artist_delete' artist.pk %}">Delete</a>
+      <a href="{{ artist.get_absolute_url }}">View</a>
     </div>
   </div>
-  <br />
   {% endfor %}
   {% endfor %}
-  </div>
-  </div>
 </div>
 {% endblock %}

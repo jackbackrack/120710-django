@@ -21,6 +21,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 import os
+
+# EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.example.com')
+# EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+# EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_HOST_USER = 'info@120710.art'
+EMAIL_HOST_PASSWORD = 'thfs kria ksgi ebns'
+EMAIL_USE_TLS = True
+
+LOGIN_REDIRECT_URL = "/"
+
+# Configure the email backend
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'cg#p$g+j9tax!#a3cup@1$8obt2_+&k3q+pmu)&5eho*jq')
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -129,6 +147,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+# django-crispy-forms
+# https://django-crispy-forms.readthedocs.io/en/latest/install.html#template-packs
+CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/

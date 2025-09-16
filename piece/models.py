@@ -12,7 +12,7 @@ class Artist(models.Model):
     instagram = models.CharField(max_length=255, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
-    image = models.ImageField(upload_to='artist_images', blank=True, null=True)
+    image = models.ImageField(upload_to='artist_images', null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -63,7 +63,7 @@ class Piece(models.Model):
     start_year = models.IntegerField(blank=True, null=True)
     medium = models.TextField(blank=True, null=True)
     dimensions = models.CharField(max_length=255, blank=True, null=True)
-    image = models.ImageField(upload_to='piece_images', blank=True, null=True)
+    image = models.ImageField(upload_to='piece_images', null=True)
     price = models.FloatField(blank=True, null=True)
     pricing = models.CharField(max_length=255, blank=True, null=True)
     replacement_cost = models.FloatField(blank=True, null=True)

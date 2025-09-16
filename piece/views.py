@@ -12,11 +12,11 @@ def detail(request, pk):
       'piece': piece
     })
 
-class ShowListView(LoginRequiredMixin, ListView):
+class ShowListView(ListView):
     model = Show
     template_name = "piece/show_list.html"
 
-class ShowDetailView(LoginRequiredMixin, DetailView):
+class ShowDetailView(DetailView):
     model = Show
     template_name = "piece/show_detail.html"
 
@@ -34,7 +34,7 @@ class ShowUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def test_func(self):
         obj = self.get_object()
-        for curator in obj.curators:
+        for curator in obj.curators.all():
             if curator.user == self.request.user:
                 return True
         return self.request.user.is_superuser
@@ -71,11 +71,11 @@ class ShowCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     #     form.instance.curators = [ self.request.user ]
     #     return super().form_valid(form)
 
-class EventListView(LoginRequiredMixin, ListView):
+class EventListView(ListView):
     model = Event
     template_name = "piece/event_list.html"
 
-class EventDetailView(LoginRequiredMixin, DetailView):
+class EventDetailView(DetailView):
     model = Event
     template_name = "piece/event_detail.html"
 
@@ -125,19 +125,21 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     template_name = "piece/event_new.html"
     
     def test_func(self):
-        return self.request.user.groups.filter(name='curator').exists()
+        return self.request.user.groups.filter(name='curator').exists() or self.request.request.user.is_superuser
 
-class ArtistListView(LoginRequiredMixin, ListView):
+class ArtistListView(ListView):
     model = Artist
     template_name = "piece/artist_list.html"
 
-class ArtistDetailView(LoginRequiredMixin, DetailView):
+class ArtistDetailView(DetailView):
     model = Artist
     template_name = "piece/artist_detail.html"
 
 class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Artist
     fields = (
+        "name",
+        "email",
         "phone",
         "website",
         "instagram",
@@ -163,6 +165,8 @@ class ArtistDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Artist
     fields = (
+        "name",
+        "email",
         "phone",
         "website",
         "instagram",
@@ -180,11 +184,11 @@ class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.groups.filter(name='artist').exists()
 
-class PieceListView(LoginRequiredMixin, ListView):
+class PieceListView(ListView):
     model = Piece
     template_name = "piece/piece_list.html"
 
-class PieceDetailView(LoginRequiredMixin, DetailView):
+class PieceDetailView(DetailView):
     model = Piece
     template_name = "piece/piece_detail.html"
 
@@ -247,7 +251,7 @@ class PieceCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         )
     template_name = "piece/piece_new.html"
 
-    # # todo: artist with this user id
+    # todo: artist with this user id
     # def form_valid(self, form):
     #     form.instance.artists = [ self.request.user ]
     #     return super().form_valid(form)

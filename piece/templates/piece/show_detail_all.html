@@ -3,9 +3,9 @@
 {% block title %}{{ show.name }}{% endblock %}
 
 {% block content %}
-<div class="col-span-3">
-  <img src="{{ show.image.url }}" class="rounded-xl" width="300" height="300">
-</div>
+<div class="card">
+  <img src="{{ show.image.url }}" class="card__image" width="300" height="300">
+  <div class="card__contents">
 <h1 class="mb-6 text-2xl">{{ show.name }}</h1>
 <h2 class="mb-6">{{ show.start }} - {{ show.end }}</h2>
 <h2 class="mb-6">Curated by:

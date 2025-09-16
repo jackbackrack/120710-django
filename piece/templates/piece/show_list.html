@@ -6,27 +6,34 @@
 {% if user.is_authenticated %}
   <a href="{% url 'piece:show_new' %}">+ New</a>
 {% endif %}
-<div class="grid">
-<div class="grid-cards">
-{% for show in show_list %}
-<div class="grid-cards-inner">
-  <div class="card-header text-center">
-    <span class="fw-bold">
-      <a href="{{ show.get_absolute_url }}">{{ show.name }}</a>
-    </span> &middot;
-  </div>
-  <div class="card-body text-center">
-    {% if show.image %}
-    <img src="{{ show.image.url }}" class="rounded-xl" width="100" height="100">
-    {% endif %}
-  </div>
-  <div class="card-footer text-center text-muted">
-    <a href="{% url 'piece:show_edit' show.pk %}">Edit</a>
-    <a href="{% url 'piece:show_delete' show.pk %}">Delete</a>
-  </div>
-</div>
-<br />
-{% endfor %}
-</div>
+<div class="cards">
+  <h2 class="mb-12 text-2xl text-center">Shows</h2>
+  {% for show in show_list %}
+    <div class="card">
+      <img src="{{ show.image.url }}" class="card__image">
+      <div class="card__contents">
+        <h2 class="text-2xl">{{ show.name }}</h2>
+        <h2 class="mb-6">Curated by:
+        {% for curator in show.curators.all %}
+          {{ curator.name }}
+          {% if not forloop.last %} and {% endif %}
+        {% endfor %} <br>
+        {{ show.start }} - {{ show.end }} <br>
+        {% for event in show.events.all %}
+          {{ event.name }}: {{ event.date }}, {{ event.start }} - {{ event.end }} <br>
+        {% endfor %}
+        </h2>
+      </div>
+      <div class="card__info">
+        {% if user.is_authenticated %}
+        <div>
+          <a href="{% url 'piece:show_edit' show.pk %}">Edit</a>
+          <a href="{% url 'piece:show_delete' show.pk %}">Delete</a>
+        </div>
+        {% endif %}
+        <a href="{% url 'piece:show_detail' show.id %}">View</a>
+      </div>
+    </div>
+  {% endfor %}
 </div>
 {% endblock content %}
