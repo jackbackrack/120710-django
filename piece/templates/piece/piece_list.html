@@ -3,7 +3,7 @@
 {% block title %}Artworks{% endblock title %}
 
 {% block content %}
-<div style="text-align:center"><h2>Pieces</h2></div>
+<div style="text-align:center"><h2>Artworks</h2></div>
 {% if user.is_authenticated %}
   <div style="text-align:center"><a class="card__link" href="{% url 'piece:piece_new' %}">New</a></div>
 {% endif %}

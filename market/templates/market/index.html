@@ -16,7 +16,7 @@
         <h2 class="text-2xl"><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h2>
         <h2 class="mb-6">Curated by:
         {% for curator in show.curators.all %}
-          {{ curator.name }}
+          <a class="card__link" href="{% url 'piece:artist_detail' curator.id %}"> {{ curator.name }}</a>
           {% if not forloop.last %} and {% endif %}
         {% endfor %} <br>
         {{ show.start }} - {{ show.end }} <br>
@@ -34,6 +34,6 @@
     </div>
   {% endfor %}
 </div>
-<a class="card__link" href="{% url 'piece:artist_list'%}">Artists</a>
-<a class="card__link" href="{% url 'piece:piece_list'%}">Pieces</a>
+<div style="text-align:center"> <a class="card__link" href="{% url 'piece:artist_list'%}">Artists</a>
+<a class="card__link" href="{% url 'piece:piece_list'%}">Pieces</a></div>
 {% endblock %}
