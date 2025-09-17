@@ -43,12 +43,12 @@
     {% endif %}
   </div>
 </div>
-<h3>Shows</h3>
+<div style="text-align:center"><h2>Shows</h2></div>
 <div class="cards">
   {% for show in piece.shows.all %}
     <div class="card">
      {% if show.image %}
-     <img src="{{ show.image.url }}" class="rounded-xl" width="100" height="100" class="card__image">
+     <img src="{{ show.image.url }}" class="card__image">
      {% endif %}
      <div class="card__contents"><a href="{{ show.get_absolute_url }}">{{ show.name }}</a></div>
      <div class="card__info">

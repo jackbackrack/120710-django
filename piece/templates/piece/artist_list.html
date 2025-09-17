@@ -3,7 +3,7 @@
 {% block title %}Artists{% endblock title %}
 
 {% block content %}
-<h2 class="mb-12 text-2xl text-center">Artists</h2>
+<div style="text-align:center"><h2>Artists</h2></div>
 {% if user.is_authenticated %}
   <div style="text-align:center"><a href="{% url 'piece:artist_new' %}">New</a></div>
 {% endif %}

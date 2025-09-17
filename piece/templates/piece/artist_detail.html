@@ -3,13 +3,13 @@
 {% block title %}{{ artist.name }}{% endblock %}
 
 {% block content %}
-<div class="mt-1 px-2 py-2 bg-gray-100 rounded-xl">
+<div class="card">
   {% if artist.image %}
   <div class="col-span-2">
-    <img src="{{ artist.image.url }}" class="rounded-xl" width="300" height="300">
+    <img src="{{ artist.image.url }}" class="card__image">
   </div>
   {% endif %}
-  <div>
+  <div class="card__contents">
     <h1 class="mb-6 text-3xl">{{ artist.name }}</h1>
     {% if artist.instagram %}
     <p class="text-gray-500 text-sm"><strong>Instagram: </strong><a href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a></p>
@@ -24,20 +24,22 @@
     <p class="text-gray-500 text-sm"><strong>Statement: </strong>{{ artist.statement }}</p>
     {% endif %}
   </div>
-  {% if user.is_authenticated %}
+  <div class="card__info">
+    {% if user.is_authenticated %}
     <a href="{% url 'piece:artist_edit' artist.pk %}">Edit</a>
     <a href="{% url 'piece:artist_delete' artist.pk %}">Delete</a>
-  {% endif %}
+    {% endif %}
+    </div>
 </div>
-<h2>Artworks</h2>
+<div style="text-align:center"><h2>Artworks</h2></div>
 {% if user.is_authenticated %}
-  <a href="{% url 'piece:piece_new' %}">New</a>
+<div style="text-align:center"><a href="{% url 'piece:piece_new' %}">New</a></div>
 {% endif %}
 <div class="cards">
   {% for piece in artist.pieces.all %}
   <div class="card">
     {% if piece.image %}
-    <img src="{{ piece.image.url }}" width="100" height="100" class="card__image">
+    <img src="{{ piece.image.url }}" class="card__image">
     {% endif %}
     <div class="card__content"><a href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></div>
     <div class="card__info">

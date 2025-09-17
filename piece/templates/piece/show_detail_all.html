@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="card">
-  <img src="{{ show.image.url }}" class="card__image" width="300" height="300">
+  <img src="{{ show.image.url }}" class="card__image">
   <div class="card__contents">
 <h1 class="mb-6 text-2xl">{{ show.name }}</h1>
 <h2 class="mb-6">{{ show.start }} - {{ show.end }}</h2>
@@ -18,19 +18,16 @@
 <h2 class="mb-6">{{ event.name }} {{ event.start }} - {{ event.end }}</h2>
 {% endfor %}
 <br>
-<div class="grid grid-cols-4 gap-1">
+<div class="cards">
 {% for piece in pieces %}
-<div class="mt-1 px-2 py-2 bg-gray-100 rounded-xl">
+<div class="card">
     <div>
       <a href="{% url 'piece:piece_detail' piece.id %}">
         {% if piece.image %}
-        <div>
-          <img src="{{ piece.image.url }}" class="rounded-t-xl"  width="300" height="300">
-        </div>
+        <img src="{{ piece.image.url }}" class="card__image">
         {% endif %}
-        <div class="p-1 bg-white rounded-b-xl">
-          <h2 class="text-sm">{{ piece.name }}
-          </h2>
+        <div class="card__contents">
+          <h2 class="text-sm">{{ piece.name }} </h2>
           <h2 class="text-sm">
             {% if piece.start_year %}
             {{ piece.start_year }}-

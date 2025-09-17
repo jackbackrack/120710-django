@@ -7,7 +7,7 @@
   <div style="text-align:center"><a href="{% url 'piece:show_new' %}">+ New</a></div>
 {% endif %}
 <div class="cards">
-  <h2 class="mb-12 text-2xl text-center">Shows</h2>
+  <div style="text-align:center"><h2>Shows</h2></div>
   {% for show in show_list %}
     <div class="card">
       <img src="{{ show.image.url }}" class="card__image">
