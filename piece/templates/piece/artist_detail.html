@@ -42,12 +42,12 @@
     <img src="{{ piece.image.url }}" class="card__image">
     {% endif %}
     <div class="card__content"><a href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></div>
+    {% if user.is_authenticated %}
     <div class="card__info">
-      {% if user.is_authenticated %}
       <a href="{% url 'piece:piece_edit' piece.pk %}">Edit</a>
       <a href="{% url 'piece:piece_delete' piece.pk %}">Delete</a>
-      {% endif %}
     </div>
+    {% endif %}
   </div>
   {% endfor %}
 </div>

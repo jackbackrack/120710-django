@@ -173,7 +173,7 @@ AWS_S3_CUSTOM_DOMAIN = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_
 AWS_S3_FILE_OVERWRITE = False  
 # AWS_DEFAULT_ACL = None  
 AWS_DEFAULT_ACL = 'public-read'
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Simplified static file serving.
 # https://pypi.org/project/whitenoise/
@@ -183,4 +183,4 @@ STATICFILES_LOCATION = 'static'
 # STATICFILES_STORAGE = 'custom_storages.StaticStorage'
 
 MEDIAFILES_LOCATION = 'media'
-DEFAULT_FILE_STORAGE = 'custom_storages.MediaStorage'
+#DEFAULT_FILE_STORAGE = 'custom_storages.MediaStorage'

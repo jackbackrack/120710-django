@@ -24,14 +24,12 @@
         {% endfor %}
         </h2>
       </div>
+      {% if user.is_authenticated %}
       <div class="card__info">
-        {% if user.is_authenticated %}
-        <div>
-          <a href="{% url 'piece:show_edit' show.pk %}">Edit</a>
-          <a href="{% url 'piece:show_delete' show.pk %}">Delete</a>
-        </div>
-        {% endif %}
+        <a href="{% url 'piece:show_edit' show.pk %}">Edit</a>
+        <a href="{% url 'piece:show_delete' show.pk %}">Delete</a>
       </div>
+      {% endif %}
     </div>
   {% endfor %}
 </div>

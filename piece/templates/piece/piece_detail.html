@@ -51,13 +51,12 @@
      <img src="{{ show.image.url }}" class="card__image">
      {% endif %}
      <div class="card__contents"><a href="{{ show.get_absolute_url }}">{{ show.name }}</a></div>
+     {% if user.is_authenticated %}
      <div class="card__info">
-       {% if user.is_authenticated %}
          <a href="{% url 'piece:show_edit' show.pk %}">Edit</a>
          <a href="{% url 'piece:show_delete' show.pk %}">Delete</a>
-       {% endif %}
-       <a href="{{ show.get_absolute_url }}">View</a>
      </div>
+     {% endif %}
     </div>
   {% endfor %}
 </div>

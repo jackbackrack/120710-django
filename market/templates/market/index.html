@@ -30,7 +30,6 @@
         <a href="{% url 'piece:show_edit' show.pk %}" class="card__link">Edit</a>
         <a href="{% url 'piece:show_delete' show.pk %}" class="card__link">Delete</a>
         {% endif %}
-        <a href="{% url 'piece:show_detail' show.id %}" class="card__link">View</a>
       </div>
     </div>
   {% endfor %}
