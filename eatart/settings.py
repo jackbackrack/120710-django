@@ -166,13 +166,14 @@ AWS_S3_CUSTOM_DOMAIN = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_
 AWS_S3_FILE_OVERWRITE = False  
 # AWS_DEFAULT_ACL = None  
 AWS_DEFAULT_ACL = 'public-read'
-AWS_LOCATION = 'static'
+AWS_STATIC_LOCATION = 'static'
+AWS_MEDIA_LOCATION = 'media'
 
 # The absolute path to the directory where collectstatic will collect static files for deployment.
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-STATIC_ROOT = BASE_DIR / 'static'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
+# MEDIA_ROOT = BASE_DIR / 'media/'
+STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/'
+# STATIC_ROOT = BASE_DIR / 'static/'
 
 '''
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/' # 'media/'
@@ -193,9 +194,11 @@ MEDIAFILES_LOCATION = 'media'
 STORAGES = {
     # Media file (image) management
     "default" : {
+        "OPTIONS": { "location": "media/" },
         "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
         },
     "staticfiles": {
+        "OPTIONS": { "location": "static/" },
         "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
         },
     }
