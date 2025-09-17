@@ -41,7 +41,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', 'shows.120710.art', '127.0.0.1']
 
-CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app']
+CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'shows.120710.art']
 
 # Application definition
 
@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    "whitenoise.runserver_nostatic",
+    # "whitenoise.runserver_nostatic",
     'django.contrib.staticfiles',
     "django.contrib.sites",
     "allauth",
@@ -173,7 +173,7 @@ AWS_S3_CUSTOM_DOMAIN = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_
 AWS_S3_FILE_OVERWRITE = False  
 # AWS_DEFAULT_ACL = None  
 AWS_DEFAULT_ACL = 'public-read'
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+#DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Simplified static file serving.
 # https://pypi.org/project/whitenoise/
@@ -183,4 +183,4 @@ STATICFILES_LOCATION = 'static'
 # STATICFILES_STORAGE = 'custom_storages.StaticStorage'
 
 MEDIAFILES_LOCATION = 'media'
-#DEFAULT_FILE_STORAGE = 'custom_storages.MediaStorage'
+DEFAULT_FILE_STORAGE = 'custom_storages.MediaStorage'
