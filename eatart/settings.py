@@ -41,7 +41,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', 'shows.120710.art', '127.0.0.1']
 
-CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'shows.120710.art']
+CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'https://shows.120710.art']
 
 # Application definition
 
@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    "whitenoise.runserver_nostatic",
+    # "whitenoise.runserver_nostatic",
     'django.contrib.staticfiles',
     "django.contrib.sites",
     "allauth",
