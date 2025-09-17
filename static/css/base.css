@@ -44,9 +44,11 @@ body {
     box-sizing: border-box;
 }
 
+/*
 .card {
     background-color: #dddddd;
 }
+*/
 
 .card__image {
     max-height: 300px;
@@ -89,7 +91,7 @@ body {
 }
 
 .card__info {
-    padding: 15px;
+    /* padding: 15px; */
     display: flex;
     justify-content: space-between;
     align-items: center;

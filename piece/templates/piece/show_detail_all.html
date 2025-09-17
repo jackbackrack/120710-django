@@ -22,7 +22,7 @@
 {% for piece in pieces %}
 <div class="card">
     <div>
-      <a href="{% url 'piece:piece_detail' piece.id %}">
+      <a class="card__link" href="{% url 'piece:piece_detail' piece.id %}">
         {% if piece.image %}
         <img src="{{ piece.image.url }}" class="card__image">
         {% endif %}

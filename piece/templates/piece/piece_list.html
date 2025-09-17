@@ -5,7 +5,7 @@
 {% block content %}
 <div style="text-align:center"><h2>Pieces</h2></div>
 {% if user.is_authenticated %}
-  <div style="text-align:center"><a href="{% url 'piece:piece_new' %}">New</a></div>
+  <div style="text-align:center"><a class="card__link" href="{% url 'piece:piece_new' %}">New</a></div>
 {% endif %}
 <div class="cards">
 {% for piece in piece_list %}
@@ -14,13 +14,13 @@
     <img src="{{ piece.image.url }}" class="card__image">
     {% endif %}
     <div class="card__contents">
-      <h2 class="text-sm"><a href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></h2>
-      <h2 class="text-sm">{% for artist in piece.artists.all %}<a href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %}</h2>
+      <h2 class="text-sm"><a class="card__link" href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></h2>
+      <h2 class="text-sm">{% for artist in piece.artists.all %}<a class="card__link" href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %}</h2>
     </div>
     {% if user.is_authenticated %}
     <div class="card__info">
-      <a href="{% url 'piece:piece_edit' piece.pk %}">Edit</a>
-      <a href="{% url 'piece:piece_delete' piece.pk %}">Delete</a>
+      <a class="card__link" href="{% url 'piece:piece_edit' piece.pk %}">Edit</a>
+      <a class="card__link" href="{% url 'piece:piece_delete' piece.pk %}">Delete</a>
     </div>
     {% endif %}
   </div>
