@@ -158,7 +158,7 @@ import dj_database_url
 db_from_env = dj_database_url.config(conn_max_age=500)
 DATABASES['default'].update(db_from_env)
 
-USE_S3 = os.getenv('USE-S3') == 'TRUE'
+USE_S3 = os.getenv('USE_S3') == 'True'
 
 if USE_S3 :
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')  
