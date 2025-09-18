@@ -17,10 +17,11 @@
   <body>
   <header>
   <div style="text-align:center">
-    <b>{% block block_title %}{% endblock %} | 120710</b> --
+    <b>{% block block_title %}{% endblock %} | 120710</b> -
     <a class="card__link" href="{% url 'piece:show_list'%}">Shows</a>
     <a class="card__link" href="{% url 'piece:artist_list'%}">Artists</a>
     <a class="card__link" href="{% url 'piece:piece_list'%}">Artworks</a>
+    -
   {% if user.is_authenticated %}
     <a class="card__link" href="{% url 'account_change_password' %}">ChangePassword</a>
     <a class="card__link" href="{% url 'account_logout' %}">LogOut</a>
