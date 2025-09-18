@@ -15,6 +15,21 @@
     {% endblock %}
   </head>
   <body>
+  <header>
+  <div style="text-align:center">
+    <b>{% block block_title %}{% endblock %} | 120710</b> --
+    <a class="card__link" href="{% url 'piece:show_list'%}">Shows</a>
+    <a class="card__link" href="{% url 'piece:artist_list'%}">Artists</a>
+    <a class="card__link" href="{% url 'piece:piece_list'%}">Artworks</a>
+  {% if user.is_authenticated %}
+    <a class="card__link" href="{% url 'account_change_password' %}">ChangePassword</a>
+    <a class="card__link" href="{% url 'account_logout' %}">LogOut</a>
+  {% else %}
+    <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
+    <!-- <a href="{% url 'account_signup' %}" class="btn btn-primary ms-2">Sign up</a> -->
+  {% endif %}
+  </div>
+  </header>
   <!--
   <nav class="navbar navbar-expand-lg bg-body-tertiary">
     <div class="container-fluid">
@@ -68,21 +83,6 @@
         <h3>Email</h3>
         <p><a href="mailto:info@120710.art">info@120710.art</a></p>
       </div>
-      {% if user.is_authenticated %}
-      <div class="mr-auto">
-        <form class="form d-flex">
-          <a href="{% url 'account_change_password' %}" class="btn btn-outline-secondary">Change Password</a>
-          <a href="{% url 'account_logout' %}" class="btn btn-primary">Log out</a>
-        </form>
-      </div>
-      {% else %}
-      <div class="mr-auto">
-        <form class="form d-flex">
-          <a href="{% url 'account_login' %}" class="btn btn-outline-secondary">Log in</a>
-          <!-- <a href="{% url 'account_signup' %}" class="btn btn-primary ms-2">Sign up</a> -->
-        </form>
-      </div>
-      {% endif %}
     </div>
   </footer>
   {% block javascript %}

@@ -1,12 +1,12 @@
 {% extends 'market/base.html' %}
 
-{% block title %}Artworks{% endblock title %}
-
-{% block content %}
-<div style="text-align:center"><h2>Artworks</h2></div>
+{% block title %}Artworks{% endblock %}
+{% block block_title %}Artworks
 {% if user.is_authenticated %}
-  <div style="text-align:center"><a class="card__link" href="{% url 'piece:piece_new' %}">New</a></div>
+  <a class="card__link" href="{% url 'piece:piece_new' %}">New</a>
 {% endif %}
+{% endblock %}
+{% block content %}
 <div class="cards">
 {% for piece in piece_list %}
   <div class="card">

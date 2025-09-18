@@ -30,10 +30,11 @@ body {
 
 .cards {
     margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    /* max-width: 1500px; */
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+    align-items: center;
+    align-contents: center;
     grid-auto-rows: auto;
     gap: 15px;
     font-family: sans-serif;
@@ -44,28 +45,14 @@ body {
     box-sizing: border-box;
 }
 
-/*
 .card {
+    width: 200px;
     background-color: #dddddd;
 }
-*/
 
 .card__image {
-    max-height: auto;
-    max-width: 200px;
+    width: auto;
     height: auto;
-    /* width: 100%;
-    height: 150px; */
-    object-fit: cover;
-    display: block;
-    border-top: 2px solid #333333;
-    border-right: 2px solid #333333;
-    border-left: 2px solid #333333;
-}
-
-.card__full_image {
-    width: 100%;
-    height: 100%;
     object-fit: cover;
     display: block;
     border-top: 2px solid #333333;

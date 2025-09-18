@@ -3,9 +3,10 @@
 {% block title %}
   120710
 {% endblock %}
+{% block block_title %}Welcome
+{% endblock block_title %}
   
 {% block content %}
-<div style="text-align:center"><h1>120710</h1></div>
 <div class="cards">
   {% for show in shows %}
     <div class="card">
@@ -34,6 +35,4 @@
     </div>
   {% endfor %}
 </div>
-<div style="text-align:center"> <a class="card__link" href="{% url 'piece:artist_list'%}">Artists</a>
-<a class="card__link" href="{% url 'piece:piece_list'%}">Pieces</a></div>
 {% endblock %}

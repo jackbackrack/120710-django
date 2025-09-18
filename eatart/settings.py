@@ -158,22 +158,49 @@ import dj_database_url
 db_from_env = dj_database_url.config(conn_max_age=500)
 DATABASES['default'].update(db_from_env)
 
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')  
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = 'us-west-1'
-AWS_S3_CUSTOM_DOMAIN = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
-AWS_S3_FILE_OVERWRITE = False  
-# AWS_DEFAULT_ACL = None  
-AWS_DEFAULT_ACL = 'public-read'
-AWS_STATIC_LOCATION = 'static'
-AWS_MEDIA_LOCATION = 'media'
+USE_S3 = os.getenv('USE-S3') == 'TRUE'
 
-# The absolute path to the directory where collectstatic will collect static files for deployment.
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
-# MEDIA_ROOT = BASE_DIR / 'media/'
-STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/'
-# STATIC_ROOT = BASE_DIR / 'static/'
+if USE_S3 :
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')  
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = 'us-west-1'
+    AWS_S3_CUSTOM_DOMAIN = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
+    AWS_S3_FILE_OVERWRITE = False  
+    # AWS_DEFAULT_ACL = None  
+    AWS_DEFAULT_ACL = 'public-read'
+    AWS_STATIC_LOCATION = 'static'
+    AWS_MEDIA_LOCATION = 'media'
+
+    # The absolute path to the directory where collectstatic will collect static files for deployment.
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/'
+    STORAGES = {
+        # Media file (image) management
+        "default" : {
+            "OPTIONS": { "location": "media/" },
+            "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
+            },
+        "staticfiles": {
+            "OPTIONS": { "location": "static/" },
+            "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
+            },
+        }
+else:
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    MEDIA_URL = 'media/'
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    STATIC_URL = 'static/'
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    STATICFILES_DIRS = [BASE_DIR / "static"]
+
 
 '''
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/' # 'media/'
@@ -191,14 +218,3 @@ STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 MEDIAFILES_LOCATION = 'media'
 '''
 
-STORAGES = {
-    # Media file (image) management
-    "default" : {
-        "OPTIONS": { "location": "media/" },
-        "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
-        },
-    "staticfiles": {
-        "OPTIONS": { "location": "static/" },
-        "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
-        },
-    }

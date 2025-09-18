@@ -1,8 +1,10 @@
 {% extends 'market/base.html' %}
 
 {% block title %}{{ piece.name }}{% endblock %}
+{% block block_title %}{{ piece.name }}{% endblock %}
 
 {% block content %}
+<div class="cards">
 <div class="card">
   {% if piece.image %}
   <img src="{{ piece.image.url }}" class="card__image">
@@ -42,6 +44,7 @@
     <a class="card__link" href="{% url 'piece:piece_delete' piece.pk %}">Delete</a>
     {% endif %}
   </div>
+</div>
 </div>
 <div style="text-align:center"><h2>Shows</h2></div>
 <div class="cards">

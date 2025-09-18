@@ -1,12 +1,13 @@
 {% extends 'market/base.html' %}
 
-{% block title %}Events{% endblock title %}
-
-{% block content %}
+{% block title %}Events{% endblock %}
+{% block block_title %}Events
 {% if user.is_authenticated %}
-  <div style="text-align:center"><a class="card__link" href="{% url 'piece:event_new' %}">New</a></div>
+  <a class="card__link" href="{% url 'piece:event_new' %}">New</a>
 {% endif %}
-<h2 class="mb-12 text-2xl text-center">Events</h2>
+{% endblock %}
+  
+{% block content %}
 <div class="cards">
 {% for event in event_list %}
   <div class="card">

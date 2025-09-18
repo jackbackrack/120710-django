@@ -1,12 +1,13 @@
 {% extends 'market/base.html' %}
 
 {% block title %}Shows{% endblock title %}
+{% block block_title %}Shows
+{% if user.is_authenticated %}
+  <a class="card__link" href="{% url 'piece:show_new' %}">New</a>
+{% endif %}
+{% endblock block_title %}
 
 {% block content %}
-<div style="text-align:center"><h2>Shows</h2></div>
-{% if user.is_authenticated %}
-  <div style="text-align:center"><a class="card__link" href="{% url 'piece:show_new' %}">New</a></div>
-{% endif %}
 <div class="cards">
   {% for show in show_list %}
     <div class="card">
