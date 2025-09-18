@@ -19,6 +19,14 @@ class ShowListView(ListView):
 class ShowDetailView(DetailView):
     model = Show
     template_name = "piece/show_detail.html"
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        show = kwargs.get('object') 
+        pieces = Piece.objects.filter(shows = show).order_by('artists__name')
+        artists = Artist.objects.filter(pieces__in = show.pieces.all()).distinct().order_by('name')
+        context['artists'] = artists
+        context['pieces'] = pieces
+        return context
 
 class ShowUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Show
@@ -269,10 +277,15 @@ def event_detail(request, pk):
 def show_detail(request, pk):
     show = get_object_or_404(Show, pk=pk)
     # pieces = Piece.objects.filter(shows__id = pk).order_by('artists__name', 'name')
-    pieces = Piece.objects.filter(shows__id = pk).order_by('name')
+    # pieces = Piece.objects.filter(shows__id = pk).order_by('name')
+    pieces = Piece.objects.all()
+    # artists = Artist.objects.filter(pieces__in = pieces).distinct().order_by('name')
+    artists = Artist.objects.all()
+    print(artists.count(), flush=True)
     return render(request, 'piece/show_detail.html', {
         'show': show,
-        'pieces': pieces
+        'pieces': pieces,
+        'artists': artists
     })
 
 def piece_detail(request, pk):

@@ -35,7 +35,7 @@
 </div>
 <div style="text-align:center"><h2>Artworks</h2></div>
 <div class="cards">
-{% for piece in show.pieces.all %}
+{% for piece in pieces %}
   <div class="card">
     {% if piece.image %}
     <img src="{{ piece.image.url }}" class="card__image">
@@ -76,8 +76,7 @@
 <div style="text-align:center"><h2>Artists</h2></div>
 <div class="cards">
   <!-- todo: remove dups and sort -->
-  {% for piece in show.pieces.all %}
-  {% for artist in piece.artists.all %}
+  {% for artist in artists %}
   <div class="card">
     {% if artist.image %}
     <img src="{{ artist.image.url }}" class="card__image">
@@ -90,7 +89,6 @@
     {% endif %}
     </div>
   </div>
-  {% endfor %}
   {% endfor %}
 </div>
 {% endblock %}
