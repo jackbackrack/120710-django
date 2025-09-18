@@ -66,7 +66,7 @@ class Piece(models.Model):
     shows = models.ManyToManyField(Show, related_name="pieces")
     artists = models.ManyToManyField(Artist, related_name="pieces")
     end_year = models.IntegerField()
-    start_year = models.IntegerField(blank=True, null=True)
+    start_year = models.IntegerField(verbose_name='Start_year: only fill in if different than end_year', blank=True, null=True)
     medium = models.TextField(blank=True, null=True)
     dimensions = models.CharField(verbose_name="Dimensions: LxWxD in inches", max_length=255, blank=True, null=True)
     image = models.ImageField(upload_to='piece_images', null=True)
@@ -75,7 +75,7 @@ class Piece(models.Model):
     replacement_cost = models.FloatField(verbose_name="Replacment Cost: redo cost in the rare case that it gets stolen or damaged", blank=True, null=True)
     is_sold = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
-    installation = models.TextField(blank=True, null=True)
+    installation = models.TextField(verbose_name='Installation: optional instructions for installing your work', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

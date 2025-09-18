@@ -15,3 +15,9 @@ def index(request):
 def contact(request):
     return render(request, 'market/contact.html')
 
+def about(request):
+    return render(request, 'market/about.html')
+
+def howto(request):
+    return render(request, 'market/howto.html')
+
