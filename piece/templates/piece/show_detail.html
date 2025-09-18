@@ -12,7 +12,7 @@
     <p class="mb-6 text-3xl">{{ show.start }} - {{ show.end }}</p>
     <h3 class="mb-6">Curated by:
     {% for curator in show.curators.all %}
-    <a class="card__link" href="{% url 'piece:artist_detail' curator.id %}"> {{ curator.name }}</a>
+    <a class="card__link" href="{% url 'piece:artist_detail' curator.id %}">{{ curator.name }}</a>
     {% endfor %}
     </h3>
     {% if show.description %}
@@ -25,10 +25,8 @@
   </div>
   <div class="card__info">
   {% if user.is_authenticated %}
-  <div>
     <a class="card__link" href="{% url 'piece:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'piece:show_delete' show.pk %}">Delete</a>
-  </div>
   {% endif %}
   </div>
 </div>

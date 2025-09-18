@@ -3,17 +3,17 @@
 {% block title %}Shows{% endblock title %}
 
 {% block content %}
+<div style="text-align:center"><h2>Shows</h2></div>
 {% if user.is_authenticated %}
-  <div style="text-align:center"><a class="card__link" href="{% url 'piece:show_new' %}">+ New</a></div>
+  <div style="text-align:center"><a class="card__link" href="{% url 'piece:show_new' %}">New</a></div>
 {% endif %}
 <div class="cards">
-  <div style="text-align:center"><h2>Shows</h2></div>
   {% for show in show_list %}
     <div class="card">
       <img src="{{ show.image.url }}" class="card__image">
       <div class="card__contents">
         <h2 class="text-2xl"><a class="card__link" class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h2>
-        <h2 class="mb-6">Curated by:
+        <h3 class="mb-6">Curated by:
         {% for curator in show.curators.all %}
           {{ curator.name }}
           {% if not forloop.last %} and {% endif %}
@@ -22,7 +22,7 @@
         {% for event in show.events.all %}
           {{ event.name }}: {{ event.date }}, {{ event.start }} - {{ event.end }} <br>
         {% endfor %}
-        </h2>
+        </h3>
       </div>
       <div class="card__info">
         {% if user.is_authenticated %}
