@@ -5,11 +5,9 @@
 
 {% block content %}
 <div class="cards">
-<div class="card">
+<div class="card" id="big_card">
   {% if artist.image %}
-  <div class="col-span-2">
-    <img src="{{ artist.image.url }}" class="card__image">
-  </div>
+  <img src="{{ artist.image.url }}" class="card__image">
   {% endif %}
   <div class="card__contents">
     <h1 class="mb-6 text-3xl">{{ artist.name }}</h1>
@@ -34,6 +32,7 @@
   </div>
 </div>
 </div>
+<div style="text-align:center"><h2>Artworks</h2></div>
 {% if user.is_authenticated %}
 <div style="text-align:center"><a class="card__link" href="{% url 'piece:piece_new' %}">New</a></div>
 {% endif %}
