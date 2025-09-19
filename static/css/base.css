@@ -116,6 +116,7 @@ body {
     background-color: lightgray;
     border: 2px solid black;
     justify-content: space-between;
+    padding: 10px
 }
 
 .footlet {
