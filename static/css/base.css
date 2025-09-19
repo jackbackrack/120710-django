@@ -36,7 +36,7 @@ body {
     align-items: center;
     align-contents: center;
     grid-auto-rows: auto;
-    gap: 15px;
+    gap: 10px;
     font-family: sans-serif;
     padding-top: 30px;
 }
@@ -46,8 +46,8 @@ body {
 }
 
 .card {
-    width: 200px;
-    max-width: 200px;
+    width: 175px;
+    max-width: 175px;
     background-color: #dddddd;
 }
 
