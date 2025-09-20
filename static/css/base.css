@@ -37,7 +37,7 @@ body {
     align-items: center;
     align-contents: center;
     grid-auto-rows: auto;
-    gap: 10px;
+    gap: 8px;
     font-family: sans-serif;
     padding-top: 30px;
 }
@@ -70,11 +70,10 @@ body {
 .card__content {
     line-height: 1.0;
     font-size: 0.9em;
-    padding: 16px;
     background: #fafafa;
     border-right: 2px solid #333333;
     border-left: 2px solid #333333;
-    padding: 3px
+    padding: 3px;
 }
 
 .card__content > p:first-of-type {
@@ -86,7 +85,6 @@ body {
 }
 
 .card__info {
-    /* padding: 15px; */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -96,7 +94,7 @@ body {
     border-bottom: 2px solid #333333;
     border-right: 2px solid #333333;
     border-left: 2px solid #333333;
-    padding: 3px
+    padding: 3px;
 }
 
 .card__info i {
