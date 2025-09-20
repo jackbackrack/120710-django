@@ -38,7 +38,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'cg#p$g+j9tax!#a3cup@1$8obt2_+&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
 
-ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', 'shows.120710.art', '127.0.0.1']
+ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', '127.0.0.1']
 
 CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'https://shows.120710.art']
 
