@@ -13,6 +13,7 @@ html {
 
 header {
     margin: 8px;
+    font-size: 0.9em;
 }
 
 body {
@@ -73,6 +74,7 @@ body {
     background: #fafafa;
     border-right: 2px solid #333333;
     border-left: 2px solid #333333;
+    padding: 3px
 }
 
 .card__content > p:first-of-type {
@@ -94,6 +96,7 @@ body {
     border-bottom: 2px solid #333333;
     border-right: 2px solid #333333;
     border-left: 2px solid #333333;
+    padding: 3px
 }
 
 .card__info i {
@@ -122,6 +125,7 @@ body {
 .footlet {
     /* height: 200px;
     width: 200px; */
+    font-size: 0.8em;
     background-color: lightgray;
 }
 
