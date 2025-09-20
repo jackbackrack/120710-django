@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 
-from market.views import index, contact, about, howto
+from market.views import index, contact, about, howto, signup
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
@@ -18,6 +18,7 @@ urlpatterns = [
     path('contact/', contact, name='contact'),
     path('about/', about, name='about'),
     path('howto/', howto, name='howto'),
+    path('signup/', signup, name='signup'),
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

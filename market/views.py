@@ -39,3 +39,6 @@ def about(request):
 def howto(request):
     return render(request, 'market/howto.html')
 
+def signup(request):
+    return render(request, 'market/signup.html')
+
