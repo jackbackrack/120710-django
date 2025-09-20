@@ -14,7 +14,7 @@
     {% if event.image %}
     <img src="{{ event.image.url }}" class="card__image">
     {% endif %}
-    <div class="card__contents"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.show.name }} of {{ event.name }}</a></div>
+    <div class="card__content"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.show.name }} of {{ event.name }}</a></div>
     <div class="card__info">
       {% if user.is_authenticated %}
       <a class="card__link" href="{% url 'piece:event_edit' event.pk %}">Edit</a>

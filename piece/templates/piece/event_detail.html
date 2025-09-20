@@ -8,7 +8,7 @@
   {% if event.image %}
   <img src="{{ event.image.url }}" class="card__image">
   {% endif %}
-  <div class="card__contents">
+  <div class="card__content">
     <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }} of {{ event.show.name }}</a></h1>
     <p class="mb-6 text-3xl">{{ event.start }} - {{ event.end }}</p>
     {% if event.description %}

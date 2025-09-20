@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card">
   <img src="{{ show.image.url }}" class="card__image">
-  <div class="card__contents">
+  <div class="card__content">
 <h1 class="mb-6 text-2xl">{{ show.name }}</h1>
 <h2 class="mb-6">{{ show.start }} - {{ show.end }}</h2>
 <h2 class="mb-6">Curated by:
@@ -26,7 +26,7 @@
         {% if piece.image %}
         <img src="{{ piece.image.url }}" class="card__image">
         {% endif %}
-        <div class="card__contents">
+        <div class="card__content">
           <h2 class="text-sm">{{ piece.name }} </h2>
           <h2 class="text-sm">
             {% if piece.start_year %}

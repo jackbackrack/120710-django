@@ -13,7 +13,7 @@
     {% if piece.image %}
     <img src="{{ piece.image.url }}" class="card__image">
     {% endif %}
-    <div class="card__contents">
+    <div class="card__content">
       <h3 class="text-sm"><a class="card__link" href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></h3>
       <h3 class="text-sm">{% for artist in piece.artists.all %}<a class="card__link" href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %}</h3>
     </div>

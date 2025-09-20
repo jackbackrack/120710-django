@@ -14,7 +14,7 @@
     {% if artist.image %}
     <img src="{{ artist.image.url }}" class="card__image">
     {% endif %}
-    <div class="card__contents"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
+    <div class="card__content"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
     <div class="card__info">
     {% if user.is_authenticated %}
       <a class="card__link" href="{% url 'piece:artist_edit' artist.pk %}">Edit</a>
