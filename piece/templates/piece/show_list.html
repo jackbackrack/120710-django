@@ -21,7 +21,8 @@
         {% endfor %} <br>
         {{ show.start }} - {{ show.end }} <br>
         {% for event in show.events.all %}
-          {{ event.name }}: {{ event.date }}, {{ event.start }} - {{ event.end }} <br>
+          <a class="card__link" href="{% url 'piece:event_detail' event.id %}">{{ event.name }}</a>:
+          {{ event.date }}, {{ event.start }} - {{ event.end }} <br>
         {% endfor %}
         </h4>
       </div>

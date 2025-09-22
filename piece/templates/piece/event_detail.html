@@ -4,7 +4,8 @@
 {% block block_title %}{{ event.show.name }} / {{ event.name }}{% endblock %}
 
 {% block content %}
-<div class="card">
+<div class="cards">
+<div class="card" id="big_card">
   {% if event.image %}
   <img src="{{ event.image.url }}" class="card__image">
   {% endif %}
@@ -21,5 +22,6 @@
     <a class="card__link" href="{% url 'piece:event_delete' event.pk %}">Delete</a>
     {% endif %}
   </div>
+</div>
 </div>
 {% endblock %}
