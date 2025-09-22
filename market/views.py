@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from datetime import datetime
 
-from piece.models import Piece, Artist, Show
+from piece.models import Piece, Artist, Show, Event
 
 def index(request):
     pieces = Piece.objects.filter()[0:6]
@@ -12,6 +12,7 @@ def index(request):
     is_current_show = False
     is_next_show = False
     next_show = None
+    next_event = Event.objects.filter(start__gte=now, end__lte=now).first()
 
     if current_show:
         next_show = current_show
@@ -25,6 +26,7 @@ def index(request):
         'is_current_show': is_current_show,
         'is_next_show': is_next_show,
         'next_show': next_show,
+        'next_event': next_event,
         'pieces': pieces,
         'shows': shows,
         'artists': artists,

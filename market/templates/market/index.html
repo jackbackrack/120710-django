@@ -14,8 +14,8 @@
 <div style="text-align:center"><h2>Next Show</h2></div>
 {% endif %}
 
+<div class="cards">
 {% if next_show %}
-  <div class="cards">
     <div class="card" id="big_card">
       {% if next_show.image %}
       <img class="card__image" src="{{ next_show.image.url }}" class="rounded-t-xl">
@@ -40,8 +40,29 @@
       {% endif %}
       </div>
     </div>
-  </div>
 {% endif %}
+{% if next_event %}
+    <div class="card" id="big_card">
+      {% if next_event.image %}
+      <img src="{{ next_event.image.url }}" class="card__image">
+      {% endif %}
+      <div class="card__content">
+        <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ next_event.get_absolute_url }}">{{ next_event.name }} of {{ next_event.show.name }}</a></h1>
+        <p class="mb-6 text-3xl">{{ next_event.start }} - {{ next_event.end }}</p>
+        {% if next_event.description %}
+        <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ next_event.description }}</p>
+        {% endif %}
+      </div>
+      <div class="card__info">
+        {% if user.is_authenticated %}
+        <a class="card__link" href="{% url 'piece:event_edit' next_event.pk %}">Edit</a>
+        <a class="card__link" href="{% url 'piece:event_delete' next_event.pk %}">Delete</a>
+        {% endif %}
+      </div>
+    </div>
+{% endif %}
+
+</div>
 
 <div style="text-align:center"><h2>All Shows</h2></div>
 
