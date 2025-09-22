@@ -10,11 +10,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('', index, name='index'),
-    #path('pieces/', include('piece.piece_urls')),
     path('', include('piece.urls')),
-    #path('pieces/pieces/', include('piece.urls')),
-    #path('pieces/shows/', include('piece.urls')),
-    #path('pieces/artists/', include('piece.urls')),
     path('contact/', contact, name='contact'),
     path('about/', about, name='about'),
     path('howto/', howto, name='howto'),

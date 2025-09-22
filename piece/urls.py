@@ -21,6 +21,7 @@ from .views import (
     EventUpdateView,
     EventDeleteView,
     EventCreateView,
+    SearchResultsListView,
     )
 
 app_name = 'piece'
@@ -46,6 +47,7 @@ urlpatterns = [
     path('event/<int:pk>/edit/', EventUpdateView.as_view(), name='event_edit'),
     path('event/<int:pk>/delete/', EventDeleteView.as_view(), name='event_delete'),
     path('event/new/', EventCreateView.as_view(), name='event_new'),
+    path('artist/search/', SearchResultsListView.as_view(), name="search_results"),
     # path('pieces/<int:pk>/', views.piece_detail, name='piece_detail'),
     # path('artists/<int:pk>/', views.artist_detail, name='artist_detail'),
     # path('shows/<int:pk>/', views.show_detail, name='show_detail'),

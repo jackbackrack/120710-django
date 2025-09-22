@@ -1,0 +1,14 @@
+{% extends "market/base.html" %}
+
+{% block title %}Search{% endblock %}
+{% block block_title %}Search{% endblock %}
+
+{% block content %}
+<h1>Search Results</h1>
+{% for artist in artist_list %}
+<h3><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></h3>
+{% endfor %}
+{% for piece in piece_list %}
+<h3><a class="card__link" href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></h3>
+{% endfor %}
+{% endblock %}

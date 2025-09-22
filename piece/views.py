@@ -3,6 +3,7 @@ from django.views.generic import ListView, DetailView
 from django.views.generic.edit import UpdateView, DeleteView, CreateView
 from django.urls import reverse_lazy
 from django.shortcuts import render, get_object_or_404
+from django.db.models import Q
 
 from .models import Show, Artist, Piece, Event
 
@@ -267,6 +268,22 @@ class PieceCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.groups.filter(name='artist').exists()
+
+class SearchResultsListView(ListView):
+    model = Artist
+    context_object_name = "artist_list"
+    template_name = "piece/search_results.html"
+    def get_queryset(self):
+        query = self.request.GET.get("q")
+        return Artist.objects.filter(Q(name__icontains=query))
+    def get_context_data(self,*args,**kwargs):
+       context = super(SearchResultsListView,self).get_context_data(*args,**kwargs)
+
+       query = self.request.GET.get('q')
+       pieces = Piece.objects.filter(name__icontains=query)
+
+       context['piece_list'] = pieces
+       return context
 
 def event_detail(request, pk):
     event = get_object_or_404(Event, pk=pk)
