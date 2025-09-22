@@ -12,7 +12,7 @@ def index(request):
     is_current_show = False
     is_next_show = False
     next_show = None
-    next_event = Event.objects.filter(start__gte=now, end__lte=now).first()
+    next_event = Event.objects.filter(date__gte=now).first()
 
     if current_show:
         next_show = current_show
