@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 
-from market.views import index, contact, about, howto, signup, signup_success, signup_failure
+from market.views import index, contact, about, howto #, signup, signup_success, signup_failure
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
