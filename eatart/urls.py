@@ -14,9 +14,9 @@ urlpatterns = [
     path('contact/', contact, name='contact'),
     path('about/', about, name='about'),
     path('howto/', howto, name='howto'),
-    path('signup/', signup, name='signup'),
-    path("signup_success/", signup_success, name="signup_success"),
-    path("signup_failure/", signup_failure, name="signup_failure"),
+    # path('signup/', signup, name='signup'),
+    # path("signup_success/", signup_success, name="signup_success"),
+    # path("signup_failure/", signup_failure, name="signup_failure"),
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
