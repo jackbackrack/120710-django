@@ -23,9 +23,9 @@
     <a class="card__link" href="{% url 'piece:artist_list'%}">Artists</a> |
     <a class="card__link" href="{% url 'piece:piece_list'%}">Artworks</a> |
     <a class="card__link" href="{% url 'about'%}">About</a> |
-    <a class="card__link" href="{% url 'contact'%}">Contact</a>
-    <!-- <a class="card__link" href="{% url 'signup'%}">SignUp</a>
-    <a class="card__link" href="{% url 'howto'%}">HowTo</a> -->
+    <a class="card__link" href="{% url 'contact'%}">Contact</a> |
+    <a class="card__link" href="{% url 'signup'%}">SignUp</a>
+    <!-- <a class="card__link" href="{% url 'howto'%}">HowTo</a> -->
     -
   {% if user.is_authenticated %}
     <a class="card__link" href="{% url 'account_change_password' %}">ChangePassword</a> |
