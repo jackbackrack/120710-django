@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 
-from market.views import index, contact, about, howto, signup, signup_success, signup_failure
+from market.views import index, visit, about, howto, signup, signup_success, signup_failure
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
@@ -11,7 +11,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('', index, name='index'),
     path('', include('piece.urls')),
-    path('contact/', contact, name='contact'),
+    path('visit/', visit, name='visit'),
     path('about/', about, name='about'),
     path('howto/', howto, name='howto'),
     path('signup/', signup, name='signup'),
