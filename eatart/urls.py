@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 from market.views import index, visit, contact, about, howto, signup, signup_success, signup_failure
+from accounts.views import CustomPasswordResetView
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
@@ -19,5 +20,6 @@ urlpatterns = [
     path("signup_success/", signup_success, name="signup_success"),
     path("signup_failure/", signup_failure, name="signup_failure"),
     path("admin/", admin.site.urls),
+    path("accounts/password/reset/", CustomPasswordResetView.as_view()),
     path("accounts/", include("allauth.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
