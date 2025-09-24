@@ -51,7 +51,7 @@
   {% for show in piece.shows.all %}
     <div class="card">
      {% if show.image %}
-     <a href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
+     <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
      {% endif %}
      <div class="card__content"><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></div>
      <div class="card__info">

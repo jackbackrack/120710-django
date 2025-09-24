@@ -38,7 +38,7 @@
 {% for piece in pieces %}
   <div class="card">
     {% if piece.image %}
-    <a href="{{ piece.get_absolute_url }}"><img src="{{ piece.image.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ piece.get_absolute_url }}"><img src="{{ piece.image.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <h2 class="text-sm">{% for artist in piece.artists.all %}<a class="card__link" href="{% url 'piece:artist_detail' artist.id %}"> {{ artist }}</a>{% endfor %}
@@ -79,7 +79,7 @@
   {% for artist in artists %}
   <div class="card">
     {% if artist.image %}
-    <a href="{{ artist.get_absolute_url }}"><img src="{{ artist.image.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img src="{{ artist.image.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
     <div class="card__info">

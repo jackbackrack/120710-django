@@ -11,7 +11,7 @@
 {% for piece in piece_list %}
   <div class="card">
     {% if piece.image %}
-    <img src="{{ piece.image.url }}" class="card__image">
+    <a style="display: contents" href="{{ piece.get_absolute_url }}"><img src="{{ piece.image.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <h3 class="text-sm"><a class="card__link" href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></h3>

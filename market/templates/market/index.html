@@ -8,16 +8,17 @@
   
 {% block content %}
 
+{% if is_current_show %}
+<div style="text-align:center"><h2>Current Show</h2></div>  
+{% elif is_next_show %}
+<div style="text-align:center"><h2>Next Show</h2></div>
+{% endif %}
+
 <div class="cards">
 {% if next_show %}
     <div class="card" id="big_card">
-      {% if is_current_show %}
-      <div style="text-align:center"><h2>Current Show</h2></div>  
-      {% elif is_next_show %}
-      <div style="text-align:center"><h2>Next Show</h2></div>
-      {% endif %}
       {% if next_show.image %}
-      <a href="{{ next_show.get_absolute_url }}"><img class="card__image" src="{{ next_show.image.url }}" class="rounded-t-xl"></a>
+      <a style="display: contents" href="{{ next_show.get_absolute_url }}"><img class="card__image" src="{{ next_show.image.url }}" class="rounded-t-xl"></a>
       {% endif %}
       <div class="card__content">
         <h2 class="text-2xl"><a class="card__link" href="{{ next_show.get_absolute_url }}">{{ next_show.name }}</a></h2>
@@ -42,9 +43,8 @@
 {% endif %}
 {% if next_event %}
     <div class="card" id="big_card">
-      <div style="text-align:center"><h2>Next Event</h2></div>
       {% if next_event.image %}
-      <a href="{{ next_event.get_absolute_url }}"><img src="{{ next_event.image.url }}" class="card__image"></a>
+      <a style="display: contents" href="{{ next_event.get_absolute_url }}"><img src="{{ next_event.image.url }}" class="card__image"></a>
       {% endif %}
       <div class="card__content">
         <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ next_event.get_absolute_url }}">{{ next_event.name }} of {{ next_event.show.name }}</a></h1>
@@ -70,7 +70,7 @@
   {% for show in shows %}
     <div class="card">
       {% if show.image %}
-      <a href="{{ show.get_absolute_url }}"><img class="card__image" src="{{ show.image.url }}" class="rounded-t-xl"></a>
+      <a style="display: contents" href="{{ show.get_absolute_url }}"><img class="card__image" src="{{ show.image.url }}" class="rounded-t-xl"></a>
       {% endif %}
       <div class="card__content">
         <h2 class="text-2xl"><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h2>
