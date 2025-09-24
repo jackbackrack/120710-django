@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags honeypot %}
 
 {% block title %}Sign Up{% endblock %}
 {% block block_title %}Sign Up{% endblock %}
@@ -9,9 +9,16 @@
 
 <form method="post">
   {% csrf_token %}
+  {% render_honeypot_field %} {# This renders the hidden honeypot field #}
   {{ form|crispy }}
   <button class="btn btn-success" type="submit">Sign up</button>
 </form>
+
+<style>
+    .honeypot {
+        display: none;
+    }
+</style>
 
 <!--
 <div id="mc_embed_shell">

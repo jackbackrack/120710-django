@@ -57,12 +57,21 @@ INSTALLED_APPS = [
     "allauth.account",
     "crispy_forms",
     "crispy_bootstrap5",
+    'django_recaptcha',
+    'honeypot',
     "debug_toolbar",
     'market',
     'piece',
     'storages',
     'import_export',
 ]
+
+RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY')
+RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY')
+
+HONEYPOT_FIELD_NAME = 'address'
+
+ACCOUNT_SIGNUP_HONEYPOT_FIELD = 'phone_number'
 
 # ACCOUNT_USERNAME_REQUIRED = False
 # ACCOUNT_AUTHENTICATION_METHOD = "email"
