@@ -40,7 +40,7 @@
   {% for piece in artist.pieces.all %}
   <div class="card">
     {% if piece.image %}
-    <img src="{{ piece.image.url }}" class="card__image">
+    <a href="{{ piece.get_absolute_url }}"><img src="{{ piece.image.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content"><a class="card__link" href="{{ piece.get_absolute_url }}">{{ piece.name }}</a></div>
     <div class="card__info">
