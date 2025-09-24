@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 
-from market.views import index, visit, contact, about, howto, signup, signup_success, signup_failure
-from accounts.views import CustomPasswordResetView
+from market.views import index, visit, contact, about, howto, subscribe, subscribe_success, subscribe_failure
+from accounts.views import CustomSignupView, CustomPasswordResetView
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
@@ -16,10 +16,11 @@ urlpatterns = [
     path('contact/', contact, name='contact'),
     path('about/', about, name='about'),
     path('howto/', howto, name='howto'),
-    path('signup/', signup, name='signup'),
-    path("signup_success/", signup_success, name="signup_success"),
-    path("signup_failure/", signup_failure, name="signup_failure"),
+    path('subscribe/', subscribe, name='subscribe'),
+    path("subscribe_success/", subscribe_success, name="subscribe_success"),
+    path("subscribe_failure/", subscribe_failure, name="subscribe_failure"),
     path("admin/", admin.site.urls),
+    path("accounts/signup/", CustomSignupView.as_view()),
     path("accounts/password/reset/", CustomPasswordResetView.as_view()),
     path("accounts/", include("allauth.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

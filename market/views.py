@@ -52,7 +52,7 @@ def about(request):
 def howto(request):
     return render(request, 'market/howto.html')
 
-class SignUpForm(forms.Form):
+class SubscribeForm(forms.Form):
     first_name = forms.CharField(label="First Name", max_length=100)
     last_name = forms.CharField(label="Last Name", max_length=100)
     email = forms.EmailField(label="Email")
@@ -74,9 +74,9 @@ class SignUpForm(forms.Form):
 #            # Exclude 'address' from the layout to not render it
 #        )
 @check_honeypot()
-def signup(request):
+def subscribe(request):
     if request.method == 'POST':
-        form = SignUpForm(request.POST)
+        form = SubscribeForm(request.POST)
         if form.is_valid():
             # Access cleaned data
             first_name = form.cleaned_data['first_name']
@@ -102,18 +102,18 @@ def signup(request):
             try:
                 # adding member to mailchimp audience list
                 mailchimpClient.lists.add_list_member(settings.MAILCHIMP_AUDIENCE_ID, userInfo)
-                return redirect("signup_success")
+                return redirect("subscribe_success")
             except ApiClientError as error:
-                return redirect("signup_failure")
+                return redirect("subscribe_failure")
     else:
-        form = SignUpForm
+        form = SubscribeForm
 
-    return render(request, "market/signup.html", {'form': form})
+    return render(request, "market/subscribe.html", {'form': form})
 
 
-def signup_failure(request):
-    return render(request, 'market/signup_failure.html')
+def subscribe_failure(request):
+    return render(request, 'market/subscribe_failure.html')
 
-def signup_success(request):
-    return render(request, 'market/signup_success.html')
+def subscribe_success(request):
+    return render(request, 'market/subscribe_success.html')
 
