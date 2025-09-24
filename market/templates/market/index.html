@@ -8,15 +8,14 @@
   
 {% block content %}
 
-{% if is_current_show %}
-<div style="text-align:center"><h2>Current Show</h2></div>  
-{% elif is_next_show %}
-<div style="text-align:center"><h2>Next Show</h2></div>
-{% endif %}
-
 <div class="cards">
 {% if next_show %}
     <div class="card" id="big_card">
+      {% if is_current_show %}
+      <div style="text-align:center"><h2>Current Show</h2></div>  
+      {% elif is_next_show %}
+      <div style="text-align:center"><h2>Next Show</h2></div>
+      {% endif %}
       {% if next_show.image %}
       <a style="display: contents" href="{{ next_show.get_absolute_url }}"><img class="card__image" src="{{ next_show.image.url }}" class="rounded-t-xl"></a>
       {% endif %}
@@ -43,6 +42,7 @@
 {% endif %}
 {% if next_event %}
     <div class="card" id="big_card">
+      <div style="text-align:center"><h2>Next Event</h2></div>
       {% if next_event.image %}
       <a style="display: contents" href="{{ next_event.get_absolute_url }}"><img src="{{ next_event.image.url }}" class="card__image"></a>
       {% endif %}
