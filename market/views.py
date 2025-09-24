@@ -55,7 +55,7 @@ class SignUpForm(forms.Form):
     email = forms.EmailField(label="Email")
     address = forms.CharField(
         required=False,
-        label="If you're a human, leave this field blank.",
+        label="If you're a human, you're awesome, and leave this invisible field blank.",
         widget=forms.TextInput(attrs={'tabindex': '-1', 'class': 'honeypot'}))
     captcha = ReCaptchaField()
 
@@ -70,7 +70,6 @@ class SignUpForm(forms.Form):
 #            Submit('submit', 'Submit')
 #            # Exclude 'address' from the layout to not render it
 #        )
-
 @check_honeypot()
 def signup(request):
     if request.method == 'POST':
