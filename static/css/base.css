@@ -169,3 +169,6 @@ h5 {
     letter-spacing: 1px;
 }
 
+th, td {
+  padding: 8px; /* Adds 8px padding on all sides of the cell content */
+}
