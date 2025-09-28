@@ -34,7 +34,7 @@ class Show(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["start"]
+        ordering = ["-start"]
 
     def __str__(self):
         return self.name
@@ -53,7 +53,7 @@ class Event(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["date"]
+        ordering = ["-date"]
 
     def __str__(self):
         return self.show.name + " " + self.name
