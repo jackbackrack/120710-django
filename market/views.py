@@ -16,11 +16,13 @@ def index(request):
     shows = Show.objects.filter().order_by('-start')
     artists = Artist.objects.filter().order_by('name')
     now = datetime.now()
+    print(now)
     current_show = Show.objects.filter(start__lte=now, end__gte=now).first()
     is_current_show = False
     is_next_show = False
     next_show = None
-    next_event = Event.objects.filter(date__gte=now).first()
+    next_event = Event.objects.filter(date__gte=now).order_by('date').first()
+    print(next_event)
 
     if current_show:
         next_show = current_show
