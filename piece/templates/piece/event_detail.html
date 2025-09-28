@@ -13,7 +13,7 @@
     <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }} of {{ event.show.name }}</a></h1>
     <p class="mb-6 text-3xl">{{ event.start }} - {{ event.end }}</p>
     {% if event.description %}
-    <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ event.description }}</p>
+    <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ event.description|safe }}</p>
     {% endif %}
   </div>
   <div class="card__info">
