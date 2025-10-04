@@ -34,6 +34,16 @@ class ShowDetailView(DetailView):
         context['pieces'] = pieces
         return context
 
+class ShowPlacardsView(DetailView):
+    model = Show
+    template_name = "piece/show_placards_detail.html"
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        show = kwargs.get('object') 
+        pieces = Piece.objects.filter(shows = show).order_by('artists__name')
+        context['pieces'] = pieces
+        return context
+
 class ShowUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Show
     fields = (
