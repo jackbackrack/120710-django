@@ -9,7 +9,8 @@
     &quot;{{ piece.name }}&quot;, 
     &quot;{% for artist in piece.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}&quot;,
     &quot;{% if piece.start_year %}{{ piece.start_year }}-{% endif %}{{ piece.end_year }}&quot;,
-    &quot;{{ piece.medium }}&quot; )
+    &quot;{{ piece.medium }}&quot;
+    &quot;https://120710.art{{ piece.get_absolute_url }}&quot;)
   <br>
 {% endfor %}
 {% endblock %}
