@@ -6,6 +6,7 @@
 {% block content %}
 {% for piece in pieces %}
 {% for artist in piece.artists.all %}
+<br><br>
 {% if artist.image %}
 <img src="{{ artist.image.url }}" width=800>
 {% endif %}
@@ -20,15 +21,21 @@ We are so excited to introduce
 who is exhibiting in our {{ show.name }} show curated by
 {% for curator in show.curators.all %}{{ curator }}{% if not forloop.last %}, {% endif %}{% endfor %}.
 You can see the show Saturdays 12-4p or MWF 12-6p by appointment by calling 341-205-1331 or emailing info@120710.art .
-<br><br>
 
 {% for artist in piece.artists.all %}
 
 {% if artist.bio %}
+<br><br>
 BIO
 <br><br>
 {{ artist.bio }}
-{% if not forloop.last %}<br>{% endif %}
+{% endif %}
+
+{% if artist.statement %}
+<br><br>
+STATEMENT
+<br><br>
+{{ artist.statement }}
 {% endif %}
 
 {% endfor %}
@@ -41,7 +48,5 @@ PIECE
 {{ piece.medium }} <br>
 {% if piece.description %}<br>{{ piece.description }}<br><br>{% endif %}
 #120710 #gilmandistrict #bayareagalleries #bayareaart
-<br>
-<br>
 {% endfor %}
 {% endblock %}
