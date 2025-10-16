@@ -23,12 +23,14 @@ You can see the show Saturdays 12-4p or MWF 12-6p by appointment by calling 341-
 <br><br>
 
 {% for artist in piece.artists.all %}
-{%if artist.biography %}
+
+{% if artist.biography %}
 BIO
 <br><br>
 {{ artist.biography }}
 {% if not forloop.last %}<br>{% endif %}
 {% endif %}
+
 {% endfor %}
 
 <br>
