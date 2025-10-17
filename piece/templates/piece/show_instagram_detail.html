@@ -17,7 +17,9 @@
 {% endif %}
 <br><br>
 We are so excited to introduce
-{% for artist in piece.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %},
+{% for artist in piece.artists.all %}{{ artist.name }}
+{% if artist.instagram %}( @{{ artist.instagram }} ){% endif %}
+{% if not forloop.last %}, {% endif %}{% endfor %},
 who is exhibiting in our {{ show.name }} show curated by
 {% for curator in show.curators.all %}{{ curator }}{% if not forloop.last %}, {% endif %}{% endfor %}.
 You can see the show Saturdays 12-4p or MWF 12-6p by appointment by calling 341-205-1331 or emailing info@120710.art .
