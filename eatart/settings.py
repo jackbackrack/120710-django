@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'piece',
     'storages',
     'import_export',
+    'imagekit',
 ]
 
 RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY')

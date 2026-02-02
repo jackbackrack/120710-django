@@ -2,6 +2,8 @@ import datetime
 from django.contrib.auth.models import User
 from django.db import models
 from django.urls import reverse
+from imagekit.models import ImageSpecField
+from imagekit.processors import ResizeToFit
 
 class Artist(models.Model):
     user = models.ForeignKey(User, related_name='artists', on_delete=models.CASCADE, blank=True, null=True)
@@ -13,6 +15,10 @@ class Artist(models.Model):
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='artist_images', null=True)
+    thumbnail = ImageSpecField(source='image',
+                               processors=[ResizeToFit(300, 300)],
+                               format='JPEG',
+                               options={'quality': 60})
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -28,6 +34,10 @@ class Show(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
+    thumbnail = ImageSpecField(source='image',
+                               processors=[ResizeToFit(300, 300)],
+                               format='JPEG',
+                               options={'quality': 60})
     curators = models.ManyToManyField(Artist)
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)
@@ -70,6 +80,10 @@ class Piece(models.Model):
     medium = models.TextField(blank=True, null=True)
     dimensions = models.CharField(verbose_name="Dimensions: LxWxD in inches", max_length=255, blank=True, null=True)
     image = models.ImageField(upload_to='piece_images', null=True)
+    thumbnail = ImageSpecField(source='image',
+                               processors=[ResizeToFit(300, 300)],
+                               format='JPEG',
+                               options={'quality': 60})
     price = models.FloatField(verbose_name="Price: numeric price", blank=True, null=True)
     pricing = models.CharField(verbose_name='Pricing: anything more sophisticated like "Upon request" or "NFS"', max_length=255, blank=True, null=True)
     replacement_cost = models.FloatField(verbose_name="Replacment Cost: redo cost in the rare case that it gets stolen or damaged", blank=True, null=True)
