@@ -176,6 +176,12 @@ class ArtistListView(ListView):
     model = Artist
     template_name = "piece/artist_list.html"
 
+class ArtistMailChimpView(ListView, LoginRequiredMixin, UserPassesTestMixin):
+    model = Artist
+    template_name = "piece/artist_mailchimp_list.html"
+    def test_func(self):
+        return self.request.user.is_superuser
+
 class ArtistDetailView(DetailView):
     model = Artist
     template_name = "piece/artist_detail.html"

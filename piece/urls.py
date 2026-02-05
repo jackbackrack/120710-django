@@ -7,6 +7,7 @@ from .views import (
     PieceDeleteView,
     PieceCreateView,
     ArtistListView,
+    ArtistMailChimpView,
     ArtistDetailView,
     ArtistUpdateView,
     ArtistDeleteView,
@@ -31,6 +32,7 @@ app_name = 'piece'
 
 urlpatterns = [
     path('artists/', ArtistListView.as_view(), name='artist_list'),
+    path('artists/mailchimp', ArtistMailChimpView.as_view(), name='artist_mailchimp_list'),
     path('artist/<int:pk>/', ArtistDetailView.as_view(), name='artist_detail'),
     path('artist/<int:pk>/edit/', ArtistUpdateView.as_view(), name='artist_edit'),
     path('artist/<int:pk>/delete/', ArtistDeleteView.as_view(), name='artist_delete'),
