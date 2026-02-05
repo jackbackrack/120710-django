@@ -4,7 +4,7 @@
 {% block block_title %}MailChimp Artist List{% endblock %}
 
 {% block content %}
-{% for artist in artist_list reversed %}
+{% for artist in artist_list %}
 {% if artist.email %}
 {{ artist.email }} {{ artist.name }}
 <br>
