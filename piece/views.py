@@ -2,7 +2,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, DetailView
 from django.views.generic.edit import UpdateView, DeleteView, CreateView
 from django.urls import reverse_lazy
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Q
 
 from .models import Show, Artist, Piece, Event
@@ -33,6 +33,17 @@ class ShowDetailView(DetailView):
         context['artists'] = artists
         context['pieces'] = pieces
         return context
+
+def redirect_to_latest_show(request):
+    # Get the latest art show based on primary key (highest ID)
+    # Using order_by('-pk')[0] is efficient
+    latest_show = Show.objects.order_by('-pk').first()
+    
+    if latest_show:
+        return redirect(latest_show)
+    else:
+        # Handle the case where no art shows exist yet
+        return redirect('/shows/') # Or a 404 page
 
 class ShowPlacardsView(DetailView):
     model = Show
