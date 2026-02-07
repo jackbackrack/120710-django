@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.contrib import messages
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit
@@ -104,18 +105,12 @@ def subscribe(request):
             try:
                 # adding member to mailchimp audience list
                 mailchimpClient.lists.add_list_member(settings.MAILCHIMP_AUDIENCE_ID, userInfo)
-                return redirect("subscribe_success")
+                messages.success(request, f'Successfully subscribed {email}!')
+                return redirect(request.path)
             except ApiClientError as error:
-                return redirect("subscribe_failure")
+                messages.error(request, f'Failed to subscribe {email}!')
+                return redirect(request.path)
     else:
         form = SubscribeForm
 
     return render(request, "market/subscribe.html", {'form': form})
-
-
-def subscribe_failure(request):
-    return render(request, 'market/subscribe_failure.html')
-
-def subscribe_success(request):
-    return render(request, 'market/subscribe_success.html')
-

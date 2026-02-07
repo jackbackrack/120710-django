@@ -15,12 +15,6 @@ class CustomPasswordResetView(PasswordResetView):
 class CustomSignupView(SignupView):
     form_class = CustomSignupForm
 
-def artist_user_new_failure(request):
-    return render(request, 'accounts/artist_user_new_failure.html')
-
-def artist_user_new_success(request):
-    return render(request, 'accounts/artist_user_new_success.html')
-
 def generate_random_password(length=12):
     """Generate a random string of fixed length."""
     characters = string.ascii_letters + string.digits + string.punctuation
@@ -43,7 +37,9 @@ class ArtistUserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         group = Group.objects.get(name='artist')
         user.groups.add(group)
 
-        return redirect('accounts/artist_user_new_success')
+        messages.success(request, f'Successfully added { user.username }!')
+
+        return redirect(self.request.path)
 
     def test_func(self):
         return self.request.user.is_superuser

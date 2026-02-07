@@ -5,6 +5,16 @@
 {% block block_title %}Subscribe{% endblock %}
 
 {% block content %}
+
+<!-- Display messages if they exist -->
+{% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li style="color: green; font-weight: bold;">{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
 <h2>Join our mailing list to receive information about upcoming shows/events.</h2>
 
 <form method="post">
