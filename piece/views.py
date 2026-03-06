@@ -28,7 +28,13 @@ class ShowDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object') 
-        pieces = Piece.objects.filter(shows = show).order_by('name').distinct('name').order_by('artists__name')
+        pieces = Piece.objects.filter(
+            shows = show
+        ).annotate(
+            first_artist_name=Min('artists__name') # Finds the alphabetically first artist name
+        ).order_by(
+            'first_artist_name', 'name' # Sort by first artist, then name for consistency
+        ).distinct()
         artists = Artist.objects.filter(pieces__in = show.pieces.all()).distinct().order_by('name')
         context['artists'] = artists
         context['pieces'] = pieces
