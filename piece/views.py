@@ -28,7 +28,7 @@ class ShowDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object') 
-        pieces = Piece.objects.filter(shows = show).order_by('artists__name')
+        pieces = Piece.objects.filter(shows = show).distinct().order_by('artists__name')
         artists = Artist.objects.filter(pieces__in = show.pieces.all()).distinct().order_by('name')
         context['artists'] = artists
         context['pieces'] = pieces
@@ -51,7 +51,7 @@ class ShowPlacardsView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object') 
-        pieces = Piece.objects.filter(shows = show).order_by('artists__name')
+        pieces = Piece.objects.filter(shows = show).distinct().order_by('artists__name')
         context['pieces'] = pieces
         return context
 
