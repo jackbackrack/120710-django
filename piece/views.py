@@ -43,13 +43,34 @@ class ShowDetailView(DetailView):
 def redirect_to_latest_show(request):
     # Get the latest art show based on primary key (highest ID)
     # Using order_by('-pk')[0] is efficient
-    latest_show = Show.objects.order_by('-pk').first()
-    
-    if latest_show:
-        return redirect(latest_show)
+    now = timezone.now()
+
+    # 1. Query for ongoing shows
+    # A show is ongoing if its start time is in the past/present and its end time is in the future/present
+    ongoing_shows = Show.objects.filter(
+        start_date__lte=now,
+        end_date__gte=now,
+    ).order_by('-start_date') # Order by start date descending to get the "latest" ongoing show first
+
+    # 2. Query for the next upcoming shows
+    # Shows that start in the future
+    upcoming_shows = Show.objects.filter(
+        start_date__gt=now
+    ).order_by('start_date') # Order by start date ascending to get the "next" show first
+
+    # 3. Combine and get the result
+    # Try to get the first ongoing show. If none, get the first upcoming show.
+    current_show = ongoing_shows.first()
+
+    if current_show:
+        return redirect(current_show)
     else:
-        # Handle the case where no art shows exist yet
-        return redirect('/shows/') # Or a 404 page
+        next_show = upcoming_shows.first()
+        if next_show:
+            return redirect(next_show)
+        else:
+            # Handle the case where no art shows exist yet
+            return redirect('/shows/') # Or a 404 page
 
 class ShowPlacardsView(DetailView):
     model = Show
