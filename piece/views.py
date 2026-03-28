@@ -4,6 +4,7 @@ from django.views.generic.edit import UpdateView, DeleteView, CreateView
 from django.urls import reverse_lazy
 from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Q, Min
+from django.utils import timezone
 
 from .models import Show, Artist, Piece, Event
 
@@ -48,15 +49,15 @@ def redirect_to_latest_show(request):
     # 1. Query for ongoing shows
     # A show is ongoing if its start time is in the past/present and its end time is in the future/present
     ongoing_shows = Show.objects.filter(
-        start_date__lte=now,
-        end_date__gte=now,
-    ).order_by('-start_date') # Order by start date descending to get the "latest" ongoing show first
+        start__lte=now,
+        end__gte=now,
+    ).order_by('-start') # Order by start date descending to get the "latest" ongoing show first
 
     # 2. Query for the next upcoming shows
     # Shows that start in the future
     upcoming_shows = Show.objects.filter(
-        start_date__gt=now
-    ).order_by('start_date') # Order by start date ascending to get the "next" show first
+        start__gt=now
+    ).order_by('start') # Order by start date ascending to get the "next" show first
 
     # 3. Combine and get the result
     # Try to get the first ongoing show. If none, get the first upcoming show.
