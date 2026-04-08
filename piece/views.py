@@ -217,7 +217,8 @@ class ArtistDetailView(DetailView):
 class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Artist
     fields = (
-        "name",
+        "first_name",
+        "last_name",
         "email",
         "phone",
         "website",
@@ -244,7 +245,8 @@ class ArtistDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Artist
     fields = (
-        "name",
+        "first_name",
+        "last_name",
         "email",
         "phone",
         "website",

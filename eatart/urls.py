@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 from market.views import index, visit, contact, about, howto, subscribe
-from accounts.views import CustomSignupView, CustomPasswordResetView, ArtistUserCreateView
+from accounts.views import ArtistUserCreateView, CustomPasswordResetView, CustomSignupView, UserNameUpdateView
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
@@ -18,6 +18,7 @@ urlpatterns = [
     path('howto/', howto, name='howto'),
     path('subscribe/', subscribe, name='subscribe'),
     path('accounts/artist_user_new/', ArtistUserCreateView.as_view()),
+    path('accounts/profile/', UserNameUpdateView.as_view(), name='account_profile'),
     path("admin/", admin.site.urls),
     path("accounts/signup/", CustomSignupView.as_view()),
     path("accounts/password/reset/", CustomPasswordResetView.as_view()),

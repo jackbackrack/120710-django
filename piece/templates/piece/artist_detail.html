@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ artist.name }}{% endblock %}
-{% block block_title %}{{ artist.name }}{% endblock %}
+{% block title %}{{ artist.full_name }}{% endblock %}
+{% block block_title %}{{ artist.full_name }}{% endblock %}
 
 {% block content %}
 <div class="cards">
@@ -10,7 +10,7 @@
   <img src="{{ artist.image.url }}" class="card__image">
   {% endif %}
   <div class="card__content">
-    <h1 class="mb-6 text-3xl">{{ artist.name }}</h1>
+    <h1 class="mb-6 text-3xl">{{ artist.full_name }}</h1>
     {% if artist.instagram %}
     <p class="text-gray-500 text-sm"><strong>Instagram: </strong><a href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a></p>
     {% endif %}

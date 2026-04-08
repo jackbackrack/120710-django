@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import quote_plus
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,7 +40,9 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'cg#p$g+j9tax!#a3cup@1$8obt2_+&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
 
-ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', '127.0.0.1']
+LOCAL_DEV = DEBUG and os.environ.get('DJANGO_ENV', 'local') == 'local'
+
+ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', '127.0.0.1', 'localhost', 'db']
 
 CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'https://shows.120710.art', 'https://www.120710.art', 'https://120710.art']
 
@@ -63,6 +66,7 @@ INSTALLED_APPS = [
     'django_recaptcha',
     'honeypot',
     "debug_toolbar",
+    'accounts',
     'market',
     'piece',
     'storages',
@@ -84,6 +88,13 @@ ACCOUNT_SIGNUP_HONEYPOT_FIELD = 'phone_number'
 DEFAULT_FROM_EMAIL = 'info@120710.art'
 
 ACCOUNT_ADAPTER = 'eatart.account_adapter.NoNewUsersAccountAdapter'
+ACCOUNT_FORMS = {
+    'signup': 'accounts.forms.CustomSignupForm',
+}
+SOCIALACCOUNT_FORMS = {
+    'signup': 'accounts.forms.CustomSignupForm',
+}
+SOCIALACCOUNT_AUTO_SIGNUP = False
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
@@ -197,9 +208,27 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+SILENCED_SYSTEM_CHECKS = []
+if LOCAL_DEV:
+    SILENCED_SYSTEM_CHECKS.append('django_recaptcha.recaptcha_test_key_error')
+
 import dj_database_url
-db_from_env = dj_database_url.config(conn_max_age=500)
-DATABASES['default'].update(db_from_env)
+
+default_database_url = None
+if os.environ.get('POSTGRES_DB'):
+    postgres_user = quote_plus(os.environ.get('POSTGRES_USER', 'postgres'))
+    postgres_password = quote_plus(os.environ.get('POSTGRES_PASSWORD', ''))
+    postgres_host = os.environ.get('POSTGRES_HOST', 'localhost')
+    postgres_port = os.environ.get('POSTGRES_PORT', '5432')
+    postgres_db = os.environ['POSTGRES_DB']
+    default_database_url = (
+        f'postgresql://{postgres_user}:{postgres_password}'
+        f'@{postgres_host}:{postgres_port}/{postgres_db}'
+    )
+
+db_from_env = dj_database_url.config(default=default_database_url, conn_max_age=500)
+if db_from_env:
+    DATABASES['default'].update(db_from_env)
 
 USE_S3 = os.getenv('USE_S3') == 'True'
 

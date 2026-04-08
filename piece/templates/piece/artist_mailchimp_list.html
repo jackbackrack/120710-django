@@ -7,7 +7,7 @@ Email Address, First Name, Last Name
 {% block content %}
 {% for artist in artist_list %}
 {% if artist.email %}
-{{ artist.email }},{{ artist.name }}
+{{ artist.email }},{{ artist.first_name }},{{ artist.last_name }}
 <br>
 {% endif %}
 {% endfor %}
