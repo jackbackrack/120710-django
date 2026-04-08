@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags socialaccount %}
 
 {% block title %}Log In{% endblock %}
 {% block block_title %}Log In{% endblock %}
@@ -11,4 +11,9 @@
   {{ form|crispy }}
   <button class="btn btn-success" type="submit">Log in</button>
 </form>
+<hr>
+<h3>Or sign in with Google</h3>
+<a href="{% provider_login_url 'google' %}" class="btn btn-outline-danger">
+  Sign in with Google
+</a>
 {% endblock content %}
