@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "allauth",
     "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     "crispy_forms",
     "crispy_bootstrap5",
     'django_recaptcha',
@@ -68,8 +70,6 @@ INSTALLED_APPS = [
     'imagekit',
 ]
 
-RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY')
-RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY')
 
 HONEYPOT_FIELD_NAME = 'address'
 
@@ -84,6 +84,24 @@ ACCOUNT_SIGNUP_HONEYPOT_FIELD = 'phone_number'
 DEFAULT_FROM_EMAIL = 'info@120710.art'
 
 ACCOUNT_ADAPTER = 'eatart.account_adapter.NoNewUsersAccountAdapter'
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+SOCIALACCOUNT_ADAPTER = 'eatart.account_adapter.SocialAccountAdapter'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
+            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', ''),
+        },
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
