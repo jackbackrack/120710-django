@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.urls import path, include
 
-from market.views import index, visit, contact, about, howto, subscribe
 from accounts.views import ArtistUserCreateView, CustomPasswordResetView, CustomSignupView, UserNameUpdateView
+from eatart.views.public import index, visit, contact, about, howto
+from eatart.views.subscribe import subscribe
 
 #temporary hack as well as + static(...) below
 from django.conf import settings

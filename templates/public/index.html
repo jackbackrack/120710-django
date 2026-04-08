@@ -5,14 +5,14 @@
 {% endblock %}
 {% block block_title %}Welcome
 {% endblock block_title %}
-  
+
 {% block content %}
 
 <div class="cards">
 {% if next_show %}
     <div class="card" id="big_card">
       {% if is_current_show %}
-      <div class="text-center"><h2>Current Show</h2></div>  
+      <div class="text-center"><h2>Current Show</h2></div>
       {% elif is_next_show %}
       <div class="text-center"><h2>Next Show</h2></div>
       {% endif %}

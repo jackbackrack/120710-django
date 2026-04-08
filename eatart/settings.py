@@ -67,7 +67,6 @@ INSTALLED_APPS = [
     'honeypot',
     "debug_toolbar",
     'accounts',
-    'market',
     'piece',
     'storages',
     'import_export',
