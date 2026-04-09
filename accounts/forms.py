@@ -3,6 +3,9 @@ from django import forms
 from django.contrib.auth.models import User
 from django_recaptcha.fields import ReCaptchaField
 
+from accounts.roles import add_artist_role, add_curator_role, remove_curator_role
+from gallery.models import Artist, Tag
+
 
 class CustomResetPasswordForm(ResetPasswordForm):
     captcha = ReCaptchaField()
@@ -25,6 +28,17 @@ class CustomSignupForm(SignupForm):
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
         user.save(update_fields=["first_name", "last_name"])
+        add_artist_role(user)
+        Artist.objects.get_or_create(
+            user=user,
+            defaults={
+                'name': f'{user.first_name} {user.last_name}'.strip() or user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'phone': '',
+            },
+        )
         return user
 
 
@@ -52,3 +66,33 @@ class UserNameUpdateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["first_name"].required = True
         self.fields["last_name"].required = True
+
+
+class ArtistRoleUpdateForm(forms.Form):
+    is_curator = forms.BooleanField(required=False, label='Curator access')
+    curator_tags = forms.ModelMultipleChoiceField(queryset=Tag.objects.none(), required=False)
+
+    def __init__(self, *args, artist, **kwargs):
+        self.artist = artist
+        super().__init__(*args, **kwargs)
+        self.fields['curator_tags'].queryset = Tag.objects.order_by('name')
+
+        if self.artist.user_id:
+            self.initial['is_curator'] = self.artist.user.groups.filter(name='curator').exists()
+            self.initial['curator_tags'] = self.artist.user.curator_tags.all()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.artist.user_id:
+            raise forms.ValidationError('The selected artist must be linked to a user account before roles can be updated.')
+        return cleaned_data
+
+    def save(self):
+        user = self.artist.user
+        if self.cleaned_data['is_curator']:
+            add_curator_role(user)
+        else:
+            remove_curator_role(user)
+
+        user.curator_tags.set(self.cleaned_data['curator_tags'])
+        return user

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}My Open Call{% endblock %}
+{% block block_title %}My Open Call{% endblock %}
+
+{% block content %}
+<form class="mb-3" method="get">
+  <input type="search" name="q" value="{{ query }}" placeholder="Search open call exhibitions or your opted-in artworks">
+  <button type="submit">Search</button>
+</form>
+
+<div class="text-center"><h2>Active Open Call Exhibitions</h2></div>
+<div class="cards">
+  {% for show in open_call_shows %}
+  <div class="card">
+    {% if show.image %}
+    <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <h3><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h3>
+      <p>{{ show.start }} - {{ show.end }}</p>
+      {% if show.description %}
+      <p>{{ show.description|safe|truncatewords:30 }}</p>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <p>No open call exhibitions are active right now.</p>
+  {% endfor %}
+</div>
+
+<div class="text-center"><h2>{{ artist.full_name }}'s Opted-In Artworks</h2></div>
+<div class="cards">
+  {% for artwork in artist_open_call_artworks %}
+  <div class="card">
+    {% if artwork.image %}
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <h3><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
+      {% if artwork.medium %}
+      <p>{{ artwork.medium|truncatewords:12 }}</p>
+      {% endif %}
+      {% if artwork.is_public %}
+      <p>Public</p>
+      {% else %}
+      <p>Private until selected</p>
+      {% endif %}
+      {% if artwork.shows.exists %}
+      <p>Selected for {% for show in artwork.shows.all %}<a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <p>You have not opted any artworks into open calls yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}

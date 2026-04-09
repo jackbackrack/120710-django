@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ artist.full_name }}{% endblock %}
+{% block block_title %}{{ artist.full_name }}{% endblock %}
+
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  {% if artist.image %}
+  <img src="{{ artist.image.url }}" class="card__image">
+  {% endif %}
+  <div class="card__content">
+    <h1 class="mb-6 text-3xl">{{ artist.full_name }}</h1>
+    {% if artist.tags.exists %}
+    <p class="text-gray-500 text-sm"><strong>Tags: </strong>{% for tag in artist.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if artist.instagram %}
+    <p class="text-gray-500 text-sm"><strong>Instagram: </strong><a href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a></p>
+    {% endif %}
+    {% if artist.website %}
+    <p class="text-gray-500 text-sm"><strong>Website: </strong><a href="{{ artist.website }}">{{ artist.website }}</a></p>
+    {% endif %}
+    {% if artist.bio %}
+    <p class="text-gray-500 text-sm"><strong>Bio: </strong>{{ artist.bio }}</p>
+    {% endif %}
+    {% if artist.statement %}
+    <p class="text-gray-500 text-sm"><strong>Statement: </strong>{{ artist.statement }}</p>
+    {% endif %}
+  </div>
+  <div class="card__info">
+    {% if user.is_authenticated %}
+    <a href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
+    <a href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
+    {% if can_update_roles %}
+    <a href="{% url 'artist_role_edit' artist.pk %}">Roles</a>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+</div>
+<div class="text-center"><h2>Artworks</h2></div>
+{% if user.is_authenticated %}
+<div class="text-center"><a class="card__link" href="{% url 'gallery:artwork_new' %}">New</a></div>
+{% endif %}
+<div class="cards">
+  {% for artwork in artworks %}
+  <div class="card">
+    {% if artwork.image %}
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>
+      {% if not artwork.is_public %}
+      <p>Private</p>
+      {% endif %}
+    </div>
+    <div class="card__info">
+      {% if user.is_authenticated %}
+      <a href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
+      <a href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

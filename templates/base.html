@@ -13,6 +13,9 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     {% endblock %}
+    {% if structured_data_json %}
+    <script type="application/ld+json">{{ structured_data_json|safe }}</script>
+    {% endif %}
   </head>
   <body>
   <header>
@@ -20,9 +23,11 @@
     <img width="50px" src="{% static 'img/120710-box-logo-03.png' %}">
     <b>{% block block_title %}{% endblock %} | 120710</b> -
     <a class="card__link" href="{% url 'index'%}">Home</a>
-    | <a class="card__link" href="{% url 'piece:show_list'%}">Shows</a>
-    | <a class="card__link" href="{% url 'piece:artist_list'%}">Artists</a>
-    | <a class="card__link" href="{% url 'piece:piece_list'%}">Artworks</a>
+    | <a class="card__link" href="{% url 'gallery:show_list'%}">Shows</a>
+    | <a class="card__link" href="{% url 'gallery:artist_list'%}">Artists</a>
+    | <a class="card__link" href="{% url 'gallery:artwork_list'%}">Artworks</a>
+    {% if can_access_open_call_dashboard %}| <a class="card__link" href="{% url 'gallery:open_call_dashboard' %}">Open Call Dashboard</a>{% endif %}
+    {% if can_access_artist_open_call %}| <a class="card__link" href="{% url 'gallery:artist_open_call' %}">My Open Call</a>{% endif %}
     | <a class="card__link" href="{% url 'about'%}">About</a>
     | <a class="card__link" href="{% url 'visit'%}">Visit</a>
     | <a class="card__link" href="{% url 'contact'%}">Contact</a>
@@ -37,14 +42,12 @@
     <a class="card__link" href="{% url 'account_logout' %}">LogOut</a>
   {% else %}
     <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
-    <!-- <a href="{% url 'account_signup' %}" class="btn btn-primary ms-2">SignUp</a> -->
+    | <a class="card__link" href="{% url 'account_signup' %}">SignUp</a>
   {% endif %}
-    <!--
-    <form class="d-flex" action="{% url 'piece:search_results' %}" method="get">
+    <form class="d-flex" action="{% url 'gallery:search_results' %}" method="get">
       <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search" >
       <button class="btn btn-outline-success" type="submit">Search</button>
     </form>
-    -->
   </div>
   </header>
   <!--

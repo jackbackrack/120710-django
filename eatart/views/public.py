@@ -2,11 +2,12 @@ from datetime import datetime
 
 from django.shortcuts import render
 
-from piece.models import Artist, Event, Piece, Show
+from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
+from gallery.models import Artist, Artwork, Event, Show
 
 
 def index(request):
-    pieces = Piece.objects.all()[:6]
+    artworks = Artwork.objects.all()[:6]
     shows = Show.objects.order_by('-start')
     artists = Artist.objects.order_by('name')
     now = datetime.now()
@@ -29,9 +30,10 @@ def index(request):
         'is_next_show': is_next_show,
         'next_show': next_show,
         'next_event': next_event,
-        'pieces': pieces,
+        'artworks': artworks,
         'shows': shows,
         'artists': artists,
+        'structured_data_json': dump_json_ld(schema_to_dict(gallery_to_schema(request))),
     })
 
 

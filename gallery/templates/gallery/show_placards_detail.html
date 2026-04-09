@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ show.name }} placards{% endblock %}
+{% block block_title %}{{ show.name }} placards{% endblock %}
+
+{% block content %}
+{% for artwork in artworks %}
+  Placard(
+    &quot;{{ artwork.name }}&quot;, 
+    &quot;{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}&quot;,
+    &quot;{% if artwork.start_year %}{{ artwork.start_year }}-{% endif %}{{ artwork.end_year }}&quot;,
+    &quot;{{ artwork.medium }}&quot;
+    &quot;https://120710.art{{ artwork.get_absolute_url }}&quot;)
+  <br>
+{% endfor %}
+{% endblock %}
