@@ -5,10 +5,8 @@ env
 .env.local
 source/
 .github/
-compose.yml
 run-local.sh
 stop-local.sh
 restore-local.sh
 01-timescaledb.sql
 .env.example
-.env.local.example

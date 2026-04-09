@@ -1,0 +1,22 @@
+services:
+  db:
+    image: ${TIMESCALE_IMAGE:-timescale/timescaledb-ha:pg15-ts2.14}
+    container_name: eatart-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eatart}
+      POSTGRES_USER: ${POSTGRES_USER:-eatart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eatart}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/home/postgres/pgdata
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eatart} -d ${POSTGRES_DB:-eatart}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
