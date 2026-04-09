@@ -90,10 +90,7 @@ ACCOUNT_ADAPTER = 'eatart.account_adapter.NoNewUsersAccountAdapter'
 ACCOUNT_FORMS = {
     'signup': 'accounts.forms.CustomSignupForm',
 }
-SOCIALACCOUNT_FORMS = {
-    'signup': 'accounts.forms.CustomSignupForm',
-}
-SOCIALACCOUNT_AUTO_SIGNUP = False
+SOCIALACCOUNT_AUTO_SIGNUP = True
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

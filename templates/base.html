@@ -42,7 +42,6 @@
     <a class="card__link" href="{% url 'account_logout' %}">LogOut</a>
   {% else %}
     <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
-    | <a class="card__link" href="{% url 'account_signup' %}">SignUp</a>
   {% endif %}
     {% if user.is_authenticated %}
     <form class="d-flex" action="{% url 'gallery:search_results' %}" method="get">

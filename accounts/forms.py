@@ -3,7 +3,8 @@ from django import forms
 from django.contrib.auth.models import User
 from django_recaptcha.fields import ReCaptchaField
 
-from accounts.roles import add_artist_role, add_curator_role, remove_curator_role
+from accounts.roles import add_curator_role, remove_curator_role
+from accounts.signup import ensure_signup_profile
 from gallery.models import Artist, Tag
 
 
@@ -28,17 +29,7 @@ class CustomSignupForm(SignupForm):
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
         user.save(update_fields=["first_name", "last_name"])
-        add_artist_role(user)
-        Artist.objects.get_or_create(
-            user=user,
-            defaults={
-                'name': f'{user.first_name} {user.last_name}'.strip() or user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
-                'phone': '',
-            },
-        )
+        ensure_signup_profile(user)
         return user
 
 

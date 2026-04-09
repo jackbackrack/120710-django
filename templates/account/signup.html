@@ -1,13 +1,20 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags socialaccount %}
 
 {% block title %}Sign up{% endblock %}
+{% block block_title %}Sign up{% endblock %}
 
 {% block content %}
 <h2>Sign up</h2>
+<h3>Google account</h3>
+<a href="{% provider_login_url 'google' process='signup' %}" class="btn btn-outline-danger">
+  Continue with Google
+</a>
+<hr>
+<h3>Email and password</h3>
 <form method="post">
   {% csrf_token %}
   {{ form|crispy }}
-  <button class="btn btn-success" type="submit">Sign up</button>
+  <button class="btn btn-success" type="submit">Sign up with email and password</button>
 </form>
 {% endblock content %}
