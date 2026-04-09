@@ -8,6 +8,7 @@
 {% endblock block_title %}
 
 {% block content %}
+{% if user.is_authenticated %}
 <form class="mb-3" method="get">
   <label for="show-tag-filter">Filter by tag</label>
   <select id="show-tag-filter" name="tag" onchange="this.form.submit()">
@@ -17,6 +18,7 @@
     {% endfor %}
   </select>
 </form>
+{% endif %}
 <div class="cards">
   {% for show in shows %}
     <div class="card">

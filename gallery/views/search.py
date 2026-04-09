@@ -1,3 +1,4 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.views.generic import ListView
 
@@ -5,7 +6,7 @@ from gallery.models import Artist, Artwork, Tag
 from gallery.permissions import tag_filter_queryset, visible_artwork_queryset
 
 
-class SearchResultsListView(ListView):
+class SearchResultsListView(LoginRequiredMixin, ListView):
     model = Artist
     context_object_name = 'artist_list'
     template_name = 'gallery/search_results.html'

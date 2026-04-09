@@ -44,10 +44,12 @@
     <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
     | <a class="card__link" href="{% url 'account_signup' %}">SignUp</a>
   {% endif %}
+    {% if user.is_authenticated %}
     <form class="d-flex" action="{% url 'gallery:search_results' %}" method="get">
       <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search" >
       <button class="btn btn-outline-success" type="submit">Search</button>
     </form>
+    {% endif %}
   </div>
   </header>
   <!--

@@ -1,10 +1,18 @@
 from django.utils.text import slugify
 
 
+def normalize_slug_value(value, fallback):
+    slug = slugify(value or '') or fallback
+    slug = slug.replace('_', '-')
+    while '--' in slug:
+        slug = slug.replace('--', '-')
+    return slug.strip('-') or fallback
+
+
 def build_unique_slug(instance, value, slug_field_name='slug'):
     field = instance._meta.get_field(slug_field_name)
     max_length = field.max_length
-    base_slug = slugify(value or '') or instance._meta.model_name
+    base_slug = normalize_slug_value(value, instance._meta.model_name)
     base_slug = base_slug[:max_length].strip('-') or instance._meta.model_name
 
     queryset = instance.__class__.objects.all()

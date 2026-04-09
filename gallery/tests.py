@@ -51,6 +51,24 @@ class ArtistModelTests(TestCase):
         self.assertEqual(second_artist.slug, 'ada-lovelace-2')
 
 
+class PublicSlugNormalizationTests(TestCase):
+    def test_artwork_slug_replaces_underscores_with_hyphens(self):
+        artwork = Artwork.objects.create(
+            name='Cobble_stone.png',
+            end_year=2024,
+        )
+
+        self.assertEqual(artwork.slug, 'cobble-stonepng')
+
+    def test_artwork_slug_replaces_underscores_inside_brackets(self):
+        artwork = Artwork.objects.create(
+            name='untitled [dsl_73]',
+            end_year=2024,
+        )
+
+        self.assertEqual(artwork.slug, 'untitled-dsl-73')
+
+
 @override_settings(
     STORAGES={
         'default': {
@@ -98,13 +116,29 @@ class PublicUrlTests(TestCase):
             '/artworks/',
             '/shows/',
             '/events/',
-            '/artist/search/?q=Analytical',
         ]
 
         for url in urls:
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
+
+    def test_search_route_redirects_anonymous_users_to_login(self):
+        response = self.client.get('/artist/search/?q=Analytical')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.headers['Location'])
+
+    def test_search_form_is_hidden_for_anonymous_users(self):
+        response = self.client.get('/artworks/')
+
+        self.assertNotContains(response, 'placeholder="Search"')
+
+    def test_tag_filters_are_hidden_for_anonymous_users(self):
+        for url in ('/artists/', '/artworks/', '/shows/', '/events/'):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertNotContains(response, 'Filter by tag')
 
     def test_legacy_public_detail_routes_redirect_to_slug_urls(self):
         redirects = [
@@ -435,3 +469,20 @@ class AuthorizationWorkflowTests(TestCase):
         for response in (show_detail_response, show_list_response, artwork_detail_response, homepage_response):
             self.assertContains(response, self.show.get_placards_url())
             self.assertContains(response, self.show.get_instagram_url())
+
+    def test_search_is_available_to_logged_in_users(self):
+        self.client.force_login(self.artist_user)
+
+        page_response = self.client.get('/artworks/')
+        search_response = self.client.get('/artist/search/?q=Public')
+
+        self.assertContains(page_response, 'placeholder="Search"')
+        self.assertEqual(search_response.status_code, 200)
+
+    def test_tag_filters_are_visible_to_logged_in_users(self):
+        self.client.force_login(self.artist_user)
+
+        for url in ('/artists/', '/artworks/', '/shows/', '/events/'):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(response, 'Filter by tag')
