@@ -10,8 +10,8 @@ It assumes:
 - the current codebase uses the new `gallery` app and migrations
 - PostgreSQL is running through Docker Compose
 - Django commands are run with PostgreSQL environment variables loaded, not against the default SQLite fallback
-- That you've migrated the Python environment with `docker compose exec web python manage.py migrate`
-- If you get hosed up, drop the docker db and recreate it docker compose --env-file .env.local up -d db
+- That you've migrated the Python environment with `python manage.py migrate`
+- If you get hosed up, drop the db and recreate it  or the service with docker = docker compose --env-file .env.local up -d db
 - Destroy the db eatart and recreate it
 - Then `docker compose exec web python manage.py migrate`
 
@@ -24,6 +24,23 @@ It assumes:
 - `docker/postgres/verify-piece-to-gallery.sql`
 
 ## Local Workflow
+
+If already running:
+Stop web and connections to the database:
+docker compose --env-file .env.local exec db psql -U eatart -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'eatart' AND pid <> pg_backend_pid();"
+docker compose --env-file .env.local stop web
+
+
+Local Table drop and restore (don't do this on Railway Production env)
+# Drop and recreate the database inside the running container
+docker compose --env-file .env.local exec db psql -U eatart -d postgres -c "DROP DATABASE eatart;"
+docker compose --env-file .env.local exec db psql -U eatart -d postgres -c "CREATE DATABASE eatart;"
+
+Start web
+docker compose --env-file .env.local start web
+
+# Apply Django migrations to rebuild the gallery_* schema
+docker compose --env-file .env.local exec web python manage.py migrate
 
 ### 1. Start with the old dump
 
@@ -39,9 +56,8 @@ This recreates the local database from the dump configured by `POSTGRES_DUMP_FIL
 
 Apply the current Django migrations so the new `gallery_*` tables exist alongside the old tables:
 
-```bash
-set -a && source .env.local && set +a && python manage.py migrate
-```
+docker compose --env-file .env.local exec web python manage.py migrate
+
 
 At this point both schemas should exist:
 
@@ -50,11 +66,7 @@ At this point both schemas should exist:
 
 ### 3. Copy data into the new schema
 
-Run the SQL-based migration:
-
-```bash
-./docker/postgres/migrate-piece-to-gallery.sh
-```
+Use pgAdmin to run the docker/postgres/migrate-piece-to-gallery.sql sql script
 
 This script:
 
@@ -66,11 +78,9 @@ This script:
 
 ### 4. Verify the migration
 
-Run the verification script:
+Run the verification in pgAdmin
 
-```bash
-./docker/postgres/verify-piece-to-gallery.sh
-```
+docker/postgres/verify-piece-to-gallery.sql
 
 Expected outcome:
 
@@ -83,8 +93,8 @@ Expected outcome:
 After verification, run the gallery test suite and do a small manual check in the UI:
 
 ```bash
-set -a && source .env.local && set +a && python manage.py test gallery
-set -a && source .env.local && set +a && python manage.py runserver
+docker compose --env-file .env.local exec web python manage.py test gallery
+docker compose --env-file .env.local exec web python manage.py runserver
 ```
 
 Suggested manual checks:
@@ -96,16 +106,6 @@ Suggested manual checks:
 - an event detail page renders
 
 ## Pipeline Workflow
-
-For a rebuild-style deployment pipeline, the order should be:
-
-1. Restore the legacy dump into PostgreSQL.
-2. Run Django migrations for the new codebase.
-3. Run `docker/postgres/migrate-piece-to-gallery.sh` logic or equivalent SQL directly in the deployment database.
-4. Run `docker/postgres/verify-piece-to-gallery.sh` logic or equivalent SQL as a gate.
-5. Only continue deployment if verification reports matching counts and zero missing records.
-
-In a non-Docker pipeline, execute the SQL files directly with `psql` instead of the shell wrappers.
 
 In every environment, make sure Django commands are pointed at PostgreSQL. In this repo, that means loading `.env.local` locally or setting the equivalent Railway variables in the deployment environment.
 

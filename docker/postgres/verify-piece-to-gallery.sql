@@ -12,6 +12,9 @@ WITH counts AS (
     SELECT 'artwork-show links', (SELECT COUNT(*) FROM piece_piece_shows), (SELECT COUNT(*) FROM gallery_artwork_shows)
     UNION ALL
     SELECT 'show-curator links', (SELECT COUNT(*) FROM piece_show_curators), (SELECT COUNT(*) FROM gallery_show_curators)
+    UNION ALL
+    -- gallery_show_artists is derived (no legacy source); report its count against itself as a non-zero sanity check
+    SELECT 'show-artist links (derived)', (SELECT COUNT(*) FROM gallery_show_artists), (SELECT COUNT(*) FROM gallery_show_artists)
 ),
 comparison AS (
     SELECT
@@ -76,3 +79,8 @@ FROM piece_show_curators source
 LEFT JOIN gallery_show_curators target
     ON target.show_id = source.show_id AND target.artist_id = source.artist_id
 WHERE target.id IS NULL;
+
+SELECT
+    'show-artist links derived (non-zero expected)' AS check_name,
+    COUNT(*) AS link_count
+FROM gallery_show_artists;

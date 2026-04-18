@@ -96,6 +96,7 @@ END $$;
 TRUNCATE TABLE
     gallery_artwork_artists,
     gallery_artwork_shows,
+    gallery_show_artists,
     gallery_show_curators,
     gallery_event,
     gallery_artwork,
@@ -134,15 +135,15 @@ WITH base AS (
         image,
         created_at,
         user_id,
-        regexp_replace(
+        trim(both '-' from regexp_replace(
             regexp_replace(lower(trim(COALESCE(name, 'artist'))), '[^a-z0-9 -]', '', 'g'),
             '[ -]+', '-', 'g'
-        ) AS base_slug,
+        )) AS base_slug,
         row_number() OVER (
-            PARTITION BY regexp_replace(
+            PARTITION BY trim(both '-' from regexp_replace(
                 regexp_replace(lower(trim(COALESCE(name, 'artist'))), '[^a-z0-9 -]', '', 'g'),
                 '[ -]+', '-', 'g'
-            )
+            ))
             ORDER BY id
         ) AS rn
     FROM migration_piece_artist_source
@@ -185,15 +186,15 @@ WITH base AS (
         start,
         "end",
         created_at,
-        regexp_replace(
+        trim(both '-' from regexp_replace(
             regexp_replace(lower(trim(COALESCE(name, 'show'))), '[^a-z0-9 -]', '', 'g'),
             '[ -]+', '-', 'g'
-        ) AS base_slug,
+        )) AS base_slug,
         row_number() OVER (
-            PARTITION BY regexp_replace(
+            PARTITION BY trim(both '-' from regexp_replace(
                 regexp_replace(lower(trim(COALESCE(name, 'show'))), '[^a-z0-9 -]', '', 'g'),
                 '[ -]+', '-', 'g'
-            )
+            ))
             ORDER BY id
         ) AS rn
     FROM piece_show
@@ -234,15 +235,15 @@ WITH base AS (
         start,
         "end",
         created_at,
-        regexp_replace(
+        trim(both '-' from regexp_replace(
             regexp_replace(lower(trim(COALESCE(name, 'event'))), '[^a-z0-9 -]', '', 'g'),
             '[ -]+', '-', 'g'
-        ) AS base_slug,
+        )) AS base_slug,
         row_number() OVER (
-            PARTITION BY regexp_replace(
+            PARTITION BY trim(both '-' from regexp_replace(
                 regexp_replace(lower(trim(COALESCE(name, 'event'))), '[^a-z0-9 -]', '', 'g'),
                 '[ -]+', '-', 'g'
-            )
+            ))
             ORDER BY id
         ) AS rn
     FROM piece_event
@@ -296,15 +297,15 @@ WITH base AS (
         description,
         installation,
         created_at,
-        regexp_replace(
+        trim(both '-' from regexp_replace(
             regexp_replace(lower(trim(COALESCE(name, 'artwork'))), '[^a-z0-9 -]', '', 'g'),
             '[ -]+', '-', 'g'
-        ) AS base_slug,
+        )) AS base_slug,
         row_number() OVER (
-            PARTITION BY regexp_replace(
+            PARTITION BY trim(both '-' from regexp_replace(
                 regexp_replace(lower(trim(COALESCE(name, 'artwork'))), '[^a-z0-9 -]', '', 'g'),
                 '[ -]+', '-', 'g'
-            )
+            ))
             ORDER BY id
         ) AS rn
     FROM piece_piece
@@ -366,6 +367,19 @@ SELECT
 FROM piece_show_curators
 ORDER BY id;
 
+-- All imported artworks are publicly viewable.
+UPDATE gallery_artwork SET is_public = true;
+
+-- Derive show-artist relationships from artwork membership.
+-- Any artist who has an artwork in a show is considered an artist in that show.
+INSERT INTO gallery_show_artists (show_id, artist_id)
+SELECT DISTINCT
+    aws.show_id,
+    awa.artist_id
+FROM gallery_artwork_shows aws
+JOIN gallery_artwork_artists awa ON awa.artwork_id = aws.artwork_id
+ORDER BY aws.show_id, awa.artist_id;
+
 SELECT setval(pg_get_serial_sequence('gallery_artist', 'id'), COALESCE((SELECT MAX(id) FROM gallery_artist), 1), (SELECT COUNT(*) > 0 FROM gallery_artist));
 SELECT setval(pg_get_serial_sequence('gallery_show', 'id'), COALESCE((SELECT MAX(id) FROM gallery_show), 1), (SELECT COUNT(*) > 0 FROM gallery_show));
 SELECT setval(pg_get_serial_sequence('gallery_event', 'id'), COALESCE((SELECT MAX(id) FROM gallery_event), 1), (SELECT COUNT(*) > 0 FROM gallery_event));
@@ -373,5 +387,6 @@ SELECT setval(pg_get_serial_sequence('gallery_artwork', 'id'), COALESCE((SELECT 
 SELECT setval(pg_get_serial_sequence('gallery_artwork_artists', 'id'), COALESCE((SELECT MAX(id) FROM gallery_artwork_artists), 1), (SELECT COUNT(*) > 0 FROM gallery_artwork_artists));
 SELECT setval(pg_get_serial_sequence('gallery_artwork_shows', 'id'), COALESCE((SELECT MAX(id) FROM gallery_artwork_shows), 1), (SELECT COUNT(*) > 0 FROM gallery_artwork_shows));
 SELECT setval(pg_get_serial_sequence('gallery_show_curators', 'id'), COALESCE((SELECT MAX(id) FROM gallery_show_curators), 1), (SELECT COUNT(*) > 0 FROM gallery_show_curators));
+SELECT setval(pg_get_serial_sequence('gallery_show_artists', 'id'), COALESCE((SELECT MAX(id) FROM gallery_show_artists), 1), (SELECT COUNT(*) > 0 FROM gallery_show_artists));
 
 COMMIT;
