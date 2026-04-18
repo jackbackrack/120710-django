@@ -4,7 +4,6 @@ env
 .env
 .env.local
 source/
-.github/
 run-local.sh
 stop-local.sh
 restore-local.sh
