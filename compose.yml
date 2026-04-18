@@ -1,6 +1,6 @@
 services:
   db:
-    image: ${TIMESCALE_IMAGE:-timescale/timescaledb-ha:pg15-ts2.14}
+    image: ${TIMESCALE_IMAGE:-timescale/timescaledb-ha:pg17-ts2.26-all-oss}
     container_name: eatart-db
     restart: unless-stopped
     environment:
@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-eatart}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eatart}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/home/postgres/pgdata
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -18,5 +18,55 @@ services:
       timeout: 5s
       retries: 10
 
+  web:
+    build: .
+    container_name: eatart-web
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eatart}:${POSTGRES_PASSWORD:-eatart}@db:5432/${POSTGRES_DB:-eatart}
+    volumes:
+      - .:/app
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .git/
+            - .env
+            - __pycache__/
+            - "**/*.pyc"
+            - staticfiles/
+            - media/
+        - action: rebuild
+          path: requirements.txt
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: eatart-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "5050:5050"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
+  media_files:
+  static_files:
+  pgadmin_data:

@@ -10,3 +10,5 @@ stop-local.sh
 restore-local.sh
 01-timescaledb.sql
 .env.example
+eatart/local_settings.py
+.local_settings

@@ -10,6 +10,10 @@ It assumes:
 - the current codebase uses the new `gallery` app and migrations
 - PostgreSQL is running through Docker Compose
 - Django commands are run with PostgreSQL environment variables loaded, not against the default SQLite fallback
+- That you've migrated the Python environment with `docker compose exec web python manage.py migrate`
+- If you get hosed up, drop the docker db and recreate it docker compose --env-file .env.local up -d db
+- Destroy the db eatart and recreate it
+- Then `docker compose exec web python manage.py migrate`
 
 ## Files Involved
 

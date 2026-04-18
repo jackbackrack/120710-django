@@ -270,6 +270,12 @@ else:
     }
     STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# Local overrides — not committed to git, not deployed to Railway
+try:
+    from .local_settings import *  # noqa
+except ImportError:
+    pass
+
 
 '''
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/' # 'media/'

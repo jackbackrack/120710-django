@@ -54,8 +54,8 @@ BEGIN
                 name,
                 COALESCE(first_name, '') AS first_name,
                 COALESCE(last_name, '') AS last_name,
-                email,
-                phone,
+                COALESCE(email, '') AS email,
+                COALESCE(phone, '') AS phone,
                 website,
                 instagram,
                 bio,
@@ -79,8 +79,8 @@ BEGIN
                     WHEN strpos(btrim(COALESCE(name, '')), ' ') > 0 THEN regexp_replace(btrim(name), '^\S+\s*', '')
                     ELSE ''
                 END AS last_name,
-                email,
-                phone,
+                COALESCE(email, '') AS email,
+                COALESCE(phone, '') AS phone,
                 website,
                 instagram,
                 bio,
@@ -108,6 +108,7 @@ INSERT INTO gallery_artist (
     name,
     first_name,
     last_name,
+    slug,
     email,
     phone,
     website,
@@ -117,12 +118,41 @@ INSERT INTO gallery_artist (
     image,
     created_at,
     user_id
+)
+WITH base AS (
+    SELECT
+        id,
+        name,
+        first_name,
+        last_name,
+        email,
+        phone,
+        website,
+        instagram,
+        bio,
+        statement,
+        image,
+        created_at,
+        user_id,
+        regexp_replace(
+            regexp_replace(lower(trim(COALESCE(name, 'artist'))), '[^a-z0-9 -]', '', 'g'),
+            '[ -]+', '-', 'g'
+        ) AS base_slug,
+        row_number() OVER (
+            PARTITION BY regexp_replace(
+                regexp_replace(lower(trim(COALESCE(name, 'artist'))), '[^a-z0-9 -]', '', 'g'),
+                '[ -]+', '-', 'g'
+            )
+            ORDER BY id
+        ) AS rn
+    FROM migration_piece_artist_source
 )
 SELECT
     id,
     name,
     first_name,
     last_name,
+    CASE WHEN rn = 1 THEN base_slug ELSE base_slug || '-' || rn END AS slug,
     email,
     phone,
     website,
@@ -132,32 +162,59 @@ SELECT
     image,
     created_at,
     user_id
-FROM migration_piece_artist_source
+FROM base
 ORDER BY id;
 
 INSERT INTO gallery_show (
     id,
     name,
+    slug,
     description,
     image,
     start,
     "end",
-    created_at
+    created_at,
+    is_open_call
+)
+WITH base AS (
+    SELECT
+        id,
+        name,
+        description,
+        image,
+        start,
+        "end",
+        created_at,
+        regexp_replace(
+            regexp_replace(lower(trim(COALESCE(name, 'show'))), '[^a-z0-9 -]', '', 'g'),
+            '[ -]+', '-', 'g'
+        ) AS base_slug,
+        row_number() OVER (
+            PARTITION BY regexp_replace(
+                regexp_replace(lower(trim(COALESCE(name, 'show'))), '[^a-z0-9 -]', '', 'g'),
+                '[ -]+', '-', 'g'
+            )
+            ORDER BY id
+        ) AS rn
+    FROM piece_show
 )
 SELECT
     id,
     name,
+    CASE WHEN rn = 1 THEN base_slug ELSE base_slug || '-' || rn END AS slug,
     description,
     image,
     start,
     "end",
-    created_at
-FROM piece_show
+    created_at,
+    false AS is_open_call
+FROM base
 ORDER BY id;
 
 INSERT INTO gallery_event (
     id,
     name,
+    slug,
     description,
     show_id,
     image,
@@ -166,9 +223,34 @@ INSERT INTO gallery_event (
     "end",
     created_at
 )
+WITH base AS (
+    SELECT
+        id,
+        name,
+        description,
+        show_id,
+        image,
+        date,
+        start,
+        "end",
+        created_at,
+        regexp_replace(
+            regexp_replace(lower(trim(COALESCE(name, 'event'))), '[^a-z0-9 -]', '', 'g'),
+            '[ -]+', '-', 'g'
+        ) AS base_slug,
+        row_number() OVER (
+            PARTITION BY regexp_replace(
+                regexp_replace(lower(trim(COALESCE(name, 'event'))), '[^a-z0-9 -]', '', 'g'),
+                '[ -]+', '-', 'g'
+            )
+            ORDER BY id
+        ) AS rn
+    FROM piece_event
+)
 SELECT
     id,
     name,
+    CASE WHEN rn = 1 THEN base_slug ELSE base_slug || '-' || rn END AS slug,
     description,
     show_id,
     image,
@@ -176,12 +258,13 @@ SELECT
     start,
     "end",
     created_at
-FROM piece_event
+FROM base
 ORDER BY id;
 
 INSERT INTO gallery_artwork (
     id,
     name,
+    slug,
     end_year,
     start_year,
     medium,
@@ -193,11 +276,43 @@ INSERT INTO gallery_artwork (
     is_sold,
     description,
     installation,
-    created_at
+    created_at,
+    is_public,
+    open_call_available
+)
+WITH base AS (
+    SELECT
+        id,
+        name,
+        end_year,
+        start_year,
+        medium,
+        dimensions,
+        image,
+        price,
+        pricing,
+        replacement_cost,
+        is_sold,
+        description,
+        installation,
+        created_at,
+        regexp_replace(
+            regexp_replace(lower(trim(COALESCE(name, 'artwork'))), '[^a-z0-9 -]', '', 'g'),
+            '[ -]+', '-', 'g'
+        ) AS base_slug,
+        row_number() OVER (
+            PARTITION BY regexp_replace(
+                regexp_replace(lower(trim(COALESCE(name, 'artwork'))), '[^a-z0-9 -]', '', 'g'),
+                '[ -]+', '-', 'g'
+            )
+            ORDER BY id
+        ) AS rn
+    FROM piece_piece
 )
 SELECT
     id,
     name,
+    CASE WHEN rn = 1 THEN base_slug ELSE base_slug || '-' || rn END AS slug,
     end_year,
     start_year,
     medium,
@@ -209,8 +324,10 @@ SELECT
     is_sold,
     description,
     installation,
-    created_at
-FROM piece_piece
+    created_at,
+    false AS is_public,
+    false AS open_call_available
+FROM base
 ORDER BY id;
 
 INSERT INTO gallery_artwork_artists (
