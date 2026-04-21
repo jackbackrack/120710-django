@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ show.name }}{% endblock %}
+{% block block_title %}{{ show.name }}{% endblock %}
+
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  {% if show.image %}
+  <img src="{{ show.image.url }}" class="card__image">
+  {% endif %}
+  <div class="card__content">
+    <h1 class="mb-6 text-3xl">{{ show.name }}</h1>
+    {% if show.is_open_call %}
+    <p class="text-gray-500 text-sm"><strong>Type: </strong>Open Call</p>
+    {% endif %}
+    <p class="mb-6 text-3xl">{{ show.start }} - {{ show.end }}</p>
+    <h3 class="mb-6">Curated by:
+    {% if show.curator_artist %}
+    <a class="card__link" href="{{ show.curator_artist.get_absolute_url }}">{{ show.curator_artist.name }}</a>
+    {% else %}
+    Unassigned
+    {% endif %}
+    </h3>
+    {% if show.tags.exists %}
+    <p class="text-gray-500 text-sm"><strong>Tags: </strong>{% for tag in show.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if show.description %}
+    <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ show.description|safe }}</p>
+    {% endif %}
+    {% for event in show.events.all %}
+    <h3 class="mb-6"> <a class="card__link" href="{{ event.get_absolute_url }}"> {{ event.name }}</a>:
+    {{ event.date }}: {{ event.start }} - {{ event.end }}</h3>
+    {% endfor %}
+  </div>
+  <div class="card__info">
+  {% if user.is_authenticated %}
+    <a class="card__link" href="{{ show.get_placards_url }}">Placards</a>
+    <a class="card__link" href="{{ show.get_instagram_url }}">Instagram</a>
+    <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
+    <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
+  {% endif %}
+  </div>
+</div>
+</div>
+<div class="text-center"><h2>Artworks</h2></div>
+<div class="cards">
+{% for artwork in artworks %}
+  <div class="card">
+    {% if artwork.image %}
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}
+      </h2>
+      <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a> </h2>
+      <h2 class="text-sm">
+        {% if artwork.start_year %}
+        {{ artwork.start_year }}-
+        {% endif %}
+        {{ artwork.end_year }}
+      </h2>
+      <p class="text-gray-500 text-xs"><strong>Medium: </strong>{{ artwork.medium }}</p>
+      <p class="text-gray-500 text-xs"><strong>Dimensions: </strong>{{ artwork.dimensions }}</p>
+      <p class="text-gray-500 text-sm"><strong>Price:</strong>
+        {% if artwork.price %}
+        ${{ artwork.price }}
+        {% endif %}
+        {% if artwork.pricing %}
+        {{ artwork.pricing }}
+        {% endif %}
+        {% if artwork.is_sold %}
+        <strong>sold</strong>
+        {% endif %}
+      </p>
+    </div>
+    <div class="card__info">  
+      {% if user.is_authenticated %}
+      <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
+      <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+<div class="text-center"><h2>Artists</h2></div>
+<div class="cards">
+  <!-- todo: remove dups and sort -->
+  {% for artist in artists %}
+  <div class="card">
+    {% if artist.image %}
+    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img src="{{ artist.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
+    <div class="card__info">
+    {% if user.is_authenticated %}
+        <a class="card__link" href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
+        <a class="card__link" href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
+    {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

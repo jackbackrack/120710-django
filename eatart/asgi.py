@@ -9,8 +9,17 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 
 import os
 
-from django.core.asgi import get_asgi_application
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eatart.settings')
 
-application = get_asgi_application()
+from django.core.asgi import get_asgi_application
+from starlette.applications import Starlette
+from starlette.routing import Mount
+
+django_application = get_asgi_application()
+
+from eatart.api.app import api
+
+application = Starlette(routes=[
+	Mount('/api', app=api),
+	Mount('/', app=django_application),
+])

@@ -1,14 +1,20 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags socialaccount %}
 
 {% block title %}Log In{% endblock %}
 {% block block_title %}Log In{% endblock %}
 
 {% block content %}
 <h2>Log in</h2>
+<h3>Google account</h3>
+<a href="{% provider_login_url 'google' %}" class="btn btn-outline-danger">
+  Continue with Google
+</a>
+<hr>
+<h3>Email and password</h3>
 <form method="post">
   {% csrf_token %}
   {{ form|crispy }}
-  <button class="btn btn-success" type="submit">Log in</button>
+  <button class="btn btn-success" type="submit">Log in with email and password</button>
 </form>
 {% endblock content %}

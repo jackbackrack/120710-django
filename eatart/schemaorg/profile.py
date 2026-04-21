@@ -1,0 +1,17 @@
+GALLERY_PROFILE = {
+    'name': '120710',
+    'legal_name': 'Eatart',
+    'description': '120710 is an experimental art gallery in Berkeley focused on artists, artworks, exhibitions, and public events.',
+    'url': 'https://www.120710.art',
+    'email': 'info@120710.art',
+    'telephone': '+1-341-205-1331',
+    'street_address': '1207 Tenth Street',
+    'address_locality': 'Berkeley',
+    'address_region': 'CA',
+    'postal_code': '94710',
+    'address_country': 'US',
+    'opening_hours': ['Su 13:00-16:00'],
+    'same_as': ['https://www.instagram.com/120710.art/'],
+    'is_accessible_for_free': True,
+    'public_access': True,
+}
