@@ -27,8 +27,8 @@ It assumes:
 
 If already running:
 Stop web and connections to the database:
-docker compose --env-file .env.local exec db psql -U eatart -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'eatart' AND pid <> pg_backend_pid();"
 docker compose --env-file .env.local stop web
+docker compose --env-file .env.local exec db psql -U eatart -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'eatart' AND pid <> pg_backend_pid();"
 
 
 Local Table drop and restore (don't do this on Railway Production env)

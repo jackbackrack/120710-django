@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "debug_toolbar",
     'accounts',
     'gallery.apps.GalleryConfig',
+    'reviews',
     'storages',
     'import_export',
     'imagekit',

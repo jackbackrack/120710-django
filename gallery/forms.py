@@ -92,6 +92,7 @@ class ShowForm(UserAwareModelForm):
             'image',
             'managing_curator',
             'is_open_call',
+            'submission_deadline',
             'start',
             'end',
             'tags',

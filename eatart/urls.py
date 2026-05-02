@@ -13,6 +13,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('', index, name='index'),
     path('', include('gallery.urls')),
+    path('', include('reviews.urls')),
     path('visit/', visit, name='visit'),
     path('contact/', contact, name='contact'),
     path('about/', about, name='about'),

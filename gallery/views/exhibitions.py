@@ -10,7 +10,7 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, Show, Tag
-from gallery.permissions import can_manage_show, is_staff_user, tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -41,6 +41,8 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         artists = Artist.objects.filter(Q(shows=show) | Q(artworks__in=artworks)).distinct().order_by('name')
         context['artists'] = artists
         context['artworks'] = artworks
+        context['can_view_reviews'] = can_view_reviews(self.request.user, show)
+        context['can_manage_show'] = can_manage_show(self.request.user, show)
         return context
 
 

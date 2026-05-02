@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, STAFF_GROUP
+from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, JUROR_GROUP, STAFF_GROUP
 
 
 def has_group(user, group_name):
@@ -56,3 +56,22 @@ def tag_filter_queryset(queryset, tag_slug):
     if not tag_slug:
         return queryset
     return queryset.filter(tags__slug=tag_slug)
+
+
+def is_juror_user(user):
+    return bool(user.is_authenticated and has_group(user, JUROR_GROUP))
+
+
+def is_juror_for_show(user, show):
+    """Returns True if the user is assigned as a juror for the given show."""
+    if not user.is_authenticated:
+        return False
+    return show.jurors.filter(user=user).exists()
+
+
+def can_view_reviews(user, show):
+    """Show managers/staff and assigned jurors can view reviews for a show."""
+    return bool(
+        user.is_authenticated
+        and (can_manage_show(user, show) or is_juror_for_show(user, show))
+    )

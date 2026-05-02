@@ -23,6 +23,7 @@ class Show(models.Model):
         null=True,
     )
     is_open_call = models.BooleanField(default=False)
+    submission_deadline = models.DateField(blank=True, null=True)
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)
     tags = models.ManyToManyField('gallery.Tag', related_name='shows', blank=True)

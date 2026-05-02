@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Reviews: {{ artwork.name }} — {{ show.name }}{% endblock %}
+{% block block_title %}Reviews: {{ artwork.name }}{% endblock %}
+
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  <div class="card__content">
+    <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to {{ show.name }} reviews</a></p>
+
+    {% if artwork.image %}
+    <img src="{{ artwork.image.url }}" class="card__image">
+    {% endif %}
+
+    <h1 class="mb-6 text-3xl">{{ artwork.name }}</h1>
+    {% for artist in artwork.artists.all %}
+    <h3><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a></h3>
+    {% endfor %}
+    {% if artwork.medium %}<p>{{ artwork.medium }}</p>{% endif %}
+    {% if artwork.dimensions %}<p>{{ artwork.dimensions }}</p>{% endif %}
+
+    <hr>
+    <h2 class="mt-4">Reviews ({{ reviews.count }})</h2>
+    {% if reviews %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Juror</th>
+          <th>Rating</th>
+          <th>Notes</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for review in reviews %}
+        <tr>
+          <td>{{ review.juror.get_full_name|default:review.juror.username }}</td>
+          <td>{{ review.rating }}/5</td>
+          <td>{{ review.body|default:"N/A" }}</td>
+          <td>{{ review.updated_at|date:"N j, Y" }}</td>
+          <td><a class="card__link" href="{% url 'reviews:curator_edit_review' show_slug=show.slug artwork_slug=artwork.slug review_id=review.id %}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-gray-500">No reviews yet for this artwork in this show.</p>
+    {% endif %}
+  </div>
+</div>
+</div>
+{% endblock %}

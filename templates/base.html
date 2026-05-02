@@ -1,6 +1,8 @@
-<!doctype html>
+ <!doctype html>
 <html>
   <head>
+    {% load static %}
+    <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- <script src="https://cdn.tailwindcss.com"></script> -->
@@ -11,8 +13,9 @@
       integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/base.css' %}">
-    {% endblock %}
+<link rel="stylesheet" href="{% static 'css/base.css' %}">
+<!-- favicon link moved to top of <head> -->
+{% endblock %}
     {% if structured_data_json %}
     <script type="application/ld+json">{{ structured_data_json|safe }}</script>
     {% endif %}
