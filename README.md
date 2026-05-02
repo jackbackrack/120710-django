@@ -2,7 +2,7 @@
 
 Open-source Django gallery management application for [120710.art](https://www.120710.art), an experimental art gallery at 1207 Tenth Street, Berkeley, CA.
 
-Manages artists, artworks, exhibitions (shows), and events with public-facing pages, a role-based admin workflow, Mailchimp mailing list integration, and Schema.org JSON-LD structured data on every content page.
+Manages artists, artworks, exhibitions (shows), events, and juror reviews/ratings with public-facing pages, a role-based admin workflow, Mailchimp mailing list integration, and Schema.org JSON-LD structured data on every content page.
 
 ---
 
@@ -12,8 +12,9 @@ Manages artists, artworks, exhibitions (shows), and events with public-facing pa
 - **Artworks** — detail pages with medium, dimensions, pricing, Schema.org `VisualArtwork` structured data
 - **Shows (Exhibitions)** — M2M artists and curators, artworks inline, open-call support, Schema.org `VisualArtsEvent`
 - **Events** — linked to shows with date/time, Schema.org `VisualArtsEvent` with `superEvent`
+- **Reviews and ratings** — per-show juror assignments with one 1..5 rating/review per juror-artwork-show
 - **Tags** — filterable across all content types; special `Open Call` tag for open-call submissions
-- **Role-based access** — `artist`, `curator`, `staff` groups with granular permissions
+- **Role-based access** — `artist`, `curator`, `juror`, `staff` groups with granular permissions
 - **Google OAuth** via django-allauth
 - **Admin** — ShowAdmin with artwork inline and filter_horizontal for artists/curators/tags; CSV/Excel import-export on all models
 - **Schema.org JSON-LD** — Pydantic-validated structured data on every public detail page
@@ -135,6 +136,7 @@ gallery/            # Main gallery app
   forms.py          # ArtworkForm, ArtistForm, ShowForm, EventForm
 
 accounts/           # User/role management
+reviews/            # Juror assignments and artwork review/rating workflows
 docker/postgres/    # SQL migration and verification scripts
 templates/          # Project-wide templates (base.html, gallery/, account/, public/)
 ```
@@ -156,6 +158,13 @@ Show <──M2M── Artwork.shows         (show.artworks)
 User ──FK──> Artist.user            (user.artists)
 User ──FK──> Show.managing_curator  (user.managed_shows)
 User ──FK──> Artwork.created_by
+
+Show <──FK── ShowJuror.show         (show.jurors)
+User <──FK── ShowJuror.user         (user.juror_assignments)
+
+Show <──FK── ArtworkReview.show     (show.reviews)
+Artwork <──FK── ArtworkReview.artwork (artwork.reviews)
+User <──FK── ArtworkReview.juror    (user.artwork_reviews)
 ```
 
 ### Visibility
@@ -191,6 +200,7 @@ The gallery's address, hours, and contact details are centralised in `eatart/sch
 |---|---|
 | `artist` | Create and edit own artworks and artist profile |
 | `curator` | Manage shows, events, and see all artworks |
+| `juror` | Review assigned-show artworks with 1..5 ratings and notes |
 | `staff` | Full access |
 
 Superusers bypass all role checks. Group name constants are in `accounts/roles.py`.

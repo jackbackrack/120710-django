@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**120710** is an open-source Django gallery management application for [120710.art](https://www.120710.art), an experimental art gallery in Berkeley, CA. It manages artists, artworks, exhibitions (shows), and events, with public-facing pages, a role-based admin workflow, and structured data (Schema.org JSON-LD) on every content page.
+**120710** is an open-source Django gallery management application for [120710.art](https://www.120710.art), an experimental art gallery in Berkeley, CA. It manages artists, artworks, exhibitions (shows), events, and juror reviews/ratings, with public-facing pages, a role-based admin workflow, and structured data (Schema.org JSON-LD) on every content page.
 
 ## Tech Stack
 
@@ -41,7 +41,8 @@ gallery/            # Main app
   admin.py          # ShowAdmin with ArtworkInline + filter_horizontal
   forms.py          # ArtworkForm, ArtistForm, ShowForm, EventForm
 
-accounts/           # User/role management (Artist, Curator, Staff groups)
+accounts/           # User/role management (Artist, Curator, Juror, Staff groups)
+reviews/            # Juror assignments and artwork review/rating workflows
 docker/postgres/    # SQL migration and verification scripts
 templates/          # Project-wide templates (base.html, gallery/, account/, public/)
 ```
@@ -55,12 +56,27 @@ All slugs are generated in `gallery/models/slugs.py` via `build_unique_slug()`. 
 `Artwork.is_public` is the sole gate for public artwork visibility. `visible_artwork_queryset()` in `gallery/permissions.py` controls what anonymous/authenticated/curator users see. Artworks assigned to a show via the `shows` M2M are **not** automatically public — `is_public` must be set explicitly (or via the migration SQL's `UPDATE gallery_artwork SET is_public = true`).
 
 ### Roles
-Three Django groups control access:
+Four Django groups control access:
 - `artist` — can create/edit their own artworks and artist profile
 - `curator` — can manage shows and see all artworks
+- `juror` — can review artworks only for shows they are assigned to
 - `staff` — full access (superusers also qualify)
 
-Role helpers live in `gallery/permissions.py`. The `accounts/roles.py` defines the group name constants.
+Role helpers live in `gallery/permissions.py`. The `accounts/roles.py` defines the group name constants and includes role mutators like `add_juror_role()`.
+
+### Reviews and Ratings
+The `reviews` app manages show-specific juror assignment and artwork reviews:
+- `reviews/models.py::ShowJuror` assigns a user to a show as a juror (`unique_together = (show, user)`)
+- `reviews/models.py::ArtworkReview` stores one juror review per `(show, artwork, juror)`
+- Ratings are required and validated as integers from 1 to 5
+- Review body text is optional and editable by the juror (or by show managers in curator edit views)
+
+Access rules:
+- Only show managers/staff and assigned jurors can view review pages (`can_view_reviews`)
+- Assigned jurors can create/update only their own review per artwork in that show
+- Curators/staff can view all reviews for the show, aggregated with average rating and review count, and can edit juror reviews
+
+Key routes are defined in `reviews/urls.py` under `/show/<show_slug>/reviews/...` for dashboard, juror assignment, artwork review, and curator edit paths.
 
 ### Schema.org
 Every public detail page (artist, artwork, show, event) injects `<script type="application/ld+json">` via the `StructuredDataMixin` in `gallery/views/mixins.py`. Mappers in `eatart/schemaorg/mappers.py` convert Django model instances to Pydantic-validated Schema.org types from `eatart/schemaorg/types.py`. The gallery profile (address, hours, URLs) is centralised in `eatart/schemaorg/profile.py`.
@@ -75,6 +91,7 @@ Every public detail page (artist, artwork, show, event) injects `<script type="a
 - Production: Railway PostgreSQL; `DATABASE_URL` env var
 - Falls back to SQLite if `POSTGRES_DB` is not set (wrong for any real data work)
 - Legacy tables are `piece_*`; current tables are `gallery_*`
+- Review tables include `reviews_showjuror` and `reviews_artworkreview`
 - Migration SQL lives in `docker/postgres/migrate-piece-to-gallery.sql`
 
 ### Media & Static
@@ -122,3 +139,5 @@ docker compose --env-file .env.local exec web python manage.py migrate
 - Do not add `is_public = True` to artwork `save()` automatically — it is an explicit curator decision
 - Do not bypass `visible_artwork_queryset` in list/detail views
 - Do not add schema.org mappers that call `build_absolute_uri` outside a request context
+- Do not bypass `can_view_reviews` / `is_juror_for_show` in review routes
+- Do not loosen review uniqueness or rating bounds (1..5) without an explicit data migration and UI update

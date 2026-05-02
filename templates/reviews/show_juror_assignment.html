@@ -8,6 +8,7 @@
 <div class="card" id="big_card">
   <div class="card__content">
     <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to reviews</a></p>
+    {% include 'includes/help_by_role_panel.html' %}
 
     <h1 class="mb-6 text-3xl">Manage Jurors</h1>
 

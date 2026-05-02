@@ -2,7 +2,9 @@
 
 ## Purpose
 
-This guide explains how to run the `piece_* -> gallery_*` data migration against a Railway PostgreSQL database and inspect or execute the SQL through a pgAdmin web interface.
+This guide explains how to run the `piece_* -> gallery_*` data migration against a Railway PostgreSQL database and inspect or execute the SQL through a pgAdmin web interface, including `reviews` schema readiness.
+
+For maintenance-window execution, use the one-page checklist: `production_migration_checklist.md`.
 
 Use this when:
 
@@ -48,12 +50,24 @@ If your Railway app already exposes `DATABASE_URL`, that can also be used for Dj
 
 ## Recommended High-Level Order
 
+If production is still running the legacy app, do this in a maintenance window:
+
+0. Deploy the new codebase version (gallery + reviews) without dropping data.
+1. Point runtime env vars to the Railway Postgres target (`DATABASE_URL` or `PG*` mapped into Django settings).
+2. Run Django migrations (`python manage.py migrate`) to create current schema.
+3. Execute `migrate-piece-to-gallery.sql` to copy legacy content data.
+4. Execute `verify-piece-to-gallery.sql` and confirm all checks are `ok`.
+5. Perform juror assignment/review smoke checks.
+
+Then follow the detailed steps below.
+
 1. Restore the legacy database dump into the Railway PostgreSQL database or into a staging Railway database.
 2. Run Django migrations against that Railway PostgreSQL database.
 3. Run `migrate-piece-to-gallery.sql` against the same database.
 4. Run `verify-piece-to-gallery.sql` against the same database.
-5. Run `python manage.py test gallery` against the same PostgreSQL-backed environment if your operational flow supports that.
-6. Smoke test key pages.
+5. Run `python manage.py test gallery reviews` against the same PostgreSQL-backed environment if your operational flow supports that.
+6. Perform post-migration juror/review setup checks.
+7. Smoke test key pages.
 
 ## Step 1: Connect pgAdmin To Railway Postgres
 
@@ -126,7 +140,7 @@ ORDER BY table_name;
 
 ## Step 3: Run Django Migrations Against Railway Postgres
 
-This step creates the new `gallery_*` tables.
+This step creates the new `gallery_*` and `reviews_*` tables.
 
 You can do this from a Railway shell, CI job, or a local shell that targets Railway Postgres.
 
@@ -161,6 +175,8 @@ After this step, confirm these target tables exist:
 - `gallery_artwork_artists`
 - `gallery_artwork_shows`
 - `gallery_show_curators`
+- `reviews_showjuror`
+- `reviews_artworkreview`
 
 ## Step 4: Run The Data Migration SQL In pgAdmin
 
@@ -182,6 +198,7 @@ Notes:
 - the script truncates `gallery_*` target tables before copying
 - the script preserves IDs from the legacy `piece_*` rows
 - the script already handles the older dump shape where `piece_artist` lacks `first_name` and `last_name`
+- the script checks that `reviews_showjuror` and `reviews_artworkreview` exist before migrating
 
 ## Step 5: Run The Verification SQL In pgAdmin
 
@@ -195,6 +212,7 @@ Expected result:
 
 - every count comparison row has `status = 'ok'`
 - every `missing_*` row reports `0`
+- review-table readiness checks report `ok`
 
 If any mismatch appears:
 
@@ -208,7 +226,7 @@ If any mismatch appears:
 Run Django tests against the Railway-backed environment if that is acceptable for your operational setup:
 
 ```bash
-DATABASE_URL="<railway database url>" python manage.py test gallery
+DATABASE_URL="<railway database url>" python manage.py test gallery reviews
 ```
 
 Or with explicit Postgres variables:
@@ -219,12 +237,21 @@ export POSTGRES_PORT="$PGPORT"
 export POSTGRES_DB="$PGDATABASE"
 export POSTGRES_USER="$PGUSER"
 export POSTGRES_PASSWORD="$PGPASSWORD"
-python manage.py test gallery
+python manage.py test gallery reviews
 ```
 
 If you do not want to run tests against the live Railway database, run them against a Railway-connected staging database instead.
 
-## Step 7: Manual Smoke Checks
+## Step 7: Post-Migration Juror And Review Setup
+
+There is no legacy `piece_*` source for jurors/reviews, so production setup after migration should include:
+
+1. Assign at least one juror to a show from the reviews dashboard.
+2. Confirm the assignment creates/uses the `juror` role.
+3. Sign in as a juror and submit a 1..5 review for an artwork in the assigned show.
+4. Confirm curator/staff can see aggregate ratings and review counts.
+
+## Step 8: Manual Smoke Checks
 
 After the SQL migration and verification succeed, manually check:
 
@@ -234,6 +261,8 @@ After the SQL migration and verification succeed, manually check:
 - one artwork detail page
 - one event detail page
 - artist detail page
+- show review dashboard
+- juror assignment page
 
 ## Quick Query Checklist For pgAdmin
 

@@ -8,6 +8,7 @@
 <div class="card" id="big_card">
   <div class="card__content">
     <p><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">&larr; Back to artwork reviews</a></p>
+    {% include 'includes/help_by_role_panel.html' %}
 
     <h1 class="mb-6 text-3xl">{{ artwork.name }}</h1>
     <p><strong>Juror:</strong> {{ review.juror.get_full_name|default:review.juror.username }}</p>

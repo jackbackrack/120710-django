@@ -6,7 +6,7 @@ This file describes the AI agent context, workflow guidance, and known patterns 
 
 ## Project Summary
 
-120710 is a Django 4.2 gallery management system for an experimental art gallery in Berkeley, CA. It is open-source and deployed on Railway with PostgreSQL. The primary data entities are **Artist**, **Artwork**, **Show** (exhibition), **Event**, and **Tag**.
+120710 is a Django 4.2 gallery management system for an experimental art gallery in Berkeley, CA. It is open-source and deployed on Railway with PostgreSQL. The primary data entities are **Artist**, **Artwork**, **Show** (exhibition), **Event**, **Tag**, plus show-level **Juror assignments** and **Artwork reviews/ratings**.
 
 ---
 
@@ -18,6 +18,7 @@ This file describes the AI agent context, workflow guidance, and known patterns 
 |---|---|
 | `gallery` | Core models, views, forms, admin, permissions, URL routing |
 | `accounts` | User registration, role assignment, profile editing |
+| `reviews` | Juror assignment, show review dashboards, artwork review/rating workflow |
 | `eatart` | Django project package: settings, root URLs, schema.org, public views, services |
 
 ### Key files
@@ -32,6 +33,9 @@ This file describes the AI agent context, workflow guidance, and known patterns 
 | `gallery/permissions.py` | `visible_artwork_queryset()`, `can_manage_*()`, role predicates |
 | `gallery/admin.py` | `ShowAdmin` with `ArtworkInline` and `filter_horizontal` for artists/curators/tags |
 | `gallery/views/mixins.py` | `CanonicalSlugRedirectMixin`, `StructuredDataMixin` |
+| `reviews/models.py` | `ShowJuror`, `ArtworkReview` — show assignment + 1-5 juror scoring |
+| `reviews/views.py` | Curator/juror review dashboard, juror assignment, juror submit/edit, curator edit |
+| `reviews/urls.py` | `/show/<show>/reviews/...` routes |
 | `eatart/schemaorg/types.py` | Pydantic Schema.org types: `Person`, `VisualArtwork`, `VisualArtsEvent`, `ArtGallery` |
 | `eatart/schemaorg/mappers.py` | Convert model instances → Schema.org objects |
 | `eatart/schemaorg/profile.py` | `GALLERY_PROFILE` dict — gallery name, address, hours, social links |
@@ -54,6 +58,13 @@ User ──FK──> Artist.user           (user.artists reverse)
 User ──FK──> Show.managing_curator (user.managed_shows reverse)
 User ──FK──> Event.managing_curator
 User ──FK──> Artwork.created_by
+
+Show <──FK── ShowJuror.show        (show.jurors reverse)
+User <──FK── ShowJuror.user        (user.juror_assignments reverse)
+
+Show <──FK── ArtworkReview.show    (show.reviews reverse)
+Artwork <──FK── ArtworkReview.artwork (artwork.reviews reverse)
+User <──FK── ArtworkReview.juror   (user.artwork_reviews reverse)
 ```
 
 ### Important distinctions
@@ -61,6 +72,8 @@ User ──FK──> Artwork.created_by
 - `Show.curators` — the M2M of curating artists (populated directly from legacy data)
 - `Artwork.shows` — the M2M of shows an artwork belongs to (source of truth for artwork-show linkage)
 - `Artwork.is_public` — **sole gate** for public visibility; being in a show does not imply `is_public=True`
+- `ShowJuror` — authoritative assignment table for who can review a specific show
+- `ArtworkReview` — one review per `(show, artwork, juror)`; rating must remain in `1..5`
 
 ---
 
@@ -93,6 +106,28 @@ trim(both '-' from regexp_replace(
 
 Always apply this filter via `.filter(visible_artwork_queryset(request.user)).distinct()`.  
 Never query `Artwork.objects.all()` in a public-facing view.
+
+## Reviews and Jurors
+
+Review permissions live in `gallery/permissions.py`:
+- `is_juror_for_show(user, show)` checks assignment through `show.jurors`
+- `can_view_reviews(user, show)` allows show managers/staff or assigned jurors
+
+Workflow in `reviews/views.py`:
+- `show_review_dashboard`:
+    - Curator/staff: all show artworks with `avg_rating` and `review_count`, all reviews, assigned jurors
+    - Juror: only their own reviews and pending artworks for that show
+- `artwork_review`:
+    - Juror creates/updates their own review record for a show-artwork pair
+    - Curator/staff sees all juror reviews for that artwork in-show
+- `curator_edit_review`: curator/staff edits a juror's review
+- `show_juror_assignment`: curator/staff assigns/removes jurors for a show
+
+Model constraints in `reviews/models.py`:
+- `ShowJuror.unique_together = ('show', 'user')`
+- `ArtworkReview.unique_together = ('show', 'artwork', 'juror')`
+- `ArtworkReview.rating` is integer-validated to 1..5
+- `ShowJuror.save()` applies the `juror` role via `add_juror_role(user)`
 
 ---
 
@@ -153,6 +188,7 @@ The migration is run via pgAdmin (not the shell script) to match the Railway pro
 |---|---|
 | `artist` | Create/edit own artworks and artist profile |
 | `curator` | Manage shows, see all artworks, manage events |
+| `juror` | Submit reviews/ratings for assigned shows |
 | `staff` | Full access (equivalent to superuser) |
 
 Group names are constants in `accounts/roles.py`. Always use those constants, never hardcode the string `"curator"` etc.
@@ -168,3 +204,6 @@ Group names are constants in `accounts/roles.py`. Always use those constants, ne
 - Do not run Django management commands without loading `.env.local` locally — the default DB is SQLite
 - Do not add `M2M` reverse traversals without `.distinct()` to avoid duplicate rows
 - Do not add `Show.artists` population logic to `Artwork.save()` — it is derived in the migration only
+- Do not bypass `can_view_reviews` / `is_juror_for_show` in review pages
+- Do not remove uniqueness constraints for show jurors or juror reviews without explicit migration planning
+- Do not change review rating bounds (1..5) in forms/models without coordinated model, form, template, and reporting updates

@@ -27,6 +27,12 @@ BEGIN
     IF to_regclass('public.gallery_artwork') IS NULL THEN
         RAISE EXCEPTION 'Missing target table: gallery_artwork';
     END IF;
+    IF to_regclass('public.reviews_showjuror') IS NULL THEN
+        RAISE EXCEPTION 'Missing target table: reviews_showjuror (run Django migrations first)';
+    END IF;
+    IF to_regclass('public.reviews_artworkreview') IS NULL THEN
+        RAISE EXCEPTION 'Missing target table: reviews_artworkreview (run Django migrations first)';
+    END IF;
 END $$;
 
 DO $$

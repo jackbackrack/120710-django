@@ -1,4 +1,12 @@
 WITH counts AS (
+    SELECT 'reviews_showjuror table exists' AS check_name,
+        CASE WHEN to_regclass('public.reviews_showjuror') IS NOT NULL THEN 1 ELSE 0 END AS source_count,
+        1 AS target_count
+    UNION ALL
+    SELECT 'reviews_artworkreview table exists',
+        CASE WHEN to_regclass('public.reviews_artworkreview') IS NOT NULL THEN 1 ELSE 0 END,
+        1
+    UNION ALL
     SELECT 'artist rows' AS check_name, (SELECT COUNT(*) FROM piece_artist) AS source_count, (SELECT COUNT(*) FROM gallery_artist) AS target_count
     UNION ALL
     SELECT 'show rows', (SELECT COUNT(*) FROM piece_show), (SELECT COUNT(*) FROM gallery_show)
