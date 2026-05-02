@@ -12,21 +12,21 @@ html {
 }
 
 header {
-    margin: 8px;
+    margin: 0.5rem;
     font-size: 0.9em;
 }
 
 body {
-    margin: 8px;
-    margin-bottom: 60px; /* Margin bottom by footer height */
+    margin: 0.5rem;
+    margin-bottom: 3.75rem; /* Margin bottom by footer height */
 }
 
 .container {
-  max-width: 960px;
+  max-width: 60rem;
 }
 
 .pricing-header {
-  max-width: 700px;
+  max-width: 43.75rem;
 }
 
 .cards {
@@ -34,12 +34,12 @@ body {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     align-contents: center;
     grid-auto-rows: auto;
-    gap: 8px;
+    gap: 0.75rem;
     font-family: sans-serif;
-    padding-top: 30px;
+    padding-top: 1.875rem;
 }
 
 .cards * {
@@ -47,33 +47,43 @@ body {
 }
 
 .card {
-    width: 175px;
-    max-width: 175px;
+    width: 10.9375rem;
+    max-width: 10.9375rem;
     background-color: #dddddd;
+    border: 2px solid var(--bs-gray-600);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 #big_card {
-    width: 400px;
-    max-width: 400px;
+    width: 25rem;
+    max-width: 25rem;
 }
 
 .card__image {
-    width: auto;
+    width: 100%;
     height: auto;
     object-fit: cover;
     display: block;
-    border-top: 2px solid #333333;
-    border-right: 2px solid #333333;
-    border-left: 2px solid #333333;
+    border-top: 2px solid var(--bs-gray-600);
+    border-right: 2px solid var(--bs-gray-600);
+    border-left: 2px solid var(--bs-gray-600);
+    border-radius: 0.375rem 0.375rem 0 0;
 }
 
 .card__content {
     line-height: 1.0;
     font-size: 0.9em;
     background: #fafafa;
-    border-right: 2px solid #333333;
-    border-left: 2px solid #333333;
-    padding: 3px;
+    border-right: 2px solid var(--bs-gray-600);
+    border-left: 2px solid var(--bs-gray-600);
+    border-bottom: 2px solid var(--bs-gray-600);
+    padding: 1rem;
+    border-radius: 0 0 0.375rem 0.375rem;
 }
 
 .card__content > p:first-of-type {
@@ -91,10 +101,10 @@ body {
     color: #555555;
     background: #eeeeee;
     font-size: 0.8em;
-    border-bottom: 2px solid #333333;
-    border-right: 2px solid #333333;
-    border-left: 2px solid #333333;
-    padding: 3px;
+    border-bottom: 2px solid var(--bs-gray-600);
+    border-right: 2px solid var(--bs-gray-600);
+    border-left: 2px solid var(--bs-gray-600);
+    padding: 0.375rem;
 }
 
 .card__info i {
@@ -117,7 +127,7 @@ body {
     background-color: lightgray;
     border: 2px solid black;
     justify-content: space-between;
-    padding: 10px
+    padding: 0.625rem;
 }
 
 .footlet {
@@ -166,9 +176,9 @@ h5 {
     margin: 1.5em 0 .5em 0;
     color: var(--body-quiet-color);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.0625rem;
 }
 
 th, td {
-  padding: 8px; /* Adds 8px padding on all sides of the cell content */
+  padding: 0.5rem; /* Adds 0.5rem padding on all sides of the cell content */
 }

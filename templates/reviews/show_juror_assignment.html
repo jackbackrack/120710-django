@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Jurors: {{ show.name }}{% endblock %}
+{% block block_title %}Jurors: {{ show.name }}{% endblock %}
+
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  <div class="card__content">
+    <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to reviews</a></p>
+
+    <h1 class="mb-6 text-3xl">Manage Jurors</h1>
+
+    <h2>Assign Juror</h2>
+    {% if form.fields.user.queryset %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="assign">
+      {% load crispy_forms_tags %}
+      {{ form|crispy }}
+      <button type="submit" class="btn btn-primary">Assign juror</button>
+    </form>
+    {% else %}
+    <p class="text-gray-500">No remaining active users to assign.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Assigned Jurors ({{ assigned_jurors.count }})</h2>
+    {% if assigned_jurors %}
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Assigned by</th>
+          <th>Assigned at</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for assignment in assigned_jurors %}
+        <tr>
+          <td>{{ assignment.user.get_full_name|default:assignment.user.username }}</td>
+          <td>{{ assignment.assigned_by.get_full_name|default:assignment.assigned_by.username|default:"N/A" }}</td>
+          <td>{{ assignment.assigned_at|date:"N j, Y" }}</td>
+          <td>
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="remove">
+              <input type="hidden" name="assignment_id" value="{{ assignment.id }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-gray-500">No jurors assigned yet.</p>
+    {% endif %}
+  </div>
+</div>
+</div>
+{% endblock %}

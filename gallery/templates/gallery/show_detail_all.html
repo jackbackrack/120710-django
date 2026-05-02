@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ show.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <img src="{{ show.image.url }}" class="card__image">
+  <div class="card__content">
+<h1 class="mb-6 text-2xl">{{ show.name }}</h1>
+<h2 class="mb-6">{{ show.start }} - {{ show.end }}</h2>
+<h2 class="mb-6">Curated by:
+{% for curator in curators %}
+  {{ curator.name }} blah
+{% endfor %}
+</h2>
+<p class="text-sm">{{ show.description|safe }}</p>
+{% for event in events %}
+<h2 class="mb-6">{{ event.name }} {{ event.start }} - {{ event.end }}</h2>
+{% endfor %}
+<br>
+<div class="cards">
+{% for artwork in artworks %}
+<div class="card">
+    <div>
+      <a class="card__link" href="{{ artwork.get_absolute_url }}">
+        {% if artwork.image %}
+        <img src="{{ artwork.image.url }}" class="card__image">
+        {% endif %}
+        <div class="card__content">
+          <h2 class="text-sm">{{ artwork.name }} </h2>
+          <h2 class="text-sm">
+            {% if artwork.start_year %}
+            {{ artwork.start_year }}-
+            {% endif %}
+            {{ artwork.end_year }}
+          </h2>
+          <p class="text-gray-500 text-xs"><strong>Medium: </strong>{{ artwork.medium }}</p>
+          <p class="text-gray-500 text-xs"><strong>Dimensions: </strong>{{ artwork.dimensions }}</p>
+          <p class="text-gray-500 text-sm"><strong>Price:</strong>
+            {% if artwork.price %}
+            ${{ artwork.price }}
+            {% endif %}
+            {% if artwork.pricing %}
+            {{ artwork.pricing }}
+            {% endif %}
+            {% if artwork.is_sold %}
+            <strong>sold</strong>
+            {% endif %}
+          </p>
+        </div>
+      </a>
+    </div>
+</div>
+{% endfor %}
+</div>
+</div>
+{% endblock %}

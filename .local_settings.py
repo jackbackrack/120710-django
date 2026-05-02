@@ -1,0 +1,1 @@
+ALLOWED_HOSTS = ['10.0.0.250', 'graphicsbeast.duckdns.org', 'videohead.duckdns.org']

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Review: {{ artwork.name }}{% endblock %}
+{% block block_title %}Edit Review{% endblock %}
+
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  <div class="card__content">
+    <p><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">&larr; Back to artwork reviews</a></p>
+
+    <h1 class="mb-6 text-3xl">{{ artwork.name }}</h1>
+    <p><strong>Juror:</strong> {{ review.juror.get_full_name|default:review.juror.username }}</p>
+
+    <hr>
+    <h2 class="mt-4">Edit juror review</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% load crispy_forms_tags %}
+      {{ form|crispy }}
+      <button type="submit" class="btn btn-primary">Save review</button>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

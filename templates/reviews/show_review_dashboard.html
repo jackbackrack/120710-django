@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Reviews: {{ show.name }}{% endblock %}
+{% block block_title %}Reviews: {{ show.name }}{% endblock %}
+
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  <div class="card__content">
+    <h1 class="mb-6 text-3xl">Reviews: {{ show.name }}</h1>
+    <p><a class="card__link" href="{{ show.get_absolute_url }}">&larr; Back to show</a></p>
+
+    {% if is_curator %}
+
+    <p>
+      <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Manage jurors</a>
+    </p>
+
+    <h2>Jurors ({{ jurors.count }})</h2>
+    {% if jurors %}
+    <ul>
+      {% for assignment in jurors %}
+      <li>{{ assignment.user.get_full_name|default:assignment.user.username }} - assigned {{ assignment.assigned_at|date:"N j, Y" }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-gray-500">No jurors assigned to this show yet.</p>
+    {% endif %}
+
+    <h2 class="mt-4">Artworks ({{ artworks.count }})</h2>
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Artwork</th>
+          <th>Avg Rating</th>
+          <th>Reviews</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for artwork in artworks %}
+        <tr>
+          <td><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></td>
+          <td>
+            {% if artwork.avg_rating %}
+            {{ artwork.avg_rating|floatformat:1 }} / 5
+            {% else %}
+            <span class="text-gray-500">No reviews</span>
+            {% endif %}
+          </td>
+          <td>{{ artwork.review_count }}</td>
+          <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">View reviews</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No artworks in this show.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if all_reviews %}
+    <h2 class="mt-4">All Reviews</h2>
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Artwork</th>
+          <th>Juror</th>
+          <th>Rating</th>
+          <th>Notes</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for review in all_reviews %}
+        <tr>
+          <td><a class="card__link" href="{{ review.artwork.get_absolute_url }}">{{ review.artwork.name }}</a></td>
+          <td>{{ review.juror.get_full_name|default:review.juror.username }}</td>
+          <td>{{ review.rating }}/5</td>
+          <td>{{ review.body|default:"N/A" }}</td>
+          <td>{{ review.updated_at|date:"N j, Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% else %}
+
+    {# Juror view #}
+    <h2>My Reviews ({{ my_reviews.count }})</h2>
+    {% if my_reviews %}
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Artwork</th>
+          <th>Rating</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for review in my_reviews %}
+        <tr>
+          <td>{{ review.artwork.name }}</td>
+          <td>{{ review.rating }}/5</td>
+          <td>{{ review.body|default:"N/A" }}</td>
+          <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=review.artwork.slug %}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <h2 class="mt-4">Pending Review ({{ pending_artworks.count }})</h2>
+    {% if pending_artworks %}
+    <div class="cards">
+      {% for artwork in pending_artworks %}
+      <div class="card">
+        {% if artwork.image %}
+        <img src="{{ artwork.image.url }}" class="card__image">
+        {% endif %}
+        <div class="card__content">
+          <h2 class="text-sm">
+            {% for artist in artwork.artists.all %}
+            <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+          </h2>
+          <h2 class="text-sm">{{ artwork.name }}</h2>
+          {% if artwork.medium %}<p class="text-sm">{{ artwork.medium }}</p>{% endif %}
+        </div>
+        <div class="card__info">
+          <a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">Review</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-500">All artworks reviewed - thank you!</p>
+    {% endif %}
+
+    {% endif %}
+  </div>
+</div>
+</div>
+{% endblock %}

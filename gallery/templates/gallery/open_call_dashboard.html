@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Open Call{% endblock %}
+{% block block_title %}Open Call{% endblock %}
+
+{% block content %}
+<form class="mb-3" method="get">
+  <input type="search" name="q" value="{{ query }}" placeholder="Search open call artworks or artists">
+  <button type="submit">Search</button>
+</form>
+
+<div class="text-center"><h2>Open Call Exhibitions</h2></div>
+<div class="cards">
+  {% for show in open_call_shows %}
+  <div class="card">
+    {% if show.image %}
+    <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <h3><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h3>
+      <p>{{ show.start }} - {{ show.end }}</p>
+      {% if show.curator_artist %}
+      <p>Curated by <a class="card__link" href="{{ show.curator_artist.get_absolute_url }}">{{ show.curator_artist.full_name }}</a></p>
+      {% endif %}
+      {% if show.description %}
+      <p>{{ show.description|safe|truncatewords:30 }}</p>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <p>No open call exhibitions found.</p>
+  {% endfor %}
+</div>
+
+<div class="text-center"><h2>Eligible Artworks</h2></div>
+<div class="cards">
+  {% for artwork in open_call_artworks %}
+  <div class="card">
+    {% if artwork.image %}
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <h3><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
+      <p>{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      {% if artwork.medium %}
+      <p>{{ artwork.medium|truncatewords:12 }}</p>
+      {% endif %}
+      {% if artwork.tags.exists %}
+      <p>{% for tag in artwork.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+      {% if artwork.shows.exists %}
+      <p>Selected for {% for show in artwork.shows.all %}<a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <p>No artworks are currently opted in for open call review.</p>
+  {% endfor %}
+</div>
+{% endblock %}

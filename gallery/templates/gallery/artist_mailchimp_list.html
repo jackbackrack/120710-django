@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}MailChimp Artist List{% endblock %}
+{% block block_title %}MailChimp Artist List{% endblock %}
+
+Email Address, First Name, Last Name
+{% block content %}
+{% for artist in artist_list %}
+{% if artist.email %}
+{{ artist.email }},{{ artist.first_name }},{{ artist.last_name }}
+<br>
+{% endif %}
+{% endfor %}
+{% endblock %}
