@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts.roles import add_artist_role, add_staff_role
+from accounts.roles import add_artist_role, add_juror_role, add_staff_role
 from accounts.signup import apply_google_profile_data, ensure_signup_profile
 from gallery.models import Artist, Tag
 
@@ -162,6 +162,7 @@ class ArtistRoleUpdateViewTests(TestCase):
 
         response = self.client.post(reverse('artist_role_edit', kwargs={'pk': self.artist.pk}), {
             'is_curator': 'on',
+            'is_juror': 'on',
             'curator_tags': [self.tag.pk],
         })
 
@@ -169,4 +170,20 @@ class ArtistRoleUpdateViewTests(TestCase):
 
         self.assertRedirects(response, self.artist.get_absolute_url())
         self.assertTrue(self.artist_user.groups.filter(name='curator').exists())
+        self.assertTrue(self.artist_user.groups.filter(name='juror').exists())
         self.assertQuerySetEqual(self.artist_user.curator_tags.all(), [self.tag], transform=lambda value: value)
+
+    def test_staff_can_revoke_juror_role(self):
+        add_juror_role(self.artist_user)
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(reverse('artist_role_edit', kwargs={'pk': self.artist.pk}), {
+            'is_curator': '',
+            'is_juror': '',
+            'curator_tags': [],
+        })
+
+        self.artist_user.refresh_from_db()
+
+        self.assertRedirects(response, self.artist.get_absolute_url())
+        self.assertFalse(self.artist_user.groups.filter(name='juror').exists())

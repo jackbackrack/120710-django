@@ -169,6 +169,9 @@ ROLE_DOCUMENTATION = {
             'Manage artist and artwork visibility controls globally.',
             'Set or change managing curator fields where available.',
             'Manage curator role assignments and curator tag access.',
+            'Grant or revoke juror access for users.',
+            'Assign and remove jurors for any show.',
+            'View and edit juror reviews across shows when needed.',
         ],
         'forms': [
             {
@@ -197,7 +200,25 @@ ROLE_DOCUMENTATION = {
                 'breadcrumb': 'Home > Artists > Select Artist > Roles',
                 'fields': [
                     {'name': 'is_curator', 'input_type': 'checkbox', 'purpose': 'Grant or revoke curator access for this user.'},
+                    {'name': 'is_juror', 'input_type': 'checkbox', 'purpose': 'Grant or revoke juror access for this user.'},
                     {'name': 'curator_tags', 'input_type': 'multi-select', 'purpose': 'Scope curator access to selected tags.'},
+                ],
+            },
+            {
+                'name': 'Juror Assignment Form',
+                'where_used': 'Show reviews -> Manage jurors',
+                'breadcrumb': 'Home > Shows > Select Show > Reviews > Manage jurors',
+                'fields': [
+                    {'name': 'user', 'input_type': 'dropdown select', 'purpose': 'Assign an active user as juror for the selected show.'},
+                ],
+            },
+            {
+                'name': 'Juror Review Edit Form (Staff)',
+                'where_used': 'Artwork reviews detail (staff/curator view)',
+                'breadcrumb': 'Home > Shows > Select Show > Reviews > Select Artwork > Edit Review',
+                'fields': [
+                    {'name': 'rating', 'input_type': 'radio select (1-5)', 'purpose': 'Adjust juror score when corrections are required.'},
+                    {'name': 'body', 'input_type': 'multi-line text area', 'purpose': 'Adjust juror note text when needed.'},
                 ],
             },
         ],

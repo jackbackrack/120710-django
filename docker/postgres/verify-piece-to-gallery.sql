@@ -1,4 +1,20 @@
 WITH counts AS (
+    SELECT 'auth group artist exists' AS check_name,
+        CASE WHEN EXISTS (SELECT 1 FROM auth_group WHERE name = 'artist') THEN 1 ELSE 0 END AS source_count,
+        1 AS target_count
+    UNION ALL
+    SELECT 'auth group curator exists',
+        CASE WHEN EXISTS (SELECT 1 FROM auth_group WHERE name = 'curator') THEN 1 ELSE 0 END,
+        1
+    UNION ALL
+    SELECT 'auth group staff exists',
+        CASE WHEN EXISTS (SELECT 1 FROM auth_group WHERE name = 'staff') THEN 1 ELSE 0 END,
+        1
+    UNION ALL
+    SELECT 'auth group juror exists',
+        CASE WHEN EXISTS (SELECT 1 FROM auth_group WHERE name = 'juror') THEN 1 ELSE 0 END,
+        1
+    UNION ALL
     SELECT 'reviews_showjuror table exists' AS check_name,
         CASE WHEN to_regclass('public.reviews_showjuror') IS NOT NULL THEN 1 ELSE 0 END AS source_count,
         1 AS target_count

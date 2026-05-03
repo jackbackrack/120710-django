@@ -3,7 +3,12 @@ from django import forms
 from django.contrib.auth.models import User
 from django_recaptcha.fields import ReCaptchaField
 
-from accounts.roles import add_curator_role, remove_curator_role
+from accounts.roles import (
+    add_curator_role,
+    add_juror_role,
+    remove_curator_role,
+    remove_juror_role,
+)
 from accounts.signup import ensure_signup_profile
 from gallery.models import Artist, Tag
 
@@ -61,6 +66,7 @@ class UserNameUpdateForm(forms.ModelForm):
 
 class ArtistRoleUpdateForm(forms.Form):
     is_curator = forms.BooleanField(required=False, label='Curator access')
+    is_juror = forms.BooleanField(required=False, label='Juror access')
     curator_tags = forms.ModelMultipleChoiceField(queryset=Tag.objects.none(), required=False)
 
     def __init__(self, *args, artist, **kwargs):
@@ -70,6 +76,7 @@ class ArtistRoleUpdateForm(forms.Form):
 
         if self.artist.user_id:
             self.initial['is_curator'] = self.artist.user.groups.filter(name='curator').exists()
+            self.initial['is_juror'] = self.artist.user.groups.filter(name='juror').exists()
             self.initial['curator_tags'] = self.artist.user.curator_tags.all()
 
     def clean(self):
@@ -84,6 +91,11 @@ class ArtistRoleUpdateForm(forms.Form):
             add_curator_role(user)
         else:
             remove_curator_role(user)
+
+        if self.cleaned_data['is_juror']:
+            add_juror_role(user)
+        else:
+            remove_juror_role(user)
 
         user.curator_tags.set(self.cleaned_data['curator_tags'])
         return user

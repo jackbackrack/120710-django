@@ -228,9 +228,23 @@ db_from_env = dj_database_url.config(default=default_database_url, conn_max_age=
 if db_from_env:
     DATABASES['default'].update(db_from_env)
 
-USE_S3 = os.getenv('USE_S3') == 'True'
+# Storage backend selection:
+# - Production: set USE_S3=True to use S3 for static/media.
+# - Local dev default: local staticfiles (for CSS/JS iteration), S3 media (for images).
+# - Override locally with:
+#   USE_S3_STATIC_LOCAL=True|False
+#   USE_S3_MEDIA_LOCAL=True|False
+FORCE_S3_LOCAL = os.getenv('FORCE_S3_LOCAL') == 'True'
+BASE_USE_S3 = os.getenv('USE_S3') == 'True'
 
-if USE_S3 :
+if LOCAL_DEV and not FORCE_S3_LOCAL:
+    USE_S3_STATIC = os.getenv('USE_S3_STATIC_LOCAL', 'False') == 'True'
+    USE_S3_MEDIA = os.getenv('USE_S3_MEDIA_LOCAL', 'True') == 'True'
+else:
+    USE_S3_STATIC = BASE_USE_S3
+    USE_S3_MEDIA = BASE_USE_S3
+
+if USE_S3_STATIC or USE_S3_MEDIA:
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')  
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
     AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
@@ -242,34 +256,37 @@ if USE_S3 :
     AWS_STATIC_LOCATION = 'static'
     AWS_MEDIA_LOCATION = 'media'
 
-    # The absolute path to the directory where collectstatic will collect static files for deployment.
+if USE_S3_MEDIA:
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/'
-    STORAGES = {
-        # Media file (image) management
-        "default" : {
-            "OPTIONS": { "location": "media/" },
-            "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
-            },
-        "staticfiles": {
-            "OPTIONS": { "location": "static/" },
-            "BACKEND": "storages.backends.s3boto3.S3StaticStorage"
-            },
-        }
 else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
     MEDIA_URL = 'media/'
+
+if USE_S3_STATIC:
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/'
+else:
     STATIC_ROOT = BASE_DIR / "staticfiles"
     STATIC_URL = 'static/'
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
     STATICFILES_DIRS = [BASE_DIR / "static"]
+
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "storages.backends.s3boto3.S3StaticStorage"
+            if USE_S3_MEDIA else
+            "django.core.files.storage.FileSystemStorage"
+        ),
+        **({"OPTIONS": {"location": "media/"}} if USE_S3_MEDIA else {}),
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "storages.backends.s3boto3.S3StaticStorage"
+            if USE_S3_STATIC else
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
+        **({"OPTIONS": {"location": "static/"}} if USE_S3_STATIC else {}),
+    },
+}
 
 # Local overrides — not committed to git, not deployed to Railway
 try:

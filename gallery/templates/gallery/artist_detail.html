@@ -40,7 +40,7 @@
 </div>
 <div class="text-center"><h2>Artworks</h2></div>
 {% if user.is_authenticated %}
-<div class="text-center"><a class="card__link" href="{% url 'gallery:artwork_new' %}">New</a></div>
+<div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_new' %}">New</a></div>
 {% endif %}
 <div class="cards">
   {% for artwork in artworks %}

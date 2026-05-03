@@ -35,6 +35,16 @@ BEGIN
     END IF;
 END $$;
 
+-- Ensure baseline role groups exist for role-aware workflows.
+-- Safe to run repeatedly due to ON CONFLICT.
+INSERT INTO auth_group (name)
+VALUES
+    ('artist'),
+    ('curator'),
+    ('staff'),
+    ('juror')
+ON CONFLICT (name) DO NOTHING;
+
 DO $$
 DECLARE
     has_first_name boolean;

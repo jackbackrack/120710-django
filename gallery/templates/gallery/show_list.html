@@ -3,14 +3,14 @@
 {% block title %}Shows{% endblock title %}
 {% block block_title %}Shows
 {% if user.is_authenticated %}
-  <a class="card__link" href="{% url 'gallery:show_new' %}">New</a>
+  <a class="card__link new-button" href="{% url 'gallery:show_new' %}">New</a>
 {% endif %}
 {% endblock block_title %}
 
 {% block content %}
 {% if user.is_authenticated %}
-<form class="mb-3" method="get">
-  <label for="show-tag-filter">Filter by tag</label>
+<form class="mb-3 col-4 mx-auto mt-4" method="get">
+  <label for="show-tag-filter">Filter Shows by tag</label>
   <select id="show-tag-filter" name="tag" onchange="this.form.submit()">
     <option value="">All tags</option>
     {% for tag in available_tags %}

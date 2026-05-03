@@ -45,7 +45,7 @@
     <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
   {% endif %}
     {% if user.is_authenticated %}
-    <form class="d-flex" action="{% url 'gallery:search_results' %}" method="get">
+    <form class="d-flex col-8 mx-auto mt-4" action="{% url 'gallery:search_results' %}" method="get">
       <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search" >
       <button class="btn btn-outline-success" type="submit">Search</button>
     </form>

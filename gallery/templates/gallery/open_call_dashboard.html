@@ -4,9 +4,9 @@
 {% block block_title %}Open Call{% endblock %}
 
 {% block content %}
-<form class="mb-3" method="get">
-  <input type="search" name="q" value="{{ query }}" placeholder="Search open call artworks or artists">
-  <button type="submit">Search</button>
+<form class="d-flex mb-3 col-4 mx-auto mt-4" method="get">
+  <input class="form-control me-2" type="search" name="q" value="{{ query }}" placeholder="Search open call artworks or artists">
+  <button class="btn btn-outline-success" type="submit">Search</button>
 </form>
 
 <div class="text-center"><h2>Open Call Exhibitions</h2></div>
