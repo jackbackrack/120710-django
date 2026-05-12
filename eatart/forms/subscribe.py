@@ -1,5 +1,12 @@
 from django import forms
+from django.conf import settings
 from django_recaptcha.fields import ReCaptchaField
+
+
+def _captcha_field():
+    if getattr(settings, 'RECAPTCHA_ENABLED', False):
+        return ReCaptchaField()
+    return forms.CharField(required=False, widget=forms.HiddenInput)
 
 
 class SubscribeForm(forms.Form):
@@ -11,4 +18,4 @@ class SubscribeForm(forms.Form):
         label="If you're a human, you're awesome, and leave this invisible field blank.",
         widget=forms.TextInput(attrs={'tabindex': '-1', 'class': 'honeypot'}),
     )
-    captcha = ReCaptchaField()
+    captcha = _captcha_field()

@@ -1,5 +1,6 @@
 from allauth.account.forms import ResetPasswordForm, SignupForm
 from django import forms
+from django.conf import settings
 from django.contrib.auth.models import User
 from django_recaptcha.fields import ReCaptchaField
 
@@ -13,14 +14,21 @@ from accounts.signup import ensure_signup_profile
 from gallery.models import Artist, Tag
 
 
+def _captcha_field():
+    if getattr(settings, 'RECAPTCHA_ENABLED', False):
+        return ReCaptchaField()
+    # Fallback keeps templates stable and still catches unsophisticated bots.
+    return forms.CharField(required=False, widget=forms.HiddenInput)
+
+
 class CustomResetPasswordForm(ResetPasswordForm):
-    captcha = ReCaptchaField()
+    captcha = _captcha_field()
 
 
 class CustomSignupForm(SignupForm):
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
-    captcha = ReCaptchaField()
+    captcha = _captcha_field()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

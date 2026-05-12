@@ -94,6 +94,12 @@ POSTGRES_PORT=5432
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
+# Optional: reCAPTCHA (enabled automatically only if both keys exist)
+RECAPTCHA_PUBLIC_KEY=
+RECAPTCHA_PRIVATE_KEY=
+# Optional explicit override (True/False)
+RECAPTCHA_ENABLED=
+
 # Optional: Mailchimp
 MAILCHIMP_API_KEY=
 MAILCHIMP_DATA_CENTER=

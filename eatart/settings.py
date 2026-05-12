@@ -42,6 +42,20 @@ DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
 
 LOCAL_DEV = DEBUG and os.environ.get('DJANGO_ENV', 'local') == 'local'
 
+
+def _env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '').strip()
+RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '').strip()
+_recaptcha_keys_present = bool(RECAPTCHA_PUBLIC_KEY and RECAPTCHA_PRIVATE_KEY)
+# Enabled only when keys exist unless explicitly disabled.
+RECAPTCHA_ENABLED = _env_bool('RECAPTCHA_ENABLED', default=_recaptcha_keys_present)
+
 ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', '127.0.0.1', 'localhost', 'db']
 
 CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'https://shows.120710.art', 'https://www.120710.art', 'https://120710.art']
