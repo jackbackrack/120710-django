@@ -26,4 +26,8 @@ urlpatterns = [
     path("accounts/signup/", CustomSignupView.as_view()),
     path("accounts/password/reset/", CustomPasswordResetView.as_view()),
     path("accounts/", include("allauth.urls")),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+# Only serve media files via Django in local/debug filesystem mode.
+if settings.DEBUG and hasattr(settings, "MEDIA_ROOT"):
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
