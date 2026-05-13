@@ -1,1 +1,1 @@
-web: python manage.py migrate && python manage.py collectstatic --no-input && gunicorn eatart.asgi:application -k uvicorn.workers.UvicornWorker
+web: python manage.py migrate && python manage.py collectstatic --no-input && gunicorn eatart.asgi:application -k uvicorn.workers.UvicornWorker --access-logfile - --error-logfile -
