@@ -11,3 +11,8 @@ restore-local.sh
 .env.example
 eatart/local_settings.py
 .local_settings
+Dockerfile
+compose.yml
+120710-database
+/docker/*
+/scripts/*

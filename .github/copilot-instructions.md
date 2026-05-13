@@ -43,7 +43,7 @@ gallery/            # Main app
 
 accounts/           # User/role management (Artist, Curator, Juror, Staff groups)
 reviews/            # Juror assignments and artwork review/rating workflows
-docker/postgres/    # SQL migration and verification scripts
+scripts/    # SQL migration and verification scripts
 templates/          # Project-wide templates (base.html, gallery/, account/, public/)
 ```
 
@@ -92,7 +92,7 @@ Every public detail page (artist, artwork, show, event) injects `<script type="a
 - Falls back to SQLite if `POSTGRES_DB` is not set (wrong for any real data work)
 - Legacy tables are `piece_*`; current tables are `gallery_*`
 - Review tables include `reviews_showjuror` and `reviews_artworkreview`
-- Migration SQL lives in `docker/postgres/migrate-piece-to-gallery.sql`
+- Migration SQL lives in `scripts/migrate-piece-to-gallery.sql`
 
 ### Media & Static
 - Local: filesystem (`MEDIA_ROOT`, `STATIC_ROOT`)

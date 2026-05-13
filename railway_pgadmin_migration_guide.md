@@ -18,16 +18,16 @@ Use this when:
 - Railway database connection details
 - access to a pgAdmin web instance that can connect to the Railway PostgreSQL service
 - the files in this repo:
-  - `docker/postgres/migrate-piece-to-gallery.sql`
-  - `docker/postgres/verify-piece-to-gallery.sql`
+  - `scripts/migrate-piece-to-gallery.sql`
+  - `scripts/verify-piece-to-gallery.sql`
 
 ## Important Constraint
 
 The local shell helpers are Docker Compose wrappers for local development:
 
-- `docker/postgres/restore-local.sh`
-- `docker/postgres/migrate-piece-to-gallery.sh`
-- `docker/postgres/verify-piece-to-gallery.sh`
+- `scripts/restore-local.sh`
+- `scripts/migrate-piece-to-gallery.sh`
+- `scripts/verify-piece-to-gallery.sh`
 
 Do not expect those wrapper scripts to run unchanged inside Railway.
 
@@ -184,7 +184,7 @@ In pgAdmin:
 
 1. Open the Railway database.
 2. Open `Query Tool`.
-3. Paste the contents of `docker/postgres/migrate-piece-to-gallery.sql`.
+3. Paste the contents of `scripts/migrate-piece-to-gallery.sql`.
 4. Execute the query.
 
 Expected result:
@@ -205,7 +205,7 @@ Notes:
 Still in pgAdmin Query Tool:
 
 1. Open a new query tab or clear the previous one.
-2. Paste the contents of `docker/postgres/verify-piece-to-gallery.sql`.
+2. Paste the contents of `scripts/verify-piece-to-gallery.sql`.
 3. Execute the query.
 
 Expected result:

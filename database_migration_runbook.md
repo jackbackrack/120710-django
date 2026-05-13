@@ -19,11 +19,11 @@ It assumes:
 
 ## Files Involved
 
-- `docker/postgres/restore-local.sh`
-- `docker/postgres/migrate-piece-to-gallery.sh`
-- `docker/postgres/migrate-piece-to-gallery.sql`
-- `docker/postgres/verify-piece-to-gallery.sh`
-- `docker/postgres/verify-piece-to-gallery.sql`
+- `scripts/restore-local.sh`
+- `scripts/migrate-piece-to-gallery.sh`
+- `scripts/migrate-piece-to-gallery.sql`
+- `scripts/verify-piece-to-gallery.sh`
+- `scripts/verify-piece-to-gallery.sql`
 
 ## Local Workflow
 
@@ -49,7 +49,7 @@ docker compose --env-file .env.local exec web python manage.py migrate
 Restore the legacy database dump so the old `piece_*` tables exist:
 
 ```bash
-./docker/postgres/restore-local.sh
+./scripts/restore-local.sh
 ```
 
 This recreates the local database from the dump configured by `POSTGRES_DUMP_FILE`.
@@ -69,7 +69,7 @@ At this point both schemas should exist:
 
 ### 3. Copy data into the new schema
 
-Use pgAdmin to run the docker/postgres/migrate-piece-to-gallery.sql sql script
+Use pgAdmin to run the scripts/migrate-piece-to-gallery.sql sql script
 
 This script:
 
@@ -84,7 +84,7 @@ This script:
 
 Run the verification in pgAdmin
 
-docker/postgres/verify-piece-to-gallery.sql
+scripts/verify-piece-to-gallery.sql
 
 Expected outcome:
 
@@ -132,8 +132,8 @@ If production is still running the old app, use this order:
 
 1. Deploy the new code version (gallery + reviews) first.
 2. Run `python manage.py migrate` against production Postgres.
-3. Run `docker/postgres/migrate-piece-to-gallery.sql` in pgAdmin.
-4. Run `docker/postgres/verify-piece-to-gallery.sql` and confirm all checks pass.
+3. Run `scripts/migrate-piece-to-gallery.sql` in pgAdmin.
+4. Run `scripts/verify-piece-to-gallery.sql` and confirm all checks pass.
 5. Run post-cutover juror assignment + rating smoke checks.
 
 Do this in a maintenance window to avoid writes during migration.
@@ -143,8 +143,8 @@ Do this in a maintenance window to avoid writes during migration.
 If you need to run the SQL manually:
 
 ```bash
-psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f docker/postgres/migrate-piece-to-gallery.sql
-psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f docker/postgres/verify-piece-to-gallery.sql
+psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f scripts/migrate-piece-to-gallery.sql
+psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f scripts/verify-piece-to-gallery.sql
 ```
 
 If you need to run Django commands manually against Postgres locally:

@@ -12,7 +12,7 @@ Use this one-page checklist during a maintenance window.
 
 - [ ] New code (including `gallery` and `reviews`) is deployed.
 - [ ] Railway Postgres credentials are available (`DATABASE_URL` or `PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD`).
-- [ ] `docker/postgres/migrate-piece-to-gallery.sql` and `docker/postgres/verify-piece-to-gallery.sql` are available.
+- [ ] `scripts/migrate-piece-to-gallery.sql` and `scripts/verify-piece-to-gallery.sql` are available.
 - [ ] Maintenance window is active (no user writes expected).
 
 ## Copy/Paste Run Order (Shell)
@@ -60,13 +60,13 @@ ORDER BY table_name;
 ### Query B: Run migration SQL
 
 ```sql
--- Paste and execute file: docker/postgres/migrate-piece-to-gallery.sql
+-- Paste and execute file: scripts/migrate-piece-to-gallery.sql
 ```
 
 ### Query C: Run verification SQL
 
 ```sql
--- Paste and execute file: docker/postgres/verify-piece-to-gallery.sql
+-- Paste and execute file: scripts/verify-piece-to-gallery.sql
 ```
 
 ## Pass Criteria

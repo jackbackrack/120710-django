@@ -169,8 +169,8 @@ The migration from the legacy `piece_*` schema to `gallery_*` is handled by:
 
 | File | Purpose |
 |---|---|
-| `docker/postgres/migrate-piece-to-gallery.sql` | Full transactional migration SQL |
-| `docker/postgres/verify-piece-to-gallery.sql` | Row count and missing-record verification |
+| `scripts/migrate-piece-to-gallery.sql` | Full transactional migration SQL |
+| `scripts/verify-piece-to-gallery.sql` | Row count and missing-record verification |
 
 Key migration behaviours:
 - `gallery_show_artists` is **derived** from artwork membership (no legacy source table)

@@ -143,7 +143,7 @@ gallery/            # Main gallery app
 
 accounts/           # User/role management
 reviews/            # Juror assignments and artwork review/rating workflows
-docker/postgres/    # SQL migration and verification scripts
+scripts/    # SQL migration and verification scripts
 templates/          # Project-wide templates (base.html, gallery/, account/, public/)
 ```
 
@@ -215,7 +215,7 @@ Superusers bypass all role checks. Group name constants are in `accounts/roles.p
 
 ## Database Migration (Legacy → Current)
 
-The original database used `piece_*` tables. The migration to `gallery_*` is handled via SQL scripts in `docker/postgres/`:
+The original database used `piece_*` tables. The migration to `gallery_*` is handled via SQL scripts in `scripts/`:
 
 | Script | Purpose |
 |---|---|
