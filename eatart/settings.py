@@ -141,6 +141,11 @@ MAILCHIMP_AUDIENCE_ID = os.environ.get("MAILCHIMP_AUDIENCE_ID")
 
 SITE_ID = 1
 
+# Behind Railway/proxies, trust forwarded proto so callback URLs are generated as HTTPS.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if LOCAL_DEV else 'https'
+
 ROOT_URLCONF = 'eatart.urls'
 
 TEMPLATES = [
