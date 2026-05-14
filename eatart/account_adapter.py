@@ -1,7 +1,14 @@
+import logging
+
+from django.core.exceptions import MultipleObjectsReturned
+
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 
 from accounts.signup import apply_google_profile_data, ensure_signup_profile
+
+
+logger = logging.getLogger(__name__)
 
 class NoNewUsersAccountAdapter(DefaultAccountAdapter):
 
@@ -10,6 +17,27 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
+
+    def get_app(self, request, provider, client_id=None):
+        try:
+            return super().get_app(request, provider, client_id=client_id)
+        except MultipleObjectsReturned:
+            apps = self.list_apps(request, provider=provider, client_id=client_id)
+            visible_apps = [app for app in apps if not app.settings.get('hidden')]
+            fallback_apps = visible_apps or apps
+            if not fallback_apps:
+                raise
+
+            app = fallback_apps[0]
+            logger.warning(
+                'Multiple social apps matched provider=%s client_id=%s; '
+                'using app id=%s name=%s as fallback.',
+                provider,
+                client_id,
+                getattr(app, 'id', None),
+                getattr(app, 'name', None),
+            )
+            return app
 
     def is_open_for_signup(self, request, sociallogin):
         """Allow social (Google) signups."""
