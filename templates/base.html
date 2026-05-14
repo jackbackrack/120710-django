@@ -29,8 +29,8 @@
     | <a class="card__link" href="{% url 'gallery:show_list'%}">Shows</a>
     | <a class="card__link" href="{% url 'gallery:artist_list'%}">Artists</a>
     | <a class="card__link" href="{% url 'gallery:artwork_list'%}">Artworks</a>
-    {% if can_access_open_call_dashboard %}| <a class="card__link" href="{% url 'gallery:open_call_dashboard' %}">Open Call Dashboard</a>{% endif %}
-    {% if can_access_artist_open_call %}| <a class="card__link" href="{% url 'gallery:artist_open_call' %}">My Open Call</a>{% endif %}
+    {% if can_access_open_call_dashboard|default:False %}| <a class="card__link" href="{% url 'gallery:open_call_dashboard' %}">Open Call Dashboard</a>{% endif %}
+    {% if can_access_artist_open_call|default:False %}| <a class="card__link" href="{% url 'gallery:artist_open_call' %}">My Open Call</a>{% endif %}
     | <a class="card__link" href="{% url 'about'%}">About</a>
     | <a class="card__link" href="{% url 'visit'%}">Visit</a>
     | <a class="card__link" href="{% url 'contact'%}">Contact</a>

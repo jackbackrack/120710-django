@@ -19,25 +19,45 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
     def get_app(self, request, provider, client_id=None):
-        try:
-            return super().get_app(request, provider, client_id=client_id)
-        except MultipleObjectsReturned:
-            apps = self.list_apps(request, provider=provider, client_id=client_id)
-            visible_apps = [app for app in apps if not app.settings.get('hidden')]
-            fallback_apps = visible_apps or apps
-            if not fallback_apps:
-                raise
+        apps = list(self.list_apps(request, provider=provider, client_id=client_id))
 
-            app = fallback_apps[0]
+        if not apps:
+            return super().get_app(request, provider, client_id=client_id)
+
+        visible_apps = [app for app in apps if not app.settings.get('hidden')]
+        candidate_apps = visible_apps or apps
+
+        if client_id:
+            client_matched = [
+                app for app in candidate_apps
+                if getattr(app, 'client_id', None) == client_id
+            ]
+            if client_matched:
+                candidate_apps = client_matched
+
+        # Pick deterministically so duplicate records do not randomly change behavior.
+        app = sorted(
+            candidate_apps,
+            key=lambda candidate: (
+                getattr(candidate, 'id', None) is None,
+                getattr(candidate, 'id', 0) or 0,
+                getattr(candidate, 'name', '') or '',
+            ),
+        )[0]
+
+        if len(candidate_apps) > 1:
+            app_ids = [getattr(candidate, 'id', None) for candidate in candidate_apps]
             logger.warning(
-                'Multiple social apps matched provider=%s client_id=%s; '
+                'Multiple social apps matched provider=%s client_id=%s ids=%s; '
                 'using app id=%s name=%s as fallback.',
                 provider,
                 client_id,
+                app_ids,
                 getattr(app, 'id', None),
                 getattr(app, 'name', None),
             )
-            return app
+
+        return app
 
     def is_open_for_signup(self, request, sociallogin):
         """Allow social (Google) signups."""
