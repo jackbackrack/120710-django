@@ -7,7 +7,14 @@ from django.urls import reverse_lazy
 
 from gallery.forms import ArtistForm
 from gallery.models import Artist, Tag
-from gallery.permissions import can_manage_artist, is_artist_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import (
+    can_manage_artist,
+    is_artist_user,
+    is_staff_user,
+    tag_filter_queryset,
+    visible_artist_queryset,
+    visible_artwork_queryset,
+)
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -16,7 +23,7 @@ class ArtistListView(ListView):
     template_name = 'gallery/artist_list.html'
 
     def get_queryset(self):
-        queryset = Artist.objects.all()
+        queryset = Artist.objects.filter(visible_artist_queryset(self.request.user))
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
@@ -38,6 +45,9 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
     model = Artist
     schema_mapper = artist_to_schema
     template_name = 'gallery/artist_detail.html'
+
+    def get_queryset(self):
+        return Artist.objects.filter(visible_artist_queryset(self.request.user)).distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

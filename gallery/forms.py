@@ -29,6 +29,7 @@ class ArtistForm(UserAwareModelForm):
             'bio',
             'statement',
             'image',
+            'is_public',
             'tags',
         )
 
@@ -36,6 +37,7 @@ class ArtistForm(UserAwareModelForm):
         super().__init__(*args, user=user, **kwargs)
         if not is_staff_user(self.user):
             self.fields.pop('tags')
+            self.fields.pop('is_public')
 
 
 class ArtworkForm(UserAwareModelForm):
@@ -129,6 +131,7 @@ class ShowForm(UserAwareModelForm):
         show.artists.set(Artist.objects.filter(id__in=selected_artist_ids + selected_artwork_artist_ids).distinct())
         show.artworks.set(selected_artworks)
         selected_artworks.update(is_public=True)
+        Artist.objects.filter(artworks__in=selected_artworks).update(is_public=True)
         if show.is_open_call:
             show.tags.add(open_call_tag)
         else:

@@ -18,6 +18,7 @@ class Artist(models.Model):
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='artist_images', null=True)
+    is_public = models.BooleanField(default=False)
     tags = models.ManyToManyField('gallery.Tag', related_name='artists', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

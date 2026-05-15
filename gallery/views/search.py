@@ -3,7 +3,7 @@ from django.db.models import Q
 from django.views.generic import ListView
 
 from gallery.models import Artist, Artwork, Tag
-from gallery.permissions import tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import tag_filter_queryset, visible_artist_queryset, visible_artwork_queryset
 
 
 class SearchResultsListView(LoginRequiredMixin, ListView):
@@ -13,7 +13,7 @@ class SearchResultsListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         query = self.request.GET.get('q', '')
-        queryset = Artist.objects.filter(Q(name__icontains=query))
+        queryset = Artist.objects.filter(visible_artist_queryset(self.request.user), Q(name__icontains=query))
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, *args, **kwargs):

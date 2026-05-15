@@ -50,6 +50,15 @@ class ArtistModelTests(TestCase):
         self.assertEqual(first_artist.slug, 'ada-lovelace')
         self.assertEqual(second_artist.slug, 'ada-lovelace-2')
 
+    def test_artists_are_private_by_default(self):
+        artist = Artist.objects.create(
+            name='Private Artist',
+            email='private@example.com',
+            phone='555-9999',
+        )
+
+        self.assertFalse(artist.is_public)
+
 
 class PublicSlugNormalizationTests(TestCase):
     def test_artwork_slug_replaces_underscores_with_hyphens(self):
@@ -87,6 +96,7 @@ class PublicUrlTests(TestCase):
             last_name='Lovelace',
             email='ada@example.com',
             phone='555-1212',
+            is_public=True,
         )
         self.show = Show.objects.create(
             name='Spring Show',
@@ -169,6 +179,19 @@ class PublicUrlTests(TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
+
+    def test_private_artist_is_hidden_from_anonymous_users(self):
+        private_artist = Artist.objects.create(
+            name='Hidden Artist',
+            email='hidden@example.com',
+            phone='555-0000',
+        )
+
+        list_response = self.client.get('/artists/')
+        detail_response = self.client.get(private_artist.get_absolute_url())
+
+        self.assertNotContains(list_response, private_artist.name)
+        self.assertEqual(detail_response.status_code, 404)
 
     def test_show_latest_legacy_route_redirects_to_current_show(self):
         response = self.client.get('/show/latest')
@@ -348,11 +371,13 @@ class AuthorizationWorkflowTests(TestCase):
 
         self.show.refresh_from_db()
         self.private_artwork.refresh_from_db()
+        self.artist.refresh_from_db()
 
         self.assertRedirects(response, self.show.get_absolute_url())
         self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
         self.assertTrue(self.show.artworks.filter(pk=self.private_artwork.pk).exists())
         self.assertTrue(self.private_artwork.is_public)
+        self.assertTrue(self.artist.is_public)
 
     def test_open_call_dashboard_is_curator_only_and_lists_opted_in_work(self):
         self.show.is_open_call = True
@@ -478,6 +503,35 @@ class AuthorizationWorkflowTests(TestCase):
 
         self.assertContains(page_response, 'placeholder="Search"')
         self.assertEqual(search_response.status_code, 200)
+
+    def test_logged_in_artist_can_view_own_private_artist_detail(self):
+        self.client.force_login(self.artist_user)
+
+        response = self.client.get(self.artist.get_absolute_url())
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_logged_in_artist_search_hides_other_private_artists(self):
+        other_user = User.objects.create_user(
+            username='other-artist@example.com',
+            email='other-artist@example.com',
+            password='password123',
+        )
+        add_artist_role(other_user)
+        other_artist = Artist.objects.create(
+            user=other_user,
+            name='Public Facing Name',
+            first_name='Public',
+            last_name='Facing Name',
+            email='other-artist@example.com',
+            phone='',
+        )
+
+        self.client.force_login(self.artist_user)
+        response = self.client.get('/artist/search/?q=Public')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, other_artist.name)
 
     def test_tag_filters_are_visible_to_logged_in_users(self):
         self.client.force_login(self.artist_user)

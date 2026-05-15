@@ -52,6 +52,16 @@ def visible_artwork_queryset(user):
     return visibility_filter
 
 
+def visible_artist_queryset(user):
+    if is_curator_user(user):
+        return Q()
+
+    visibility_filter = Q(is_public=True)
+    if user.is_authenticated:
+        visibility_filter |= Q(user=user)
+    return visibility_filter
+
+
 def tag_filter_queryset(queryset, tag_slug):
     if not tag_slug:
         return queryset
