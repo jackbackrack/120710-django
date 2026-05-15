@@ -27,12 +27,12 @@ class ArtworkListView(ListView):
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
-        from gallery.permissions import can_manage_artwork
         context = super().get_context_data(**kwargs)
-        artworks = context.get('object_list', [])
+        artworks = list(context.get('object_list', []))
+        context['object_list'] = artworks
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
-        context['can_manage_artwork'] = {a.id: can_manage_artwork(self.request.user, a) for a in artworks}
+        context['can_manage_artwork'] = {a.id for a in artworks if can_manage_artwork(self.request.user, a)}
         return context
 
 

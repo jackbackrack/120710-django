@@ -55,7 +55,7 @@
       {% endif %}
     </div>
     <div class="card__info">
-      {% if can_manage_artwork|default:{}|dictsort:artwork.id %}
+      {% if artwork.id in can_manage_artwork %}
       <a href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
       <a href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
       {% endif %}
