@@ -172,3 +172,129 @@ h5 {
 th, td {
   padding: 8px; /* Adds 8px padding on all sides of the cell content */
 }
+
+.social-login-page {
+    min-height: calc(100vh - 180px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    background:
+        radial-gradient(circle at 15% 10%, #f8f4ec 0%, #f8f4ec 15%, transparent 45%),
+        radial-gradient(circle at 85% 80%, #e6e0d2 0%, #e6e0d2 20%, transparent 42%),
+        linear-gradient(145deg, #f3eee4 0%, #e5dece 100%);
+}
+
+.social-login-card {
+    width: 100%;
+    max-width: 560px;
+    border: 3px solid #333333;
+    background: #fffdf8;
+    padding: 0;
+    box-shadow: 10px 10px 0 #d2ccbf;
+}
+
+.social-login-header {
+    padding: 24px 24px 14px;
+    border-bottom: 2px solid #ded8cb;
+    background: linear-gradient(180deg, #fffcf5 0%, #f8f2e6 100%);
+}
+
+.social-login-eyebrow {
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    color: #6f6859;
+    font-weight: 700;
+}
+
+.social-login-title {
+    font-size: 1.55rem;
+    margin: 0 0 8px;
+    color: #2b2b2b;
+    line-height: 1.2;
+}
+
+.social-login-copy {
+    color: #4a4a4a;
+    margin: 0;
+    line-height: 1.45;
+}
+
+.social-login-provider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 24px 0;
+    padding: 10px 12px;
+    border: 2px solid #d8d0be;
+    background: #faf5ea;
+    font-size: 0.93rem;
+}
+
+.social-login-provider-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6f6859;
+    font-weight: 700;
+}
+
+.social-login-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 18px 24px 10px;
+}
+
+.social-login-button {
+    border-radius: 0;
+    border: 2px solid #7b1919;
+    min-width: 150px;
+    font-weight: 700;
+}
+
+.social-login-cancel {
+    color: #366f67;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.social-login-cancel:hover {
+    text-decoration: underline;
+}
+
+.social-login-note {
+    margin: 2px 24px 22px;
+    color: #6a665c;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+    .social-login-page {
+        padding: 16px;
+    }
+
+    .social-login-header,
+    .social-login-form {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .social-login-provider,
+    .social-login-note {
+        margin-left: 16px;
+        margin-right: 16px;
+    }
+
+    .social-login-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .social-login-button {
+        width: 100%;
+    }
+}

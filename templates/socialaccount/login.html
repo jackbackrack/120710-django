@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign In" %}{% endblock %}
+{% block block_title %}{% trans "Sign In" %}{% endblock %}
+
+{% block content %}
+<section class="social-login-page">
+  <div class="social-login-card">
+    <div class="social-login-header">
+      <p class="social-login-eyebrow">Authentication</p>
+      <h2 class="social-login-title">Continue with {{ provider.name }}</h2>
+      <p class="social-login-copy">
+        You are about to sign in using your {{ provider.name }} account.
+      </p>
+    </div>
+
+    <div class="social-login-provider">
+      <span class="social-login-provider-label">Provider</span>
+      <strong>{{ provider.name }}</strong>
+    </div>
+
+    <form method="post" class="social-login-form">
+      {% csrf_token %}
+      <button class="btn btn-danger social-login-button" type="submit">Continue</button>
+      <a class="social-login-cancel" href="{% url 'account_login' %}">Cancel</a>
+    </form>
+
+    <p class="social-login-note">
+      If this is not the account you expected, choose Cancel and start again.
+    </p>
+  </div>
+</section>
+{% endblock content %}
