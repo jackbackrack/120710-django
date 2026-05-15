@@ -20,8 +20,12 @@ class EventListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        events = context.get('event_list', [])
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
+        context['manageable_event_ids'] = {
+            event.id for event in events if can_manage_event(self.request.user, event)
+        }
         return context
 
 
@@ -29,6 +33,11 @@ class EventDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVie
     model = Event
     schema_mapper = event_to_schema
     template_name = 'gallery/event_detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_manage_event'] = can_manage_event(self.request.user, self.object)
+        return context
 
 
 class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):

@@ -32,7 +32,7 @@
       {% endif %}
     </div>
     <div class="card__info">
-    {% if user.is_authenticated %}
+    {% if can_manage_artist|default:{}|dictsort:artist.id %}
       <a class="card__link" href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
       <a class="card__link" href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
     {% endif %}

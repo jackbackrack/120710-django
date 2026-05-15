@@ -48,7 +48,7 @@
     {% endif %}
   </div>
   <div class="card__info">
-    {% if user.is_authenticated %}
+    {% if can_manage_artwork %}
     <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
     {% endif %}

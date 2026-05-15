@@ -23,6 +23,16 @@ def add_curator_role(user):
     groups = ensure_role_groups()
     user.groups.add(groups[ARTIST_GROUP], groups[CURATOR_GROUP])
 
+    # Set artist profile public if exists
+    from gallery.models.people import Artist
+    try:
+        artist = Artist.objects.get(user=user)
+        if not artist.is_public:
+            artist.is_public = True
+            artist.save(update_fields=["is_public"])
+    except Artist.DoesNotExist:
+        pass
+
 
 def remove_curator_role(user):
     groups = ensure_role_groups()

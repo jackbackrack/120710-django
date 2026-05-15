@@ -20,7 +20,7 @@
     {% endif %}
   </div>
   <div class="card__info">
-    {% if user.is_authenticated %}
+    {% if can_manage_event %}
     <a class="card__link" href="{% url 'gallery:event_edit' event.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:event_delete' event.pk %}">Delete</a>
     {% endif %}

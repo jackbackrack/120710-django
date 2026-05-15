@@ -27,9 +27,12 @@ class ArtworkListView(ListView):
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
+        from gallery.permissions import can_manage_artwork
         context = super().get_context_data(**kwargs)
+        artworks = context.get('object_list', [])
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
+        context['can_manage_artwork'] = {a.id: can_manage_artwork(self.request.user, a) for a in artworks}
         return context
 
 
@@ -38,6 +41,13 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
     context_object_name = 'artwork'
     schema_mapper = artwork_to_schema
     template_name = 'gallery/artwork_detail.html'
+
+    def get_context_data(self, **kwargs):
+        from gallery.permissions import can_manage_artwork
+        context = super().get_context_data(**kwargs)
+        artwork = self.object
+        context['can_manage_artwork'] = can_manage_artwork(self.request.user, artwork)
+        return context
 
     def get_queryset(self):
         return Artwork.objects.filter(visible_artwork_queryset(self.request.user)).distinct()

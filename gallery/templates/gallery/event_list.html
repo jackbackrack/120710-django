@@ -27,7 +27,7 @@
     {% endif %}
     <div class="card__content"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.show.name }} of {{ event.name }}</a></div>
     <div class="card__info">
-      {% if user.is_authenticated %}
+      {% if event.id in manageable_event_ids %}
       <a class="card__link" href="{% url 'gallery:event_edit' event.pk %}">Edit</a>
       <a class="card__link" href="{% url 'gallery:event_delete' event.pk %}">Delete</a>
       {% endif %}

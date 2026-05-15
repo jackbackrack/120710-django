@@ -27,9 +27,12 @@ class ArtistListView(ListView):
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
+        from gallery.permissions import can_manage_artist
         context = super().get_context_data(**kwargs)
+        artists = context.get('object_list', [])
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
+        context['can_manage_artist'] = {a.id: can_manage_artist(self.request.user, a) for a in artists}
         return context
 
 
@@ -50,11 +53,15 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         return Artist.objects.filter(visible_artist_queryset(self.request.user)).distinct()
 
     def get_context_data(self, **kwargs):
+        from gallery.permissions import can_manage_artist, can_manage_artwork
         context = super().get_context_data(**kwargs)
         artist = self.object
         artworks = artist.artworks.filter(visible_artwork_queryset(self.request.user)).distinct()
         context['artworks'] = artworks
         context['can_update_roles'] = is_staff_user(self.request.user) and artist.user_id
+        context['can_manage_artist'] = can_manage_artist(self.request.user, artist)
+        # Dict of artwork.id: permission
+        context['can_manage_artwork'] = {a.id: can_manage_artwork(self.request.user, a) for a in artworks}
         return context
 
 
