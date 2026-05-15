@@ -211,6 +211,10 @@ The gallery's address, hours, and contact details are centralised in `eatart/sch
 
 Superusers bypass all role checks. Group name constants are in `accounts/roles.py`.
 
+Role behavior notes:
+- Promoting a linked artist account to `curator` sets the associated artist profile to public (`Artist.is_public=True`).
+- Edit/Delete links in artist, artwork, show, and event list/detail pages are permission-gated and only shown when the current user can manage the record.
+
 ---
 
 ## Database Migration (Legacy → Current)

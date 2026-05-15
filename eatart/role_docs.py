@@ -8,6 +8,7 @@ GENERAL_GUIDE = {
         'Reset your password from the login page if needed.',
         'Sign in and update your name from the Profile page.',
         'Change your password from ChangePassword in the header.',
+        'Edit and Delete links only appear when your account can manage that record.',
     ],
     'forms': [
         {
@@ -108,6 +109,8 @@ ROLE_DOCUMENTATION = {
             'Assign jurors to shows and remove assignments.',
             'View all juror reviews plus average ratings and review counts.',
             'Edit juror reviews when curation workflows require it.',
+            'If staff promote your linked artist account to curator, your artist profile is made public automatically.',
+            'Edit and Delete links are shown only when you can manage the current artist, artwork, show, or event.',
         ],
         'forms': [
             {
@@ -172,6 +175,8 @@ ROLE_DOCUMENTATION = {
             'Grant or revoke juror access for users.',
             'Assign and remove jurors for any show.',
             'View and edit juror reviews across shows when needed.',
+            'Promoting an artist user to curator also sets that linked artist profile to public visibility.',
+            'Edit and Delete links in list/detail pages are permission-gated and shown only to managers of each record.',
         ],
         'forms': [
             {
@@ -199,7 +204,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Artist role edit page',
                 'breadcrumb': 'Home > Artists > Select Artist > Roles',
                 'fields': [
-                    {'name': 'is_curator', 'input_type': 'checkbox', 'purpose': 'Grant or revoke curator access for this user.'},
+                    {'name': 'is_curator', 'input_type': 'checkbox', 'purpose': 'Grant or revoke curator access for this user. When granted, linked artist profiles become public.'},
                     {'name': 'is_juror', 'input_type': 'checkbox', 'purpose': 'Grant or revoke juror access for this user.'},
                     {'name': 'curator_tags', 'input_type': 'multi-select', 'purpose': 'Scope curator access to selected tags.'},
                 ],
