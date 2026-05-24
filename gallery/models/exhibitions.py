@@ -54,8 +54,12 @@ class Show(models.Model):
         # Example: "Jan 1, 2026 - Jan 5, 2026"
         if self.start.year == self.end.year :
           if self.start.month == self.end.month :
-            start = self.start.strftime("%b %d")
-            end = self.end.strftime("%d, %Y")
+            if self.start.day == self.end.day :
+              date = self.end.strftime("%b %d, %Y")
+              return date
+            else :
+              start = self.start.strftime("%b %d")
+              end = self.end.strftime("%d, %Y")
           else :
             start = self.start.strftime("%b %d")
             end = self.end.strftime("%b %d, %Y")
