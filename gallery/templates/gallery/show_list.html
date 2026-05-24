@@ -30,17 +30,12 @@
         {% if show.is_open_call %}
         <p>Open Call</p>
         {% endif %}
-        <h4 class="mb-6">Curated by:
-        {% if show.curator_artist %}
-          <a class="card__link" href="{{ show.curator_artist.get_absolute_url }}">{{ show.curator_artist.name }}</a>
-        {% else %}
-          Unassigned
-        {% endif %}<br>
-        {{ show.start }} - {{ show.end }} <br>
-        {% for event in show.events.all %}
-          <a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>:
-          {{ event.date }}, {{ event.start }} - {{ event.end }} <br>
-        {% endfor %}
+        <h4 class="mb-6">
+        {% for curator in show.curators.all %}
+          <a class="card__link" href="{{ curator.get_absolute_url }}"> {{ curator.name }}</a>
+          {% if not forloop.last %} and {% endif %}
+        {% endfor %} <br>
+        {{ show.date_range }} <br>
         </h4>
       </div>
       <div class="card__info">

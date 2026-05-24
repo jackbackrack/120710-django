@@ -50,6 +50,21 @@ class Show(models.Model):
         return reverse('gallery:show_instagram_detail', kwargs={'slug': self.slug})
 
     @property
+    def date_range(self):
+        # Example: "Jan 1, 2026 - Jan 5, 2026"
+        if self.start.year == self.end.year :
+          if self.start.month == self.end.month :
+            start = self.start.strftime("%b %d")
+            end = self.end.strftime("%d, %Y")
+          else :
+            start = self.start.strftime("%b %d")
+            end = self.end.strftime("%b %d, %Y")
+        else :
+          start = self.start.strftime("%b %d, %Y")
+          end = self.end.strftime("%b %d, %Y")
+        return f"{start} – {end}"
+
+    @property
     def curator_artist(self):
         if self.managing_curator_id:
             return self.managing_curator.artists.order_by('-created_at').first()
