@@ -146,6 +146,11 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'http' if LOCAL_DEV else 'https'
 
+# Only send session/CSRF cookies over HTTPS in production.
+if not LOCAL_DEV:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
 ROOT_URLCONF = 'eatart.urls'
 
 TEMPLATES = [
