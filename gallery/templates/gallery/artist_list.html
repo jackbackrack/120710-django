@@ -27,7 +27,7 @@
     {% endif %}
     <div class="card__content">
       <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>
-      {% if artist.tags.exists %}
+      {% if artist.tags.all %}
         <p>{% for tag in artist.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
       {% endif %}
     </div>

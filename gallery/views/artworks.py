@@ -23,16 +23,25 @@ class ArtworkListView(ListView):
     template_name = 'gallery/artwork_list.html'
 
     def get_queryset(self):
-        queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).distinct()
+        queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').distinct()
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         artworks = list(context.get('object_list', []))
         context['object_list'] = artworks
+        context['artwork_list'] = artworks
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
-        context['can_manage_artwork'] = {a.id for a in artworks if can_manage_artwork(self.request.user, a)}
+        user = self.request.user
+        context['can_manage_artwork'] = {
+            a.id for a in artworks
+            if user.is_authenticated and (
+                is_staff_user(user)
+                or a.created_by_id == user.id
+                or any(artist.user_id == user.id for artist in a.artists.all())
+            )
+        }
         return context
 
 

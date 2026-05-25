@@ -23,13 +23,14 @@ class ArtistListView(ListView):
     template_name = 'gallery/artist_list.html'
 
     def get_queryset(self):
-        queryset = Artist.objects.filter(visible_artist_queryset(self.request.user))
+        queryset = Artist.objects.filter(visible_artist_queryset(self.request.user)).prefetch_related('tags')
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         artists = list(context.get('object_list', []))
         context['object_list'] = artists
+        context['artist_list'] = artists
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
         context['can_manage_artist'] = {a.id for a in artists if can_manage_artist(self.request.user, a)}
