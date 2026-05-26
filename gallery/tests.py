@@ -470,9 +470,9 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertEqual(artist_page_response.status_code, 200)
         self.assertContains(artist_page_response, self.private_artwork.name)
         self.assertContains(artist_page_response, self.show.name)
-        self.assertContains(artist_nav_response, 'My Open Call')
+        self.assertContains(artist_nav_response, 'My Submissions')
         self.assertNotContains(artist_nav_response, 'Open Call Dashboard')
-        self.assertContains(curator_nav_response, 'My Open Call')
+        self.assertContains(curator_nav_response, 'My Submissions')
         self.assertContains(curator_nav_response, 'Open Call Dashboard')
 
     def test_artist_can_edit_artwork_without_open_call_available_field(self):

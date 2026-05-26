@@ -40,7 +40,7 @@ ROLE_DOCUMENTATION = {
             'Create and edit your artist profile.',
             'Create and edit your own artworks.',
             'Submit artworks to open call shows via the show detail page while the deadline is open.',
-            'Track your submission statuses from My Open Call in the navigation.',
+            'Track your submission statuses from My Submissions in the navigation.',
             'Your artworks and profile become publicly visible once the show you are part of has opened.',
         ],
         'forms': [
