@@ -1,12 +1,9 @@
 from django import forms
-from django.contrib.auth import get_user_model
 
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
 from gallery.models.tags import ensure_open_call_tag
 from gallery.permissions import is_curator_user, is_staff_user
 
-
-User = get_user_model()
 
 
 class UserAwareModelForm(forms.ModelForm):
@@ -100,7 +97,6 @@ class ShowForm(UserAwareModelForm):
             'name',
             'description',
             'image',
-            'managing_curator',
             'is_open_call',
             'submission_deadline',
             'decision_date',
@@ -117,9 +113,6 @@ class ShowForm(UserAwareModelForm):
         if self.instance.pk:
             self.fields['artists'].initial = self.instance.artists.all()
             self.fields['artworks'].initial = self.instance.artworks.all()
-        self.fields['managing_curator'].queryset = User.objects.filter(groups__name='curator').distinct().order_by('first_name', 'last_name', 'username')
-        if not is_staff_user(self.user):
-            self.fields.pop('managing_curator')
 
     def save(self, commit=True):
         show = super().save(commit=commit)
@@ -146,7 +139,6 @@ class EventForm(UserAwareModelForm):
             'name',
             'description',
             'show',
-            'managing_curator',
             'image',
             'date',
             'start',
@@ -156,10 +148,5 @@ class EventForm(UserAwareModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
-        self.fields['managing_curator'].queryset = User.objects.filter(groups__name='curator').distinct().order_by('first_name', 'last_name', 'username')
-        if is_staff_user(self.user):
-            return
-
-        self.fields.pop('managing_curator')
         if is_curator_user(self.user):
             self.fields['show'].queryset = Show.objects.filter(is_open_call=True).distinct()

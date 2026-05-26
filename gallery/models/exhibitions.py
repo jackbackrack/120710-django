@@ -1,6 +1,5 @@
 import datetime
 
-from django.conf import settings
 from django.db import models
 from django.urls import reverse
 
@@ -15,13 +14,6 @@ class Show(models.Model):
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
     artists = models.ManyToManyField(Artist, related_name='shows', blank=True)
     curators = models.ManyToManyField(Artist, blank=True)
-    managing_curator = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        related_name='managed_shows',
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-    )
     is_open_call = models.BooleanField(default=False)
     submission_deadline = models.DateField(blank=True, null=True)
     decision_date = models.DateField(blank=True, null=True)
@@ -85,6 +77,4 @@ class Show(models.Model):
 
     @property
     def curator_artist(self):
-        if self.managing_curator_id:
-            return self.managing_curator.artists.order_by('-created_at').first()
         return self.curators.order_by('-created_at').first()

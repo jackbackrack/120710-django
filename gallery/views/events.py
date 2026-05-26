@@ -16,7 +16,7 @@ class EventListView(ListView):
     template_name = 'gallery/event_list.html'
 
     def get_queryset(self):
-        return tag_filter_queryset(Event.objects.select_related('show', 'managing_curator'), self.request.GET.get('tag')).distinct()
+        return tag_filter_queryset(Event.objects.select_related('show'), self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -74,11 +74,6 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
-
-    def form_valid(self, form):
-        if not form.instance.managing_curator_id:
-            form.instance.managing_curator = form.cleaned_data['show'].managing_curator
-        return super().form_valid(form)
 
     def test_func(self):
         return is_staff_user(self.request.user)

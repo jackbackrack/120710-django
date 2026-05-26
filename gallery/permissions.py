@@ -36,12 +36,15 @@ def can_manage_artwork(user, artwork):
 
 
 def can_manage_show(user, show):
-    return bool(user.is_authenticated and (is_staff_user(user) or show.managing_curator_id == user.id))
+    if not user.is_authenticated:
+        return False
+    if is_staff_user(user):
+        return True
+    return is_curator_user(user) and show.curators.filter(user=user).exists()
 
 
 def can_manage_event(user, event):
-    manager_id = event.managing_curator_id or event.show.managing_curator_id
-    return bool(user.is_authenticated and (is_staff_user(user) or manager_id == user.id))
+    return can_manage_show(user, event.show)
 
 
 def visible_artwork_queryset(user):

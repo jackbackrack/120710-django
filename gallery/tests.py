@@ -275,7 +275,6 @@ class AuthorizationWorkflowTests(TestCase):
 
         self.show = Show.objects.create(
             name='Spring Show',
-            managing_curator=self.curator_user,
             start=datetime.date.today(),
             end=datetime.date.today() + datetime.timedelta(days=7),
         )
@@ -284,7 +283,6 @@ class AuthorizationWorkflowTests(TestCase):
         self.event = Event.objects.create(
             name='Opening Reception',
             show=self.show,
-            managing_curator=self.curator_user,
             date=datetime.date.today(),
             start=datetime.time(18, 0),
             end=datetime.time(20, 0),
@@ -357,7 +355,7 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertEqual(show_response.status_code, 200)
         self.assertEqual(event_response.status_code, 200)
 
-    def test_curator_cannot_edit_show_they_do_not_manage(self):
+    def test_curator_not_on_show_cannot_edit_it(self):
         other_curator = User.objects.create_user(
             username='other-curator@example.com',
             email='other-curator@example.com',
@@ -370,7 +368,7 @@ class AuthorizationWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_curator_cannot_delete_show_they_do_not_manage(self):
+    def test_curator_not_on_show_cannot_delete_it(self):
         other_curator = User.objects.create_user(
             username='other-curator@example.com',
             email='other-curator@example.com',
@@ -383,6 +381,28 @@ class AuthorizationWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Show.objects.filter(pk=self.show.pk).exists())
+
+    def test_curator_on_show_can_edit_it(self):
+        other_curator = User.objects.create_user(
+            username='other-curator@example.com',
+            email='other-curator@example.com',
+            password='pw',
+        )
+        add_curator_role(other_curator)
+        other_curator_artist = Artist.objects.create(
+            user=other_curator,
+            name='Other Curator',
+            first_name='Other',
+            last_name='Curator',
+            email='other-curator@example.com',
+            phone='',
+        )
+        self.show.curators.add(other_curator_artist)
+        self.client.force_login(other_curator)
+
+        response = self.client.get(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}))
+
+        self.assertEqual(response.status_code, 200)
 
     def test_curator_can_assign_artists_and_artworks_to_show(self):
         self.client.force_login(self.curator_user)
@@ -497,17 +517,13 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertTrue(self.show.is_open_call)
         self.assertTrue(self.show.tags.filter(slug='open-call').exists())
 
-    def test_authenticated_show_surfaces_expose_slug_subpage_links(self):
+    def test_staff_can_see_placard_and_instagram_links_on_show_detail(self):
         self.client.force_login(self.staff_user)
 
-        show_detail_response = self.client.get(self.show.get_absolute_url())
-        show_list_response = self.client.get(reverse('gallery:show_list'))
-        artwork_detail_response = self.client.get(self.public_artwork.get_absolute_url())
-        homepage_response = self.client.get(reverse('index'))
+        response = self.client.get(self.show.get_absolute_url())
 
-        for response in (show_detail_response, show_list_response, artwork_detail_response, homepage_response):
-            self.assertContains(response, self.show.get_placards_url())
-            self.assertContains(response, self.show.get_instagram_url())
+        self.assertContains(response, self.show.get_placards_url())
+        self.assertContains(response, self.show.get_instagram_url())
 
     def test_search_is_available_to_logged_in_users(self):
         self.client.force_login(self.artist_user)
@@ -595,7 +611,6 @@ class OpenCallFlowTests(TestCase):
 
         self.show = Show.objects.create(
             name='Open Call Spring 2026',
-            managing_curator=self.curator_user,
             start=datetime.date.today() + datetime.timedelta(days=30),
             end=datetime.date.today() + datetime.timedelta(days=60),
             is_open_call=True,

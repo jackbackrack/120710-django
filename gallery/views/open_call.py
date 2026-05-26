@@ -50,7 +50,6 @@ class OpenCallDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateVie
 
         shows = (
             Show.objects.filter(is_open_call=True)
-            .select_related('managing_curator')
             .prefetch_related('tags')
             .annotate(submission_count=Count('submissions', distinct=True))
             .order_by('-start')
@@ -94,7 +93,6 @@ class ArtistOpenCallView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
 
         shows = (
             Show.objects.filter(is_open_call=True)
-            .select_related('managing_curator')
             .prefetch_related('tags')
             .order_by('-start')
         )

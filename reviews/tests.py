@@ -62,10 +62,18 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
 
         self.show = Show.objects.create(
             name='Juried Spring Show',
-            managing_curator=self.manager_user,
             start=datetime.date.today(),
             end=datetime.date.today() + datetime.timedelta(days=7),
         )
+        manager_artist = Artist.objects.create(
+            user=self.manager_user,
+            name='Manager Artist',
+            first_name='Manager',
+            last_name='Artist',
+            email='manager@example.com',
+            phone='',
+        )
+        self.show.curators.add(manager_artist)
 
         self.artwork = Artwork.objects.create(
             name='Sculpture One',
@@ -131,7 +139,7 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
         self.assertEqual(review.rating, 4)
         self.assertIn('clean presentation', review.body)
 
-    def test_non_managing_curator_cannot_view_artwork_reviews(self):
+    def test_curator_not_on_show_cannot_view_artwork_reviews(self):
         self.client.login(username='other-curator@example.com', password='password123')
 
         response = self.client.get(self.artwork_review_url)
@@ -141,7 +149,6 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
     def test_juror_assigned_to_different_show_cannot_review_this_show(self):
         other_show = Show.objects.create(
             name='Other Show',
-            managing_curator=self.manager_user,
             start=datetime.date.today(),
             end=datetime.date.today() + datetime.timedelta(days=7),
         )
@@ -163,7 +170,7 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
         self.assertEqual(dashboard_response.status_code, 404)
         self.assertEqual(review_response.status_code, 404)
 
-    def test_non_managing_curator_cannot_edit_show_submissions(self):
+    def test_curator_not_on_show_cannot_edit_show_submissions(self):
         # ArtworkSubmission already created in setUp
         url = reverse('gallery:show_submissions', kwargs={'slug': self.show.slug})
         self.client.login(username='other-curator@example.com', password='password123')
@@ -172,7 +179,7 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_managing_curator_can_edit_juror_review(self):
+    def test_curator_on_show_can_edit_juror_review(self):
         review = ArtworkReview.objects.create(
             show=self.show,
             artwork=self.artwork,
@@ -205,7 +212,7 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
         self.assertEqual(review.rating, 5)
         self.assertEqual(review.body, 'Curator adjusted notes.')
 
-    def test_managing_curator_can_assign_and_remove_juror(self):
+    def test_curator_on_show_can_assign_and_remove_juror(self):
         candidate = User.objects.create_user(
             username='new-juror@example.com',
             email='new-juror@example.com',
@@ -275,10 +282,18 @@ class RubricCriteriaTests(TestCase):
 
         self.show = Show.objects.create(
             name='Rubric Test Show',
-            managing_curator=self.manager_user,
             start=datetime.date.today(),
             end=datetime.date.today() + datetime.timedelta(days=7),
         )
+        manager_artist = Artist.objects.create(
+            user=self.manager_user,
+            name='Manager',
+            first_name='Manager',
+            last_name='User',
+            email='manager@example.com',
+            phone='',
+        )
+        self.show.curators.add(manager_artist)
 
         self.artist_profile = Artist.objects.create(
             user=self.artist_user,
@@ -318,7 +333,7 @@ class RubricCriteriaTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/accounts/login/', response.headers['Location'])
 
-    def test_non_managing_curator_cannot_access_rubric_page(self):
+    def test_curator_not_on_show_cannot_access_rubric_page(self):
         self.client.force_login(self.other_curator)
         response = self.client.get(self.rubric_url)
         self.assertEqual(response.status_code, 404)
@@ -328,7 +343,7 @@ class RubricCriteriaTests(TestCase):
         response = self.client.get(self.rubric_url)
         self.assertEqual(response.status_code, 404)
 
-    def test_managing_curator_can_view_rubric_page(self):
+    def test_curator_on_show_can_view_rubric_page(self):
         self.client.force_login(self.manager_user)
         response = self.client.get(self.rubric_url)
         self.assertEqual(response.status_code, 200)

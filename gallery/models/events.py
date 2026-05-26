@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.db import models
 from django.urls import reverse
 
@@ -11,13 +10,6 @@ class Event(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True, null=True)
     show = models.ForeignKey(Show, related_name='events', on_delete=models.CASCADE)
-    managing_curator = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        related_name='managed_events',
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-    )
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
     date = models.DateField()
     start = models.TimeField()
