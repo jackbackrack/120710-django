@@ -32,7 +32,7 @@
       {% if subs %}
       <p class="mt-1"><strong>Your submissions:</strong></p>
       {% for sub in subs %}
-      <p class="text-sm">{{ sub.artwork.name }} &mdash; {{ sub.get_status_display }}</p>
+      <p class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a> &mdash; {{ sub.get_status_display }}</p>
       {% endfor %}
       {% endif %}
     </div>
