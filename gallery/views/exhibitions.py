@@ -30,11 +30,13 @@ class ShowListView(ListView):
         context = super().get_context_data(**kwargs)
         today = datetime.date.today()
         base = self.get_queryset()
+        all_shows = list(base)
         context['current_shows'] = base.filter(start__lte=today, end__gte=today).order_by('-start')
         context['future_shows'] = base.filter(start__gt=today).order_by('start')
         context['past_shows'] = base.filter(end__lt=today).order_by('-start')
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
+        context['can_manage_show'] = {s.id for s in all_shows if can_manage_show(self.request.user, s)}
         return context
 
 

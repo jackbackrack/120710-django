@@ -6,6 +6,7 @@ from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, JUROR_GROUP, STAFF_GROUP
 from eatart.role_docs import GENERAL_GUIDE, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import Event, Show
+from gallery.permissions import can_manage_show
 
 
 def index(request):
@@ -20,6 +21,9 @@ def index(request):
 
     next_event = Event.objects.filter(date__gte=today).order_by('date').first()
 
+    all_shows = current_shows + future_shows + past_shows
+    manageable_show_ids = {s.id for s in all_shows if can_manage_show(request.user, s)}
+
     return render(request, 'public/index.html', {
         'hero_show': hero_show,
         'hero_is_current': hero_is_current,
@@ -27,6 +31,7 @@ def index(request):
         'current_shows': current_shows,
         'future_shows': future_shows,
         'past_shows': past_shows,
+        'can_manage_show': manageable_show_ids,
         'structured_data_json': dump_json_ld(schema_to_dict(gallery_to_schema(request))),
     })
 
