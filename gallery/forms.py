@@ -162,4 +162,4 @@ class EventForm(UserAwareModelForm):
 
         self.fields.pop('managing_curator')
         if is_curator_user(self.user):
-            self.fields['show'].queryset = Show.objects.filter(managing_curator=self.user).distinct()
+            self.fields['show'].queryset = Show.objects.filter(is_open_call=True).distinct()
