@@ -231,3 +231,13 @@ def promote_artworks(request, slug):
         'rejected_submissions': rejected,
     }
     return render(request, 'gallery/promote_artworks.html', context)
+
+
+@login_required
+def retract_submission(request, pk):
+    submission = get_object_or_404(ArtworkSubmission, pk=pk, submitted_by=request.user)
+    if not submission.show.is_accepting_submissions:
+        raise Http404
+    if request.method == 'POST':
+        submission.delete()
+    return redirect('gallery:artist_open_call')
