@@ -15,17 +15,32 @@
 
     <p>
       <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Manage jurors</a>
+      &nbsp;|&nbsp;
+      <a class="card__link" href="{% url 'reviews:manage_rubric_criteria' show_slug=show.slug %}">Manage rubric criteria</a>
+      {% if criteria %}
+      <span class="badge bg-secondary ms-2">{{ criteria|length }} criteri{% if criteria|length == 1 %}on{% else %}a{% endif %}</span>
+      {% endif %}
     </p>
 
-    <h2>Jurors ({{ jurors.count }})</h2>
+    {% if criteria %}
+    <div class="alert alert-info py-2 mt-2">
+      <strong>Rubric:</strong>
+      {% for criterion in criteria %}
+      {{ criterion.name }} (weight {{ criterion.weight|floatformat:"-1" }}){% if not forloop.last %}, {% endif %}
+      {% endfor %}
+      — scores shown as weighted composite out of 10.
+    </div>
+    {% endif %}
+
+    <h2 class="mt-4">Jurors ({{ jurors.count }})</h2>
     {% if jurors %}
     <ul>
       {% for assignment in jurors %}
-      <li>{{ assignment.user.get_full_name|default:assignment.user.username }} - assigned {{ assignment.assigned_at|date:"N j, Y" }}</li>
+      <li>{{ assignment.user.get_full_name|default:assignment.user.username }} — assigned {{ assignment.assigned_at|date:"N j, Y" }}</li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="text-gray-500">No jurors assigned to this show yet.</p>
+    <p class="text-muted">No jurors assigned to this show yet.</p>
     {% endif %}
 
     <h2 class="mt-4">Artworks ({{ artworks.count }})</h2>
@@ -33,7 +48,7 @@
       <thead>
         <tr>
           <th>Artwork</th>
-          <th>Avg Rating</th>
+          <th>{% if criteria %}Weighted Score{% else %}Avg Rating{% endif %}</th>
           <th>Reviews</th>
           <th></th>
         </tr>
@@ -43,17 +58,25 @@
         <tr>
           <td><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></td>
           <td>
-            {% if artwork.avg_rating %}
-            {{ artwork.avg_rating|floatformat:1 }} / 5
+            {% if criteria %}
+              {% if artwork.weighted_score %}
+              {{ artwork.weighted_score|floatformat:2 }}/10
+              {% else %}
+              <span class="text-muted">No scores</span>
+              {% endif %}
             {% else %}
-            <span class="text-gray-500">No reviews</span>
+              {% if artwork.avg_rating %}
+              {{ artwork.avg_rating|floatformat:1 }}/10
+              {% else %}
+              <span class="text-muted">No reviews</span>
+              {% endif %}
             {% endif %}
           </td>
           <td>{{ artwork.review_count }}</td>
           <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">View reviews</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="4">No artworks in this show.</td></tr>
+        <tr><td colspan="4">No artworks submitted to this show.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -65,7 +88,12 @@
         <tr>
           <th>Artwork</th>
           <th>Juror</th>
-          <th>Rating</th>
+          {% if criteria %}
+          {% for criterion in criteria %}
+          <th>{{ criterion.name }}</th>
+          {% endfor %}
+          {% endif %}
+          <th>Overall</th>
           <th>Notes</th>
           <th>Date</th>
         </tr>
@@ -75,8 +103,17 @@
         <tr>
           <td><a class="card__link" href="{{ review.artwork.get_absolute_url }}">{{ review.artwork.name }}</a></td>
           <td>{{ review.juror.get_full_name|default:review.juror.username }}</td>
-          <td>{{ review.rating }}/5</td>
-          <td>{{ review.body|default:"N/A" }}</td>
+          {% if criteria %}
+          {% for criterion in criteria %}
+          <td>
+            {% for cs in review.criterion_scores.all %}
+              {% if cs.criterion_id == criterion.pk %}{{ cs.score }}{% endif %}
+            {% endfor %}
+          </td>
+          {% endfor %}
+          {% endif %}
+          <td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>
+          <td>{{ review.body|default:"&mdash;" }}</td>
           <td>{{ review.updated_at|date:"N j, Y" }}</td>
         </tr>
         {% endfor %}
@@ -93,7 +130,12 @@
       <thead>
         <tr>
           <th>Artwork</th>
-          <th>Rating</th>
+          {% if criteria %}
+          {% for criterion in criteria %}
+          <th>{{ criterion.name }}</th>
+          {% endfor %}
+          {% endif %}
+          <th>Overall</th>
           <th>Notes</th>
           <th></th>
         </tr>
@@ -102,8 +144,17 @@
         {% for review in my_reviews %}
         <tr>
           <td>{{ review.artwork.name }}</td>
-          <td>{{ review.rating }}/5</td>
-          <td>{{ review.body|default:"N/A" }}</td>
+          {% if criteria %}
+          {% for criterion in criteria %}
+          <td>
+            {% for cs in review.criterion_scores.all %}
+              {% if cs.criterion_id == criterion.pk %}{{ cs.score }}{% endif %}
+            {% endfor %}
+          </td>
+          {% endfor %}
+          {% endif %}
+          <td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>
+          <td>{{ review.body|default:"&mdash;" }}</td>
           <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=review.artwork.slug %}">Edit</a></td>
         </tr>
         {% endfor %}
@@ -135,7 +186,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-gray-500">All artworks reviewed - thank you!</p>
+    <p class="text-muted">All artworks reviewed — thank you!</p>
     {% endif %}
 
     {% endif %}

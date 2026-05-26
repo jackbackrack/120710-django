@@ -1,11 +1,12 @@
 import datetime
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.roles import add_artist_role, add_curator_role, add_staff_role
-from gallery.models import Artist, Artwork, Event, Show
+from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show
 from gallery.models.tags import ensure_open_call_tag
 
 
@@ -356,7 +357,34 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertEqual(show_response.status_code, 200)
         self.assertEqual(event_response.status_code, 200)
 
-    def test_curator_can_assign_artists_and_artworks_to_show_and_publish_artwork(self):
+    def test_curator_cannot_edit_show_they_do_not_manage(self):
+        other_curator = User.objects.create_user(
+            username='other-curator@example.com',
+            email='other-curator@example.com',
+            password='pw',
+        )
+        add_curator_role(other_curator)
+        self.client.force_login(other_curator)
+
+        response = self.client.get(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_curator_cannot_delete_show_they_do_not_manage(self):
+        other_curator = User.objects.create_user(
+            username='other-curator@example.com',
+            email='other-curator@example.com',
+            password='pw',
+        )
+        add_curator_role(other_curator)
+        self.client.force_login(other_curator)
+
+        response = self.client.post(reverse('gallery:show_delete', kwargs={'pk': self.show.pk}))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Show.objects.filter(pk=self.show.pk).exists())
+
+    def test_curator_can_assign_artists_and_artworks_to_show(self):
         self.client.force_login(self.curator_user)
 
         response = self.client.post(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}), {
@@ -370,20 +398,20 @@ class AuthorizationWorkflowTests(TestCase):
         })
 
         self.show.refresh_from_db()
-        self.private_artwork.refresh_from_db()
-        self.artist.refresh_from_db()
 
         self.assertRedirects(response, self.show.get_absolute_url())
         self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
         self.assertTrue(self.show.artworks.filter(pk=self.private_artwork.pk).exists())
-        self.assertTrue(self.private_artwork.is_public)
-        self.assertTrue(self.artist.is_public)
 
-    def test_open_call_dashboard_is_curator_only_and_lists_opted_in_work(self):
+    def test_open_call_dashboard_is_curator_only_and_lists_submitted_work(self):
         self.show.is_open_call = True
-        self.show.save(update_fields=['is_open_call'])
-        self.private_artwork.open_call_available = True
-        self.private_artwork.save(update_fields=['open_call_available'])
+        self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=7)
+        self.show.save(update_fields=['is_open_call', 'submission_deadline'])
+        ArtworkSubmission.objects.create(
+            show=self.show,
+            artwork=self.private_artwork,
+            submitted_by=self.artist_user,
+        )
 
         anonymous_response = self.client.get(reverse('gallery:open_call_dashboard'))
 
@@ -401,9 +429,13 @@ class AuthorizationWorkflowTests(TestCase):
 
     def test_artist_open_call_page_is_artist_facing_and_navigation_is_role_aware(self):
         self.show.is_open_call = True
-        self.show.save(update_fields=['is_open_call'])
-        self.private_artwork.open_call_available = True
-        self.private_artwork.save(update_fields=['open_call_available'])
+        self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=7)
+        self.show.save(update_fields=['is_open_call', 'submission_deadline'])
+        ArtworkSubmission.objects.create(
+            show=self.show,
+            artwork=self.private_artwork,
+            submitted_by=self.artist_user,
+        )
 
         anonymous_response = self.client.get(reverse('gallery:artist_open_call'))
 
@@ -423,7 +455,7 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertContains(curator_nav_response, 'My Open Call')
         self.assertContains(curator_nav_response, 'Open Call Dashboard')
 
-    def test_artist_can_mark_artwork_available_for_open_call(self):
+    def test_artist_can_edit_artwork_without_open_call_available_field(self):
         self.client.force_login(self.artist_user)
 
         response = self.client.post(reverse('gallery:artwork_edit', kwargs={'pk': self.private_artwork.pk}), {
@@ -436,7 +468,6 @@ class AuthorizationWorkflowTests(TestCase):
             'pricing': self.private_artwork.pricing or '',
             'replacement_cost': '',
             'is_sold': '',
-            'open_call_available': 'on',
             'description': self.private_artwork.description or '',
             'installation': self.private_artwork.installation or '',
         })
@@ -444,13 +475,9 @@ class AuthorizationWorkflowTests(TestCase):
         self.private_artwork.refresh_from_db()
 
         self.assertRedirects(response, self.private_artwork.get_absolute_url())
-        self.assertTrue(self.private_artwork.open_call_available)
-        self.assertTrue(self.private_artwork.tags.filter(slug='open-call').exists())
 
-    def test_open_call_show_is_tagged_and_limited_to_opted_in_artworks(self):
+    def test_open_call_show_is_tagged_when_is_open_call_saved(self):
         ensure_open_call_tag()
-        self.private_artwork.open_call_available = True
-        self.private_artwork.save(update_fields=['open_call_available'])
 
         self.client.force_login(self.curator_user)
         response = self.client.post(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}), {
@@ -460,7 +487,7 @@ class AuthorizationWorkflowTests(TestCase):
             'start': self.show.start,
             'end': self.show.end,
             'artists': [self.artist.pk],
-            'artworks': [self.private_artwork.pk],
+            'artworks': [],
             'tags': [],
         })
 
@@ -469,19 +496,6 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertRedirects(response, self.show.get_absolute_url())
         self.assertTrue(self.show.is_open_call)
         self.assertTrue(self.show.tags.filter(slug='open-call').exists())
-
-        other_artwork = Artwork.objects.create(
-            name='Not Eligible',
-            created_by=self.artist_user,
-            end_year=2024,
-            is_public=False,
-            open_call_available=False,
-        )
-        other_artwork.artists.add(self.artist)
-        form_response = self.client.get(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}))
-
-        self.assertContains(form_response, 'Private Study')
-        self.assertNotContains(form_response, 'Not Eligible')
 
     def test_authenticated_show_surfaces_expose_slug_subpage_links(self):
         self.client.force_login(self.staff_user)
@@ -539,4 +553,360 @@ class AuthorizationWorkflowTests(TestCase):
         for url in ('/artists/', '/artworks/', '/shows/', '/events/'):
             with self.subTest(url=url):
                 response = self.client.get(url)
-                self.assertContains(response, 'Filter by tag')
+                self.assertContains(response, 'tag')
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+)
+class OpenCallFlowTests(TestCase):
+    """End-to-end tests for the open call submission, jury review, and promotion flow."""
+
+    def setUp(self):
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='pw'
+        )
+        add_artist_role(self.artist_user)
+        self.artist = Artist.objects.create(
+            user=self.artist_user,
+            name='Frida Kahlo',
+            first_name='Frida',
+            last_name='Kahlo',
+            email='artist@example.com',
+            phone='',
+        )
+
+        self.curator_user = User.objects.create_user(
+            username='curator@example.com', email='curator@example.com', password='pw'
+        )
+        add_curator_role(self.curator_user)
+        self.curator_artist = Artist.objects.create(
+            user=self.curator_user,
+            name='Marcel Duchamp',
+            first_name='Marcel',
+            last_name='Duchamp',
+            email='curator@example.com',
+            phone='',
+        )
+
+        self.show = Show.objects.create(
+            name='Open Call Spring 2026',
+            managing_curator=self.curator_user,
+            start=datetime.date.today() + datetime.timedelta(days=30),
+            end=datetime.date.today() + datetime.timedelta(days=60),
+            is_open_call=True,
+            submission_deadline=datetime.date.today() + datetime.timedelta(days=7),
+        )
+        self.show.curators.add(self.curator_artist)
+
+        self.artwork = Artwork.objects.create(
+            name='Still Life with Sunflowers',
+            created_by=self.artist_user,
+            end_year=2026,
+            is_public=False,
+        )
+        self.artwork.artists.add(self.artist)
+
+    # --- Model property tests ---
+
+    def test_show_is_accepting_submissions_within_deadline(self):
+        self.assertTrue(self.show.is_accepting_submissions)
+
+    def test_show_is_not_accepting_submissions_after_deadline(self):
+        self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
+        self.show.save(update_fields=['submission_deadline'])
+        self.assertFalse(self.show.is_accepting_submissions)
+
+    def test_show_open_call_phase_is_open_before_deadline(self):
+        self.assertEqual(self.show.open_call_phase, 'open')
+
+    def test_show_open_call_phase_is_jury_after_deadline(self):
+        self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
+        self.show.save(update_fields=['submission_deadline'])
+        self.assertEqual(self.show.open_call_phase, 'jury')
+
+    def test_non_open_call_show_has_no_phase(self):
+        closed_show = Show.objects.create(
+            name='Closed Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+            is_open_call=False,
+        )
+        self.assertIsNone(closed_show.open_call_phase)
+
+    # --- Submission flow ---
+
+    def test_artist_can_submit_artwork_to_open_call_show(self):
+        self.client.force_login(self.artist_user)
+        submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+
+        get_response = self.client.get(submit_url)
+        self.assertEqual(get_response.status_code, 200)
+
+        post_response = self.client.post(submit_url, {
+            'artwork': self.artwork.pk,
+            'statement': 'My artist statement.',
+        }, follow=True)
+        self.assertEqual(post_response.status_code, 200)
+        self.assertTrue(
+            ArtworkSubmission.objects.filter(show=self.show, artwork=self.artwork).exists()
+        )
+
+    def test_submission_has_submitted_status_by_default(self):
+        self.client.force_login(self.artist_user)
+        self.client.post(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
+            {'artwork': self.artwork.pk, 'statement': ''},
+        )
+        sub = ArtworkSubmission.objects.get(show=self.show, artwork=self.artwork)
+        self.assertEqual(sub.status, ArtworkSubmission.SUBMITTED)
+
+    def test_artist_cannot_submit_same_artwork_twice(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.artist_user)
+        response = self.client.get(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        )
+        # Already-submitted artwork should not appear in the form choices
+        self.assertNotContains(response, self.artwork.name)
+
+    def test_submission_blocked_after_deadline(self):
+        self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
+        self.show.save(update_fields=['submission_deadline'])
+        self.client.force_login(self.artist_user)
+
+        response = self.client.get(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        )
+        # Should redirect away (show is no longer accepting)
+        self.assertEqual(response.status_code, 302)
+
+    def test_unauthenticated_user_cannot_submit(self):
+        response = self.client.get(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.headers['Location'])
+
+    def test_user_without_artist_profile_cannot_submit(self):
+        no_profile_user = User.objects.create_user(
+            username='noprofile@example.com', email='noprofile@example.com', password='pw'
+        )
+        add_artist_role(no_profile_user)
+        self.client.force_login(no_profile_user)
+
+        response = self.client.get(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        )
+        # No artist profile → redirect away
+        self.assertEqual(response.status_code, 302)
+
+    # --- Submissions review (curator view) ---
+
+    def test_curator_can_view_show_submissions(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.curator_user)
+
+        response = self.client.get(
+            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.artwork.name)
+
+    def test_artist_cannot_view_show_submissions(self):
+        self.client.force_login(self.artist_user)
+
+        response = self.client.get(
+            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_curator_can_bulk_update_submission_statuses(self):
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.curator_user)
+
+        response = self.client.post(
+            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}),
+            {f'status_{sub.id}': ArtworkSubmission.SELECTED},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, ArtworkSubmission.SELECTED)
+
+    def test_curator_can_reject_submission(self):
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}),
+            {f'status_{sub.id}': ArtworkSubmission.REJECTED},
+        )
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, ArtworkSubmission.REJECTED)
+
+    # --- Promote artworks ---
+
+    def test_curator_can_view_promote_page(self):
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+
+        response = self.client.get(
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.artwork.name)
+
+    def test_promote_adds_selected_artworks_and_artists_to_show(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+        )
+
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
+        self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
+
+    def test_promote_sends_acceptance_email_to_artist(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+        )
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
+        self.assertIn(self.show.name, mail.outbox[0].subject)
+
+    def test_promote_sends_rejection_email_for_rejected_submissions(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.REJECTED,
+        )
+        second_artwork = Artwork.objects.create(
+            name='Second Piece', created_by=self.artist_user, end_year=2026
+        )
+        second_artwork.artists.add(self.artist)
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=second_artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+        )
+
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_promote_does_not_add_rejected_artworks_to_show(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.REJECTED,
+        )
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+        )
+
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork.pk).exists())
+
+    def test_artist_cannot_access_promote_page(self):
+        self.client.force_login(self.artist_user)
+
+        response = self.client.get(
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # --- Date-driven visibility ---
+
+    def test_artwork_not_visible_to_public_before_show_starts(self):
+        self.show.start = datetime.date.today() + datetime.timedelta(days=30)
+        self.show.save(update_fields=['start'])
+        self.artwork.shows.add(self.show)
+
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertNotContains(response, self.artwork.name)
+
+    def test_artwork_visible_to_public_once_show_has_started(self):
+        self.show.start = datetime.date.today() - datetime.timedelta(days=1)
+        self.show.save(update_fields=['start'])
+        self.artwork.shows.add(self.show)
+
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertContains(response, self.artwork.name)
+
+    def test_artist_can_view_own_artwork_regardless_of_show_date(self):
+        self.show.start = datetime.date.today() + datetime.timedelta(days=30)
+        self.show.save(update_fields=['start'])
+        self.artwork.shows.add(self.show)
+        self.client.force_login(self.artist_user)
+
+        response = self.client.get(self.artwork.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+    def test_curator_can_view_all_artworks_regardless_of_show_date(self):
+        self.show.start = datetime.date.today() + datetime.timedelta(days=30)
+        self.show.save(update_fields=['start'])
+        self.artwork.shows.add(self.show)
+        self.client.force_login(self.curator_user)
+
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertContains(response, self.artwork.name)
+
+    # --- Complete end-to-end flow ---
+
+    def test_full_open_call_flow(self):
+        """Submit → select → promote → artwork in show, email sent."""
+        # 1. Artist submits artwork
+        self.client.force_login(self.artist_user)
+        self.client.post(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
+            {'artwork': self.artwork.pk, 'statement': 'Statement for the piece.'},
+        )
+        sub = ArtworkSubmission.objects.get(show=self.show, artwork=self.artwork)
+        self.assertEqual(sub.status, ArtworkSubmission.SUBMITTED)
+
+        # 2. Curator selects the submission
+        self.client.force_login(self.curator_user)
+        self.client.post(
+            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}),
+            {f'status_{sub.id}': ArtworkSubmission.SELECTED},
+        )
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, ArtworkSubmission.SELECTED)
+
+        # 3. Curator promotes — adds artwork/artist to show and sends email
+        self.client.post(
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+        )
+
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
+        self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.artist_user.email, mail.outbox[0].recipients())

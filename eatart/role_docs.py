@@ -35,11 +35,13 @@ GENERAL_GUIDE = {
 ROLE_DOCUMENTATION = {
     ARTIST_GROUP: {
         'title': 'Artist Guide',
-        'summary': 'Artists manage their own profile and artworks.',
+        'summary': 'Artists manage their own profile and artworks, and can submit work to open call shows.',
         'allowed_actions': [
             'Create and edit your artist profile.',
             'Create and edit your own artworks.',
-            'View and manage your open call submissions.',
+            'Submit artworks to open call shows via the show detail page while the deadline is open.',
+            'Track your submission statuses from My Open Call in the navigation.',
+            'Your artworks and profile become publicly visible once the show you are part of has opened.',
         ],
         'forms': [
             {
@@ -73,9 +75,17 @@ ROLE_DOCUMENTATION = {
                     {'name': 'pricing', 'input_type': 'text input', 'purpose': 'Price context like NFS, POA, or edition info.'},
                     {'name': 'replacement_cost', 'input_type': 'numeric input', 'purpose': 'Insurance/replacement value.'},
                     {'name': 'is_sold', 'input_type': 'checkbox', 'purpose': 'Marks the work as sold.'},
-                    {'name': 'open_call_available', 'input_type': 'checkbox', 'purpose': 'Allows this artwork to be used in open call workflows.'},
                     {'name': 'description', 'input_type': 'multi-line text area', 'purpose': 'Public description of the work.'},
                     {'name': 'installation', 'input_type': 'multi-line text area', 'purpose': 'Display or install notes.'},
+                ],
+            },
+            {
+                'name': 'Open Call Submission Form',
+                'where_used': 'Show detail page when the show is accepting submissions',
+                'breadcrumb': 'Home > Shows > Select Show > Submit Work',
+                'fields': [
+                    {'name': 'artwork', 'input_type': 'dropdown select', 'purpose': 'Choose which of your artworks to submit. Each artwork can only be submitted once per show.'},
+                    {'name': 'statement', 'input_type': 'multi-line text area', 'purpose': 'Optional artist statement specific to this submission.'},
                 ],
             },
         ],
@@ -84,9 +94,10 @@ ROLE_DOCUMENTATION = {
         'title': 'Juror Guide',
         'summary': 'Jurors review artworks only for shows they are assigned to.',
         'allowed_actions': [
-            'Access review dashboard for assigned shows only.',
-            'Create or update your own review per artwork in a show.',
-            'Rate artworks from 1 to 5 and optionally add review notes.',
+            'Access the review dashboard for shows you are assigned to.',
+            'Create or update your own review per artwork in an assigned show.',
+            'Rate artworks from 1 to 10 and optionally add qualitative notes.',
+            'Each artwork gets one review from you per show; you can return to update it.',
         ],
         'forms': [
             {
@@ -94,7 +105,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Show review workflow for assigned jurors',
                 'breadcrumb': 'Home > Shows > Select Show > Reviews > Select Artwork',
                 'fields': [
-                    {'name': 'rating', 'input_type': 'radio select (1-5)', 'purpose': 'Required score from 1 (lowest) to 5 (highest).'},
+                    {'name': 'rating', 'input_type': 'radio select (1-10)', 'purpose': 'Required score from 1 (lowest) to 10 (highest).'},
                     {'name': 'body', 'input_type': 'multi-line text area', 'purpose': 'Optional qualitative review notes.'},
                 ],
             },
@@ -102,15 +113,18 @@ ROLE_DOCUMENTATION = {
     },
     CURATOR_GROUP: {
         'title': 'Curator Guide',
-        'summary': 'Curators manage shows/events, assign jurors, and review aggregated ratings.',
+        'summary': 'Curators manage shows/events, run open call workflows, assign jurors, and review aggregated ratings.',
         'allowed_actions': [
             'Manage shows and events you are responsible for.',
             'See all artworks including non-public entries.',
+            'Run open call shows: set a submission deadline, review submissions, select or reject each one, then promote selected artworks into the show.',
+            'Define a weighted rubric for jury scoring: add named criteria with weights from the Manage rubric criteria page. Jurors score each criterion 1–10; the dashboard shows a weighted composite score per artwork.',
             'Assign jurors to shows and remove assignments.',
-            'View all juror reviews plus average ratings and review counts.',
+            'View all juror reviews plus average ratings (or weighted composite scores when a rubric is defined) per artwork.',
             'Edit juror reviews when curation workflows require it.',
             'If staff promote your linked artist account to curator, your artist profile is made public automatically.',
             'Edit and Delete links are shown only when you can manage the current artist, artwork, show, or event.',
+            'Artworks and artists become publicly visible once the show they are part of has opened (start date reached).',
         ],
         'forms': [
             {
@@ -121,13 +135,30 @@ ROLE_DOCUMENTATION = {
                     {'name': 'name', 'input_type': 'text input', 'purpose': 'Show title shown in listings and detail pages.'},
                     {'name': 'description', 'input_type': 'multi-line text area', 'purpose': 'Public show description.'},
                     {'name': 'image', 'input_type': 'file upload', 'purpose': 'Hero image for the show.'},
-                    {'name': 'is_open_call', 'input_type': 'checkbox', 'purpose': 'Marks the show as open call enabled.'},
-                    {'name': 'submission_deadline', 'input_type': 'date/time input', 'purpose': 'Cutoff for open call submissions.'},
-                    {'name': 'start', 'input_type': 'date input', 'purpose': 'Show opening/start date.'},
+                    {'name': 'is_open_call', 'input_type': 'checkbox', 'purpose': 'Marks the show as open call enabled. Adds an Open Call badge and enables artist submissions.'},
+                    {'name': 'submission_deadline', 'input_type': 'date input', 'purpose': 'Cutoff date for artist submissions. After this date the show moves to jury review phase automatically.'},
+                    {'name': 'decision_date', 'input_type': 'date input', 'purpose': 'Target date for announcing selection decisions (informational, does not enforce a lock).'},
+                    {'name': 'start', 'input_type': 'date input', 'purpose': 'Show opening/start date. Artworks and artists become publicly visible from this date.'},
                     {'name': 'end', 'input_type': 'date input', 'purpose': 'Show ending date.'},
                     {'name': 'tags', 'input_type': 'multi-select', 'purpose': 'Categorization tags for filtering and organization.'},
                     {'name': 'artists', 'input_type': 'multi-select', 'purpose': 'Featured artists in the show.'},
                     {'name': 'artworks', 'input_type': 'multi-select', 'purpose': 'Artworks included in the show.'},
+                ],
+            },
+            {
+                'name': 'Submission Status Form',
+                'where_used': 'Open call submissions review page',
+                'breadcrumb': 'Home > Shows > Select Show > Submissions',
+                'fields': [
+                    {'name': 'status_<id>', 'input_type': 'dropdown select per row', 'purpose': 'Set each submission to Submitted, Selected, or Rejected. Changes are saved on submit. Average juror ratings are shown alongside each entry.'},
+                ],
+            },
+            {
+                'name': 'Promote Artworks',
+                'where_used': 'Open call promotion page',
+                'breadcrumb': 'Home > Shows > Select Show > Promote',
+                'fields': [
+                    {'name': '(confirm button)', 'input_type': 'form submit', 'purpose': 'Adds all Selected artworks and their artists to the show, then sends acceptance/rejection emails to submitting artists.'},
                 ],
             },
             {
@@ -154,11 +185,23 @@ ROLE_DOCUMENTATION = {
                 ],
             },
             {
+                'name': 'Rubric Criteria Form',
+                'where_used': 'Show reviews -> Manage rubric criteria',
+                'breadcrumb': 'Home > Shows > Select Show > Reviews > Manage rubric criteria',
+                'fields': [
+                    {'name': 'name', 'input_type': 'text input', 'purpose': 'Criterion label shown to jurors when scoring, e.g. "Originality" or "Technical execution".'},
+                    {'name': 'description', 'input_type': 'multi-line text area', 'purpose': 'Optional guidance to jurors explaining what to consider for this criterion.'},
+                    {'name': 'weight', 'input_type': 'numeric input', 'purpose': 'Relative importance of this criterion. Higher weight means it contributes more to the composite score. For example, weights of 2, 1, 1 give the first criterion twice the influence.'},
+                    {'name': 'order', 'input_type': 'numeric input', 'purpose': 'Display order shown to jurors. Lower numbers appear first. Use 0, 10, 20, etc. to leave room for reordering.'},
+                    {'name': 'DELETE', 'input_type': 'checkbox', 'purpose': 'Check to remove this criterion. Deleting a criterion also removes all juror scores for it.'},
+                ],
+            },
+            {
                 'name': 'Curator Review Edit Form',
                 'where_used': 'Artwork reviews detail (curator view)',
                 'breadcrumb': 'Home > Shows > Select Show > Reviews > Select Artwork > Edit Review',
                 'fields': [
-                    {'name': 'rating', 'input_type': 'radio select (1-5)', 'purpose': 'Adjust juror score when corrections are required.'},
+                    {'name': 'rating', 'input_type': 'radio select (1-10)', 'purpose': 'Adjust juror score when corrections are required.'},
                     {'name': 'body', 'input_type': 'multi-line text area', 'purpose': 'Adjust juror note text when needed.'},
                 ],
             },
@@ -222,7 +265,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Artwork reviews detail (staff/curator view)',
                 'breadcrumb': 'Home > Shows > Select Show > Reviews > Select Artwork > Edit Review',
                 'fields': [
-                    {'name': 'rating', 'input_type': 'radio select (1-5)', 'purpose': 'Adjust juror score when corrections are required.'},
+                    {'name': 'rating', 'input_type': 'radio select (1-10)', 'purpose': 'Adjust juror score when corrections are required.'},
                     {'name': 'body', 'input_type': 'multi-line text area', 'purpose': 'Adjust juror note text when needed.'},
                 ],
             },

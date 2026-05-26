@@ -28,7 +28,6 @@ class Artwork(models.Model):
     replacement_cost = models.FloatField(verbose_name='Replacment Cost: redo cost in the rare case that it gets stolen or damaged', blank=True, null=True)
     is_sold = models.BooleanField(default=False)
     is_public = models.BooleanField(default=False)
-    open_call_available = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
     installation = models.TextField(verbose_name='Installation: optional instructions for installing your work', blank=True, null=True)
     tags = models.ManyToManyField('gallery.Tag', related_name='artworks', blank=True)

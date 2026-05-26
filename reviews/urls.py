@@ -1,6 +1,6 @@
 from django.urls import re_path
 
-from reviews.views import artwork_review, curator_edit_review, show_juror_assignment, show_review_dashboard
+from reviews.views import artwork_review, curator_edit_review, manage_rubric_criteria, show_juror_assignment, show_review_dashboard
 
 app_name = 'reviews'
 
@@ -14,6 +14,11 @@ urlpatterns = [
         r'^show/(?P<show_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/reviews/jurors/$',
         show_juror_assignment,
         name='show_juror_assignment',
+    ),
+    re_path(
+        r'^show/(?P<show_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/reviews/rubric/$',
+        manage_rubric_criteria,
+        name='manage_rubric_criteria',
     ),
     re_path(
         r'^show/(?P<show_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/reviews/(?P<artwork_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$',

@@ -5,53 +5,76 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from gallery.models import Artwork, Show
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user, is_juror_for_show
-from reviews.forms import ArtworkReviewForm, ShowJurorAssignmentForm
-from reviews.models import ArtworkReview, ShowJuror
+from reviews.forms import ArtworkReviewForm, RubricCriterionFormSet, ShowJurorAssignmentForm
+from reviews.models import ArtworkReview, CriterionScore, RubricCriterion, ShowJuror
+
+
+def _compute_weighted_scores(show, criteria):
+    """Return {artwork_id: weighted_score} for artworks in the show."""
+    total_weight = sum(c.weight for c in criteria)
+    if not total_weight:
+        return {}
+    rows = (
+        CriterionScore.objects
+        .filter(review__show=show)
+        .values('review__artwork_id', 'criterion__weight')
+        .annotate(avg_score=Avg('score'))
+    )
+    sums = {}
+    for row in rows:
+        aid = row['review__artwork_id']
+        sums[aid] = sums.get(aid, 0.0) + row['avg_score'] * row['criterion__weight']
+    return {aid: total / total_weight for aid, total in sums.items()}
 
 
 @login_required
 def show_review_dashboard(request, show_slug):
-    """
-    Curator/juror dashboard for a show's reviews.
-
-    Curators see all reviews aggregated per artwork.
-    Jurors see only their own reviews plus artwork list for their assigned show.
-    """
     show = get_object_or_404(Show, slug=show_slug)
     if not can_view_reviews(request.user, show):
         raise Http404
 
-    # Artworks in this show
-    artworks = Artwork.objects.filter(shows=show).order_by('name')
+    artworks = Artwork.objects.filter(submissions__show=show).order_by('name')
+    criteria = list(show.rubric_criteria.all())
 
     if is_curator_user(request.user):
-        # Annotate artworks with average rating and review count for this show
-        artworks = artworks.annotate(
+        artworks = list(artworks.annotate(
             avg_rating=Avg('reviews__rating', filter=Q(reviews__show=show)),
-            review_count=Count('reviews', filter=Q(reviews__show=show)),
+            review_count=Count('reviews', filter=Q(reviews__show=show), distinct=True),
+        ))
+        if criteria:
+            weighted_scores = _compute_weighted_scores(show, criteria)
+            for artwork in artworks:
+                artwork.weighted_score = weighted_scores.get(artwork.pk)
+        all_reviews = (
+            ArtworkReview.objects
+            .filter(show=show)
+            .select_related('artwork', 'juror')
+            .prefetch_related('criterion_scores__criterion')
+            .order_by('artwork__name', 'juror__last_name')
         )
-        all_reviews = ArtworkReview.objects.filter(show=show).select_related(
-            'artwork', 'juror'
-        ).order_by('artwork__name', 'juror__last_name')
         jurors = show.jurors.select_related('user').order_by('user__last_name')
         context = {
             'show': show,
             'artworks': artworks,
             'all_reviews': all_reviews,
             'jurors': jurors,
+            'criteria': criteria,
             'is_curator': True,
         }
     else:
-        # Juror: show their own reviews and remaining artworks to review
-        my_reviews = ArtworkReview.objects.filter(
-            show=show, juror=request.user
-        ).select_related('artwork')
+        my_reviews = (
+            ArtworkReview.objects
+            .filter(show=show, juror=request.user)
+            .select_related('artwork')
+            .prefetch_related('criterion_scores__criterion')
+        )
         reviewed_ids = set(my_reviews.values_list('artwork_id', flat=True))
         pending_artworks = artworks.exclude(pk__in=reviewed_ids)
         context = {
             'show': show,
             'my_reviews': my_reviews,
             'pending_artworks': pending_artworks,
+            'criteria': criteria,
             'is_curator': False,
         }
 
@@ -60,42 +83,43 @@ def show_review_dashboard(request, show_slug):
 
 @login_required
 def artwork_review(request, show_slug, artwork_slug):
-    """
-    Juror submits or edits their review of a specific artwork in a show.
-    Curators can view all reviews for this artwork in this show.
-    """
     show = get_object_or_404(Show, slug=show_slug)
-    artwork = get_object_or_404(Artwork, slug=artwork_slug, shows=show)
+    artwork = get_object_or_404(Artwork, slug=artwork_slug, submissions__show=show)
 
     if not is_juror_for_show(request.user, show) and not can_manage_show(request.user, show):
         raise Http404
 
     if can_manage_show(request.user, show):
-        reviews = ArtworkReview.objects.filter(show=show, artwork=artwork).select_related('juror')
+        reviews = (
+            ArtworkReview.objects
+            .filter(show=show, artwork=artwork)
+            .select_related('juror')
+            .prefetch_related('criterion_scores__criterion')
+        )
+        criteria = list(show.rubric_criteria.all())
         context = {
             'show': show,
             'artwork': artwork,
             'reviews': reviews,
+            'criteria': criteria,
             'is_curator': True,
         }
         return render(request, 'reviews/artwork_review_detail.html', context)
 
-    # Juror path — create or edit their own review
-    instance = ArtworkReview.objects.filter(
-        show=show, artwork=artwork, juror=request.user
-    ).first()
+    instance = ArtworkReview.objects.filter(show=show, artwork=artwork, juror=request.user).first()
 
     if request.method == 'POST':
-        form = ArtworkReviewForm(request.POST, instance=instance)
+        form = ArtworkReviewForm(request.POST, show=show, instance=instance)
         if form.is_valid():
             review = form.save(commit=False)
             review.show = show
             review.artwork = artwork
             review.juror = request.user
             review.save()
+            form.save_criterion_scores(review)
             return redirect('reviews:show_review_dashboard', show_slug=show.slug)
     else:
-        form = ArtworkReviewForm(instance=instance)
+        form = ArtworkReviewForm(show=show, instance=instance)
 
     context = {
         'show': show,
@@ -109,21 +133,21 @@ def artwork_review(request, show_slug, artwork_slug):
 
 @login_required
 def curator_edit_review(request, show_slug, artwork_slug, review_id):
-    """Curator/staff edits a juror review for an artwork in a show."""
     show = get_object_or_404(Show, slug=show_slug)
     if not can_manage_show(request.user, show):
         raise Http404
 
-    artwork = get_object_or_404(Artwork, slug=artwork_slug, shows=show)
+    artwork = get_object_or_404(Artwork, slug=artwork_slug, submissions__show=show)
     review = get_object_or_404(ArtworkReview, pk=review_id, show=show, artwork=artwork)
 
     if request.method == 'POST':
-        form = ArtworkReviewForm(request.POST, instance=review)
+        form = ArtworkReviewForm(request.POST, show=show, instance=review)
         if form.is_valid():
             form.save()
+            form.save_criterion_scores(review)
             return redirect('reviews:artwork_review', show_slug=show.slug, artwork_slug=artwork.slug)
     else:
-        form = ArtworkReviewForm(instance=review)
+        form = ArtworkReviewForm(show=show, instance=review)
 
     context = {
         'show': show,
@@ -137,7 +161,6 @@ def curator_edit_review(request, show_slug, artwork_slug, review_id):
 
 @login_required
 def show_juror_assignment(request, show_slug):
-    """Curator/staff manages juror assignments for a show."""
     show = get_object_or_404(Show, slug=show_slug)
     if not can_manage_show(request.user, show):
         raise Http404
@@ -173,3 +196,31 @@ def show_juror_assignment(request, show_slug):
     }
     return render(request, 'reviews/show_juror_assignment.html', context)
 
+
+@login_required
+def manage_rubric_criteria(request, show_slug):
+    show = get_object_or_404(Show, slug=show_slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+
+    qs = RubricCriterion.objects.filter(show=show)
+
+    if request.method == 'POST':
+        formset = RubricCriterionFormSet(request.POST, queryset=qs)
+        if formset.is_valid():
+            instances = formset.save(commit=False)
+            for instance in instances:
+                instance.show = show
+                instance.save()
+            for obj in formset.deleted_objects:
+                obj.delete()
+            return redirect('reviews:manage_rubric_criteria', show_slug=show.slug)
+    else:
+        formset = RubricCriterionFormSet(queryset=qs)
+
+    context = {
+        'show': show,
+        'formset': formset,
+        'criteria': qs,
+    }
+    return render(request, 'reviews/rubric_criteria.html', context)

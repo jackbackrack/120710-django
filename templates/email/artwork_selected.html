@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>Congratulations!</p>
+<p>Your artwork <strong>{{ artwork.name }}</strong> has been selected for <strong>{{ show.name }}</strong>.</p>
+{% if show.start %}
+<p>The show runs {{ show.date_range }}.</p>
+{% endif %}
+<p>We will be in touch with next steps.</p>
+<p>— The 120710 Team</p>
+</body>
+</html>

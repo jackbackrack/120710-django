@@ -10,7 +10,7 @@
 {% block content %}
 {% if user.is_authenticated %}
 <form class="mb-3 col-4 mx-auto mt-4" method="get">
-  <label for="show-tag-filter">Filter Shows by tag</label>
+  <label for="show-tag-filter">Filter by tag</label>
   <select id="show-tag-filter" name="tag" onchange="this.form.submit()">
     <option value="">All tags</option>
     {% for tag in available_tags %}
@@ -19,34 +19,36 @@
   </select>
 </form>
 {% endif %}
+
+{% if current_shows %}
+<div class="text-center"><h2>Current Shows</h2></div>
 <div class="cards">
-  {% for show in shows %}
-    <div class="card">
-      {% if show.image %}
-      <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
-      {% endif %}
-      <div class="card__content">
-        <h2 class="text-2xl"><a class="card__link" class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h2>
-        {% if show.is_open_call %}
-        <p>Open Call</p>
-        {% endif %}
-        <h4 class="mb-6">
-        {% for curator in show.curators.all %}
-          <a class="card__link" href="{{ curator.get_absolute_url }}"> {{ curator.name }}</a>
-          {% if not forloop.last %} and {% endif %}
-        {% endfor %} <br>
-        {{ show.date_range }} <br>
-        </h4>
-      </div>
-      <div class="card__info">
-        {% if user.is_authenticated %}
-        <a class="card__link" class="card__link" href="{{ show.get_placards_url }}">Placards</a>
-        <a class="card__link" class="card__link" href="{{ show.get_instagram_url }}">Instagram</a>
-        <a class="card__link" class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
-        <a class="card__link" class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
-        {% endif %}
-      </div>
-    </div>
+  {% for show in current_shows %}
+    {% include 'gallery/_show_card.html' %}
   {% endfor %}
 </div>
+{% endif %}
+
+{% if future_shows %}
+<div class="text-center"><h2>Upcoming Shows</h2></div>
+<div class="cards">
+  {% for show in future_shows %}
+    {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if past_shows %}
+<div class="text-center"><h2>Past Shows</h2></div>
+<div class="cards">
+  {% for show in past_shows %}
+    {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not current_shows and not future_shows and not past_shows %}
+<p class="text-center mt-4">No shows found.</p>
+{% endif %}
+
 {% endblock content %}

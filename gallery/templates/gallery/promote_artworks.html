@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Promote Artworks — {{ show.name }}{% endblock %}
+{% block block_title %}Promote Artworks — {{ show.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">← Back to submissions</a>
+</div>
+
+<p class="text-gray-500 text-sm">
+  This will add all <strong>Selected</strong> artworks to the show, update show artists,
+  and send acceptance emails to selected artists{% if rejected_submissions %} and rejection emails to declined artists{% endif %}.
+</p>
+
+<h3 class="mt-4">Selected ({{ selected_submissions|length }})</h3>
+{% if selected_submissions %}
+<ul>
+  {% for sub in selected_submissions %}
+  <li>
+    <strong>{{ sub.artwork.name }}</strong>
+    by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    — email to {{ sub.submitted_by.email }}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-gray-500">No submissions marked as selected. Go back to submissions and mark some as Selected first.</p>
+{% endif %}
+
+{% if rejected_submissions %}
+<h3 class="mt-4">Rejected ({{ rejected_submissions|length }})</h3>
+<ul>
+  {% for sub in rejected_submissions %}
+  <li>
+    <strong>{{ sub.artwork.name }}</strong>
+    by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    — email to {{ sub.submitted_by.email }}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if selected_submissions %}
+<form method="post" class="mt-4">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-primary">Confirm Promotion &amp; Send Emails</button>
+  <a class="card__link ms-3" href="{% url 'gallery:show_submissions' show.slug %}">Cancel</a>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,8 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 
-from gallery.models import Artist, Artwork, Event, Show, Tag
+from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
 from gallery.models.tags import ensure_open_call_tag
 from gallery.permissions import is_curator_user, is_staff_user
 
@@ -57,7 +56,6 @@ class ArtworkForm(UserAwareModelForm):
             'replacement_cost',
             'is_sold',
             'is_public',
-            'open_call_available',
             'tags',
             'description',
             'installation',
@@ -69,17 +67,27 @@ class ArtworkForm(UserAwareModelForm):
             for field_name in ('artists', 'shows', 'is_public', 'tags'):
                 self.fields.pop(field_name)
 
-    def save(self, commit=True):
-        artwork = super().save(commit=commit)
-        if not commit:
-            return artwork
 
-        open_call_tag = ensure_open_call_tag()
-        if artwork.open_call_available:
-            artwork.tags.add(open_call_tag)
-        else:
-            artwork.tags.remove(open_call_tag)
-        return artwork
+class ArtworkSubmissionForm(forms.ModelForm):
+    class Meta:
+        model = ArtworkSubmission
+        fields = ['artwork', 'statement']
+        widgets = {
+            'statement': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Optional artist statement for this submission',
+            }),
+        }
+        labels = {
+            'statement': 'Artist statement (optional)',
+        }
+
+    def __init__(self, *args, show=None, artist=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        already_submitted = ArtworkSubmission.objects.filter(show=show).values_list('artwork_id', flat=True)
+        self.fields['artwork'].queryset = artist.artworks.exclude(pk__in=already_submitted).order_by('name')
+        self.fields['artwork'].empty_label = 'Select an artwork'
+        self.fields['statement'].required = False
 
 
 class ShowForm(UserAwareModelForm):
@@ -95,6 +103,7 @@ class ShowForm(UserAwareModelForm):
             'managing_curator',
             'is_open_call',
             'submission_deadline',
+            'decision_date',
             'start',
             'end',
             'tags',
@@ -104,8 +113,6 @@ class ShowForm(UserAwareModelForm):
         super().__init__(*args, user=user, **kwargs)
         self.fields['artists'].queryset = Artist.objects.order_by('name')
         artworks = Artwork.objects.order_by('name').distinct()
-        if self._is_open_call_enabled():
-            artworks = artworks.filter(Q(open_call_available=True) | Q(shows=self.instance)).distinct()
         self.fields['artworks'].queryset = artworks
         if self.instance.pk:
             self.fields['artists'].initial = self.instance.artists.all()
@@ -113,11 +120,6 @@ class ShowForm(UserAwareModelForm):
         self.fields['managing_curator'].queryset = User.objects.filter(groups__name='curator').distinct().order_by('first_name', 'last_name', 'username')
         if not is_staff_user(self.user):
             self.fields.pop('managing_curator')
-
-    def _is_open_call_enabled(self):
-        if self.is_bound:
-            return self.data.get(self.add_prefix('is_open_call')) in {'on', 'true', 'True', '1'}
-        return bool(self.instance.pk and self.instance.is_open_call)
 
     def save(self, commit=True):
         show = super().save(commit=commit)
@@ -130,8 +132,6 @@ class ShowForm(UserAwareModelForm):
         selected_artwork_artist_ids = list(selected_artworks.values_list('artists__id', flat=True))
         show.artists.set(Artist.objects.filter(id__in=selected_artist_ids + selected_artwork_artist_ids).distinct())
         show.artworks.set(selected_artworks)
-        selected_artworks.update(is_public=True)
-        Artist.objects.filter(artworks__in=selected_artworks).update(is_public=True)
         if show.is_open_call:
             show.tags.add(open_call_tag)
         else:

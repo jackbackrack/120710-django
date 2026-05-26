@@ -1,3 +1,5 @@
+import datetime
+
 from django.db.models import Q
 
 from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, JUROR_GROUP, STAFF_GROUP
@@ -45,21 +47,21 @@ def can_manage_event(user, event):
 def visible_artwork_queryset(user):
     if is_curator_user(user):
         return Q()
-
-    visibility_filter = Q(is_public=True)
+    # Visible if in a show that has already started (current or past), or staff override
+    public = Q(shows__start__lte=datetime.date.today()) | Q(is_public=True)
     if user.is_authenticated:
-        visibility_filter |= Q(created_by=user) | Q(artists__user=user)
-    return visibility_filter
+        public |= Q(created_by=user) | Q(artists__user=user)
+    return public
 
 
 def visible_artist_queryset(user):
     if is_curator_user(user):
         return Q()
-
-    visibility_filter = Q(is_public=True)
+    # Visible if they have artwork in a show that has already started, or staff override
+    public = Q(artworks__shows__start__lte=datetime.date.today()) | Q(is_public=True)
     if user.is_authenticated:
-        visibility_filter |= Q(user=user)
-    return visibility_filter
+        public |= Q(user=user)
+    return public
 
 
 def tag_filter_queryset(queryset, tag_slug):

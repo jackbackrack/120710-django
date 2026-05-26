@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Rubric Criteria: {{ show.name }}{% endblock %}
+{% block block_title %}Rubric Criteria: {{ show.name }}{% endblock %}
+
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  <div class="card__content">
+    <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to {{ show.name }} reviews</a></p>
+
+    <h1 class="mb-2">Rubric Criteria</h1>
+    <p class="text-muted">
+      Define weighted scoring criteria for jurors to use when reviewing artworks in this show.
+      Each criterion is scored 1–10 by each juror. The weighted average across all criteria
+      becomes the artwork's composite score.
+      Leave the criteria list empty to use a single overall 1–10 rating instead.
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      {% load crispy_forms_tags %}
+      {{ formset.management_form }}
+
+      {% if formset.total_form_count > 0 %}
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th style="width:6em">Weight</th>
+            <th style="width:5em">Order</th>
+            <th style="width:4em">Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for form in formset %}
+          <tr>
+            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+            <td>{{ form.name }}</td>
+            <td>{{ form.description }}</td>
+            <td>{{ form.weight }}</td>
+            <td>{{ form.order }}</td>
+            <td>
+              {% if form.instance.pk %}
+              {{ form.DELETE }}
+              {% endif %}
+            </td>
+          </tr>
+          {% if form.errors %}
+          <tr>
+            <td colspan="5">
+              {% for field, errors in form.errors.items %}
+              <p class="text-danger small">{{ field }}: {{ errors|join:", " }}</p>
+              {% endfor %}
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      <button type="submit" class="btn btn-primary mt-2">Save criteria</button>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

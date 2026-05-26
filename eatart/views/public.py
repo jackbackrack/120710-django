@@ -1,40 +1,32 @@
-from datetime import datetime
+import datetime as dt
 
 from django.shortcuts import render
 
 from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, JUROR_GROUP, STAFF_GROUP
 from eatart.role_docs import GENERAL_GUIDE, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
-from gallery.models import Artist, Artwork, Event, Show
+from gallery.models import Event, Show
 
 
 def index(request):
-    artworks = Artwork.objects.all()[:6]
-    shows = Show.objects.order_by('-start')
-    artists = Artist.objects.order_by('name')
-    now = datetime.now()
-    current_show = Show.objects.filter(start__lte=now, end__gte=now).first()
-    is_current_show = False
-    is_next_show = False
-    next_show = None
-    next_event = Event.objects.filter(date__gte=now).order_by('date').first()
+    today = dt.date.today()
+    base = Show.objects.prefetch_related('curators', 'tags', 'events')
+    current_shows = list(base.filter(start__lte=today, end__gte=today).order_by('-start'))
+    future_shows = list(base.filter(start__gt=today).order_by('start'))
+    past_shows = list(base.filter(end__lt=today).order_by('-start'))
 
-    if current_show:
-        next_show = current_show
-        is_current_show = True
-    else:
-        next_show = Show.objects.filter(start__gt=now).order_by('start').first()
-        if next_show:
-            is_next_show = True
+    hero_show = current_shows[0] if current_shows else (future_shows[0] if future_shows else None)
+    hero_is_current = bool(current_shows) and hero_show == current_shows[0]
+
+    next_event = Event.objects.filter(date__gte=today).order_by('date').first()
 
     return render(request, 'public/index.html', {
-        'is_current_show': is_current_show,
-        'is_next_show': is_next_show,
-        'next_show': next_show,
+        'hero_show': hero_show,
+        'hero_is_current': hero_is_current,
         'next_event': next_event,
-        'artworks': artworks,
-        'shows': shows,
-        'artists': artists,
+        'current_shows': current_shows,
+        'future_shows': future_shows,
+        'past_shows': past_shows,
         'structured_data_json': dump_json_ld(schema_to_dict(gallery_to_schema(request))),
     })
 

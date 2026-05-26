@@ -1,3 +1,5 @@
+import datetime
+
 from eatart.schemaorg.mappers import show_to_schema
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -9,7 +11,7 @@ from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
-from gallery.models import Artist, Artwork, Show, Tag
+from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
 from gallery.permissions import can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
@@ -19,11 +21,18 @@ class ShowListView(ListView):
     template_name = 'gallery/show_list.html'
 
     def get_queryset(self):
-        return tag_filter_queryset(Show.objects.all(), self.request.GET.get('tag')).distinct().order_by('-start')
+        return tag_filter_queryset(
+            Show.objects.prefetch_related('curators', 'tags'),
+            self.request.GET.get('tag'),
+        ).distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['shows'] = self.get_queryset()
+        today = datetime.date.today()
+        base = self.get_queryset()
+        context['current_shows'] = base.filter(start__lte=today, end__gte=today).order_by('-start')
+        context['future_shows'] = base.filter(start__gt=today).order_by('start')
+        context['past_shows'] = base.filter(end__lt=today).order_by('-start')
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
         return context
@@ -43,6 +52,18 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['artworks'] = artworks
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
         context['can_manage_show'] = can_manage_show(self.request.user, show)
+
+        user = self.request.user
+        context['can_submit'] = False
+        context['user_submissions'] = []
+        if show.is_open_call and user.is_authenticated:
+            artist = user.artists.order_by('-created_at').first()
+            if artist:
+                context['can_submit'] = show.is_accepting_submissions
+                context['user_submissions'] = list(
+                    ArtworkSubmission.objects.filter(show=show, submitted_by=user)
+                    .select_related('artwork')
+                )
         return context
 
 

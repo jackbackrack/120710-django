@@ -24,6 +24,7 @@ class Show(models.Model):
     )
     is_open_call = models.BooleanField(default=False)
     submission_deadline = models.DateField(blank=True, null=True)
+    decision_date = models.DateField(blank=True, null=True)
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)
     tags = models.ManyToManyField('gallery.Tag', related_name='shows', blank=True)
@@ -67,6 +68,20 @@ class Show(models.Model):
           start = self.start.strftime("%b %d, %Y")
           end = self.end.strftime("%b %d, %Y")
         return f"{start} – {end}"
+
+    @property
+    def is_accepting_submissions(self):
+        if not self.is_open_call:
+            return False
+        if self.submission_deadline:
+            return self.submission_deadline >= datetime.date.today()
+        return True
+
+    @property
+    def open_call_phase(self):
+        if not self.is_open_call:
+            return None
+        return 'open' if self.is_accepting_submissions else 'jury'
 
     @property
     def curator_artist(self):

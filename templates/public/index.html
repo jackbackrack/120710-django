@@ -1,98 +1,89 @@
 {% extends 'base.html' %}
 
-{% block title %}
-  120710
-{% endblock %}
-{% block block_title %}Welcome
-{% endblock block_title %}
+{% block title %}120710{% endblock %}
+{% block block_title %}Welcome{% endblock block_title %}
 
 {% block content %}
 
+{% if hero_show %}
 <div class="cards">
-{% if next_show %}
-    <div class="card" id="big_card">
-      {% if is_current_show %}
-      <div class="text-center"><h2>Current Show</h2></div>
-      {% elif is_next_show %}
-      <div class="text-center"><h2>Next Show</h2></div>
+  <div class="card" id="big_card">
+    <div class="text-center">
+      <h2>{% if hero_is_current %}Current Show{% else %}Upcoming Show{% endif %}</h2>
+    </div>
+    {% if hero_show.image %}
+    <a style="display: contents" href="{{ hero_show.get_absolute_url }}"><img class="card__image" src="{{ hero_show.image.url }}"></a>
+    {% endif %}
+    <div class="card__content">
+      <h2 class="text-2xl"><a class="card__link" href="{{ hero_show.get_absolute_url }}">{{ hero_show.name }}</a></h2>
+      {% if hero_show.open_call_phase == 'open' %}
+      <p><span class="badge bg-success">Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}</span></p>
+      {% elif hero_show.open_call_phase == 'jury' %}
+      <p><span class="badge bg-warning text-dark">Open Call &middot; Jury Review</span></p>
       {% endif %}
-      {% if next_show.image %}
-      <a style="display: contents" href="{{ next_show.get_absolute_url }}"><img class="card__image" src="{{ next_show.image.url }}" class="rounded-t-xl"></a>
-      {% endif %}
-      <div class="card__content">
-        <h2 class="text-2xl"><a class="card__link" href="{{ next_show.get_absolute_url }}">{{ next_show.name }}</a></h2>
-        <h4 class="mb-6">
-        {% for curator in next_show.curators.all %}
-          <a class="card__link" href="{{ curator.get_absolute_url }}"> {{ curator.name }}</a>
-          {% if not forloop.last %} and {% endif %}
-        {% endfor %} <br>
-        {{ next_show.date_range }} <br>
-        {% for event in next_show.events.all %}
-          <a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.start }} - {{ event.end }} <br>
+      <h4 class="mb-6">
+        {% for curator in hero_show.curators.all %}
+          <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
         {% endfor %}
-        </h4>
-      </div>
-      <div class="card__info">
+        {% if hero_show.curators.all %}<br>{% endif %}
+        {{ hero_show.date_range }}<br>
+        {% for event in hero_show.events.all %}
+          <a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.start }} - {{ event.end }}<br>
+        {% endfor %}
+      </h4>
+    </div>
+    <div class="card__info">
       {% if user.is_authenticated %}
-        <a class="card__link" href="{{ next_show.get_placards_url }}" class="card__link">Placards</a>
-        <a class="card__link" href="{{ next_show.get_instagram_url }}" class="card__link">Instagram</a>
-        <a class="card__link" href="{% url 'gallery:show_edit' next_show.pk %}" class="card__link">Edit</a>
-        <a class="card__link" href="{% url 'gallery:show_delete' next_show.pk %}" class="card__link">Delete</a>
+        <a class="card__link" href="{{ hero_show.get_placards_url }}">Placards</a>
+        <a class="card__link" href="{{ hero_show.get_instagram_url }}">Instagram</a>
+        <a class="card__link" href="{% url 'gallery:show_edit' hero_show.pk %}">Edit</a>
+        <a class="card__link" href="{% url 'gallery:show_delete' hero_show.pk %}">Delete</a>
       {% endif %}
-      </div>
     </div>
-{% endif %}
-{% if next_event %}
-    <div class="card" id="big_card">
-      <div class="text-center"><h2>Next Event</h2></div>
-      {% if next_event.image %}
-      <a style="display: contents" href="{{ next_event.get_absolute_url }}"><img src="{{ next_event.image.url }}" class="card__image"></a>
-      {% endif %}
-      <div class="card__content">
-        <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ next_event.get_absolute_url }}">{{ next_event.name }} of {{ next_event.show.name }}</a></h1>
-        <p class="mb-6 text-3xl">{{ next_event.date }}: {{ next_event.start }} - {{ next_event.end }}</p>
-        {% if next_event.description %}
-        <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ next_event.description|safe }}</p>
-        {% endif %}
-      </div>
-      <div class="card__info">
-        {% if user.is_authenticated %}
-        <a class="card__link" href="{% url 'gallery:event_edit' next_event.pk %}">Edit</a>
-        <a class="card__link" href="{% url 'gallery:event_delete' next_event.pk %}">Delete</a>
-        {% endif %}
-      </div>
-    </div>
-{% endif %}
-
+  </div>
 </div>
+{% endif %}
 
-<div class="text-center"><h2>All Shows</h2></div>
-
+{% if next_event %}
 <div class="cards">
-  {% for show in shows %}
-    <div class="card">
-      {% if show.image %}
-      <a style="display: contents" href="{{ show.get_absolute_url }}"><img class="card__image" src="{{ show.image.url }}" class="rounded-t-xl"></a>
+  <div class="card" id="big_card">
+    <div class="text-center"><h2>Next Event</h2></div>
+    {% if next_event.image %}
+    <a style="display: contents" href="{{ next_event.get_absolute_url }}"><img src="{{ next_event.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ next_event.get_absolute_url }}">{{ next_event.name }} of {{ next_event.show.name }}</a></h1>
+      <p class="mb-6 text-3xl">{{ next_event.date }}: {{ next_event.start }} - {{ next_event.end }}</p>
+      {% if next_event.description %}
+      <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ next_event.description|safe }}</p>
       {% endif %}
-      <div class="card__content">
-        <h2 class="text-2xl"><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h2>
-        <h4 class="mb-6">
-        {% for curator in show.curators.all %}
-          <a class="card__link" href="{{ curator.get_absolute_url }}"> {{ curator.name }}</a>
-          {% if not forloop.last %} and {% endif %}
-        {% endfor %} <br>
-        {{ show.date_range }} <br>
-        </h4>
-      </div>
-      <div class="card__info">
-      {% if user.is_authenticated %}
-        <a class="card__link" href="{{ show.get_placards_url }}" class="card__link">Placards</a>
-        <a class="card__link" href="{{ show.get_instagram_url }}" class="card__link">Instagram</a>
-        <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}" class="card__link">Edit</a>
-        <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}" class="card__link">Delete</a>
-      {% endif %}
-      </div>
     </div>
+    <div class="card__info">
+      {% if user.is_authenticated %}
+      <a class="card__link" href="{% url 'gallery:event_edit' next_event.pk %}">Edit</a>
+      <a class="card__link" href="{% url 'gallery:event_delete' next_event.pk %}">Delete</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if future_shows %}
+<div class="text-center"><h2>Upcoming Shows</h2></div>
+<div class="cards">
+  {% for show in future_shows %}
+    {% include 'gallery/_show_card.html' %}
   {% endfor %}
 </div>
+{% endif %}
+
+{% if past_shows %}
+<div class="text-center"><h2>Past Shows</h2></div>
+<div class="cards">
+  {% for show in past_shows %}
+    {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
+
 {% endblock %}

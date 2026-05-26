@@ -28,7 +28,12 @@
       <thead>
         <tr>
           <th>Juror</th>
-          <th>Rating</th>
+          {% if criteria %}
+          {% for criterion in criteria %}
+          <th>{{ criterion.name }}<br><small class="text-muted">w={{ criterion.weight|floatformat:"-1" }}</small></th>
+          {% endfor %}
+          {% endif %}
+          <th>Overall</th>
           <th>Notes</th>
           <th>Date</th>
           <th></th>
@@ -38,8 +43,17 @@
         {% for review in reviews %}
         <tr>
           <td>{{ review.juror.get_full_name|default:review.juror.username }}</td>
-          <td>{{ review.rating }}/5</td>
-          <td>{{ review.body|default:"N/A" }}</td>
+          {% if criteria %}
+          {% for criterion in criteria %}
+          <td>
+            {% for cs in review.criterion_scores.all %}
+              {% if cs.criterion_id == criterion.pk %}{{ cs.score }}/10{% endif %}
+            {% endfor %}
+          </td>
+          {% endfor %}
+          {% endif %}
+          <td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>
+          <td>{{ review.body|default:"&mdash;" }}</td>
           <td>{{ review.updated_at|date:"N j, Y" }}</td>
           <td><a class="card__link" href="{% url 'reviews:curator_edit_review' show_slug=show.slug artwork_slug=artwork.slug review_id=review.id %}">Edit</a></td>
         </tr>
@@ -47,7 +61,7 @@
       </tbody>
     </table>
     {% else %}
-    <p class="text-gray-500">No reviews yet for this artwork in this show.</p>
+    <p class="text-muted">No reviews yet for this artwork in this show.</p>
     {% endif %}
   </div>
 </div>
