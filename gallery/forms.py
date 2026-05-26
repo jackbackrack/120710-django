@@ -90,6 +90,7 @@ class ArtworkSubmissionForm(forms.ModelForm):
 class ShowForm(UserAwareModelForm):
     artists = forms.ModelMultipleChoiceField(queryset=Artist.objects.none(), required=False)
     artworks = forms.ModelMultipleChoiceField(queryset=Artwork.objects.none(), required=False)
+    curators = forms.ModelMultipleChoiceField(queryset=Artist.objects.none(), required=False)
 
     class Meta:
         model = Show
@@ -108,11 +109,14 @@ class ShowForm(UserAwareModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
         self.fields['artists'].queryset = Artist.objects.order_by('name')
-        artworks = Artwork.objects.order_by('name').distinct()
-        self.fields['artworks'].queryset = artworks
+        self.fields['artworks'].queryset = Artwork.objects.order_by('name').distinct()
+        self.fields['curators'].queryset = Artist.objects.filter(
+            user__groups__name='curator'
+        ).order_by('name')
         if self.instance.pk:
             self.fields['artists'].initial = self.instance.artists.all()
             self.fields['artworks'].initial = self.instance.artworks.all()
+            self.fields['curators'].initial = self.instance.curators.all()
 
     def save(self, commit=True):
         show = super().save(commit=commit)
@@ -125,6 +129,7 @@ class ShowForm(UserAwareModelForm):
         selected_artwork_artist_ids = list(selected_artworks.values_list('artists__id', flat=True))
         show.artists.set(Artist.objects.filter(id__in=selected_artist_ids + selected_artwork_artist_ids).distinct())
         show.artworks.set(selected_artworks)
+        show.curators.set(self.cleaned_data['curators'])
         if show.is_open_call:
             show.tags.add(open_call_tag)
         else:

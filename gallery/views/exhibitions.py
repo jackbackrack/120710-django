@@ -119,14 +119,6 @@ class ShowUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         kwargs['user'] = self.request.user
         return kwargs
 
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        self.object.curators.clear()
-        curator_artist = self.object.curator_artist
-        if curator_artist:
-            self.object.curators.add(curator_artist)
-        return response
-
     def test_func(self):
         obj = self.get_object()
         return can_manage_show(self.request.user, obj)
@@ -151,13 +143,6 @@ class ShowCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        curator_artist = self.object.curator_artist
-        if curator_artist:
-            self.object.curators.set([curator_artist])
-        return response
 
     def test_func(self):
         return is_staff_user(self.request.user)

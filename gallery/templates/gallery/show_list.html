@@ -2,7 +2,7 @@
 
 {% block title %}Shows{% endblock title %}
 {% block block_title %}Shows
-{% if user.is_authenticated %}
+{% if user.is_staff %}
   <a class="card__link new-button" href="{% url 'gallery:show_new' %}">New</a>
 {% endif %}
 {% endblock block_title %}
