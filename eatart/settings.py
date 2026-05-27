@@ -224,6 +224,10 @@ USE_TZ = True
 CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
+# django-imagekit: return thumbnail URLs immediately without blocking to generate.
+# generateimages runs at startup to pre-generate all thumbnails.
+IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = 'imagekit.cachefiles.strategies.Optimistic'
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
