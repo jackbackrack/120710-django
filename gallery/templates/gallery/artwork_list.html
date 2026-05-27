@@ -16,9 +16,6 @@
     <div class="card__content">
       <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
       <h3 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}</h3>
-      {% if artwork.open_call_available %}
-      <p>Open Call Ready</p>
-      {% endif %}
       {% if not artwork.is_public %}
       <p>Private</p>
       {% endif %}

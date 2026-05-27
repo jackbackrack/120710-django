@@ -29,7 +29,6 @@
     | <a class="card__link" href="{% url 'gallery:show_list'%}">Shows</a>
     | <a class="card__link" href="{% url 'gallery:artist_list'%}">Artists</a>
     | <a class="card__link" href="{% url 'gallery:artwork_list'%}">Artworks</a>
-    {% if can_access_open_call_dashboard|default:False %}| <a class="card__link" href="{% url 'gallery:open_call_dashboard' %}">Open Call Dashboard</a>{% endif %}
     {% if can_access_artist_open_call|default:False %}| <a class="card__link" href="{% url 'gallery:artist_open_call' %}">My Submissions</a>{% endif %}
     {% if needs_artist_profile|default:False %}| <a class="card__link" href="{% url 'gallery:artist_new' %}">Create Artist Profile</a>{% endif %}
     {% if is_staff_user|default:False %}| <a class="card__link" href="{% url 'gallery:show_new' %}">New Show</a>{% endif %}

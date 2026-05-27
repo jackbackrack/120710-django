@@ -422,30 +422,6 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
         self.assertTrue(self.show.artworks.filter(pk=self.private_artwork.pk).exists())
 
-    def test_open_call_dashboard_is_curator_only_and_lists_submitted_work(self):
-        self.show.is_open_call = True
-        self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=7)
-        self.show.save(update_fields=['is_open_call', 'submission_deadline'])
-        ArtworkSubmission.objects.create(
-            show=self.show,
-            artwork=self.private_artwork,
-            submitted_by=self.artist_user,
-        )
-
-        anonymous_response = self.client.get(reverse('gallery:open_call_dashboard'))
-
-        self.client.force_login(self.artist_user)
-        artist_response = self.client.get(reverse('gallery:open_call_dashboard'))
-
-        self.client.force_login(self.curator_user)
-        curator_response = self.client.get(reverse('gallery:open_call_dashboard'))
-
-        self.assertEqual(anonymous_response.status_code, 302)
-        self.assertEqual(artist_response.status_code, 403)
-        self.assertEqual(curator_response.status_code, 200)
-        self.assertContains(curator_response, self.private_artwork.name)
-        self.assertContains(curator_response, self.show.name)
-
     def test_artist_open_call_page_is_artist_facing_and_navigation_is_role_aware(self):
         self.show.is_open_call = True
         self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=7)
@@ -471,8 +447,7 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertContains(artist_page_response, self.show.name)
         self.assertContains(artist_nav_response, 'My Submissions')
         self.assertNotContains(artist_nav_response, 'Open Call Dashboard')
-        self.assertContains(curator_nav_response, 'My Submissions')
-        self.assertContains(curator_nav_response, 'Open Call Dashboard')
+        self.assertNotContains(curator_nav_response, 'Open Call Dashboard')
 
     def test_artist_can_edit_artwork_without_open_call_available_field(self):
         self.client.force_login(self.artist_user)
