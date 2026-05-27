@@ -52,29 +52,6 @@ body {
     background-color: #dddddd;
 }
 
-.card__label {
-    display: block;
-    width: 100%;
-    text-align: center;
-    font-size: 0.72em;
-    font-weight: bold;
-    padding: 3px 6px;
-    color: #fff;
-    background-color: #198754;
-    border-top: 2px solid #333;
-    border-left: 2px solid #333;
-    border-right: 2px solid #333;
-}
-
-.card__label + a > .card__image,
-.card__label + .card__image {
-    border-top: none;
-}
-
-.card__label--warning {
-    background-color: #ffc107;
-    color: #333;
-}
 
 #big_card {
     width: 400px;

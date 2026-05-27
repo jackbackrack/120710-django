@@ -1,8 +1,8 @@
 <div class="card">
   {% if show.open_call_phase == 'open' %}
-  <span class="card__label">Open Call</span>
+  <div class="text-center"><h2>Open Call</h2></div>
   {% elif show.open_call_phase == 'jury' %}
-  <span class="card__label card__label--warning">Open Call &middot; Jury Review</span>
+  <div class="text-center"><h2>Open Call &middot; Jury Review</h2></div>
   {% endif %}
   {% if show.image %}
   <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
