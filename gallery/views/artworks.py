@@ -21,6 +21,7 @@ class ArtworkListView(ListView):
     model = Artwork
     context_object_name = 'artwork_list'
     template_name = 'gallery/artwork_list.html'
+    paginate_by = 50
 
     def get_queryset(self):
         queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').distinct()
@@ -28,8 +29,7 @@ class ArtworkListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        artworks = list(context.get('object_list', []))
-        context['object_list'] = artworks
+        artworks = list(context['object_list'])
         context['artwork_list'] = artworks
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
