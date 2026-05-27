@@ -2,6 +2,8 @@ import datetime
 
 from django.db import models
 from django.urls import reverse
+from imagekit.models import ImageSpecField
+from imagekit.processors import ResizeToFit
 
 from gallery.models.people import Artist
 from gallery.models.slugs import build_unique_slug
@@ -12,6 +14,7 @@ class Show(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
+    card_thumbnail = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     artists = models.ManyToManyField(Artist, related_name='shows', blank=True)
     curators = models.ManyToManyField(Artist, blank=True)
     is_open_call = models.BooleanField(default=False)

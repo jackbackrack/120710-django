@@ -1,5 +1,7 @@
 from django.db import models
 from django.urls import reverse
+from imagekit.models import ImageSpecField
+from imagekit.processors import ResizeToFit
 
 from gallery.models.exhibitions import Show
 from gallery.models.people import Artist
@@ -26,6 +28,7 @@ class Artwork(models.Model):
     height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Height (inches)')
     depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Depth (inches, optional)')
     image = models.ImageField(upload_to='artwork_images', blank=True, null=True)
+    card_thumbnail = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     price = models.FloatField(verbose_name='Price: numeric price', blank=True, null=True)
     pricing = models.CharField(verbose_name='Pricing: anything more sophisticated like "Upon request" or "NFS"', max_length=255, blank=True, null=True)
     replacement_cost = models.FloatField(verbose_name='Replacment Cost: redo cost in the rare case that it gets stolen or damaged', blank=True, null=True)
