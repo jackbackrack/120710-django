@@ -56,6 +56,7 @@ ROLE_DOCUMENTATION = {
                     {'name': 'phone', 'input_type': 'text input', 'purpose': 'Optional contact phone number.'},
                     {'name': 'website', 'input_type': 'url/text input', 'purpose': 'External portfolio or personal website URL.'},
                     {'name': 'instagram', 'input_type': 'text input', 'purpose': 'Instagram handle or profile path.'},
+                    {'name': 'venmo', 'input_type': 'text input', 'purpose': 'Venmo username starting with @.'},
                     {'name': 'bio', 'input_type': 'multi-line text area', 'purpose': 'Artist biography shown publicly.'},
                     {'name': 'statement', 'input_type': 'multi-line text area', 'purpose': 'Artist statement shown publicly.'},
                     {'name': 'image', 'input_type': 'file upload', 'purpose': 'Profile image shown on artist pages.'},
