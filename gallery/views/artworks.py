@@ -24,7 +24,7 @@ class ArtworkListView(ListView):
     paginate_by = 100
 
     def get_queryset(self):
-        queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').distinct()
+        queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists', 'shows').distinct()
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):

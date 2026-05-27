@@ -12,7 +12,7 @@
   <div class="card__content">
     <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h2>
     <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}</h2>
-    {% if not artwork.shows.exists %}
+    {% if not artwork.shows.all %}
     <p class="text-gray-500 text-sm"><strong>Visibility: </strong>Private</p>
     {% endif %}
     <h2 class="text-sm">

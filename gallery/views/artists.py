@@ -57,7 +57,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         from gallery.permissions import can_manage_artist, can_manage_artwork
         context = super().get_context_data(**kwargs)
         artist = self.object
-        artworks = artist.artworks.filter(visible_artwork_queryset(self.request.user)).distinct()
+        artworks = artist.artworks.filter(visible_artwork_queryset(self.request.user)).prefetch_related('shows').distinct()
         context['artworks'] = artworks
         context['can_update_roles'] = is_staff_user(self.request.user) and artist.user_id
         context['can_manage_artist'] = can_manage_artist(self.request.user, artist)
