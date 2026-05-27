@@ -34,7 +34,7 @@
         {% if user_submissions %}
         <p class="mt-2"><strong>Your submissions:</strong></p>
         {% for sub in user_submissions %}
-        <p class="text-gray-500 text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a> &mdash; {{ sub.get_status_display }}{% if can_submit %} &mdash; <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract this submission?')">Retract</button></form>{% endif %}</p>
+        <p class="text-gray-500 text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a> &mdash; {{ sub.get_status_display }}{% if can_submit %} &mdash; <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:contents">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract this submission?')">Retract</button></form>{% endif %}</p>
         {% endfor %}
         {% endif %}
       {% elif show.open_call_phase == 'jury' %}
