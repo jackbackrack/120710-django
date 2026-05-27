@@ -11,9 +11,6 @@
   {% endif %}
   <div class="card__content">
     <h1 class="mb-6 text-3xl">{{ show.name }}</h1>
-    {% if show.is_open_call %}
-    <p class="text-gray-500 text-sm"><strong>Type: </strong>Open Call</p>
-    {% endif %}
     <p class="mb-6 text-3xl">{{ show.start }} - {{ show.end }}</p>
     <h3 class="mb-6">Curated by:
     {% if show.curator_artist %}
@@ -22,9 +19,6 @@
     Unassigned
     {% endif %}
     </h3>
-    {% if show.tags.exists %}
-    <p class="text-gray-500 text-sm"><strong>Tags: </strong>{% for tag in show.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
-    {% endif %}
     {% if show.description %}
     <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ show.description|safe }}</p>
     {% endif %}

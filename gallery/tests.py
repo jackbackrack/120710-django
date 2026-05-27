@@ -7,7 +7,6 @@ from django.urls import reverse
 
 from accounts.roles import add_artist_role, add_curator_role, add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show
-from gallery.models.tags import ensure_open_call_tag
 
 
 class ArtistModelTests(TestCase):
@@ -495,27 +494,6 @@ class AuthorizationWorkflowTests(TestCase):
         self.private_artwork.refresh_from_db()
 
         self.assertRedirects(response, self.private_artwork.get_absolute_url())
-
-    def test_open_call_show_is_tagged_when_is_open_call_saved(self):
-        ensure_open_call_tag()
-
-        self.client.force_login(self.curator_user)
-        response = self.client.post(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}), {
-            'name': self.show.name,
-            'description': self.show.description or '',
-            'is_open_call': 'on',
-            'start': self.show.start,
-            'end': self.show.end,
-            'artists': [self.artist.pk],
-            'artworks': [],
-            'tags': [],
-        })
-
-        self.show.refresh_from_db()
-
-        self.assertRedirects(response, self.show.get_absolute_url())
-        self.assertTrue(self.show.is_open_call)
-        self.assertTrue(self.show.tags.filter(slug='open-call').exists())
 
     def test_staff_can_see_edit_and_delete_links_on_show_detail(self):
         self.client.force_login(self.staff_user)

@@ -2,7 +2,6 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
-from gallery.models.tags import ensure_open_call_tag
 from gallery.permissions import is_curator_user, is_staff_user
 
 User = get_user_model()
@@ -139,17 +138,12 @@ class ShowForm(UserAwareModelForm):
         if not commit:
             return show
 
-        open_call_tag = ensure_open_call_tag()
         selected_artworks = self.cleaned_data['artworks']
         selected_artist_ids = list(self.cleaned_data['artists'].values_list('id', flat=True))
         selected_artwork_artist_ids = list(selected_artworks.values_list('artists__id', flat=True))
         show.artists.set(Artist.objects.filter(id__in=selected_artist_ids + selected_artwork_artist_ids).distinct())
         show.artworks.set(selected_artworks)
         show.curators.set(self.cleaned_data['curators'])
-        if show.is_open_call:
-            show.tags.add(open_call_tag)
-        else:
-            show.tags.remove(open_call_tag)
         return show
 
 
