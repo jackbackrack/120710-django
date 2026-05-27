@@ -40,7 +40,7 @@ ROLE_DOCUMENTATION = {
             'Create and edit your artist profile.',
             'Create and edit your own artworks.',
             'Submit artworks to open call shows via the show detail page while the deadline is open.',
-            'Track your submission statuses from My Submissions in the navigation.',
+            'Track your submission statuses and retract submissions from the show detail page while the deadline is open.',
             'Your artworks and profile become publicly visible once the show you are part of has opened.',
             'If you already have an artist profile in the system and your account created a new one instead of reusing it, email info@120710.art to ask a staff member to merge them.',
         ],
