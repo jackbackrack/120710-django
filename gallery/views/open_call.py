@@ -48,20 +48,8 @@ class ArtistOpenCallView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         artist = self.request.user.artists.order_by('-created_at').first()
-        query = self.request.GET.get('q', '').strip()
 
-        shows = (
-            Show.objects.filter(is_open_call=True)
-            .prefetch_related('tags')
-            .order_by('-start')
-        )
-
-        if query:
-            shows = shows.filter(
-                Q(name__icontains=query)
-                | Q(description__icontains=query)
-                | Q(tags__name__icontains=query)
-            ).distinct()
+        shows = Show.objects.filter(is_open_call=True).order_by('-start')
 
         submissions_by_show = {}
         for sub in ArtworkSubmission.objects.filter(
@@ -79,7 +67,6 @@ class ArtistOpenCallView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         ]
 
         context['artist'] = artist
-        context['query'] = query
         context['show_data'] = show_data
         return context
 

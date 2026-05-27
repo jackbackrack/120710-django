@@ -4,11 +4,6 @@
 {% block block_title %}My Submissions{% endblock %}
 
 {% block content %}
-<form class="mb-3 col-4 mx-auto mt-4" method="get">
-  <input type="search" name="q" value="{{ query }}" placeholder="Search open call exhibitions">
-  <button type="submit" class="btn btn-outline-success">Search</button>
-</form>
-
 <div class="text-center"><h2>Open Call Exhibitions</h2></div>
 <div class="cards">
   {% for entry in show_data %}
