@@ -40,6 +40,7 @@ body {
     gap: 8px;
     font-family: sans-serif;
     padding-top: 30px;
+    padding-bottom: 20px;
 }
 
 .cards * {
@@ -300,15 +301,11 @@ th, td {
     }
 }
 .section-label {
-    padding-top: 3.5rem;
+    padding: 0.75rem 0;
 }
 
 .section-label h2 {
-    margin-bottom: 0;
-}
-
-.section-label + .cards {
-    padding-top: 12px;
+    margin: 0;
 }
 
 .dim-input {
