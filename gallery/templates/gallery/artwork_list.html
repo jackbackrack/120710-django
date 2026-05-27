@@ -7,17 +7,6 @@
 {% endif %}
 {% endblock %}
 {% block content %}
-{% if user.is_authenticated %}
-<form class="mb-3 col-4 mx-auto mt-4" method="get">
-  <label for="artwork-tag-filter">Filter Artworks by tag</label>
-  <select id="artwork-tag-filter" name="tag" onchange="this.form.submit()">
-    <option value="">All tags</option>
-    {% for tag in available_tags %}
-      <option value="{{ tag.slug }}" {% if active_tag == tag.slug %}selected{% endif %}>{{ tag.name }}</option>
-    {% endfor %}
-  </select>
-</form>
-{% endif %}
 <div class="cards">
 {% for artwork in artwork_list %}
   <div class="card">

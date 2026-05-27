@@ -6,12 +6,6 @@
 {% block content %}
 <form class="d-flex mb-3 col-4 mx-auto mt-4" method="get">
 	<input class="form-control me-2" type="search" name="q" value="{{ query }}" placeholder="Search artists and artworks">
-	<select name="tag">
-		<option value="">All tags</option>
-		{% for tag in available_tags %}
-			<option value="{{ tag.slug }}" {% if active_tag == tag.slug %}selected{% endif %}>{{ tag.name }}</option>
-		{% endfor %}
-	</select>
 	<button class="btn btn-outline-success" type="submit">Search</button>
 </form>
 <h1>Search Results</h1>

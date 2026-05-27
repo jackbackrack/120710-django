@@ -8,17 +8,6 @@
   {% endblock %}
   
 {% block content %}
-{% if user.is_authenticated %}
-<form class="mb-3 col-4 mx-auto mt-4" method="get">
-  <label for="artist-tag-filter">Filter Artists by tag</label>
-  <select id="artist-tag-filter" name="tag" onchange="this.form.submit()">
-    <option value="">All tags</option>
-    {% for tag in available_tags %}
-      <option value="{{ tag.slug }}" {% if active_tag == tag.slug %}selected{% endif %}>{{ tag.name }}</option>
-    {% endfor %}
-  </select>
-</form>
-{% endif %}
 <div class="cards">
 {% for artist in artist_list %}
   <div class="card">
@@ -27,9 +16,6 @@
     {% endif %}
     <div class="card__content">
       <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>
-      {% if artist.tags.all %}
-        <p>{% for tag in artist.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
-      {% endif %}
     </div>
     <div class="card__info">
     {% if artist.id in can_manage_artist %}

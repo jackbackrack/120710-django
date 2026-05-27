@@ -12,9 +12,6 @@
   <div class="card__content">
     <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h2>
     <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}</h2>
-    {% if artwork.tags.exists %}
-    <p class="text-gray-500 text-sm"><strong>Tags: </strong>{% for tag in artwork.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
-    {% endif %}
     {% if artwork.open_call_available %}
     <p class="text-gray-500 text-sm"><strong>Open Call: </strong>Available for curator review</p>
     {% endif %}

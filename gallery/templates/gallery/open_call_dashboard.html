@@ -45,9 +45,6 @@
       {% if artwork.medium %}
       <p>{{ artwork.medium|truncatewords:12 }}</p>
       {% endif %}
-      {% if artwork.tags.exists %}
-      <p>{% for tag in artwork.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
-      {% endif %}
       {% if artwork.shows.exists %}
       <p>Selected for {% for show in artwork.shows.all %}<a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
       {% endif %}

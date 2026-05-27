@@ -4,18 +4,6 @@
 {% block block_title %}Shows{% endblock block_title %}
 
 {% block content %}
-{% if user.is_authenticated %}
-<form class="mb-3 col-4 mx-auto mt-4" method="get">
-  <label for="show-tag-filter">Filter by tag</label>
-  <select id="show-tag-filter" name="tag" onchange="this.form.submit()">
-    <option value="">All tags</option>
-    {% for tag in available_tags %}
-      <option value="{{ tag.slug }}" {% if active_tag == tag.slug %}selected{% endif %}>{{ tag.name }}</option>
-    {% endfor %}
-  </select>
-</form>
-{% endif %}
-
 {% if current_shows %}
 <div class="text-center"><h2>Current Shows</h2></div>
 <div class="cards">
