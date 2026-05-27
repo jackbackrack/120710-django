@@ -8,149 +8,104 @@
   #howto .card { width: 100%; max-width: 100%; background-color: #fff; }
 </style>
 <div id="howto" class="container-fluid py-4">
-	<h1 class="mb-3">User Help</h1>
-	<p class="text-muted">
-		This page is role-aware. You will see guidance for your assigned user classes only.
-	</p>
-	<p class="text-muted">
-		Navigation is permission-aware: Edit and Delete links appear only when your account can manage the current record.
-	</p>
-	<section class="description">
-		<h2>About This Gallery Management System</h2>
-		<p>
-			Open-source Django gallery management application.
-			Manages artists, artworks, exhibitions (shows), events, and juror reviews/ratings with public-facing pages,
-			a role-based admin workflow, Mailchimp mailing list integration, and Schema.org JSON-LD structured data on
-			every content page.
-		</p>
-		<h3>Features</h3>
-		<p>
-		<h4>Artists</h4>
-		<p>Profile pages with bio, statement, image, website, Instagram, and linked artworks
-		<h4>Artworks</h4>
-		<p>Detail pages with medium, dimensions, pricing, Schema.org `VisualArtwork` structured data
-		<h4>Shows (Exhibitions)</h4>
-		<p>M2M artists and curators, artworks inline, open call support with artist submission workflow, Schema.org `VisualArtsEvent`</p>
-		<h4>Open Call Workflow</h4>
-		<p>Artists submit artworks to open call shows before the submission deadline. After the deadline the show enters jury review phase. Curators select or reject submissions, then promote selected artworks into the show — triggering acceptance/rejection emails to submitting artists.</p>
-		<h4>Events</h4>
-		<p>Linked to shows with date/time, Schema.org `VisualArtsEvent` with `superEvent`
-		<h4>Reviews and ratings</h4>
-		<p>Per-show juror assignments with one 1 to 10 rating and optional review notes per juror per artwork. Curators see average scores and review counts on the submissions page.
-		<h4>Role-based access</h4>
-		<p>Log in and inherit various roles as asigned by gallery staff - `artist`, `curator`, `juror`, `staff` groups with granular permissions and role-specific documentation on this page. When staff promote a linked artist account to curator, that artist profile is set to public.
-		<h4>Sign In</h4>
-		<p>Local sign in (username/password) or Google OAuth via django-allauth</p>
-		<h4>Admin</h4>
-		<p>Staff role(s) with artwork inline and filter_horizontal for artists/curators; CSV/Excel import-export on all models
-		</p>
-	</section>
+  <h1 class="mb-3">Help</h1>
 
-	<section class="mb-5">
-		<h2>{{ general_guide.title }}</h2>
-		<p>{{ general_guide.summary }}</p>
+  <section class="mb-5">
+    <h2>Common Tasks</h2>
+    <p class="text-muted">Step-by-step guides for the most common things you might want to do.</p>
+    {% for guide in how_to_guides %}
+    <article class="card mb-3">
+      <div class="card-body">
+        <h4 class="card-title">{{ guide.title }}</h4>
+        <ol class="mb-0">
+          {% for step in guide.steps %}
+          <li>{{ step }}</li>
+          {% endfor %}
+        </ol>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
 
-		<h3>What You Are Allowed To Do</h3>
-		<ul>
-			{% for action in general_guide.allowed_actions %}
-			<li>{{ action }}</li>
-			{% endfor %}
-		</ul>
+  <section class="mb-5">
+    <h2>{{ general_guide.title }}</h2>
+    <p>{{ general_guide.summary }}</p>
+    <ul>
+      {% for action in general_guide.allowed_actions %}
+      <li>{{ action }}</li>
+      {% endfor %}
+    </ul>
+    {% for form_doc in general_guide.forms %}
+    <article class="card mb-3">
+      <div class="card-body">
+        <h4 class="card-title">{{ form_doc.name }}</h4>
+        <p class="card-subtitle mb-2 text-muted">{{ form_doc.where_used }}</p>
+        {% if form_doc.breadcrumb %}
+        <p class="mb-2"><strong>Page path:</strong> {{ form_doc.breadcrumb }}</p>
+        {% endif %}
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead><tr><th>Field</th><th>Input Type</th><th>What It Does</th></tr></thead>
+            <tbody>
+              {% for field_doc in form_doc.fields %}
+              <tr>
+                <td><code>{{ field_doc.name }}</code></td>
+                <td>{{ field_doc.input_type }}</td>
+                <td>{{ field_doc.purpose }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
 
-		{% for form_doc in general_guide.forms %}
-		<article class="card mb-3" id="form-description">
-			<div class="card-body">
-				<h4 class="card-title">{{ form_doc.name }}</h4>
-				<p class="card-subtitle mb-2 text-muted">Where used: {{ form_doc.where_used }}</p>
-				{% if form_doc.breadcrumb %}
-				<p class="mb-2"><strong>Page path:</strong> {{ form_doc.breadcrumb }}</p>
-				{% endif %}
-				<div class="table-responsive">
-					<table class="table table-sm">
-						<thead>
-							<tr>
-								<th>Field</th>
-								<th>Input Type</th>
-								<th>What It Does</th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for field_doc in form_doc.fields %}
-							<tr>
-								<td><code>{{ field_doc.name }}</code></td>
-								<td>{{ field_doc.input_type }}</td>
-								<td>{{ field_doc.purpose }}</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</article>
-		{% endfor %}
-	</section>
+  {% if user.is_authenticated and role_guides %}
+  {% for guide in role_guides %}
+  <section class="mb-5">
+    <h2>{{ guide.title }}</h2>
+    <p>{{ guide.summary }}</p>
+    <h3>What You Can Do</h3>
+    <ul>
+      {% for action in guide.allowed_actions %}
+      <li>{{ action }}</li>
+      {% endfor %}
+    </ul>
+    <h3>Forms and Fields</h3>
+    {% for form_doc in guide.forms %}
+    <article class="card mb-3">
+      <div class="card-body">
+        <h4 class="card-title">{{ form_doc.name }}</h4>
+        <p class="card-subtitle mb-2 text-muted">{{ form_doc.where_used }}</p>
+        {% if form_doc.breadcrumb %}
+        <p class="mb-2"><strong>Page path:</strong> {{ form_doc.breadcrumb }}</p>
+        {% endif %}
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead><tr><th>Field</th><th>Input Type</th><th>What It Does</th></tr></thead>
+            <tbody>
+              {% for field_doc in form_doc.fields %}
+              <tr>
+                <td><code>{{ field_doc.name }}</code></td>
+                <td>{{ field_doc.input_type }}</td>
+                <td>{{ field_doc.purpose }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+  {% endfor %}
+  {% elif not user.is_authenticated %}
+  <section class="alert alert-secondary">
+    <a href="{% url 'account_login' %}">Sign in</a> to see role-specific documentation for artist, juror, curator, and staff workflows.
+  </section>
+  {% endif %}
 
-	{% if user.is_authenticated and role_guides %}
-	{% if 'staff' in active_roles %}
-	<section class="alert alert-info">
-		As staff, you can essentially administer all aspects of the gallery system.
-	</section>
-	{% endif %}
-	{% for guide in role_guides %}
-	<section class="mb-5">
-		<h2>{{ guide.title }}</h2>
-		<p>{{ guide.summary }}</p>
-
-		<h3>What You Are Allowed To Do</h3>
-		<ul>
-			{% for action in guide.allowed_actions %}
-			<li>{{ action }}</li>
-			{% endfor %}
-		</ul>
-
-		<h3>Forms And Field Meanings</h3>
-		{% for form_doc in guide.forms %}
-		<article class="card mb-3" id="form-description">
-			<div class="card-body">
-				<h4 class="card-title">{{ form_doc.name }}</h4>
-				<p class="card-subtitle mb-2 text-muted">Where used: {{ form_doc.where_used }}</p>
-				{% if form_doc.breadcrumb %}
-				<p class="mb-2"><strong>Page path:</strong> {{ form_doc.breadcrumb }}</p>
-				{% endif %}
-				<div class="table-responsive">
-					<table class="table table-sm">
-						<thead>
-							<tr>
-								<th>Field</th>
-								<th>Input Type</th>
-								<th>What It Does</th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for field_doc in form_doc.fields %}
-							<tr>
-								<td><code>{{ field_doc.name }}</code></td>
-								<td>{{ field_doc.input_type }}</td>
-								<td>{{ field_doc.purpose }}</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</article>
-		{% endfor %}
-	</section>
-	{% endfor %}
-	{% elif user.is_authenticated %}
-	<section class="alert alert-info">
-		Your account currently has no role-specific guide assigned. Contact a curator or staff user if this seems wrong.
-	</section>
-	{% else %}
-	<section class="alert alert-secondary">
-		Sign in to see detailed role-specific documentation for artist, juror, curator, or staff workflows.
-	</section>
-	{% endif %}
 </div>
-
 {% endblock %}

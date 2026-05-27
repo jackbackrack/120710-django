@@ -2,7 +2,7 @@ import datetime as dt
 
 from django.shortcuts import render
 
-from eatart.role_docs import GENERAL_GUIDE, ROLE_DOCUMENTATION
+from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import Event, Show
 from gallery.permissions import can_manage_show, is_curator_user, is_juror_user, is_staff_user
@@ -63,6 +63,7 @@ def howto(request):
     role_guides = [ROLE_DOCUMENTATION[key] for key in active_role_keys if key in ROLE_DOCUMENTATION]
 
     context = {
+        'how_to_guides': HOW_TO_GUIDES,
         'general_guide': GENERAL_GUIDE,
         'role_guides': role_guides,
         'active_roles': active_role_keys,
