@@ -174,17 +174,17 @@ def show_juror_assignment(request, show_slug):
         assignment.delete()
         return redirect('reviews:show_juror_assignment', show_slug=show.slug)
 
+    assigned_user_ids = assigned_jurors.values_list('user_id', flat=True)
     form = ShowJurorAssignmentForm()
-    assigned_ids = assigned_jurors.values_list('user_id', flat=True)
-    form.fields['user'].queryset = form.fields['user'].queryset.exclude(pk__in=assigned_ids)
+    form.fields['artist'].queryset = form.fields['artist'].queryset.exclude(user_id__in=assigned_user_ids)
 
     if request.method == 'POST' and request.POST.get('action') == 'assign':
         form = ShowJurorAssignmentForm(request.POST)
-        form.fields['user'].queryset = form.fields['user'].queryset.exclude(pk__in=assigned_ids)
+        form.fields['artist'].queryset = form.fields['artist'].queryset.exclude(user_id__in=assigned_user_ids)
         if form.is_valid():
             ShowJuror.objects.create(
                 show=show,
-                user=form.cleaned_data['user'],
+                user=form.cleaned_data['artist'].user,
                 assigned_by=request.user,
             )
             return redirect('reviews:show_juror_assignment', show_slug=show.slug)

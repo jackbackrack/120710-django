@@ -13,7 +13,7 @@
     <h1 class="mb-6 text-3xl">Manage Jurors</h1>
 
     <h2>Assign Juror</h2>
-    {% if form.fields.user.queryset %}
+    {% if form.fields.artist.queryset %}
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="action" value="assign">
@@ -22,7 +22,7 @@
       <button type="submit" class="btn btn-primary">Assign juror</button>
     </form>
     {% else %}
-    <p class="text-gray-500">No remaining active users to assign.</p>
+    <p class="text-gray-500">No remaining juror artists to assign.</p>
     {% endif %}
 
     <hr>
@@ -41,7 +41,7 @@
       <tbody>
         {% for assignment in assigned_jurors %}
         <tr>
-          <td>{{ assignment.user.get_full_name|default:assignment.user.username }}</td>
+          <td>{{ assignment.user.artists.first.full_name|default:assignment.user.get_full_name|default:assignment.user.username }}</td>
           <td>{{ assignment.assigned_by.get_full_name|default:assignment.assigned_by.username|default:"N/A" }}</td>
           <td>{{ assignment.assigned_at|date:"N j, Y" }}</td>
           <td>

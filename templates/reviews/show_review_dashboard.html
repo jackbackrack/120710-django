@@ -36,7 +36,7 @@
     {% if jurors %}
     <ul>
       {% for assignment in jurors %}
-      <li>{{ assignment.user.get_full_name|default:assignment.user.username }} — assigned {{ assignment.assigned_at|date:"N j, Y" }}</li>
+      <li>{{ assignment.user.artists.first.full_name|default:assignment.user.get_full_name|default:assignment.user.username }} — assigned {{ assignment.assigned_at|date:"N j, Y" }}</li>
       {% endfor %}
     </ul>
     {% else %}
@@ -102,7 +102,7 @@
         {% for review in all_reviews %}
         <tr>
           <td><a class="card__link" href="{{ review.artwork.get_absolute_url }}">{{ review.artwork.name }}</a></td>
-          <td>{{ review.juror.get_full_name|default:review.juror.username }}</td>
+          <td>{{ review.juror.artists.first.full_name|default:review.juror.get_full_name|default:review.juror.username }}</td>
           {% if criteria %}
           {% for criterion in criteria %}
           <td>

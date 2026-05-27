@@ -183,7 +183,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Show reviews -> Manage jurors',
                 'breadcrumb': 'Home > Shows > Select Show > Reviews > Manage jurors',
                 'fields': [
-                    {'name': 'user', 'input_type': 'dropdown select', 'purpose': 'Choose an active user to assign as juror for the show.'},
+                    {'name': 'artist', 'input_type': 'dropdown select', 'purpose': 'Choose an artist with the juror role to assign as juror for the show.'},
                 ],
             },
             {
@@ -259,7 +259,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Show reviews -> Manage jurors',
                 'breadcrumb': 'Home > Shows > Select Show > Reviews > Manage jurors',
                 'fields': [
-                    {'name': 'user', 'input_type': 'dropdown select', 'purpose': 'Assign an active user as juror for the selected show.'},
+                    {'name': 'artist', 'input_type': 'dropdown select', 'purpose': 'Assign an artist with the juror role as juror for the selected show.'},
                 ],
             },
             {

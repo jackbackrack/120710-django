@@ -218,6 +218,15 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
             email='new-juror@example.com',
             password='password123',
         )
+        add_juror_role(candidate)
+        candidate_artist = Artist.objects.create(
+            name='New Juror',
+            first_name='New',
+            last_name='Juror',
+            email='new-juror@example.com',
+            phone='',
+            user=candidate,
+        )
         assignment_url = reverse(
             'reviews:show_juror_assignment', kwargs={'show_slug': self.show.slug}
         )
@@ -226,7 +235,7 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
 
         assign_response = self.client.post(
             assignment_url,
-            {'action': 'assign', 'user': str(candidate.id)},
+            {'action': 'assign', 'artist': str(candidate_artist.id)},
             follow=True,
         )
         self.assertEqual(assign_response.status_code, 200)

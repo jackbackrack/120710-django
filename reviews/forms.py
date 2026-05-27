@@ -1,7 +1,7 @@
 from django import forms
-from django.contrib.auth.models import User
 from django.forms import modelformset_factory
 
+from gallery.models import Artist
 from reviews.models import ArtworkReview, CriterionScore, RubricCriterion
 
 
@@ -76,8 +76,8 @@ RubricCriterionFormSet = modelformset_factory(
 
 
 class ShowJurorAssignmentForm(forms.Form):
-    user = forms.ModelChoiceField(
-        queryset=User.objects.filter(is_active=True).order_by('username'),
+    artist = forms.ModelChoiceField(
+        queryset=Artist.objects.filter(user__groups__name='juror', user__is_active=True).order_by('name'),
         required=True,
-        label='User',
+        label='Artist',
     )
