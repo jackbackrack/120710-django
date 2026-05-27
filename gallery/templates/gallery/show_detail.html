@@ -61,10 +61,6 @@
     {% endfor %}
   </div>
   <div class="card__info">
-  {% if user.is_authenticated %}
-    <a class="card__link" href="{{ show.get_placards_url }}">Placards</a>
-    <a class="card__link" href="{{ show.get_instagram_url }}">Instagram</a>
-  {% endif %}
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
