@@ -1,7 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}Shows{% endblock title %}
-{% block block_title %}Shows{% endblock block_title %}
+{% block block_title %}Shows
+{% if is_staff_user %}
+  <a class="card__link new-button" href="{% url 'gallery:show_new' %}">New</a>
+{% endif %}
+{% endblock block_title %}
 
 {% block content %}
 {% if current_shows %}

@@ -29,8 +29,7 @@
     | <a class="card__link" href="{% url 'gallery:show_list'%}">Shows</a>
     | <a class="card__link" href="{% url 'gallery:artist_list'%}">Artists</a>
     | <a class="card__link" href="{% url 'gallery:artwork_list'%}">Artworks</a>
-    {% if is_staff_user|default:False %}| <a class="card__link" href="{% url 'gallery:show_new' %}">New Show</a>{% endif %}
-    | <a class="card__link" href="{% url 'about'%}">About</a>
+| <a class="card__link" href="{% url 'about'%}">About</a>
     | <a class="card__link" href="{% url 'visit'%}">Visit</a>
     | <a class="card__link" href="{% url 'contact'%}">Contact</a>
     | <a class="card__link" href="{% url 'subscribe'%}">Subscribe</a>

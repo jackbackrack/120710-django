@@ -48,7 +48,7 @@ ROLE_DOCUMENTATION = {
             {
                 'name': 'Artist Form',
                 'where_used': 'Artist create/edit pages',
-                'breadcrumb': 'Home > Artists > New or Artist Detail > Edit',
+                'breadcrumb': 'Artists > New (top of page) or Artist Detail > Edit',
                 'fields': [
                     {'name': 'first_name', 'input_type': 'text input', 'purpose': 'Given name for your artist profile.'},
                     {'name': 'last_name', 'input_type': 'text input', 'purpose': 'Family name for your artist profile.'},
@@ -65,7 +65,7 @@ ROLE_DOCUMENTATION = {
             {
                 'name': 'Artwork Form (Artist View)',
                 'where_used': 'Artwork create/edit pages',
-                'breadcrumb': 'Home > Artists > Your Artist Page > Artworks > New or Edit',
+                'breadcrumb': 'Artworks > New (top of page) or Artwork Detail > Edit',
                 'fields': [
                     {'name': 'name', 'input_type': 'text input', 'purpose': 'Title of the artwork.'},
                     {'name': 'end_year', 'input_type': 'numeric/text input', 'purpose': 'Ending year for multi-year works.'},
@@ -124,7 +124,7 @@ ROLE_DOCUMENTATION = {
             'Assign jurors to shows and remove assignments.',
             'View all juror reviews plus average ratings (or weighted composite scores when a rubric is defined) per artwork.',
             'Edit juror reviews when curation workflows require it.',
-            'If staff promote your linked artist account to curator, your artist profile is made public automatically.',
+            'If staff promote your linked artist account to curator, your artist profile becomes visible via your curator role.',
             'Edit and Delete links are shown only when you can manage the current artist, artwork, show, or event.',
             'Artworks and artists become publicly visible once the show they are part of has opened (start date reached).',
         ],
@@ -132,7 +132,7 @@ ROLE_DOCUMENTATION = {
             {
                 'name': 'Show Form',
                 'where_used': 'Show create/edit pages',
-                'breadcrumb': 'Home > Shows > New or Show Detail > Edit',
+                'breadcrumb': 'Shows > New (top of page) or Show Detail > Edit',
                 'fields': [
                     {'name': 'name', 'input_type': 'text input', 'purpose': 'Show title shown in listings and detail pages.'},
                     {'name': 'description', 'input_type': 'multi-line text area', 'purpose': 'Public show description.'},
@@ -220,18 +220,18 @@ ROLE_DOCUMENTATION = {
             'Grant or revoke juror access for users.',
             'Assign and remove jurors for any show.',
             'View and edit juror reviews across shows when needed.',
-            'Promoting an artist user to curator also sets that linked artist profile to public visibility.',
+            'Promoting an artist user to curator makes that linked artist profile visible via their curator role.',
             'Edit and Delete links in list/detail pages are permission-gated and shown only to managers of each record.',
         ],
         'forms': [
             {
                 'name': 'Artwork Form (Staff Controls)',
                 'where_used': 'Artwork create/edit pages',
-                'breadcrumb': 'Home > Artworks > New or Artwork Detail > Edit',
+                'breadcrumb': 'Artworks > New (top of page) or Artwork Detail > Edit',
                 'fields': [
                     {'name': 'artists', 'input_type': 'multi-select', 'purpose': 'Associate one or more artists with the work.'},
                     {'name': 'shows', 'input_type': 'multi-select', 'purpose': 'Associate the artwork with one or more shows.'},
-                    {'name': 'is_public', 'input_type': 'checkbox', 'purpose': 'Controls whether artwork is publicly visible.'},
+                    {'name': 'shows', 'input_type': 'multi-select', 'purpose': 'Artwork is publicly visible once it is added to a show whose start date has passed.'},
                     {'name': 'tags', 'input_type': 'multi-select', 'purpose': 'Internal/public categorization tags.'},
                 ],
             },
@@ -249,7 +249,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Artist role edit page',
                 'breadcrumb': 'Home > Artists > Select Artist > Roles',
                 'fields': [
-                    {'name': 'is_curator', 'input_type': 'checkbox', 'purpose': 'Grant or revoke curator access for this user. When granted, linked artist profiles become public.'},
+                    {'name': 'is_curator', 'input_type': 'checkbox', 'purpose': 'Grant or revoke curator access for this user. Curators are publicly visible regardless of show membership.'},
                     {'name': 'is_juror', 'input_type': 'checkbox', 'purpose': 'Grant or revoke juror access for this user.'},
                     {'name': 'curator_tags', 'input_type': 'multi-select', 'purpose': 'Scope curator access to selected tags.'},
                 ],
