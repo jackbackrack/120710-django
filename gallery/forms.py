@@ -105,6 +105,12 @@ class ShowForm(UserAwareModelForm):
             'end',
             'tags',
         )
+        widgets = {
+            'submission_deadline': forms.DateInput(attrs={'type': 'date'}),
+            'decision_date': forms.DateInput(attrs={'type': 'date'}),
+            'start': forms.DateInput(attrs={'type': 'date'}),
+            'end': forms.DateInput(attrs={'type': 'date'}),
+        }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
@@ -150,6 +156,11 @@ class EventForm(UserAwareModelForm):
             'end',
             'tags',
         )
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'start': forms.TimeInput(attrs={'type': 'time'}),
+            'end': forms.TimeInput(attrs={'type': 'time'}),
+        }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
