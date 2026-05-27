@@ -19,7 +19,7 @@
     <h3><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a></h3>
     {% endfor %}
     {% if artwork.medium %}<p>{{ artwork.medium }}</p>{% endif %}
-    {% if artwork.dimensions %}<p>{{ artwork.dimensions }}</p>{% endif %}
+    {% if artwork.formatted_dimensions %}<p>{{ artwork.formatted_dimensions }}</p>{% endif %}
     {% if artwork.description %}<p>{{ artwork.description|safe }}</p>{% endif %}
 
     <hr>

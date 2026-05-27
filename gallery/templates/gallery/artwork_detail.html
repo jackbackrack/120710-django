@@ -23,7 +23,7 @@
     </h2>
     <br>
     <p class="text-gray-500 text-sm"><strong>Medium: </strong>{{ artwork.medium }}</p>
-    <p class="text-gray-500 text-sm"><strong>Dimensions: </strong>{{ artwork.dimensions }}</p>
+    <p class="text-gray-500 text-sm"><strong>Dimensions: </strong>{{ artwork.formatted_dimensions }}</p>
     <p class="text-gray-500 text-sm"><strong>Price:</strong>
       {% if artwork.price %}
       ${{ artwork.price }}

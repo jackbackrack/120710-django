@@ -22,6 +22,9 @@ class Artwork(models.Model):
     start_year = models.IntegerField(verbose_name='Start_year: only fill in if different than end_year', blank=True, null=True)
     medium = models.TextField(blank=True, null=True)
     dimensions = models.CharField(verbose_name='Dimensions: LxWxD in inches', max_length=255, blank=True, null=True)
+    width_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Width (inches)')
+    height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Height (inches)')
+    depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Depth (inches, optional)')
     image = models.ImageField(upload_to='artwork_images', blank=True, null=True)
     price = models.FloatField(verbose_name='Price: numeric price', blank=True, null=True)
     pricing = models.CharField(verbose_name='Pricing: anything more sophisticated like "Upon request" or "NFS"', max_length=255, blank=True, null=True)
@@ -35,6 +38,16 @@ class Artwork(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    @property
+    def formatted_dimensions(self):
+        if self.width_inches is not None and self.height_inches is not None:
+            fmt = lambda v: f'{v:g}"'
+            parts = [fmt(self.width_inches), fmt(self.height_inches)]
+            if self.depth_inches is not None:
+                parts.append(fmt(self.depth_inches))
+            return ' × '.join(parts)
+        return self.dimensions or ''
 
     def save(self, *args, **kwargs):
         self.name = (self.name or '').strip()
