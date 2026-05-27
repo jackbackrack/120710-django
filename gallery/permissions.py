@@ -12,15 +12,23 @@ def is_curator_user(user):
         return False
     if is_staff_user(user):
         return True
-    from gallery.models.people import Artist
-    return Artist.objects.filter(user=user, curated_shows__isnull=False).exists()
+    cached = getattr(user, '_is_curator_cache', None)
+    if cached is None:
+        from gallery.models.people import Artist
+        cached = Artist.objects.filter(user=user, curated_shows__isnull=False).exists()
+        user._is_curator_cache = cached
+    return cached
 
 
 def is_artist_user(user):
     if not user.is_authenticated:
         return False
-    from gallery.models.people import Artist
-    return Artist.objects.filter(user=user).exists()
+    cached = getattr(user, '_is_artist_cache', None)
+    if cached is None:
+        from gallery.models.people import Artist
+        cached = Artist.objects.filter(user=user).exists()
+        user._is_artist_cache = cached
+    return cached
 
 
 def can_manage_artist(user, artist):
@@ -42,7 +50,13 @@ def can_manage_show(user, show):
         return False
     if is_staff_user(user):
         return True
-    return is_curator_user(user) and show.curators.filter(user=user).exists()
+    if not is_curator_user(user):
+        return False
+    # Use prefetch cache if available (avoids per-show query when curators are prefetched)
+    curators_cache = show.__dict__.get('_prefetched_objects_cache', {})
+    if 'curators' in curators_cache:
+        return any(c.user_id == user.pk for c in curators_cache['curators'])
+    return show.curators.filter(user=user).exists()
 
 
 def can_manage_event(user, event):
@@ -76,8 +90,12 @@ def tag_filter_queryset(queryset, tag_slug):
 def is_juror_user(user):
     if not user.is_authenticated:
         return False
-    from reviews.models import ShowJuror
-    return ShowJuror.objects.filter(user=user).exists()
+    cached = getattr(user, '_is_juror_cache', None)
+    if cached is None:
+        from reviews.models import ShowJuror
+        cached = ShowJuror.objects.filter(user=user).exists()
+        user._is_juror_cache = cached
+    return cached
 
 
 def is_juror_for_show(user, show):
