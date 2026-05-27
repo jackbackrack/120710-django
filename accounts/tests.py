@@ -2,9 +2,9 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts.roles import add_artist_role, add_juror_role, add_staff_role
+from accounts.roles import add_staff_role
 from accounts.signup import apply_google_profile_data, ensure_signup_profile
-from gallery.models import Artist, Tag
+from gallery.models import Artist, Show
 
 from accounts.forms import UserNameUpdateForm
 
@@ -116,7 +116,7 @@ class SignupFlowTests(TestCase):
         self.assertEqual(user.email, 'ada@example.com')
         self.assertEqual(user.username, 'ada@example.com')
 
-    def test_ensure_signup_profile_creates_artist_profile_and_role(self):
+    def test_ensure_signup_profile_creates_artist_profile(self):
         user = User.objects.create_user(
             username='ada@example.com',
             email='ada@example.com',
@@ -127,7 +127,6 @@ class SignupFlowTests(TestCase):
 
         artist = ensure_signup_profile(user)
 
-        self.assertTrue(user.groups.filter(name='artist').exists())
         self.assertEqual(artist.user, user)
         self.assertEqual(artist.name, 'Ada Lovelace')
         self.assertEqual(artist.email, 'ada@example.com')
@@ -143,41 +142,11 @@ class SignupFlowTests(TestCase):
         },
     }
 )
-class ArtistRoleUpdateViewTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        # Ensure a SocialApp exists for allauth during tests
-            try:
-                from allauth.socialaccount.models import SocialApp
-                from django.contrib.sites.models import Site
-                site = Site.objects.get_current()
-                app = SocialApp.objects.create(
-                    provider="google",
-                    name="Google",
-                    client_id="test",
-                    secret="test",
-                    key="",
-                )
-                app.sites.add(site)
-            except ImportError:
-                pass
-    def test_artist_profile_is_visible_when_promoted_to_curator(self):
-        from accounts.roles import add_curator_role
-        from django.contrib.auth.models import AnonymousUser
-        from gallery.permissions import visible_artist_queryset
-        from gallery.models.people import Artist
-        # Promote to curator
-        add_curator_role(self.artist_user)
-        # Artist should now be visible to anonymous users via the curator group filter
-        qs = Artist.objects.filter(visible_artist_queryset(AnonymousUser()))
-        self.assertIn(self.artist, qs)
-
+class CuratorVisibilityTests(TestCase):
     def setUp(self):
-        self.staff_user = User.objects.create_user(username='staff@example.com', email='staff@example.com', password='password123')
-        add_staff_role(self.staff_user)
-
-        self.artist_user = User.objects.create_user(username='artist@example.com', email='artist@example.com', password='password123')
-        add_artist_role(self.artist_user)
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='password123'
+        )
         self.artist = Artist.objects.create(
             user=self.artist_user,
             name='Ada Lovelace',
@@ -186,35 +155,18 @@ class ArtistRoleUpdateViewTests(TestCase):
             email='artist@example.com',
             phone='',
         )
-        self.tag = Tag.objects.create(name='Installation')
 
-    def test_staff_can_promote_artist_to_curator_and_assign_tags(self):
-        self.client.force_login(self.staff_user)
+    def test_artist_profile_is_visible_when_assigned_as_curator(self):
+        import datetime
+        from django.contrib.auth.models import AnonymousUser
+        from gallery.permissions import visible_artist_queryset
 
-        response = self.client.post(reverse('artist_role_edit', kwargs={'pk': self.artist.pk}), {
-            'is_curator': 'on',
-            'is_juror': 'on',
-            'curator_tags': [self.tag.pk],
-        })
+        show = Show.objects.create(
+            name='Test Show',
+            start=datetime.date.today(),
+            end=datetime.date.today(),
+        )
+        show.curators.add(self.artist)
 
-        self.artist_user.refresh_from_db()
-
-        self.assertRedirects(response, self.artist.get_absolute_url())
-        self.assertTrue(self.artist_user.groups.filter(name='curator').exists())
-        self.assertTrue(self.artist_user.groups.filter(name='juror').exists())
-        self.assertQuerySetEqual(self.artist_user.curator_tags.all(), [self.tag], transform=lambda value: value)
-
-    def test_staff_can_revoke_juror_role(self):
-        add_juror_role(self.artist_user)
-        self.client.force_login(self.staff_user)
-
-        response = self.client.post(reverse('artist_role_edit', kwargs={'pk': self.artist.pk}), {
-            'is_curator': '',
-            'is_juror': '',
-            'curator_tags': [],
-        })
-
-        self.artist_user.refresh_from_db()
-
-        self.assertRedirects(response, self.artist.get_absolute_url())
-        self.assertFalse(self.artist_user.groups.filter(name='juror').exists())
+        qs = Artist.objects.filter(visible_artist_queryset(AnonymousUser()))
+        self.assertIn(self.artist, qs)

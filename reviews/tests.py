@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts.roles import add_artist_role, add_curator_role, add_juror_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show
 from reviews.models import ArtworkReview, CriterionScore, RubricCriterion, ShowJuror
 
@@ -22,21 +21,18 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
             email='manager@example.com',
             password='password123',
         )
-        add_curator_role(self.manager_user)
 
         self.other_curator_user = User.objects.create_user(
             username='other-curator@example.com',
             email='other-curator@example.com',
             password='password123',
         )
-        add_curator_role(self.other_curator_user)
 
         self.artist_user = User.objects.create_user(
             username='artist@example.com',
             email='artist@example.com',
             password='password123',
         )
-        add_artist_role(self.artist_user)
 
         self.juror_user = User.objects.create_user(
             username='juror@example.com',
@@ -49,7 +45,6 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
             email='juror-unassigned@example.com',
             password='password123',
         )
-        add_juror_role(self.unassigned_juror_user)
 
         self.artist_profile = Artist.objects.create(
             user=self.artist_user,
@@ -79,7 +74,6 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
             name='Sculpture One',
             end_year=2026,
             created_by=self.artist_user,
-            is_public=False,
         )
         self.artwork.artists.add(self.artist_profile)
         ArtworkSubmission.objects.create(
@@ -218,7 +212,6 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
             email='new-juror@example.com',
             password='password123',
         )
-        add_juror_role(candidate)
         candidate_artist = Artist.objects.create(
             name='New Juror',
             first_name='New',
@@ -240,7 +233,6 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
         )
         self.assertEqual(assign_response.status_code, 200)
         self.assertTrue(ShowJuror.objects.filter(show=self.show, user=candidate).exists())
-        self.assertTrue(candidate.groups.filter(name='juror').exists())
 
         candidate_assignment = ShowJuror.objects.get(show=self.show, user=candidate)
         remove_response = self.client.post(
@@ -267,21 +259,18 @@ class RubricCriteriaTests(TestCase):
             email='manager@example.com',
             password='pw',
         )
-        add_curator_role(self.manager_user)
 
         self.other_curator = User.objects.create_user(
             username='other@example.com',
             email='other@example.com',
             password='pw',
         )
-        add_curator_role(self.other_curator)
 
         self.artist_user = User.objects.create_user(
             username='artist@example.com',
             email='artist@example.com',
             password='pw',
         )
-        add_artist_role(self.artist_user)
 
         self.juror_user = User.objects.create_user(
             username='juror@example.com',

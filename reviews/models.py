@@ -2,7 +2,6 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from accounts.roles import add_juror_role
 from gallery.models.artworks import Artwork
 from gallery.models.exhibitions import Show
 
@@ -33,7 +32,6 @@ class ShowJuror(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        add_juror_role(self.user)
 
 
 class RubricCriterion(models.Model):

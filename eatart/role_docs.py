@@ -1,6 +1,3 @@
-from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, JUROR_GROUP, STAFF_GROUP
-
-
 GENERAL_GUIDE = {
     'title': 'Account Basics',
     'summary': 'Use these steps to access your account and keep your profile current.',
@@ -33,7 +30,7 @@ GENERAL_GUIDE = {
 
 
 ROLE_DOCUMENTATION = {
-    ARTIST_GROUP: {
+    'artist': {
         'title': 'Artist Guide',
         'summary': 'Artists manage their own profile and artworks, and can submit work to open call shows.',
         'allowed_actions': [
@@ -92,7 +89,7 @@ ROLE_DOCUMENTATION = {
             },
         ],
     },
-    JUROR_GROUP: {
+    'juror': {
         'title': 'Juror Guide',
         'summary': 'Jurors review artworks only for shows they are assigned to.',
         'allowed_actions': [
@@ -113,7 +110,7 @@ ROLE_DOCUMENTATION = {
             },
         ],
     },
-    CURATOR_GROUP: {
+    'curator': {
         'title': 'Curator Guide',
         'summary': 'Curators manage shows/events, run open call workflows, assign jurors, and review aggregated ratings.',
         'allowed_actions': [
@@ -209,18 +206,16 @@ ROLE_DOCUMENTATION = {
             },
         ],
     },
-    STAFF_GROUP: {
+    'staff': {
         'title': 'Staff Guide',
         'summary': 'Staff users have full access across artist, curator, and review workflows.',
         'allowed_actions': [
             'All curator capabilities across all shows/events.',
-            'Manage artist and artwork visibility controls globally.',
+            'Manage artist and artwork visibility globally.',
             'Set or change managing curator fields where available.',
-            'Manage curator role assignments and curator tag access.',
-            'Grant or revoke juror access for users.',
-            'Assign and remove jurors for any show.',
+            'Assign artists as curators of shows via the Show Edit page (curators section). This makes the artist publicly visible.',
+            'Assign and remove jurors for any show via the show reviews page.',
             'View and edit juror reviews across shows when needed.',
-            'Promoting an artist user to curator makes that linked artist profile visible via their curator role.',
             'Edit and Delete links in list/detail pages are permission-gated and shown only to managers of each record.',
         ],
         'forms': [
@@ -245,13 +240,11 @@ ROLE_DOCUMENTATION = {
                 ],
             },
             {
-                'name': 'Artist Role Update Form',
-                'where_used': 'Artist role edit page',
-                'breadcrumb': 'Home > Artists > Select Artist > Roles',
+                'name': 'Curator Assignment',
+                'where_used': 'Show edit page',
+                'breadcrumb': 'Home > Shows > Select Show > Edit',
                 'fields': [
-                    {'name': 'is_curator', 'input_type': 'checkbox', 'purpose': 'Grant or revoke curator access for this user. Curators are publicly visible regardless of show membership.'},
-                    {'name': 'is_juror', 'input_type': 'checkbox', 'purpose': 'Grant or revoke juror access for this user.'},
-                    {'name': 'curator_tags', 'input_type': 'multi-select', 'purpose': 'Scope curator access to selected tags.'},
+                    {'name': 'curators', 'input_type': 'multi-select', 'purpose': 'Add or remove artists as curators for this show. Artists listed here gain curator access and become publicly visible.'},
                 ],
             },
             {

@@ -2,11 +2,10 @@ import datetime as dt
 
 from django.shortcuts import render
 
-from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, JUROR_GROUP, STAFF_GROUP
 from eatart.role_docs import GENERAL_GUIDE, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import Event, Show
-from gallery.permissions import can_manage_show
+from gallery.permissions import can_manage_show, is_curator_user, is_juror_user, is_staff_user
 
 
 def index(request):
@@ -49,24 +48,23 @@ def about(request):
 
 
 def howto(request):
-    active_roles = []
-    role_priority = [STAFF_GROUP, CURATOR_GROUP, JUROR_GROUP, ARTIST_GROUP]
+    active_role_keys = []
 
     if request.user.is_authenticated:
-        group_names = set(request.user.groups.values_list('name', flat=True))
-        if request.user.is_staff or request.user.is_superuser:
-            active_roles.append(STAFF_GROUP)
-        for role_name in role_priority:
-            if role_name == STAFF_GROUP:
-                continue
-            if role_name in group_names:
-                active_roles.append(role_name)
+        if is_staff_user(request.user):
+            active_role_keys.append('staff')
+        elif is_curator_user(request.user):
+            active_role_keys.append('curator')
+        elif is_juror_user(request.user):
+            active_role_keys.append('juror')
+        else:
+            active_role_keys.append('artist')
 
-    role_guides = [ROLE_DOCUMENTATION[role_name] for role_name in active_roles if role_name in ROLE_DOCUMENTATION]
+    role_guides = [ROLE_DOCUMENTATION[key] for key in active_role_keys if key in ROLE_DOCUMENTATION]
 
     context = {
         'general_guide': GENERAL_GUIDE,
         'role_guides': role_guides,
-        'active_roles': active_roles,
+        'active_roles': active_role_keys,
     }
     return render(request, 'public/howto.html', context)

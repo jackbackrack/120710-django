@@ -1,4 +1,3 @@
-from accounts.roles import add_artist_role
 from gallery.models import Artist
 
 
@@ -30,8 +29,6 @@ def apply_google_profile_data(user, extra_data):
 
 
 def ensure_signup_profile(user):
-    add_artist_role(user)
-
     full_name = ' '.join(part for part in [user.first_name, user.last_name] if part).strip() or user.email or user.username
     defaults = {
         'name': full_name,
@@ -47,7 +44,6 @@ def ensure_signup_profile(user):
         if unlinked:
             unlinked.user = user
             unlinked.save(update_fields=['user'])
-            add_artist_role(user)
             return unlinked
 
     artist, created = Artist.objects.get_or_create(user=user, defaults=defaults)

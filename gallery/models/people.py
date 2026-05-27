@@ -58,4 +58,4 @@ class Artist(models.Model):
 
     @property
     def is_curator(self):
-        return bool(self.user and self.user.groups.filter(name='curator').exists())
+        return self.curated_shows.exists()

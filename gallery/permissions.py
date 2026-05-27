@@ -2,23 +2,25 @@ import datetime
 
 from django.db.models import Q
 
-from accounts.roles import ARTIST_GROUP, CURATOR_GROUP, JUROR_GROUP, STAFF_GROUP
-
-
-def has_group(user, group_name):
-    return bool(user.is_authenticated and user.groups.filter(name=group_name).exists())
-
 
 def is_staff_user(user):
-    return bool(user.is_authenticated and (user.is_superuser or user.is_staff or has_group(user, STAFF_GROUP)))
+    return bool(user.is_authenticated and (user.is_superuser or user.is_staff))
 
 
 def is_curator_user(user):
-    return bool(user.is_authenticated and (is_staff_user(user) or has_group(user, CURATOR_GROUP)))
+    if not user.is_authenticated:
+        return False
+    if is_staff_user(user):
+        return True
+    from gallery.models.people import Artist
+    return Artist.objects.filter(user=user, curated_shows__isnull=False).exists()
 
 
 def is_artist_user(user):
-    return bool(user.is_authenticated and (has_group(user, ARTIST_GROUP) or is_curator_user(user)))
+    if not user.is_authenticated:
+        return False
+    from gallery.models.people import Artist
+    return Artist.objects.filter(user=user).exists()
 
 
 def can_manage_artist(user, artist):
@@ -59,8 +61,7 @@ def visible_artwork_queryset(user):
 def visible_artist_queryset(user):
     if is_curator_user(user):
         return Q()
-    # Visible if they have artwork in a started show, or they are a curator
-    public = Q(artworks__shows__start__lte=datetime.date.today()) | Q(user__groups__name='curator')
+    public = Q(artworks__shows__start__lte=datetime.date.today()) | Q(curated_shows__isnull=False)
     if user.is_authenticated:
         public |= Q(user=user)
     return public
@@ -73,7 +74,10 @@ def tag_filter_queryset(queryset, tag_slug):
 
 
 def is_juror_user(user):
-    return bool(user.is_authenticated and has_group(user, JUROR_GROUP))
+    if not user.is_authenticated:
+        return False
+    from reviews.models import ShowJuror
+    return ShowJuror.objects.filter(user=user).exists()
 
 
 def is_juror_for_show(user, show):

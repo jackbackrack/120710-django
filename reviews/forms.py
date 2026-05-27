@@ -77,7 +77,7 @@ RubricCriterionFormSet = modelformset_factory(
 
 class ShowJurorAssignmentForm(forms.Form):
     artist = forms.ModelChoiceField(
-        queryset=Artist.objects.filter(user__groups__name='juror', user__is_active=True).order_by('name'),
+        queryset=Artist.objects.filter(user__isnull=False, user__is_active=True).order_by('name'),
         required=True,
         label='Artist',
     )

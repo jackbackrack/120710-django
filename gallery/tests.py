@@ -5,7 +5,7 @@ from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from accounts.roles import add_artist_role, add_curator_role, add_staff_role
+from accounts.roles import add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show
 
 
@@ -246,7 +246,6 @@ class PublicUrlTests(TestCase):
 class AuthorizationWorkflowTests(TestCase):
     def setUp(self):
         self.artist_user = User.objects.create_user(username='artist@example.com', email='artist@example.com', password='password123')
-        add_artist_role(self.artist_user)
         self.artist = Artist.objects.create(
             user=self.artist_user,
             name='Ada Lovelace',
@@ -257,7 +256,6 @@ class AuthorizationWorkflowTests(TestCase):
         )
 
         self.curator_user = User.objects.create_user(username='curator@example.com', email='curator@example.com', password='password123')
-        add_curator_role(self.curator_user)
         self.curator_artist = Artist.objects.create(
             user=self.curator_user,
             name='Grace Hopper',
@@ -356,7 +354,6 @@ class AuthorizationWorkflowTests(TestCase):
             email='other-curator@example.com',
             password='pw',
         )
-        add_curator_role(other_curator)
         self.client.force_login(other_curator)
 
         response = self.client.get(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}))
@@ -369,7 +366,6 @@ class AuthorizationWorkflowTests(TestCase):
             email='other-curator@example.com',
             password='pw',
         )
-        add_curator_role(other_curator)
         self.client.force_login(other_curator)
 
         response = self.client.post(reverse('gallery:show_delete', kwargs={'pk': self.show.pk}))
@@ -383,7 +379,6 @@ class AuthorizationWorkflowTests(TestCase):
             email='other-curator@example.com',
             password='pw',
         )
-        add_curator_role(other_curator)
         other_curator_artist = Artist.objects.create(
             user=other_curator,
             name='Other Curator',
@@ -472,7 +467,6 @@ class AuthorizationWorkflowTests(TestCase):
             email='other-artist@example.com',
             password='password123',
         )
-        add_artist_role(other_user)
         other_artist = Artist.objects.create(
             user=other_user,
             name='Public Facing Name',
@@ -511,7 +505,6 @@ class OpenCallFlowTests(TestCase):
         self.artist_user = User.objects.create_user(
             username='artist@example.com', email='artist@example.com', password='pw'
         )
-        add_artist_role(self.artist_user)
         self.artist = Artist.objects.create(
             user=self.artist_user,
             name='Frida Kahlo',
@@ -524,7 +517,6 @@ class OpenCallFlowTests(TestCase):
         self.curator_user = User.objects.create_user(
             username='curator@example.com', email='curator@example.com', password='pw'
         )
-        add_curator_role(self.curator_user)
         self.curator_artist = Artist.objects.create(
             user=self.curator_user,
             name='Marcel Duchamp',
@@ -637,7 +629,6 @@ class OpenCallFlowTests(TestCase):
         no_profile_user = User.objects.create_user(
             username='noprofile@example.com', email='noprofile@example.com', password='pw'
         )
-        add_artist_role(no_profile_user)
         self.client.force_login(no_profile_user)
 
         response = self.client.get(

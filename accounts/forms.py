@@ -4,20 +4,12 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django_recaptcha.fields import ReCaptchaField
 
-from accounts.roles import (
-    add_curator_role,
-    add_juror_role,
-    remove_curator_role,
-    remove_juror_role,
-)
 from accounts.signup import ensure_signup_profile
-from gallery.models import Artist, Tag
 
 
 def _captcha_field():
     if getattr(settings, 'RECAPTCHA_ENABLED', False):
         return ReCaptchaField()
-    # Fallback keeps templates stable and still catches unsophisticated bots.
     return forms.CharField(required=False, widget=forms.HiddenInput)
 
 
@@ -70,40 +62,3 @@ class UserNameUpdateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["first_name"].required = True
         self.fields["last_name"].required = True
-
-
-class ArtistRoleUpdateForm(forms.Form):
-    is_curator = forms.BooleanField(required=False, label='Curator access')
-    is_juror = forms.BooleanField(required=False, label='Juror access')
-    curator_tags = forms.ModelMultipleChoiceField(queryset=Tag.objects.none(), required=False)
-
-    def __init__(self, *args, artist, **kwargs):
-        self.artist = artist
-        super().__init__(*args, **kwargs)
-        self.fields['curator_tags'].queryset = Tag.objects.order_by('name')
-
-        if self.artist.user_id:
-            self.initial['is_curator'] = self.artist.user.groups.filter(name='curator').exists()
-            self.initial['is_juror'] = self.artist.user.groups.filter(name='juror').exists()
-            self.initial['curator_tags'] = self.artist.user.curator_tags.all()
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if not self.artist.user_id:
-            raise forms.ValidationError('The selected artist must be linked to a user account before roles can be updated.')
-        return cleaned_data
-
-    def save(self):
-        user = self.artist.user
-        if self.cleaned_data['is_curator']:
-            add_curator_role(user)
-        else:
-            remove_curator_role(user)
-
-        if self.cleaned_data['is_juror']:
-            add_juror_role(user)
-        else:
-            remove_juror_role(user)
-
-        user.curator_tags.set(self.cleaned_data['curator_tags'])
-        return user

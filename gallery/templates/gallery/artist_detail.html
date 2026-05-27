@@ -32,9 +32,6 @@
     <a href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
     <a href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
     {% endif %}
-    {% if can_update_roles %}
-    <a href="{% url 'artist_role_edit' artist.pk %}">Roles</a>
-    {% endif %}
   </div>
 </div>
 </div>

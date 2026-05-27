@@ -25,7 +25,7 @@ class Show(models.Model):
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
     card_thumbnail = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     artists = models.ManyToManyField(Artist, related_name='shows', blank=True)
-    curators = models.ManyToManyField(Artist, blank=True)
+    curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
     is_open_call = models.BooleanField(default=False)
     submission_deadline = models.DateField(blank=True, null=True)
     decision_date = models.DateField(blank=True, null=True)

@@ -3,19 +3,16 @@ import string
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse, reverse_lazy
+from django.shortcuts import redirect
+from django.urls import reverse_lazy
 
-from django.views.generic.edit import FormView
 from django.views.generic.edit import CreateView
 from django.views.generic.edit import UpdateView
 from allauth.account.views import SignupView, PasswordResetView
 
-from accounts.roles import add_artist_role
-from gallery.models import Artist
 from gallery.permissions import is_staff_user
 
-from .forms import ArtistRoleUpdateForm, ArtistUserCreateForm, CustomResetPasswordForm, CustomSignupForm, UserNameUpdateForm
+from .forms import ArtistUserCreateForm, CustomResetPasswordForm, CustomSignupForm, UserNameUpdateForm
 
 class CustomPasswordResetView(PasswordResetView):
     form_class = CustomResetPasswordForm
@@ -53,7 +50,6 @@ class ArtistUserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         user.username = form.cleaned_data['email']
         user.set_password(generate_random_password())
         user.save()
-        add_artist_role(user)
 
         messages.success(self.request, f'Successfully added { user.username }!')
 
@@ -61,32 +57,3 @@ class ArtistUserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def test_func(self):
         return is_staff_user(self.request.user)
-
-
-class ArtistRoleUpdateView(LoginRequiredMixin, UserPassesTestMixin, FormView):
-    template_name = 'accounts/artist_role_edit.html'
-    form_class = ArtistRoleUpdateForm
-
-    def dispatch(self, request, *args, **kwargs):
-        self.artist = get_object_or_404(Artist, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['artist'] = self.artist
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['artist'] = self.artist
-        return context
-
-    def form_valid(self, form):
-        form.save()
-        messages.success(self.request, f'Updated roles for {self.artist.full_name}.')
-        return redirect(self.artist.get_absolute_url())
-
-    def test_func(self):
-        return is_staff_user(self.request.user)
-
-    

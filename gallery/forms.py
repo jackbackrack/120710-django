@@ -167,7 +167,7 @@ class ShowForm(UserAwareModelForm):
         self.fields['artists'].queryset = Artist.objects.order_by('name')
         self.fields['artworks'].queryset = Artwork.objects.order_by('name').distinct()
         self.fields['curators'].queryset = Artist.objects.filter(
-            user__groups__name='curator'
+            user__isnull=False
         ).order_by('name')
         if self.instance.pk:
             self.fields['artists'].initial = self.instance.artists.all()

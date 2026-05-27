@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 
@@ -10,11 +9,6 @@ OPEN_CALL_TAG_SLUG = 'open-call'
 class Tag(models.Model):
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True, blank=True)
-    curators = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        related_name='curator_tags',
-        blank=True,
-    )
 
     class Meta:
         ordering = ['name']
