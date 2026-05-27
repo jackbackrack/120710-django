@@ -17,7 +17,6 @@ from gallery.views import (
     ArtworkDetailView,
     ArtworkListView,
     ArtworkUpdateView,
-    ArtistOpenCallView,
     artwork_submit,
     show_submissions,
     promote_artworks,
@@ -36,7 +35,6 @@ from gallery.views import (
 app_name = 'gallery'
 
 urlpatterns = [
-    path('open-call/my/', ArtistOpenCallView.as_view(), name='artist_open_call'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submit/$', artwork_submit, name='artwork_submit'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submissions/$', show_submissions, name='show_submissions'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/promote/$', promote_artworks, name='promote_artworks'),

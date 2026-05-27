@@ -1,13 +1,11 @@
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.mail import send_mail
 from django.db.models import Avg, Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
-from django.views.generic import TemplateView
-
 from gallery.forms import ArtworkSubmissionForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
@@ -38,37 +36,6 @@ def _send_selection_email(submission, accepted):
     )
 
 
-
-class ArtistOpenCallView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    template_name = 'gallery/open_call_artist.html'
-
-    def test_func(self):
-        return self.request.user.artists.exists()
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        artist = self.request.user.artists.order_by('-created_at').first()
-
-        shows = Show.objects.filter(is_open_call=True).order_by('-start')
-
-        submissions_by_show = {}
-        for sub in ArtworkSubmission.objects.filter(
-            submitted_by=self.request.user, show__is_open_call=True
-        ).select_related('artwork', 'show'):
-            submissions_by_show.setdefault(sub.show_id, []).append(sub)
-
-        show_data = [
-            {
-                'show': show,
-                'submissions': submissions_by_show.get(show.id, []),
-                'can_submit': show.is_accepting_submissions,
-            }
-            for show in shows
-        ]
-
-        context['artist'] = artist
-        context['show_data'] = show_data
-        return context
 
 
 @login_required
