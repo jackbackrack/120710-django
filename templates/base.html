@@ -32,6 +32,7 @@
     {% if can_access_open_call_dashboard|default:False %}| <a class="card__link" href="{% url 'gallery:open_call_dashboard' %}">Open Call Dashboard</a>{% endif %}
     {% if can_access_artist_open_call|default:False %}| <a class="card__link" href="{% url 'gallery:artist_open_call' %}">My Submissions</a>{% endif %}
     {% if needs_artist_profile|default:False %}| <a class="card__link" href="{% url 'gallery:artist_new' %}">Create Artist Profile</a>{% endif %}
+    {% if is_staff_user|default:False %}| <a class="card__link" href="{% url 'gallery:show_new' %}">New Show</a>{% endif %}
     | <a class="card__link" href="{% url 'about'%}">About</a>
     | <a class="card__link" href="{% url 'visit'%}">Visit</a>
     | <a class="card__link" href="{% url 'contact'%}">Contact</a>
