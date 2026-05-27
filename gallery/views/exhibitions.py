@@ -51,21 +51,31 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         artworks = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).annotate(first_artist_name=Min('artists__name')).order_by('first_artist_name', 'name').distinct()
         artists = Artist.objects.filter(Q(shows=show) | Q(artworks__in=artworks)).distinct().order_by('name')
         context['artists'] = artists
-        context['artworks'] = artworks
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
         context['can_manage_show'] = can_manage_show(self.request.user, show)
 
         user = self.request.user
         context['can_submit'] = False
-        context['user_submissions'] = []
+        submissions_by_artwork_id = {}
+        pending_submissions = []
         if show.is_open_call and user.is_authenticated:
             artist = user.artists.order_by('-created_at').first()
             if artist:
                 context['can_submit'] = show.is_accepting_submissions
-                context['user_submissions'] = list(
+                subs = list(
                     ArtworkSubmission.objects.filter(show=show, submitted_by=user)
                     .select_related('artwork')
+                    .prefetch_related('artwork__artists')
                 )
+                submissions_by_artwork_id = {sub.artwork_id: sub for sub in subs}
+                artwork_ids_in_show = set(artworks.values_list('id', flat=True))
+                pending_submissions = [sub for sub in subs if sub.artwork_id not in artwork_ids_in_show]
+
+        context['artwork_data'] = [
+            {'artwork': aw, 'submission': submissions_by_artwork_id.get(aw.id)}
+            for aw in artworks
+        ]
+        context['pending_submissions'] = pending_submissions
         return context
 
 

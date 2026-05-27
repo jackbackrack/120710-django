@@ -31,28 +31,9 @@
         {% if can_submit %}
         <a class="card__link" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a>
         {% endif %}
-        {% if user_submissions %}
-        <p class="mt-2"><strong>Your submissions:</strong></p>
-        {% for sub in user_submissions %}
-        <div class="text-gray-500 text-sm d-flex align-items-center gap-1">
-          <a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a>
-          <span>&mdash; {{ sub.get_status_display }}</span>
-          {% if can_submit %}
-          <span>&mdash;</span>
-          <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract this submission?')">Retract</button></form>
-          {% endif %}
-        </div>
-        {% endfor %}
-        {% endif %}
       {% elif show.open_call_phase == 'jury' %}
         <p><strong>Open Call</strong> &mdash; In jury review (submissions closed)</p>
         {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
-        {% if user_submissions %}
-        <p class="mt-2"><strong>Your submissions:</strong></p>
-        {% for sub in user_submissions %}
-        <p class="text-gray-500 text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a> &mdash; {{ sub.get_status_display }}</p>
-        {% endfor %}
-        {% endif %}
       {% endif %}
     </div>
     {% endif %}
@@ -83,7 +64,8 @@
 </div>
 <div class="text-center"><h2>Artworks</h2></div>
 <div class="cards">
-{% for artwork in artworks %}
+{% for entry in artwork_data %}
+{% with artwork=entry.artwork sub=entry.submission %}
   <div class="card">
     {% if artwork.image %}
     <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.image.url }}" class="card__image"></a>
@@ -93,29 +75,43 @@
       </h2>
       <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a> </h2>
       <h2 class="text-sm">
-        {% if artwork.start_year %}
-        {{ artwork.start_year }}-
-        {% endif %}
+        {% if artwork.start_year %}{{ artwork.start_year }}-{% endif %}
         {{ artwork.end_year }}
       </h2>
       <p class="text-gray-500 text-xs"><strong>Medium: </strong>{{ artwork.medium }}</p>
       <p class="text-gray-500 text-xs"><strong>Dimensions: </strong>{{ artwork.dimensions }}</p>
       <p class="text-gray-500 text-sm"><strong>Price:</strong>
-        {% if artwork.price %}
-        ${{ artwork.price }}
-        {% endif %}
-        {% if artwork.pricing %}
-        {{ artwork.pricing }}
-        {% endif %}
-        {% if artwork.is_sold %}
-        <strong>sold</strong>
-        {% endif %}
+        {% if artwork.price %}${{ artwork.price }}{% endif %}
+        {% if artwork.pricing %}{{ artwork.pricing }}{% endif %}
+        {% if artwork.is_sold %}<strong>sold</strong>{% endif %}
       </p>
+      {% if sub %}<p class="text-gray-500 text-xs"><strong>Submitted:</strong> {{ sub.get_status_display }}</p>{% endif %}
     </div>
-    <div class="card__info">  
+    <div class="card__info">
       {% if user.is_authenticated %}
       <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
       <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
+      {% endif %}
+      {% if sub and can_submit %}
+      <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract this submission?')">Retract</button></form>
+      {% endif %}
+    </div>
+  </div>
+{% endwith %}
+{% endfor %}
+{% for sub in pending_submissions %}
+  <div class="card">
+    {% if sub.artwork.image %}
+    <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.image.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <h2 class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}</h2>
+      <h2 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h2>
+      <p class="text-gray-500 text-xs"><strong>Submitted:</strong> {{ sub.get_status_display }}</p>
+    </div>
+    <div class="card__info">
+      {% if can_submit %}
+      <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract this submission?')">Retract</button></form>
       {% endif %}
     </div>
   </div>
