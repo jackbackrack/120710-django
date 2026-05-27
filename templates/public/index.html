@@ -17,15 +17,15 @@
     <div class="card__content">
       <h2 class="text-2xl"><a class="card__link" href="{{ hero_show.get_absolute_url }}">{{ hero_show.name }}</a></h2>
       <h4 class="mb-6">
-      {% if hero_show.open_call_phase == 'open' %}Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}<br>{% endif %}
-      {% if hero_show.open_call_phase == 'jury' %}Open Call &middot; Jury Review<br>{% endif %}
         {% for curator in hero_show.curators.all %}
           <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
         {% endfor %}
         {% if hero_show.curators.all %}<br>{% endif %}
-        {{ hero_show.date_range }}<br>
+        {{ hero_show.date_range }}
+        {% if hero_show.open_call_phase == 'open' %}<br>Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}{% endif %}
+        {% if hero_show.open_call_phase == 'jury' %}<br>Open Call &middot; Jury Review{% endif %}
         {% for event in hero_show.events.all %}
-          <a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.start }} - {{ event.end }}<br>
+          <br><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.start }} - {{ event.end }}
         {% endfor %}
       </h4>
     </div>
