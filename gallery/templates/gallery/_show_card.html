@@ -1,13 +1,16 @@
 <div class="card">
+  {% if show.open_call_phase == 'open' %}
+  <span class="card__label">Open Call</span>
+  {% elif show.open_call_phase == 'jury' %}
+  <span class="card__label card__label--warning">Open Call &middot; Jury Review</span>
+  {% endif %}
   {% if show.image %}
   <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
   {% endif %}
   <div class="card__content">
     <h2 class="text-2xl"><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h2>
-    {% if show.open_call_phase == 'open' %}
-    <p class="text-start"><span class="badge bg-success" style="white-space:normal;text-align:left">Open Call{% if show.submission_deadline %}<br>Deadline: {{ show.submission_deadline }}{% endif %}</span></p>
-    {% elif show.open_call_phase == 'jury' %}
-    <p class="text-start"><span class="badge bg-warning text-dark" style="white-space:normal;text-align:left">Open Call<br>Jury Review</span></p>
+    {% if show.open_call_phase == 'open' and show.submission_deadline %}
+    <p class="text-sm">Deadline: {{ show.submission_deadline }}</p>
     {% endif %}
     <h4 class="mb-6">
       {% for curator in show.curators.all %}
