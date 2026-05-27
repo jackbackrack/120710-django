@@ -76,9 +76,6 @@ class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return kwargs
 
     def form_valid(self, form):
-        if not is_staff_user(self.request.user):
-            # Preserve whatever is_public value staff set; artists cannot change it.
-            form.instance.is_public = Artist.objects.filter(pk=form.instance.pk).values_list('is_public', flat=True).first() or False
         return super().form_valid(form)
 
     def test_func(self):

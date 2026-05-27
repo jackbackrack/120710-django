@@ -50,8 +50,7 @@ def can_manage_event(user, event):
 def visible_artwork_queryset(user):
     if is_curator_user(user):
         return Q()
-    # Visible if in a show that has already started (current or past), or staff override
-    public = Q(shows__start__lte=datetime.date.today()) | Q(is_public=True)
+    public = Q(shows__start__lte=datetime.date.today())
     if user.is_authenticated:
         public |= Q(created_by=user) | Q(artists__user=user)
     return public
@@ -60,8 +59,8 @@ def visible_artwork_queryset(user):
 def visible_artist_queryset(user):
     if is_curator_user(user):
         return Q()
-    # Visible if they have artwork in a show that has already started, or staff override
-    public = Q(artworks__shows__start__lte=datetime.date.today()) | Q(is_public=True)
+    # Visible if they have artwork in a started show, or they are a curator
+    public = Q(artworks__shows__start__lte=datetime.date.today()) | Q(user__groups__name='curator')
     if user.is_authenticated:
         public |= Q(user=user)
     return public

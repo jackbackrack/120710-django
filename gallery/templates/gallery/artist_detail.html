@@ -50,7 +50,7 @@
     {% endif %}
     <div class="card__content">
       <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>
-      {% if not artwork.is_public %}
+      {% if not artwork.shows.exists %}
       <p>Private</p>
       {% endif %}
     </div>

@@ -73,8 +73,6 @@ class ArtworkUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return kwargs
 
     def form_valid(self, form):
-        if not is_staff_user(self.request.user):
-            form.instance.is_public = False
         response = super().form_valid(form)
         # Only link the editing artist to the artwork for non-staff; staff editing
         # an artwork should not inadvertently add themselves as a co-artist.
@@ -112,7 +110,6 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def form_valid(self, form):
         if not is_staff_user(self.request.user):
             form.instance.created_by = self.request.user
-            form.instance.is_public = False
         response = super().form_valid(form)
         artist = self.request.user.artists.order_by('-created_at').first()
         if artist:

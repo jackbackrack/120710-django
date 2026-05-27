@@ -30,7 +30,6 @@ class ArtistForm(UserAwareModelForm):
             'bio',
             'statement',
             'image',
-            'is_public',
             'tags',
             'user',
         )
@@ -39,7 +38,6 @@ class ArtistForm(UserAwareModelForm):
         super().__init__(*args, user=user, **kwargs)
         if not is_staff_user(self.user):
             self.fields.pop('tags')
-            self.fields.pop('is_public')
             self.fields.pop('user')
         else:
             self.fields['user'].queryset = User.objects.order_by('email')
@@ -65,7 +63,6 @@ class ArtworkForm(UserAwareModelForm):
             'pricing',
             'replacement_cost',
             'is_sold',
-            'is_public',
             'tags',
             'description',
             'installation',
@@ -74,7 +71,7 @@ class ArtworkForm(UserAwareModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
         if not is_staff_user(self.user):
-            for field_name in ('artists', 'shows', 'is_public', 'tags'):
+            for field_name in ('artists', 'shows', 'tags'):
                 self.fields.pop(field_name)
 
         self.fields['width_inches'].required = True
@@ -109,7 +106,7 @@ class ArtworkForm(UserAwareModelForm):
             'pricing',
             'replacement_cost',
             'is_sold',
-            *((['is_public', 'tags'] if 'is_public' in self.fields else [])),
+            *((['tags'] if 'tags' in self.fields else [])),
             'description',
             'installation',
         )

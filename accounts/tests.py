@@ -161,15 +161,16 @@ class ArtistRoleUpdateViewTests(TestCase):
                 app.sites.add(site)
             except ImportError:
                 pass
-    def test_artist_profile_becomes_public_when_promoted_to_curator(self):
+    def test_artist_profile_is_visible_when_promoted_to_curator(self):
         from accounts.roles import add_curator_role
-        # Ensure artist is not public initially
-        self.artist.is_public = False
-        self.artist.save(update_fields=["is_public"])
+        from django.contrib.auth.models import AnonymousUser
+        from gallery.permissions import visible_artist_queryset
+        from gallery.models.people import Artist
         # Promote to curator
         add_curator_role(self.artist_user)
-        self.artist.refresh_from_db()
-        self.assertTrue(self.artist.is_public, "Artist profile should be public when user is promoted to curator")
+        # Artist should now be visible to anonymous users via the curator group filter
+        qs = Artist.objects.filter(visible_artist_queryset(AnonymousUser()))
+        self.assertIn(self.artist, qs)
 
     def setUp(self):
         self.staff_user = User.objects.create_user(username='staff@example.com', email='staff@example.com', password='password123')

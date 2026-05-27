@@ -57,7 +57,7 @@ class ArtistModelTests(TestCase):
             phone='555-9999',
         )
 
-        self.assertFalse(artist.is_public)
+        self.assertFalse(artist.shows.exists())
 
 
 class PublicSlugNormalizationTests(TestCase):
@@ -96,7 +96,6 @@ class PublicUrlTests(TestCase):
             last_name='Lovelace',
             email='ada@example.com',
             phone='555-1212',
-            is_public=True,
         )
         self.show = Show.objects.create(
             name='Spring Show',
@@ -108,7 +107,6 @@ class PublicUrlTests(TestCase):
             name='Analytical Engine Study',
             end_year=1843,
             medium='Ink on paper',
-            is_public=True,
         )
         self.artwork.artists.add(self.artist)
         self.artwork.shows.add(self.show)
@@ -291,7 +289,6 @@ class AuthorizationWorkflowTests(TestCase):
             name='Private Study',
             created_by=self.artist_user,
             end_year=2024,
-            is_public=False,
         )
         self.private_artwork.artists.add(self.artist)
 
@@ -299,7 +296,6 @@ class AuthorizationWorkflowTests(TestCase):
             name='Public Study',
             created_by=self.artist_user,
             end_year=2024,
-            is_public=True,
         )
         self.public_artwork.artists.add(self.artist)
         self.public_artwork.shows.add(self.show)
@@ -551,7 +547,6 @@ class OpenCallFlowTests(TestCase):
             name='Still Life with Sunflowers',
             created_by=self.artist_user,
             end_year=2026,
-            is_public=False,
         )
         self.artwork.artists.add(self.artist)
 
