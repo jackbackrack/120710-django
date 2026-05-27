@@ -1,8 +1,10 @@
 <div class="card">
   {% if show.open_call_phase == 'open' %}
-  <div class="text-center"><h2>Open Call</h2></div>
+  <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art Site &middot; {% endif %}Open Call</h2></div>
   {% elif show.open_call_phase == 'jury' %}
-  <div class="text-center"><h2>Open Call &middot; Jury Review</h2></div>
+  <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art Site &middot; {% endif %}Open Call &middot; Jury Review</h2></div>
+  {% elif show.show_type == 'public_art' %}
+  <div class="text-center"><h2>Public Art Site</h2></div>
   {% endif %}
   {% if show.image %}
   <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.card_thumbnail.url }}" class="card__image"></a>
@@ -14,6 +16,7 @@
         <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
       {% endfor %}
       {% if show.curators.all %}<br>{% endif %}
+      {% if show.location %}<br><small>{{ show.location }}</small>{% endif %}
       {{ show.date_range }}
       {% if show.open_call_phase == 'open' and show.submission_deadline %}<br>Deadline: {{ show.submission_deadline }}{% endif %}
     </h4>

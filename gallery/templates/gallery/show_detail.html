@@ -11,6 +11,8 @@
   {% endif %}
   <div class="card__content">
     <h1 class="mb-6 text-3xl">{{ show.name }}</h1>
+    {% if show.show_type == 'public_art' %}<p class="text-gray-500 text-sm"><strong>Public Art Site</strong></p>{% endif %}
+    {% if show.location %}<p class="text-gray-500 text-sm"><strong>Location: </strong>{{ show.location }}</p>{% endif %}
     <p class="mb-6 text-3xl">{{ show.date_range }}</p>
     <h3 class="mb-6">Curated by:
     {% if show.curator_artist %}

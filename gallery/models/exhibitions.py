@@ -10,8 +10,17 @@ from gallery.models.slugs import build_unique_slug
 
 
 class Show(models.Model):
+    SHOW_TYPE_GALLERY = 'gallery'
+    SHOW_TYPE_PUBLIC_ART = 'public_art'
+    SHOW_TYPE_CHOICES = [
+        (SHOW_TYPE_GALLERY, 'Gallery Show'),
+        (SHOW_TYPE_PUBLIC_ART, 'Public Art Site'),
+    ]
+
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
+    show_type = models.CharField(max_length=32, choices=SHOW_TYPE_CHOICES, default=SHOW_TYPE_GALLERY)
+    location = models.TextField(blank=True, null=True, verbose_name='Location (address or site description)')
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
     card_thumbnail = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})

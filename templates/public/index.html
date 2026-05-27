@@ -21,6 +21,7 @@
           <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
         {% endfor %}
         {% if hero_show.curators.all %}<br>{% endif %}
+        {% if hero_show.location %}<small>{{ hero_show.location }}</small><br>{% endif %}
         {{ hero_show.date_range }}
         {% if hero_show.open_call_phase == 'open' %}<br>Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}{% endif %}
         {% if hero_show.open_call_phase == 'jury' %}<br>Open Call &middot; Jury Review{% endif %}

@@ -408,6 +408,7 @@ class AuthorizationWorkflowTests(TestCase):
 
         response = self.client.post(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}), {
             'name': self.show.name,
+            'show_type': self.show.show_type,
             'description': self.show.description or '',
             'start': self.show.start,
             'end': self.show.end,

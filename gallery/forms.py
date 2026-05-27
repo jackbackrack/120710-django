@@ -146,6 +146,8 @@ class ShowForm(UserAwareModelForm):
         model = Show
         fields = (
             'name',
+            'show_type',
+            'location',
             'description',
             'image',
             'is_open_call',
@@ -160,6 +162,7 @@ class ShowForm(UserAwareModelForm):
             'decision_date': forms.DateInput(attrs={'type': 'date'}),
             'start': forms.DateInput(attrs={'type': 'date'}),
             'end': forms.DateInput(attrs={'type': 'date'}),
+            'location': forms.Textarea(attrs={'rows': 2}),
         }
 
     def __init__(self, *args, user=None, **kwargs):
