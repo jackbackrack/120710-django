@@ -28,9 +28,6 @@
         <p><strong>Open Call</strong> &mdash; Accepting submissions</p>
         {% if show.submission_deadline %}<p class="text-gray-500 text-sm">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>{% endif %}
         {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
-        {% if can_submit %}
-        <a class="card__link" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a>
-        {% endif %}
       {% elif show.open_call_phase == 'jury' %}
         <p><strong>Open Call</strong> &mdash; In jury review (submissions closed)</p>
         {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
@@ -63,6 +60,7 @@
 </div>
 </div>
 <div class="text-center"><h2>Artworks</h2></div>
+{% if can_submit %}<div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a></div>{% endif %}
 <div class="cards">
 {% for entry in artwork_data %}
 {% with artwork=entry.artwork sub=entry.submission %}
@@ -85,7 +83,7 @@
         {% if artwork.pricing %}{{ artwork.pricing }}{% endif %}
         {% if artwork.is_sold %}<strong>sold</strong>{% endif %}
       </p>
-      {% if sub %}<p class="text-gray-500 text-xs"><strong>Submitted:</strong> {{ sub.get_status_display }}</p>{% endif %}
+      {% if sub %}<p class="text-gray-500 text-xs"><strong>Status:</strong> {{ sub.get_status_display }}</p>{% endif %}
     </div>
     <div class="card__info">
       {% if user.is_authenticated %}
@@ -107,7 +105,7 @@
     <div class="card__content">
       <h2 class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}</h2>
       <h2 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h2>
-      <p class="text-gray-500 text-xs"><strong>Submitted:</strong> {{ sub.get_status_display }}</p>
+      <p class="text-gray-500 text-xs"><strong>Status:</strong> {{ sub.get_status_display }}</p>
     </div>
     <div class="card__info">
       {% if can_submit %}
