@@ -61,7 +61,7 @@
   </div>
 </div>
 </div>
-<div class="text-center"><h2>Artworks</h2></div>
+<div class="text-center section-label"><h2>Artworks</h2></div>
 {% if can_submit %}<div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a></div>{% endif %}
 <div class="cards">
 {% for entry in artwork_data %}
@@ -117,7 +117,7 @@
   </div>
 {% endfor %}
 </div>
-<div class="text-center"><h2>Artists</h2></div>
+<div class="text-center section-label"><h2>Artists</h2></div>
 <div class="cards">
   <!-- todo: remove dups and sort -->
   {% for artist in artists %}

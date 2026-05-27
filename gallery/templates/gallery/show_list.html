@@ -9,7 +9,7 @@
 
 {% block content %}
 {% if current_shows %}
-<div class="text-center"><h2>Current Shows</h2></div>
+<div class="text-center section-label"><h2>Current Shows</h2></div>
 <div class="cards">
   {% for show in current_shows %}
     {% include 'gallery/_show_card.html' %}
@@ -18,7 +18,7 @@
 {% endif %}
 
 {% if future_shows %}
-<div class="text-center"><h2>Upcoming Shows</h2></div>
+<div class="text-center section-label"><h2>Upcoming Shows</h2></div>
 <div class="cards">
   {% for show in future_shows %}
     {% include 'gallery/_show_card.html' %}
@@ -27,7 +27,7 @@
 {% endif %}
 
 {% if past_shows %}
-<div class="text-center"><h2>Past Shows</h2></div>
+<div class="text-center section-label"><h2>Past Shows</h2></div>
 <div class="cards">
   {% for show in past_shows %}
     {% include 'gallery/_show_card.html' %}
