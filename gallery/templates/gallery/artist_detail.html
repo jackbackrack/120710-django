@@ -46,7 +46,7 @@
   {% for artwork in artworks %}
   <div class="card">
     {% if artwork.image %}
-    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.image.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_thumbnail.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>
