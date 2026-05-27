@@ -77,6 +77,11 @@ class ArtworkForm(UserAwareModelForm):
             for field_name in ('artists', 'shows', 'is_public', 'tags'):
                 self.fields.pop(field_name)
 
+        self.fields['width_inches'].required = True
+        self.fields['height_inches'].required = True
+        if not (self.instance and self.instance.pk):
+            self.fields['image'].required = True
+
         for f in ('width_inches', 'height_inches', 'depth_inches'):
             self.fields[f].widget.attrs.update({'class': 'dim-input', 'step': 'any', 'min': '0'})
         self.fields['width_inches'].widget.attrs['placeholder'] = 'W'
