@@ -16,12 +16,9 @@
     {% endif %}
     <div class="card__content">
       <h2 class="text-2xl"><a class="card__link" href="{{ hero_show.get_absolute_url }}">{{ hero_show.name }}</a></h2>
-      {% if hero_show.open_call_phase == 'open' %}
-      <p><span class="badge bg-success">Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}</span></p>
-      {% elif hero_show.open_call_phase == 'jury' %}
-      <p><span class="badge bg-warning text-dark">Open Call &middot; Jury Review</span></p>
-      {% endif %}
       <h4 class="mb-6">
+      {% if hero_show.open_call_phase == 'open' %}Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}<br>{% endif %}
+      {% if hero_show.open_call_phase == 'jury' %}Open Call &middot; Jury Review<br>{% endif %}
         {% for curator in hero_show.curators.all %}
           <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
         {% endfor %}
