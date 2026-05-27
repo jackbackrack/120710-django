@@ -7,7 +7,7 @@ from gallery.models.slugs import build_unique_slug
 
 
 class Artwork(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, help_text='Title of artwork')
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     shows = models.ManyToManyField(Show, related_name='artworks', blank=True)
     artists = models.ManyToManyField(Artist, related_name='artworks')
