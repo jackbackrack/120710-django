@@ -33,9 +33,7 @@
       </h4>
     </div>
     <div class="card__info">
-      {% if user.is_authenticated %}
-        <a class="card__link" href="{{ hero_show.get_placards_url }}">Placards</a>
-        <a class="card__link" href="{{ hero_show.get_instagram_url }}">Instagram</a>
+      {% if hero_show.id in can_manage_show %}
         <a class="card__link" href="{% url 'gallery:show_edit' hero_show.pk %}">Edit</a>
         <a class="card__link" href="{% url 'gallery:show_delete' hero_show.pk %}">Delete</a>
       {% endif %}
