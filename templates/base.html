@@ -111,6 +111,17 @@
     </div>
     -->
   </footer>
+  <!-- Image lightbox modal -->
+  <div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:95vw">
+      <div class="modal-content bg-transparent border-0">
+        <div class="modal-body p-0 text-center" style="overflow:auto;max-height:95vh">
+          <img id="imageModalImg" src="" alt="" style="max-width:100%;max-height:95vh;object-fit:contain;cursor:zoom-in">
+        </div>
+      </div>
+    </div>
+  </div>
+
   {% block javascript %}
   <!-- Bootstrap JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
@@ -119,6 +130,43 @@
 
   <!-- Project JS -->
   <script src="{% static 'admin/js/base.js' %}"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var modal = new bootstrap.Modal(document.getElementById('imageModal'));
+      var modalImg = document.getElementById('imageModalImg');
+      var zoomed = false;
+
+      document.querySelectorAll('img.zoomable').forEach(function (img) {
+        img.style.cursor = 'zoom-in';
+        img.addEventListener('click', function () {
+          modalImg.src = this.src;
+          modalImg.alt = this.alt;
+          zoomed = false;
+          modalImg.style.maxWidth = '100%';
+          modalImg.style.maxHeight = '95vh';
+          modal.show();
+        });
+      });
+
+      modalImg.addEventListener('click', function () {
+        zoomed = !zoomed;
+        if (zoomed) {
+          this.style.maxWidth = 'none';
+          this.style.maxHeight = 'none';
+          this.style.cursor = 'zoom-out';
+        } else {
+          this.style.maxWidth = '100%';
+          this.style.maxHeight = '95vh';
+          this.style.cursor = 'zoom-in';
+        }
+      });
+
+      document.getElementById('imageModal').addEventListener('hidden.bs.modal', function () {
+        modalImg.src = '';
+      });
+    });
+  </script>
 
   {% endblock javascript %}
   </body>

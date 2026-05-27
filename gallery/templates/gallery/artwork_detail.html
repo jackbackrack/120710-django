@@ -7,7 +7,7 @@
 <div class="cards">
 <div class="card" id="big_card">
   {% if artwork.image %}
-  <img src="{{ artwork.image.url }}" class="card__image">
+  <img src="{{ artwork.image.url }}" class="card__image zoomable">
   {% endif %}
   <div class="card__content">
     <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h2>
