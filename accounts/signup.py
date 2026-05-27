@@ -40,6 +40,16 @@ def ensure_signup_profile(user):
         'email': user.email,
         'phone': '',
     }
+
+    # Check if an unlinked artist with matching email already exists and claim it.
+    if user.email:
+        unlinked = Artist.objects.filter(email=user.email, user__isnull=True).first()
+        if unlinked:
+            unlinked.user = user
+            unlinked.save(update_fields=['user'])
+            add_artist_role(user)
+            return unlinked
+
     artist, created = Artist.objects.get_or_create(user=user, defaults=defaults)
 
     if created:

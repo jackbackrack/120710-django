@@ -517,13 +517,13 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertTrue(self.show.is_open_call)
         self.assertTrue(self.show.tags.filter(slug='open-call').exists())
 
-    def test_staff_can_see_placard_and_instagram_links_on_show_detail(self):
+    def test_staff_can_see_edit_and_delete_links_on_show_detail(self):
         self.client.force_login(self.staff_user)
 
         response = self.client.get(self.show.get_absolute_url())
 
-        self.assertContains(response, self.show.get_placards_url())
-        self.assertContains(response, self.show.get_instagram_url())
+        self.assertContains(response, 'Edit')
+        self.assertContains(response, 'Delete')
 
     def test_search_is_available_to_logged_in_users(self):
         self.client.force_login(self.artist_user)

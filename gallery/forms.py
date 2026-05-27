@@ -1,8 +1,11 @@
 from django import forms
+from django.contrib.auth import get_user_model
 
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
 from gallery.models.tags import ensure_open_call_tag
 from gallery.permissions import is_curator_user, is_staff_user
+
+User = get_user_model()
 
 
 
@@ -27,6 +30,7 @@ class ArtistForm(UserAwareModelForm):
             'image',
             'is_public',
             'tags',
+            'user',
         )
 
     def __init__(self, *args, user=None, **kwargs):
@@ -34,6 +38,11 @@ class ArtistForm(UserAwareModelForm):
         if not is_staff_user(self.user):
             self.fields.pop('tags')
             self.fields.pop('is_public')
+            self.fields.pop('user')
+        else:
+            self.fields['user'].queryset = User.objects.order_by('email')
+            self.fields['user'].required = False
+            self.fields['user'].label = 'Linked user account'
 
 
 class ArtworkForm(UserAwareModelForm):
