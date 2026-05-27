@@ -299,3 +299,14 @@ th, td {
         width: 100%;
     }
 }
+.dim-input {
+    width: 5em !important;
+    display: inline-block;
+    text-align: center;
+}
+
+.dim-sep {
+    font-size: 1.2em;
+    padding: 0 2px;
+    line-height: 2.4;
+}

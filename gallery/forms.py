@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Layout, Field, Row, Column, HTML
 
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
 from gallery.permissions import is_curator_user, is_staff_user
@@ -74,6 +76,38 @@ class ArtworkForm(UserAwareModelForm):
         if not is_staff_user(self.user):
             for field_name in ('artists', 'shows', 'is_public', 'tags'):
                 self.fields.pop(field_name)
+
+        for f in ('width_inches', 'height_inches', 'depth_inches'):
+            self.fields[f].widget.attrs.update({'class': 'dim-input', 'step': 'any', 'min': '0'})
+        self.fields['width_inches'].widget.attrs['placeholder'] = 'W'
+        self.fields['height_inches'].widget.attrs['placeholder'] = 'H'
+        self.fields['depth_inches'].widget.attrs['placeholder'] = 'D'
+
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.layout = Layout(
+            'name',
+            *((['shows', 'artists'] if 'artists' in self.fields else [])),
+            'end_year',
+            'start_year',
+            'medium',
+            Row(
+                Column(Field('width_inches'), css_class='col-auto'),
+                Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
+                Column(Field('height_inches'), css_class='col-auto'),
+                Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
+                Column(Field('depth_inches'), css_class='col-auto'),
+                css_class='align-items-end g-2',
+            ),
+            'image',
+            'price',
+            'pricing',
+            'replacement_cost',
+            'is_sold',
+            *((['is_public', 'tags'] if 'is_public' in self.fields else [])),
+            'description',
+            'installation',
+        )
 
 
 class ArtworkSubmissionForm(forms.ModelForm):

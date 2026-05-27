@@ -5,7 +5,26 @@
 <h1>New Artwork</h1>
 {% include 'includes/help_by_role_panel.html' %}
 <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
-  {{ form|crispy }}
+  {% crispy form %}
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>
 {% endblock content %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var dims = ['id_width_inches', 'id_height_inches', 'id_depth_inches'];
+  dims.forEach(function (id, i) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('keydown', function (e) {
+      if ((e.key === 'x' || e.key === 'X' || e.key === '×' || e.key === '/') && el.value.trim() !== '') {
+        e.preventDefault();
+        var next = document.getElementById(dims[i + 1]);
+        if (next) { next.focus(); next.select(); }
+      }
+    });
+  });
+}());
+</script>
+{% endblock %}
