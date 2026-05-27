@@ -6,13 +6,12 @@
 {% block content %}
 <div class="cards">
 <div class="card" id="big_card">
+  {% if artwork.image %}
+  <img src="{{ artwork.image.url }}" class="card__image zoomable" style="max-height:400px;width:100%;object-fit:contain;">
+  {% endif %}
   <div class="card__content">
     <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to {{ show.name }} reviews</a></p>
     {% include 'includes/help_by_role_panel.html' %}
-
-    {% if artwork.image %}
-    <img src="{{ artwork.image.url }}" class="card__image">
-    {% endif %}
 
     <h1 class="mb-6 text-3xl">{{ artwork.name }}</h1>
     {% for artist in artwork.artists.all %}
