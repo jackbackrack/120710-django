@@ -14,7 +14,7 @@
     {% endif %}
     <div class="card__content">
       <h3><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></h3>
-      <p>{{ show.start }} - {{ show.end }}</p>
+      <p>{{ show.date_range }}</p>
       {% if show.open_call_phase == 'open' %}
         <p class="text-sm"><strong>Accepting submissions</strong>
           {% if show.submission_deadline %}&mdash; deadline {{ show.submission_deadline }}{% endif %}
