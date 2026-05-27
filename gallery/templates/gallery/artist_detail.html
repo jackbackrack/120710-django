@@ -17,6 +17,9 @@
     {% if artist.instagram %}
     <p class="text-gray-500 text-sm"><strong>Instagram: </strong><a href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a></p>
     {% endif %}
+    {% if artist.venmo %}
+    <p class="text-gray-500 text-sm"><strong>Venmo: </strong><a href="https://venmo.com/{{ artist.venmo|cut:"@" }}">{{ artist.venmo }}</a></p>
+    {% endif %}
     {% if artist.website %}
     <p class="text-gray-500 text-sm"><strong>Website: </strong><a href="{{ artist.website }}">{{ artist.website }}</a></p>
     {% endif %}

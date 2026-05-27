@@ -25,6 +25,7 @@ class ArtistForm(UserAwareModelForm):
             'phone',
             'website',
             'instagram',
+            'venmo',
             'bio',
             'statement',
             'image',

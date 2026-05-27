@@ -15,6 +15,7 @@ class Artist(models.Model):
     phone = models.CharField(max_length=255)
     website = models.URLField(max_length=255, blank=True, null=True)
     instagram = models.CharField(verbose_name='Instagram: your handle starting with @', max_length=255, blank=True, null=True)
+    venmo = models.CharField(verbose_name='Venmo: your username starting with @', max_length=255, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='artist_images', null=True)
