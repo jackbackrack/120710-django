@@ -71,8 +71,7 @@
     <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_thumbnail.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
-      <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}
-      </h2>
+      <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h2>
       <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a> </h2>
       <h2 class="text-sm">
         {% if artwork.start_year %}{{ artwork.start_year }}-{% endif %}
@@ -104,7 +103,7 @@
     <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
-      <h2 class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}"> {{ artist }}</a>{% endfor %}</h2>
+      <h2 class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h2>
       <h2 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h2>
       <p class="text-gray-500 text-xs"><strong>Status:</strong> {{ sub.get_status_display }}</p>
     </div>
