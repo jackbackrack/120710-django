@@ -30,3 +30,14 @@ class Event(models.Model):
 
     def get_absolute_url(self):
         return reverse('gallery:event_detail', kwargs={'slug': self.slug})
+
+    @property
+    def time_range(self):
+        def fmt(t, include_ampm):
+            s = t.strftime('%I:%M %p').lstrip('0')
+            return s if include_ampm else s.rsplit(' ', 1)[0]
+        start_ampm = self.start.strftime('%p')
+        end_ampm = self.end.strftime('%p')
+        if start_ampm == end_ampm:
+            return f'{fmt(self.start, False)}–{fmt(self.end, True)}'
+        return f'{fmt(self.start, True)}–{fmt(self.end, True)}'

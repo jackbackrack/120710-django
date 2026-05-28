@@ -27,7 +27,7 @@
         {% if hero_show.status == hero_show.STATUS_OPEN_CALL %}<br>Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}{% endif %}
         {% if hero_show.status == hero_show.STATUS_IN_REVIEW %}<br>Open Call &middot; Jury Review{% endif %}
         {% for event in hero_show.events.all %}
-          <br><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.start }} - {{ event.end }}
+          <br><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.time_range }}
         {% endfor %}
       </h4>
     </div>
@@ -47,7 +47,7 @@
     {% endif %}
     <div class="card__content">
       <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ next_event.get_absolute_url }}">{{ next_event.name }} of {{ next_event.show.name }}</a></h1>
-      <p class="mb-6 text-3xl">{{ next_event.date }}: {{ next_event.start }} - {{ next_event.end }}</p>
+      <p class="mb-6 text-3xl">{{ next_event.date }}: {{ next_event.time_range }}</p>
       {% if next_event.description %}
       <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ next_event.description|safe }}</p>
       {% endif %}

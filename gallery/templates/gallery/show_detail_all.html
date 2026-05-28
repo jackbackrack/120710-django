@@ -15,7 +15,7 @@
 </h2>
 <p class="text-sm">{{ show.description|safe }}</p>
 {% for event in events %}
-<h2 class="mb-6">{{ event.name }} {{ event.start }} - {{ event.end }}</h2>
+<h2 class="mb-6">{{ event.name }} {{ event.time_range }}</h2>
 {% endfor %}
 <br>
 <div class="cards">

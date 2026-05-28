@@ -123,7 +123,7 @@
     {% endif %}
   {% endif %}
   {% for event in show.events.all %}
-  <p class="meta"><strong>{{ event.name }}:</strong> {{ event.date }}, {{ event.start }}–{{ event.end }}</p>
+  <p class="meta"><strong>{{ event.name }}:</strong> {{ event.date }}, {{ event.time_range }}</p>
   {% endfor %}
 </div>
 
