@@ -292,12 +292,13 @@ else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
     MEDIA_URL = 'media/'
 
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
 if USE_S3_STATIC:
     STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/'
 else:
     STATIC_ROOT = BASE_DIR / "staticfiles"
     STATIC_URL = 'static/'
-    STATICFILES_DIRS = [BASE_DIR / "static"]
 
 STORAGES = {
     "default": {
