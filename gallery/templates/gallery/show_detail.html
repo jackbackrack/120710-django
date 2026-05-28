@@ -46,6 +46,8 @@
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
     <a class="card__link" href="{% url 'gallery:show_catalog' show.slug %}">Catalog</a>
+    <a class="card__link" href="{{ show.get_placards_url }}">Placards</a>
+    <a class="card__link" href="{{ show.get_instagram_url }}">Instagram</a>
   {% endif %}
   {% if can_view_reviews %}
     <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
