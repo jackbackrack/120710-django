@@ -215,4 +215,4 @@ class EventForm(UserAwareModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
         if is_curator_user(self.user):
-            self.fields['show'].queryset = Show.objects.filter(is_open_call=True).distinct()
+            self.fields['show'].queryset = Show.objects.all().distinct()
