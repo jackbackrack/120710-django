@@ -226,6 +226,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # django-imagekit: return thumbnail URLs immediately; post-save signals ensure
 # thumbnails are generated when images are uploaded.
+# IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = 'imagekit.cachefiles.strategies.JustInTime'
 IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = 'imagekit.cachefiles.strategies.Optimistic'
 
 # Static files (CSS, JavaScript, Images)
