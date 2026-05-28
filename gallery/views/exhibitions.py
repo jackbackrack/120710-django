@@ -139,6 +139,14 @@ class ShowUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         obj = self.get_object()
         return can_manage_show(self.request.user, obj)
 
+    def form_valid(self, form):
+        old_status = Show.objects.values_list('status', flat=True).get(pk=form.instance.pk)
+        response = super().form_valid(form)
+        if old_status != Show.STATUS_PUBLISHED and self.object.status == Show.STATUS_PUBLISHED:
+            from gallery.views.open_call import send_submission_emails
+            send_submission_emails(self.object)
+        return response
+
 
 class ShowDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Show

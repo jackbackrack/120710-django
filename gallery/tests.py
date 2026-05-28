@@ -718,7 +718,21 @@ class OpenCallFlowTests(TestCase):
         self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
         self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
 
-    def test_promote_sends_acceptance_email_to_artist(self):
+    def _publish_show(self):
+        """Helper: POST to show_edit to set status to published."""
+        self.client.post(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}), {
+            'name': self.show.name,
+            'show_type': self.show.show_type,
+            'start': self.show.start,
+            'end': self.show.end,
+            'status': Show.STATUS_PUBLISHED,
+            'is_open_call': True,
+            'submission_deadline': self.show.submission_deadline,
+            'curators': [self.curator_artist.pk],
+            'tags': [],
+        })
+
+    def test_promote_does_not_send_emails(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
             status=ArtworkSubmission.SELECTED,
@@ -729,11 +743,23 @@ class OpenCallFlowTests(TestCase):
             reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
         )
 
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_publish_sends_acceptance_email_to_artist(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+        self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
+
+        self._publish_show()
+
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
         self.assertIn(self.show.name, mail.outbox[0].subject)
 
-    def test_promote_sends_rejection_email_for_rejected_submissions(self):
+    def test_publish_sends_rejection_email_for_rejected_submissions(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
             status=ArtworkSubmission.REJECTED,
@@ -747,12 +773,24 @@ class OpenCallFlowTests(TestCase):
             status=ArtworkSubmission.SELECTED,
         )
         self.client.force_login(self.curator_user)
+        self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
 
-        self.client.post(
-            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
-        )
+        self._publish_show()
 
         self.assertEqual(len(mail.outbox), 2)
+
+    def test_publish_does_not_resend_emails_if_already_published(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+        self._publish_show()
+        self.assertEqual(len(mail.outbox), 1)
+
+        # Publishing again (e.g. editing name while published) should not resend
+        self._publish_show()
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_promote_does_not_add_rejected_artworks_to_show(self):
         ArtworkSubmission.objects.create(
@@ -814,7 +852,7 @@ class OpenCallFlowTests(TestCase):
     # --- Complete end-to-end flow ---
 
     def test_full_open_call_flow(self):
-        """Submit → select → promote → artwork in show, email sent."""
+        """Submit → select → promote → publish → artwork in show, email sent."""
         # 1. Artist submits artwork
         self.client.force_login(self.artist_user)
         self.client.post(
@@ -833,13 +871,16 @@ class OpenCallFlowTests(TestCase):
         sub.refresh_from_db()
         self.assertEqual(sub.status, ArtworkSubmission.SELECTED)
 
-        # 3. Curator promotes — adds artwork/artist to show and sends email
+        # 3. Curator promotes — adds artwork/artist to show, no email yet
         self.client.post(
             reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
         )
-
         self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
         self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
+        self.assertEqual(len(mail.outbox), 0)
+
+        # 4. Curator publishes — emails now sent
+        self._publish_show()
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
 

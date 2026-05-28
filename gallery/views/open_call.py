@@ -12,6 +12,8 @@ from gallery.permissions import can_manage_show, can_view_reviews, is_curator_us
 
 
 def _send_selection_email(submission, accepted):
+    if not submission.submitted_by:
+        return
     email = submission.submitted_by.email
     if not email:
         return
@@ -36,6 +38,17 @@ def _send_selection_email(submission, accepted):
     )
 
 
+
+
+def send_submission_emails(show):
+    """Send acceptance/rejection emails to all submitters. Called when a show is published."""
+    subs = (
+        ArtworkSubmission.objects.filter(
+            show=show, status__in=[ArtworkSubmission.SELECTED, ArtworkSubmission.REJECTED]
+        ).select_related('artwork', 'submitted_by')
+    )
+    for sub in subs:
+        _send_selection_email(sub, accepted=(sub.status == ArtworkSubmission.SELECTED))
 
 
 @login_required
@@ -130,11 +143,6 @@ def promote_artworks(request, slug):
                 artist_ids.extend(artwork.artists.values_list('id', flat=True))
             if artist_ids:
                 show.artists.add(*Artist.objects.filter(id__in=artist_ids).distinct())
-
-        for submission in selected:
-            _send_selection_email(submission, accepted=True)
-        for submission in rejected:
-            _send_selection_email(submission, accepted=False)
 
         return redirect(show)
 
