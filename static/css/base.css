@@ -54,7 +54,7 @@ body {
 }
 
 
-#big_card {
+#big_card, .big-card {
     width: 400px;
     max-width: 400px;
 }

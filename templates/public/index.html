@@ -5,9 +5,10 @@
 
 {% block content %}
 
-{% if hero_show %}
+{% if hero_show or next_event %}
 <div class="cards">
-  <div class="card" id="big_card">
+  {% if hero_show %}
+  <div class="card big-card">
     <div class="text-center">
       <h2>{% if hero_is_current %}Current Show{% else %}Upcoming Show{% endif %}</h2>
     </div>
@@ -37,12 +38,9 @@
       {% endif %}
     </div>
   </div>
-</div>
-{% endif %}
-
-{% if next_event %}
-<div class="cards">
-  <div class="card" id="big_card">
+  {% endif %}
+  {% if next_event %}
+  <div class="card big-card">
     <div class="text-center"><h2>Next Event</h2></div>
     {% if next_event.image %}
     <a style="display: contents" href="{{ next_event.get_absolute_url }}"><img src="{{ next_event.image.url }}" class="card__image"></a>
@@ -61,6 +59,7 @@
       {% endif %}
     </div>
   </div>
+  {% endif %}
 </div>
 {% endif %}
 
