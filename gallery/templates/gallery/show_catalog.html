@@ -39,7 +39,7 @@
     }
 
     .card {
-      width: 175px;
+      width: 260px;
       border: 2px solid #333;
       background: #fafafa;
       page-break-inside: avoid;
@@ -76,9 +76,10 @@
 
     .card-body .artwork-medium,
     .card-body .artwork-dims,
-    .card-body .artwork-price {
+    .card-body .artwork-price,
+    .card-body .artwork-desc {
       color: #555;
-      margin: 0;
+      margin: 0 0 2px;
       font-size: 0.8rem;
     }
 
@@ -123,21 +124,22 @@
   {% endfor %}
 </div>
 
+<h2 class="section-label">Artworks</h2>
 <div class="cards">
-  <h2 class="section-label">Artworks</h2>
   {% for entry in artwork_data %}
   {% with artwork=entry.artwork %}
   <div class="card">
     {% if artwork.image %}
-    <img src="{{ artwork.card_thumbnail.url }}" alt="{{ artwork.name }}">
+    <img src="{{ artwork.image.url }}" alt="{{ artwork.name }}">
     {% endif %}
     <div class="card-body">
       <p class="artwork-name">{{ artwork.name }}</p>
       <p class="artwork-year">{% if artwork.start_year and artwork.start_year != artwork.end_year %}{{ artwork.start_year }}–{% endif %}{{ artwork.end_year }}</p>
       <p class="artwork-artist">{% for artist in artwork.artists.all %}{{ artist.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
-      {% if artwork.medium %}<p class="artwork-medium">{{ artwork.medium }}</p>{% endif %}
-      {% if artwork.formatted_dimensions %}<p class="artwork-dims">{{ artwork.formatted_dimensions }}</p>{% endif %}
-      {% if artwork.formatted_price %}<p class="artwork-price">{{ artwork.formatted_price }}{% if artwork.is_sold %} — sold{% endif %}</p>{% endif %}
+      {% if artwork.medium %}<p class="artwork-medium"><strong>Medium:</strong> {{ artwork.medium }}</p>{% endif %}
+      {% if artwork.formatted_dimensions %}<p class="artwork-dims"><strong>Dimensions:</strong> {{ artwork.formatted_dimensions }}</p>{% endif %}
+      {% if artwork.formatted_price %}<p class="artwork-price"><strong>Price:</strong> {{ artwork.formatted_price }}{% if artwork.is_sold %} — <strong>sold</strong>{% endif %}</p>{% endif %}
+      {% if artwork.description %}<p class="artwork-desc">{{ artwork.description }}</p>{% endif %}
     </div>
   </div>
   {% endwith %}
@@ -147,16 +149,19 @@
 </div>
 
 {% if artists %}
+<h2 class="section-label">Artists</h2>
 <div class="cards">
-  <h2 class="section-label">Artists</h2>
   {% for artist in artists %}
   <div class="card">
     {% if artist.image %}
-    <img src="{{ artist.card_thumbnail.url }}" alt="{{ artist.name }}">
+    <img src="{{ artist.image.url }}" alt="{{ artist.name }}">
     {% endif %}
     <div class="card-body">
-      <p class="artwork-name">{{ artist.name }}</p>
-      {% if artist.bio %}<p style="font-size:0.8rem;color:#555;">{{ artist.bio|truncatewords:20 }}</p>{% endif %}
+      <p class="artwork-name">{{ artist.full_name }}</p>
+      {% if artist.instagram %}<p class="artwork-medium"><strong>Instagram:</strong> {{ artist.instagram }}</p>{% endif %}
+      {% if artist.website %}<p class="artwork-medium"><strong>Website:</strong> {{ artist.website }}</p>{% endif %}
+      {% if artist.bio %}<p class="artwork-desc"><strong>Bio:</strong> {{ artist.bio }}</p>{% endif %}
+      {% if artist.statement %}<p class="artwork-desc"><strong>Statement:</strong> {{ artist.statement }}</p>{% endif %}
     </div>
   </div>
   {% endfor %}
