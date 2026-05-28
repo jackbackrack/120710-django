@@ -8,7 +8,7 @@ from gallery.models.slugs import build_unique_slug
 
 
 class Artist(models.Model):
-    user = models.ForeignKey(User, related_name='artists', on_delete=models.CASCADE, blank=True, null=True)
+    user = models.ForeignKey(User, related_name='artists', on_delete=models.SET_NULL, blank=True, null=True)
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     first_name = models.CharField(max_length=255, blank=True, default='')

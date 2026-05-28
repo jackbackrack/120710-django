@@ -19,7 +19,8 @@ class ArtworkSubmission(models.Model):
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='submissions')
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name='artwork_submissions',
     )
     submitted_at = models.DateTimeField(auto_now_add=True)

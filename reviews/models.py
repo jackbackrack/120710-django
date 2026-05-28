@@ -11,7 +11,8 @@ class ShowJuror(models.Model):
     show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='jurors')
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name='juror_assignments',
     )
     assigned_by = models.ForeignKey(
@@ -28,7 +29,8 @@ class ShowJuror(models.Model):
         ordering = ['show', 'user__last_name', 'user__first_name']
 
     def __str__(self):
-        return f'{self.user.get_full_name() or self.user.username} - {self.show.name}'
+        name = self.user.get_full_name() or self.user.username if self.user else '(deleted user)'
+        return f'{name} - {self.show.name}'
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -58,7 +60,8 @@ class ArtworkReview(models.Model):
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='reviews')
     juror = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name='artwork_reviews',
     )
     rating = models.PositiveSmallIntegerField(
@@ -75,7 +78,8 @@ class ArtworkReview(models.Model):
         ordering = ['artwork__name', 'juror__last_name']
 
     def __str__(self):
-        return f'{self.juror.get_full_name() or self.juror.username}: {self.artwork.name} ({self.show.name}) - {self.rating}/10'
+        name = self.juror.get_full_name() or self.juror.username if self.juror else '(deleted user)'
+        return f'{name}: {self.artwork.name} ({self.show.name}) - {self.rating}/10'
 
 
 class CriterionScore(models.Model):
