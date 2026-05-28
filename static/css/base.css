@@ -39,8 +39,8 @@ body {
     grid-auto-rows: auto;
     gap: 8px;
     font-family: sans-serif;
-    padding-top: 30px;
-    padding-bottom: 40px;
+    padding-top: 20px;
+    padding-bottom: 30px;
 }
 
 .cards * {
