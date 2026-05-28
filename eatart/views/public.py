@@ -16,7 +16,8 @@ def index(request):
     past_shows = list(base.filter(end__lt=today).order_by('-start'))
 
     hero_show = current_shows[0] if current_shows else (future_shows[0] if future_shows else None)
-    hero_is_current = bool(current_shows) and hero_show == current_shows[0]
+    hero_is_current = bool(current_shows)
+    display_future_shows = future_shows if hero_is_current else future_shows[1:]
 
     next_event = Event.objects.filter(date__gte=today).order_by('date').first()
 
@@ -28,7 +29,7 @@ def index(request):
         'hero_is_current': hero_is_current,
         'next_event': next_event,
         'current_shows': current_shows,
-        'future_shows': future_shows,
+        'future_shows': display_future_shows,
         'past_shows': past_shows,
         'can_manage_show': manageable_show_ids,
         'structured_data_json': dump_json_ld(schema_to_dict(gallery_to_schema(request))),
