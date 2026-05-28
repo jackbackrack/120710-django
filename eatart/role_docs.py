@@ -1,6 +1,7 @@
 HOW_TO_GUIDES = [
     {
         'title': 'How to sign up for an account',
+        'roles': None,
         'steps': [
             'Go to the Sign Up page via the LogIn link in the header, then choose "Sign up".',
             'Enter your first name, last name, email, and password — or use the "Continue with Google" option to sign in with your Google account.',
@@ -10,6 +11,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to add your artist information',
+        'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in, then go to Artists in the navigation.',
             'Click New at the top of the Artists page to create or fill in your artist profile.',
@@ -20,6 +22,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to add artworks',
+        'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in, then go to Artworks in the navigation.',
             'Click New at the top of the Artworks page.',
@@ -30,6 +33,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to submit artwork to an open call show',
+        'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'You must have at least one artwork already added to your account before you can submit.',
             'Go to Shows in the navigation and find a show with an "Open Call" badge — this means it is currently accepting submissions.',
@@ -42,6 +46,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to create a show (staff only)',
+        'roles': {'staff'},
         'steps': [
             'Sign in as a staff user, then go to Shows in the navigation.',
             'Click New at the top of the Shows page.',
@@ -53,6 +58,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to run a non-open-call show',
+        'roles': {'curator', 'staff'},
         'steps': [
             'Create the show (staff only) with is_open_call unchecked.',
             'Add artists and artworks directly to the show using the multi-select fields on the show edit page.',
@@ -62,6 +68,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to run an open call show',
+        'roles': {'curator', 'staff'},
         'steps': [
             'Create the show with is_open_call checked and set a submission deadline.',
             'Optionally set a decision date (informational only — it does not lock anything automatically).',
@@ -75,6 +82,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to run a public art site open call',
+        'roles': {'curator', 'staff'},
         'steps': [
             'Create the show with show_type set to "Public Art Site" and enter the site location in the Location field.',
             'Enable is_open_call and set a submission deadline as you would for a regular open call.',
@@ -84,6 +92,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to jury a show',
+        'roles': {'juror', 'curator', 'staff'},
         'steps': [
             'A curator or staff member will assign you as a juror for a specific show. You do not need to do anything to request this.',
             'Once assigned, sign in and go to Shows. Open the show you are jurying and click Reviews.',
@@ -95,6 +104,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to link an existing artist profile to a new account',
+        'roles': None,
         'steps': [
             'If you were added to the system as an artist before you had an account (e.g. a curator or staff member created your profile), sign up using the same email address that is on your artist profile.',
             'The system will automatically detect the matching email and link your new account to the existing artist profile — no duplicate will be created.',
