@@ -143,7 +143,7 @@
       {% if artwork.medium %}<p class="artwork-medium"><strong>Medium:</strong> {{ artwork.medium }}</p>{% endif %}
       {% if artwork.formatted_dimensions %}<p class="artwork-dims"><strong>Dimensions:</strong> {{ artwork.formatted_dimensions }}</p>{% endif %}
       {% if artwork.formatted_price %}<p class="artwork-price"><strong>Price:</strong> {{ artwork.formatted_price }}{% if artwork.is_sold %} — <strong>sold</strong>{% endif %}</p>{% endif %}
-      {% if artwork.description %}<p class="artwork-desc">{{ artwork.description }}</p>{% endif %}
+      {% if artwork.description %}<p class="artwork-desc"><strong>Description:</strong> {{ artwork.description }}</p>{% endif %}
     </div>
   </div>
   {% endwith %}
