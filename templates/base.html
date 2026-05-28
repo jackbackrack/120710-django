@@ -28,6 +28,7 @@
     <a class="card__link" href="{% url 'index'%}">Home</a>
     | <a class="card__link" href="{% url 'gallery:show_list'%}">Shows</a>
     | <a class="card__link" href="{% url 'gallery:artist_list'%}">Artists</a>
+    {% if my_artist_url %}| <a class="card__link" href="{{ my_artist_url }}">Me</a>{% endif %}
     | <a class="card__link" href="{% url 'gallery:artwork_list'%}">Artworks</a>
 | <a class="card__link" href="{% url 'about'%}">About</a>
     | <a class="card__link" href="{% url 'visit'%}">Visit</a>
