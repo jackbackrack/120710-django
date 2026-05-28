@@ -30,16 +30,20 @@
     .show-header h1 { font-size: 1.8rem; margin: 0 0 6px; }
     .show-header .meta { color: #555; font-size: 0.9rem; }
 
-    /* Card grid */
+    /* Page breaks */
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Card grid — 4 across */
     .cards {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      justify-content: flex-start;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
     }
 
     .card {
-      width: 260px;
       border: 2px solid #333;
       background: #fafafa;
       page-break-inside: avoid;
@@ -84,7 +88,6 @@
     }
 
     h2.section-label {
-      width: 100%;
       margin: 20px 0 8px;
       font-size: 1rem;
       border-bottom: 1px solid #ccc;
@@ -124,6 +127,7 @@
   {% endfor %}
 </div>
 
+<div class="page-break"></div>
 <h2 class="section-label">Artworks</h2>
 <div class="cards">
   {% for entry in artwork_data %}
@@ -149,6 +153,7 @@
 </div>
 
 {% if artists %}
+<div class="page-break"></div>
 <h2 class="section-label">Artists</h2>
 <div class="cards">
   {% for artist in artists %}
