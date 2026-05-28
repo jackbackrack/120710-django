@@ -1,0 +1,18 @@
+<div class="card">
+  {% if artwork.image %}
+  <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_thumbnail.url }}" class="card__image"></a>
+  {% endif %}
+  <div class="card__content">
+    <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
+    <h3 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h3>
+    {% if not artwork.shows.all %}
+    <p>Private</p>
+    {% endif %}
+  </div>
+  <div class="card__info">
+  {% if artwork.id in can_manage_artwork %}
+    <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
+    <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
+  {% endif %}
+  </div>
+</div>

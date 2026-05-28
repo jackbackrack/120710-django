@@ -5,14 +5,42 @@
 
 {% block content %}
 <form class="d-flex mb-3 col-4 mx-auto mt-4" method="get">
-	<input class="form-control me-2" type="search" name="q" value="{{ query }}" placeholder="Search artists and artworks">
-	<button class="btn btn-outline-success" type="submit">Search</button>
+  <input class="form-control me-2" type="search" name="q" value="{{ query }}" placeholder="Search artists, artworks, and shows">
+  <button class="btn btn-outline-success" type="submit">Search</button>
 </form>
-<h1>Search Results</h1>
-{% for artist in artist_list %}
-<h3><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></h3>
-{% endfor %}
-{% for artwork in artwork_list %}
-<h3><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
-{% endfor %}
+
+{% if not query %}
+<p class="text-center text-gray-500">Enter a search term above.</p>
+{% elif not artist_list and not artwork_list and not show_list %}
+<p class="text-center text-gray-500">No results for &ldquo;{{ query }}&rdquo;.</p>
+{% else %}
+
+{% if show_list %}
+<div class="text-center section-label"><h2>Shows</h2></div>
+<div class="cards">
+  {% for show in show_list %}
+    {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if artist_list %}
+<div class="text-center section-label"><h2>Artists</h2></div>
+<div class="cards">
+  {% for artist in artist_list %}
+    {% include 'gallery/_artist_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if artwork_list %}
+<div class="text-center section-label"><h2>Artworks</h2></div>
+<div class="cards">
+  {% for artwork in artwork_list %}
+    {% include 'gallery/_artwork_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endif %}
 {% endblock %}

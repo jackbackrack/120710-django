@@ -10,20 +10,7 @@
 {% block content %}
 <div class="cards">
 {% for artist in artist_list %}
-  <div class="card">
-    {% if artist.image %}
-    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img src="{{ artist.card_thumbnail.url }}" class="card__image"></a>
-    {% endif %}
-    <div class="card__content">
-      <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>
-    </div>
-    <div class="card__info">
-    {% if artist.id in can_manage_artist %}
-      <a class="card__link" href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
-      <a class="card__link" href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
-    {% endif %}
-    </div>
-  </div>
+  {% include 'gallery/_artist_card.html' %}
 {% endfor %}
 </div>
 {% include 'includes/pagination.html' %}
