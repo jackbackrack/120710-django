@@ -55,12 +55,21 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
 
     def get_context_data(self, **kwargs):
         from gallery.permissions import can_manage_artist, can_manage_artwork
+        from gallery.models.submissions import ArtworkSubmission
         context = super().get_context_data(**kwargs)
         artist = self.object
         artworks = artist.artworks.filter(visible_artwork_queryset(self.request.user)).prefetch_related('shows').distinct()
         context['artworks'] = artworks
         context['can_manage_artist'] = can_manage_artist(self.request.user, artist)
         context['can_manage_artwork'] = {a.id for a in artworks if can_manage_artwork(self.request.user, a)}
+        user = self.request.user
+        if user.is_authenticated and artist.user == user:
+            context['my_submissions'] = (
+                ArtworkSubmission.objects
+                .filter(submitted_by=user)
+                .select_related('artwork', 'show')
+                .order_by('-submitted_at')
+            )
         return context
 
 

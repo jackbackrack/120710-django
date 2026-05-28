@@ -35,6 +35,26 @@
   </div>
 </div>
 </div>
+{% if my_submissions %}
+<div class="text-center section-label"><h2>My Submissions</h2></div>
+<div class="cards">
+  {% for sub in my_submissions %}
+  <div class="card">
+    {% if sub.artwork.image %}
+    <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a>
+      <p><a class="card__link" href="{{ sub.show.get_absolute_url }}">{{ sub.show.name }}</a></p>
+      {% if sub.statement %}<p>{{ sub.statement }}</p>{% endif %}
+    </div>
+    <div class="card__info">
+      <span>{{ sub.get_status_display }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 <div class="text-center section-label"><h2>Artworks</h2></div>
 {% if user.is_authenticated %}
 <div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_new' %}">New</a></div>
