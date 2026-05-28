@@ -37,12 +37,7 @@
           <p class="text-gray-500 text-xs"><strong>Medium: </strong>{{ artwork.medium }}</p>
           <p class="text-gray-500 text-xs"><strong>Dimensions: </strong>{{ artwork.formatted_dimensions }}</p>
           <p class="text-gray-500 text-sm"><strong>Price:</strong>
-            {% if artwork.price %}
-            ${{ artwork.price }}
-            {% endif %}
-            {% if artwork.pricing %}
-            {{ artwork.pricing }}
-            {% endif %}
+            {{ artwork.formatted_price }}
             {% if artwork.is_sold %}
             <strong>sold</strong>
             {% endif %}

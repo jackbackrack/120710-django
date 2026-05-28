@@ -42,6 +42,15 @@ class Artwork(models.Model):
         ordering = ['-created_at']
 
     @property
+    def formatted_price(self):
+        if self.pricing:
+            return self.pricing
+        if self.price is not None:
+            amount = int(self.price) if self.price == int(self.price) else self.price
+            return f'${amount:,}'
+        return ''
+
+    @property
     def formatted_dimensions(self):
         if self.width_inches is not None and self.height_inches is not None:
             fmt = lambda v: f'{v:g}"'
