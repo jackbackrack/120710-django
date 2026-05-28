@@ -1,4 +1,5 @@
-from django.db.models import Q
+from django.db.models import Q, CharField
+from django.db.models.functions import Cast
 from django.views.generic import ListView
 
 from gallery.models import Artist, Artwork, Show, Tag
@@ -20,7 +21,10 @@ class SearchResultsListView(ListView):
 
     def get_queryset(self):
         query = self.request.GET.get('q', '')
-        queryset = Artist.objects.filter(visible_artist_queryset(self.request.user), Q(name__icontains=query))
+        queryset = Artist.objects.filter(
+            visible_artist_queryset(self.request.user),
+            Q(name__icontains=query) | Q(bio__icontains=query) | Q(statement__icontains=query),
+        )
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, *args, **kwargs):
@@ -34,8 +38,15 @@ class SearchResultsListView(ListView):
 
         artwork_qs = (
             Artwork.objects
-            .filter(name__icontains=query)
-            .filter(visible_artwork_queryset(user))
+            .annotate(end_year_str=Cast('end_year', output_field=CharField()))
+            .filter(
+                visible_artwork_queryset(user),
+                Q(name__icontains=query)
+                | Q(medium__icontains=query)
+                | Q(description__icontains=query)
+                | Q(end_year_str__icontains=query)
+                | Q(artists__name__icontains=query),
+            )
             .prefetch_related('artists', 'shows')
             .distinct()
         )
@@ -45,7 +56,17 @@ class SearchResultsListView(ListView):
             a.id for a in artworks if can_manage_artwork(user, a)
         }
 
-        show_qs = Show.objects.filter(name__icontains=query).prefetch_related('curators', 'tags')
+        show_qs = (
+            Show.objects
+            .filter(
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(curators__name__icontains=query)
+                | Q(start__icontains=query)
+                | Q(end__icontains=query),
+            )
+            .prefetch_related('curators', 'tags')
+        )
         if not can_see_all_shows(user):
             show_qs = show_qs.filter(status__in=Show.PUBLIC_STATUSES)
         shows = list(tag_filter_queryset(show_qs, tag).distinct())
