@@ -40,6 +40,7 @@
     <a class="card__link" href="{% url 'account_profile' %}">Profile</a> |
     <a class="card__link" href="{% url 'account_change_password' %}">ChangePassword</a> |
     <a class="card__link" href="{% url 'account_logout' %}">LogOut</a>
+    {% if my_artist_name %}| <b>{{ my_artist_name }}</b>{% endif %}
   {% else %}
     <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
   {% endif %}
