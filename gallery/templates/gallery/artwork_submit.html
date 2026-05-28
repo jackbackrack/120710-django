@@ -5,24 +5,73 @@
 {% block block_title %}Submit Artwork to {{ show.name }}{% endblock %}
 
 {% block content %}
-<div class="col-6 mx-auto mt-4">
+<div class="col-8 mx-auto mt-4">
   {% if show.submission_deadline %}
-  <p class="text-gray-500 text-sm">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>
+  <p>Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>
   {% endif %}
   {% if show.decision_date %}
-  <p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>
+  <p>Decision date: <strong>{{ show.decision_date }}</strong></p>
   {% endif %}
 
-  {% if form.artwork.field.queryset.count == 0 %}
-  <p>You have no artworks available to submit — all of your artworks have already been submitted to this show.</p>
+  {% if not has_any_artworks %}
+  <p>You have no artworks yet. <a class="card__link" href="{% url 'gallery:artwork_new' %}">Add an artwork</a> before submitting to a show.</p>
   <a class="card__link" href="{{ show.get_absolute_url }}">Back to show</a>
+
+  {% elif not available_artworks %}
+  <p>All of your artworks have already been submitted to this show.</p>
+  <a class="card__link" href="{{ show.get_absolute_url }}">Back to show</a>
+
   {% else %}
   <form method="post">
     {% csrf_token %}
-    {{ form|crispy }}
+    {{ form.statement|as_crispy_field }}
+    <p class="mt-3 mb-2"><strong>Select an artwork to submit:</strong></p>
+    <div class="cards artwork-select-cards">
+      {% for artwork in available_artworks %}
+      <label class="artwork-select-label">
+        <input type="radio" name="artwork" value="{{ artwork.pk }}" required>
+        <div class="card">
+          {% if artwork.image %}
+          <img src="{{ artwork.card_thumbnail.url }}" class="card__image" alt="{{ artwork.name }}">
+          {% endif %}
+          <div class="card__content">
+            <h3>{{ artwork.name }}</h3>
+            <p>{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+          </div>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+    {% if form.artwork.errors %}
+    <div class="text-danger mt-2">{{ form.artwork.errors }}</div>
+    {% endif %}
     <button type="submit" class="btn btn-primary mt-3">Submit</button>
     <a class="card__link ms-3" href="{{ show.get_absolute_url }}">Cancel</a>
   </form>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.artwork-select-cards {
+  align-items: flex-start;
+}
+.artwork-select-label {
+  cursor: pointer;
+}
+.artwork-select-label input[type="radio"] {
+  display: none;
+}
+.artwork-select-label input[type="radio"]:checked + .card {
+  outline: 3px solid #64968c;
+  box-shadow: 0 0 0 2px #64968c44;
+}
+.artwork-select-label .card {
+  transition: outline 0.1s, box-shadow 0.1s;
+}
+.artwork-select-label:hover .card {
+  outline: 2px solid #aaa;
+}
+</style>
 {% endblock %}

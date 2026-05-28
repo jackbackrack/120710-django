@@ -85,6 +85,14 @@ def artwork_submit(request, slug):
     if not artist:
         return redirect(show)
 
+    already_submitted_ids = ArtworkSubmission.objects.filter(show=show).values_list('artwork_id', flat=True)
+    available_artworks = (
+        artist.artworks
+        .exclude(pk__in=already_submitted_ids)
+        .prefetch_related('artists')
+        .order_by('name')
+    )
+
     if request.method == 'POST':
         form = ArtworkSubmissionForm(request.POST, show=show, artist=artist)
         if form.is_valid():
@@ -98,7 +106,12 @@ def artwork_submit(request, slug):
     else:
         form = ArtworkSubmissionForm(show=show, artist=artist)
 
-    return render(request, 'gallery/artwork_submit.html', {'show': show, 'form': form})
+    return render(request, 'gallery/artwork_submit.html', {
+        'show': show,
+        'form': form,
+        'available_artworks': available_artworks,
+        'has_any_artworks': artist.artworks.exists(),
+    })
 
 
 @login_required
