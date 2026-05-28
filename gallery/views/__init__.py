@@ -22,6 +22,7 @@ from gallery.views.events import (
     EventUpdateView,
 )
 from gallery.views.exhibitions import (
+    ShowCatalogView,
     ShowCreateView,
     ShowDeleteView,
     ShowDetailView,
@@ -47,6 +48,7 @@ __all__ = [
     'ArtworkUpdateView',
     'ArtworkDeleteView',
     'ArtworkCreateView',
+    'ShowCatalogView',
     'ShowListView',
     'ShowDetailView',
     'ShowPlacardsView',

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ show.name }} — Catalog</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      font-size: 14px;
+      margin: 24px;
+      color: #222;
+    }
+
+    .no-print {
+      margin-bottom: 16px;
+    }
+
+    @media print {
+      .no-print { display: none; }
+      body { margin: 0; }
+    }
+
+    /* Show header */
+    .show-header {
+      margin-bottom: 24px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 16px;
+    }
+    .show-header h1 { font-size: 1.8rem; margin: 0 0 6px; }
+    .show-header .meta { color: #555; font-size: 0.9rem; }
+
+    /* Card grid */
+    .cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: flex-start;
+    }
+
+    .card {
+      width: 175px;
+      border: 2px solid #333;
+      background: #fafafa;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-bottom: 2px solid #333;
+    }
+
+    .card-body {
+      padding: 4px 6px;
+      line-height: 1.3;
+      font-size: 0.85rem;
+    }
+
+    .card-body .artwork-name {
+      font-weight: bold;
+      margin: 0 0 2px;
+    }
+
+    .card-body .artwork-year {
+      color: #555;
+      margin: 0 0 2px;
+      font-size: 0.8rem;
+    }
+
+    .card-body .artwork-artist {
+      margin: 0 0 2px;
+    }
+
+    .card-body .artwork-medium,
+    .card-body .artwork-dims,
+    .card-body .artwork-price {
+      color: #555;
+      margin: 0;
+      font-size: 0.8rem;
+    }
+
+    h2.section-label {
+      width: 100%;
+      margin: 20px 0 8px;
+      font-size: 1rem;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="no-print">
+  <button onclick="window.print()">Print catalog</button>
+  <a href="{{ show.get_absolute_url }}" style="margin-left: 12px;">← Back to show</a>
+</div>
+
+<div class="show-header">
+  {% if show.image %}<img src="{{ show.image.url }}" alt="{{ show.name }}" style="max-width:400px;display:block;margin-bottom:12px;border:2px solid #333;">{% endif %}
+  <h1>{{ show.name }}</h1>
+  {% if show.show_type == 'public_art' %}<p class="meta"><strong>Public Art Site</strong></p>{% endif %}
+  {% if show.location %}<p class="meta"><strong>Location:</strong> {{ show.location }}</p>{% endif %}
+  <p class="meta">{{ show.date_range }}</p>
+  <p class="meta"><strong>Curated by:</strong>
+    {% if show.curator_artist %}{{ show.curator_artist.name }}{% else %}Unassigned{% endif %}
+  </p>
+  {% if show.description %}<p style="margin-top:8px;">{{ show.description }}</p>{% endif %}
+  {% if show.is_open_call %}
+    {% if show.status == show.STATUS_OPEN_CALL %}
+      <p><strong>Open Call</strong> &mdash; Accepting submissions</p>
+      {% if show.submission_deadline %}<p class="meta">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>{% endif %}
+      {% if show.decision_date %}<p class="meta">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
+    {% elif show.status == show.STATUS_IN_REVIEW %}
+      <p><strong>Open Call</strong> &mdash; In jury review (submissions closed)</p>
+      {% if show.decision_date %}<p class="meta">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
+    {% endif %}
+  {% endif %}
+  {% for event in show.events.all %}
+  <p class="meta"><strong>{{ event.name }}:</strong> {{ event.date }}, {{ event.start }}–{{ event.end }}</p>
+  {% endfor %}
+</div>
+
+<div class="cards">
+  <h2 class="section-label">Artworks</h2>
+  {% for entry in artwork_data %}
+  {% with artwork=entry.artwork %}
+  <div class="card">
+    {% if artwork.image %}
+    <img src="{{ artwork.card_thumbnail.url }}" alt="{{ artwork.name }}">
+    {% endif %}
+    <div class="card-body">
+      <p class="artwork-name">{{ artwork.name }}</p>
+      <p class="artwork-year">{% if artwork.start_year and artwork.start_year != artwork.end_year %}{{ artwork.start_year }}–{% endif %}{{ artwork.end_year }}</p>
+      <p class="artwork-artist">{% for artist in artwork.artists.all %}{{ artist.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      {% if artwork.medium %}<p class="artwork-medium">{{ artwork.medium }}</p>{% endif %}
+      {% if artwork.formatted_dimensions %}<p class="artwork-dims">{{ artwork.formatted_dimensions }}</p>{% endif %}
+      {% if artwork.formatted_price %}<p class="artwork-price">{{ artwork.formatted_price }}{% if artwork.is_sold %} — sold{% endif %}</p>{% endif %}
+    </div>
+  </div>
+  {% endwith %}
+  {% empty %}
+  <p>No artworks in this show.</p>
+  {% endfor %}
+</div>
+
+{% if artists %}
+<div class="cards">
+  <h2 class="section-label">Artists</h2>
+  {% for artist in artists %}
+  <div class="card">
+    {% if artist.image %}
+    <img src="{{ artist.card_thumbnail.url }}" alt="{{ artist.name }}">
+    {% endif %}
+    <div class="card-body">
+      <p class="artwork-name">{{ artist.name }}</p>
+      {% if artist.bio %}<p style="font-size:0.8rem;color:#555;">{{ artist.bio|truncatewords:20 }}</p>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+</body>
+</html>

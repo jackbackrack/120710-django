@@ -101,6 +101,11 @@ def redirect_to_latest_show(request):
     return redirect('/shows/')
 
 
+class ShowCatalogView(ShowDetailView):
+    canonical_url_name = 'gallery:show_catalog'
+    template_name = 'gallery/show_catalog.html'
+
+
 class ShowPlacardsView(CanonicalSlugRedirectMixin, DetailView):
     model = Show
     canonical_url_name = 'gallery:show_placards_detail'
