@@ -53,6 +53,7 @@ class Show(models.Model):
     curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
     is_open_call = models.BooleanField(default=False)
     submission_deadline = models.DateField(blank=True, null=True)
+    review_deadline = models.DateField(blank=True, null=True, verbose_name='Review deadline (for jurors)')
     decision_date = models.DateField(blank=True, null=True)
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)

@@ -7,6 +7,7 @@ from django.db.models import Avg, Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from gallery.forms import ArtworkSubmissionForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
@@ -62,6 +63,33 @@ def _send_submission_confirmation(submission, request):
         html_message=html,
         fail_silently=True,
     )
+
+
+def send_juror_review_notifications(show, request):
+    """Email all assigned jurors when a show transitions to in_review."""
+    from reviews.models import ShowJuror
+    from gallery.models import ArtworkSubmission
+    submission_count = ArtworkSubmission.objects.filter(show=show).count()
+    dashboard_url = request.build_absolute_uri(
+        reverse('reviews:show_review_dashboard', kwargs={'show_slug': show.slug})
+    )
+    for assignment in ShowJuror.objects.filter(show=show).select_related('user'):
+        email = assignment.user.email
+        if not email:
+            continue
+        html = render_to_string('email/juror_review_notification.html', {
+            'show': show,
+            'submission_count': submission_count,
+            'dashboard_url': dashboard_url,
+        })
+        send_mail(
+            subject=f'Jury review open: {show.name}',
+            message=f'Jury review for {show.name} is now open. Please review {submission_count} submission(s) at {dashboard_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            html_message=html,
+            fail_silently=True,
+        )
 
 
 def send_submission_emails(show):

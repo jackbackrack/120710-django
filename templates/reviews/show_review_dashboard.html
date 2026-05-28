@@ -32,13 +32,30 @@
     </div>
     {% endif %}
 
-    <h2 class="mt-4">Jurors ({{ jurors.count }})</h2>
-    {% if jurors %}
-    <ul>
-      {% for assignment in jurors %}
-      <li>{{ assignment.user.artists.first.full_name|default:assignment.user.get_full_name|default:assignment.user.username }} — assigned {{ assignment.assigned_at|date:"N j, Y" }}</li>
-      {% endfor %}
-    </ul>
+    {% if all_jurors_done %}
+    <div class="alert alert-success mt-3">All jurors have finished reviewing all {{ total_submissions }} submission{{ total_submissions|pluralize }}.</div>
+    {% endif %}
+
+    <h2 class="mt-4">Juror Progress ({{ jurors|length }})</h2>
+    {% if show.review_deadline %}<p class="text-muted">Review deadline: <strong>{{ show.review_deadline }}</strong></p>{% endif %}
+    {% if juror_progress %}
+    <table class="table table-sm">
+      <thead>
+        <tr><th>Juror</th><th>Progress</th><th>Assigned</th></tr>
+      </thead>
+      <tbody>
+        {% for p in juror_progress %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>
+            {{ p.done }}&thinsp;/&thinsp;{{ p.total }}
+            {% if p.finished %}<span class="badge bg-success ms-1">Done</span>{% endif %}
+          </td>
+          <td>{{ p.assignment.assigned_at|date:"N j, Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
     <p class="text-muted">No jurors assigned to this show yet.</p>
     {% endif %}
@@ -124,6 +141,7 @@
     {% else %}
 
     {# Juror view #}
+    {% if show.review_deadline %}<p>Please complete your reviews by <strong>{{ show.review_deadline }}</strong>.</p>{% endif %}
     <h2>My Reviews ({{ my_reviews.count }})</h2>
     {% if my_reviews %}
     <table class="table table-sm">

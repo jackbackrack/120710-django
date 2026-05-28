@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>Hello,</p>
+<p>Submissions for <strong>{{ show.name }}</strong> are now closed and the jury review period has begun.</p>
+<p>You have been assigned as a juror. Please review all {{ submission_count }} submitted artwork{{ submission_count|pluralize }} at your earliest convenience.</p>
+{% if show.review_deadline %}
+<p><strong>Please complete your reviews by {{ show.review_deadline }}.</strong></p>
+{% endif %}
+<p><a href="{{ dashboard_url }}">Go to the review dashboard</a></p>
+<p>— The 120710 Team</p>
+</body>
+</html>

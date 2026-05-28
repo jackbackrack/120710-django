@@ -142,9 +142,13 @@ class ShowUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def form_valid(self, form):
         old_status = Show.objects.values_list('status', flat=True).get(pk=form.instance.pk)
         response = super().form_valid(form)
-        if old_status != Show.STATUS_PUBLISHED and self.object.status == Show.STATUS_PUBLISHED:
+        new_status = self.object.status
+        if old_status != Show.STATUS_PUBLISHED and new_status == Show.STATUS_PUBLISHED:
             from gallery.views.open_call import send_submission_emails
             send_submission_emails(self.object)
+        if old_status != Show.STATUS_IN_REVIEW and new_status == Show.STATUS_IN_REVIEW:
+            from gallery.views.open_call import send_juror_review_notifications
+            send_juror_review_notifications(self.object, self.request)
         return response
 
 

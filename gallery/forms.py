@@ -150,6 +150,7 @@ class ShowForm(UserAwareModelForm):
             'status',
             'is_open_call',
             'submission_deadline',
+            'review_deadline',
             'decision_date',
             'start',
             'end',
@@ -157,6 +158,7 @@ class ShowForm(UserAwareModelForm):
         )
         widgets = {
             'submission_deadline': forms.DateInput(attrs={'type': 'date'}),
+            'review_deadline': forms.DateInput(attrs={'type': 'date'}),
             'decision_date': forms.DateInput(attrs={'type': 'date'}),
             'start': forms.DateInput(attrs={'type': 'date'}),
             'end': forms.DateInput(attrs={'type': 'date'}),

@@ -52,12 +52,31 @@ def show_review_dashboard(request, show_slug):
             .prefetch_related('criterion_scores__criterion')
             .order_by('artwork__name', 'juror__last_name')
         )
-        jurors = show.jurors.select_related('user').order_by('user__last_name')
+        jurors = list(show.jurors.select_related('user').order_by('user__last_name'))
+        total_submissions = Artwork.objects.filter(submissions__show=show).count()
+        review_counts = {
+            row['juror']: row['n']
+            for row in ArtworkReview.objects.filter(show=show).values('juror').annotate(n=Count('id'))
+        }
+        juror_progress = [
+            {
+                'assignment': j,
+                'name': j.user.artists.first().full_name if j.user.artists.exists() else (j.user.get_full_name() or j.user.username),
+                'done': review_counts.get(j.user_id, 0),
+                'total': total_submissions,
+                'finished': review_counts.get(j.user_id, 0) >= total_submissions and total_submissions > 0,
+            }
+            for j in jurors
+        ]
+        all_jurors_done = bool(jurors) and total_submissions > 0 and all(p['finished'] for p in juror_progress)
         context = {
             'show': show,
             'artworks': artworks,
             'all_reviews': all_reviews,
             'jurors': jurors,
+            'juror_progress': juror_progress,
+            'all_jurors_done': all_jurors_done,
+            'total_submissions': total_submissions,
             'criteria': criteria,
             'is_curator': True,
         }
