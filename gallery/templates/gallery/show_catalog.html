@@ -134,7 +134,7 @@
   {% with artwork=entry.artwork %}
   <div class="card">
     {% if artwork.image %}
-    <img src="{{ artwork.image.url }}" alt="{{ artwork.name }}">
+    <img src="{{ artwork.card_thumbnail.url }}" alt="{{ artwork.name }}">
     {% endif %}
     <div class="card-body">
       <p class="artwork-name">{{ artwork.name }}</p>
@@ -159,7 +159,7 @@
   {% for artist in artists %}
   <div class="card">
     {% if artist.image %}
-    <img src="{{ artist.image.url }}" alt="{{ artist.name }}">
+    <img src="{{ artist.card_thumbnail.url }}" alt="{{ artist.name }}">
     {% endif %}
     <div class="card-body">
       <p class="artwork-name">{{ artist.full_name }}</p>
