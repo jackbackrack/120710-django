@@ -871,18 +871,22 @@ class OpenCallFlowTests(TestCase):
         sub.refresh_from_db()
         self.assertEqual(sub.status, ArtworkSubmission.SELECTED)
 
-        # 3. Curator promotes — adds artwork/artist to show, no email yet
+        # confirmation email sent on submit
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
+
+        # 3. Curator promotes — adds artwork/artist to show, no additional emails
         self.client.post(
             reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
         )
         self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
         self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
-        self.assertEqual(len(mail.outbox), 0)
-
-        # 4. Curator publishes — emails now sent
-        self._publish_show()
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
+
+        # 4. Curator publishes — acceptance email sent
+        self._publish_show()
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn(self.artist_user.email, mail.outbox[1].recipients())
 
 
 @override_settings(

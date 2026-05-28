@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>Thank you for your submission!</p>
+<p>We have received <strong>{{ artwork.name }}</strong> for <strong>{{ show.name }}</strong>.</p>
+{% if show.submission_deadline %}
+<p>The submission deadline is <strong>{{ show.submission_deadline }}</strong>.</p>
+{% endif %}
+{% if show.decision_date %}
+<p>We expect to notify artists of our decisions by <strong>{{ show.decision_date }}</strong>.</p>
+{% endif %}
+<p>You can view and manage your submission on the <a href="{{ show_url }}">show page</a>.</p>
+<p>— The 120710 Team</p>
+</body>
+</html>

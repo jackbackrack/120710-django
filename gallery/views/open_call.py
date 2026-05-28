@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.mail import send_mail
@@ -40,6 +41,29 @@ def _send_selection_email(submission, accepted):
 
 
 
+def _send_submission_confirmation(submission, request):
+    if not submission.submitted_by:
+        return
+    email = submission.submitted_by.email
+    if not email:
+        return
+    show = submission.show
+    html = render_to_string('email/artwork_submission_confirmation.html', {
+        'submission': submission,
+        'show': show,
+        'artwork': submission.artwork,
+        'show_url': request.build_absolute_uri(show.get_absolute_url()),
+    })
+    send_mail(
+        subject=f'Submission received: {submission.artwork.name} → {show.name}',
+        message=f'Your artwork "{submission.artwork.name}" has been submitted to {show.name}.',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        html_message=html,
+        fail_silently=True,
+    )
+
+
 def send_submission_emails(show):
     """Send acceptance/rejection emails to all submitters. Called when a show is published."""
     subs = (
@@ -68,6 +92,8 @@ def artwork_submit(request, slug):
             submission.show = show
             submission.submitted_by = request.user
             submission.save()
+            messages.success(request, f'"{submission.artwork.name}" has been submitted to {show.name}.')
+            _send_submission_confirmation(submission, request)
             return redirect(show)
     else:
         form = ArtworkSubmissionForm(show=show, artist=artist)
