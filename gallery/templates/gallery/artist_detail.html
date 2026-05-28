@@ -80,4 +80,12 @@
   </div>
   {% endfor %}
 </div>
+{% if shows %}
+<div class="text-center section-label"><h2>Shows</h2></div>
+<div class="cards">
+  {% for show in shows %}
+  {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}
