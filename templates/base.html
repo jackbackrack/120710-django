@@ -23,7 +23,7 @@
   <body>
   <header>
   <div class="text-center">
-    <img width="50px" src="{% static 'img/120710-box-logo-03.png' %}">
+    <a href="{% url 'index' %}"><img width="50px" src="{% static 'img/120710-box-logo-03.png' %}"></a>
     <b>{% block block_title %}{% endblock %} | 120710</b> -
     <a class="card__link" href="{% url 'index'%}">Home</a>
     | <a class="card__link" href="{% url 'gallery:show_list'%}">Shows</a>
