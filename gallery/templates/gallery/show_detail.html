@@ -26,11 +26,11 @@
     {% endif %}
     {% if show.is_open_call %}
     <div class="mt-3">
-      {% if show.open_call_phase == 'open' %}
+      {% if show.status == show.STATUS_OPEN_CALL %}
         <p><strong>Open Call</strong> &mdash; Accepting submissions</p>
         {% if show.submission_deadline %}<p class="text-gray-500 text-sm">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>{% endif %}
         {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
-      {% elif show.open_call_phase == 'jury' %}
+      {% elif show.status == show.STATUS_IN_REVIEW %}
         <p><strong>Open Call</strong> &mdash; In jury review (submissions closed)</p>
         {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
       {% endif %}

@@ -1,7 +1,4 @@
 import datetime
-import zoneinfo
-
-_PACIFIC = zoneinfo.ZoneInfo('America/Los_Angeles')
 
 from django.db import models
 from django.urls import reverse
@@ -20,6 +17,31 @@ class Show(models.Model):
         (SHOW_TYPE_PUBLIC_ART, 'Public Art Site'),
     ]
 
+    STATUS_UNDER_CONSIDERATION = 'under_consideration'
+    STATUS_OPEN_CALL = 'open_call'
+    STATUS_IN_REVIEW = 'in_review'
+    STATUS_DRAFT = 'draft'
+    STATUS_PUBLISHED = 'published'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_UNDER_CONSIDERATION, 'Under Consideration'),
+        (STATUS_OPEN_CALL, 'Open Call'),
+        (STATUS_IN_REVIEW, 'In Review'),
+        (STATUS_DRAFT, 'Draft'),
+        (STATUS_PUBLISHED, 'Published'),
+        (STATUS_CLOSED, 'Closed'),
+    ]
+    PUBLIC_STATUSES = {STATUS_OPEN_CALL, STATUS_IN_REVIEW, STATUS_PUBLISHED, STATUS_CLOSED}
+
+    VALID_TRANSITIONS = {
+        STATUS_UNDER_CONSIDERATION: [STATUS_OPEN_CALL, STATUS_DRAFT],
+        STATUS_OPEN_CALL: [STATUS_IN_REVIEW],
+        STATUS_IN_REVIEW: [STATUS_DRAFT],
+        STATUS_DRAFT: [STATUS_PUBLISHED],
+        STATUS_PUBLISHED: [STATUS_CLOSED],
+        STATUS_CLOSED: [],
+    }
+
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     show_type = models.CharField(max_length=32, choices=SHOW_TYPE_CHOICES, default=SHOW_TYPE_GALLERY)
@@ -34,6 +56,7 @@ class Show(models.Model):
     decision_date = models.DateField(blank=True, null=True)
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_UNDER_CONSIDERATION)
     tags = models.ManyToManyField('gallery.Tag', related_name='shows', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -76,20 +99,26 @@ class Show(models.Model):
           end = self.end.strftime("%b %d, %Y")
         return f"{start} – {end}"
 
+    def transition_to(self, new_status):
+        allowed = self.VALID_TRANSITIONS.get(self.status, [])
+        if new_status not in allowed:
+            raise ValueError(
+                f'Cannot transition from {self.status!r} to {new_status!r}. Allowed: {allowed}'
+            )
+        self.status = new_status
+        self.save()
+
     @property
     def is_accepting_submissions(self):
-        if not self.is_open_call:
-            return False
-        if self.submission_deadline:
-            today_pacific = datetime.datetime.now(_PACIFIC).date()
-            return self.submission_deadline >= today_pacific
-        return True
+        return self.status == self.STATUS_OPEN_CALL
 
     @property
     def open_call_phase(self):
-        if not self.is_open_call:
-            return None
-        return 'open' if self.is_accepting_submissions else 'jury'
+        if self.status == self.STATUS_OPEN_CALL:
+            return 'open'
+        if self.status == self.STATUS_IN_REVIEW:
+            return 'jury'
+        return None
 
     @property
     def curator_artist(self):

@@ -24,8 +24,8 @@
         {% if hero_show.curators.all %}<br>{% endif %}
         {% if hero_show.location %}<small>{{ hero_show.location }}</small><br>{% endif %}
         {{ hero_show.date_range }}
-        {% if hero_show.open_call_phase == 'open' %}<br>Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}{% endif %}
-        {% if hero_show.open_call_phase == 'jury' %}<br>Open Call &middot; Jury Review{% endif %}
+        {% if hero_show.status == hero_show.STATUS_OPEN_CALL %}<br>Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}{% endif %}
+        {% if hero_show.status == hero_show.STATUS_IN_REVIEW %}<br>Open Call &middot; Jury Review{% endif %}
         {% for event in hero_show.events.all %}
           <br><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.start }} - {{ event.end }}
         {% endfor %}

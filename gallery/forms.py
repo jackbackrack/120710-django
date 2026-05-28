@@ -147,6 +147,7 @@ class ShowForm(UserAwareModelForm):
             'location',
             'description',
             'image',
+            'status',
             'is_open_call',
             'submission_deadline',
             'decision_date',
@@ -173,6 +174,8 @@ class ShowForm(UserAwareModelForm):
             self.fields['artists'].initial = self.instance.artists.all()
             self.fields['artworks'].initial = self.instance.artworks.all()
             self.fields['curators'].initial = self.instance.curators.all()
+        if not is_staff_user(self.user) and not is_curator_user(self.user):
+            self.fields.pop('status')
 
     def save(self, commit=True):
         show = super().save(commit=commit)

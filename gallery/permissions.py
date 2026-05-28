@@ -105,6 +105,10 @@ def is_juror_for_show(user, show):
     return show.jurors.filter(user=user).exists()
 
 
+def can_see_all_shows(user):
+    return is_staff_user(user) or is_curator_user(user) or is_juror_user(user)
+
+
 def can_view_reviews(user, show):
     """Show managers/staff and assigned jurors can view reviews for a show."""
     return bool(

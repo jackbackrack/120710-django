@@ -101,6 +101,7 @@ class PublicUrlTests(TestCase):
             name='Spring Show',
             start=datetime.date.today(),
             end=datetime.date.today() + datetime.timedelta(days=7),
+            status=Show.STATUS_PUBLISHED,
         )
         self.show.curators.add(self.artist)
         self.artwork = Artwork.objects.create(
@@ -403,8 +404,10 @@ class AuthorizationWorkflowTests(TestCase):
             'description': self.show.description or '',
             'start': self.show.start,
             'end': self.show.end,
+            'status': self.show.status,
             'artists': [self.artist.pk],
             'artworks': [self.private_artwork.pk],
+            'curators': [self.curator_artist.pk],
             'tags': [],
         })
 
@@ -532,6 +535,7 @@ class OpenCallFlowTests(TestCase):
             end=datetime.date.today() + datetime.timedelta(days=60),
             is_open_call=True,
             submission_deadline=datetime.date.today() + datetime.timedelta(days=7),
+            status=Show.STATUS_OPEN_CALL,
         )
         self.show.curators.add(self.curator_artist)
 
@@ -547,27 +551,25 @@ class OpenCallFlowTests(TestCase):
     def test_show_is_accepting_submissions_within_deadline(self):
         self.assertTrue(self.show.is_accepting_submissions)
 
-    def test_show_is_not_accepting_submissions_after_deadline(self):
-        self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
-        self.show.save(update_fields=['submission_deadline'])
+    def test_show_is_not_accepting_submissions_when_in_review(self):
+        self.show.status = Show.STATUS_IN_REVIEW
+        self.show.save(update_fields=['status'])
         self.assertFalse(self.show.is_accepting_submissions)
 
     def test_show_open_call_phase_is_open_before_deadline(self):
         self.assertEqual(self.show.open_call_phase, 'open')
 
-    def test_show_open_call_phase_is_jury_after_deadline(self):
-        self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
-        self.show.save(update_fields=['submission_deadline'])
+    def test_show_open_call_phase_is_jury_when_in_review(self):
+        self.show.status = Show.STATUS_IN_REVIEW
+        self.show.save(update_fields=['status'])
         self.assertEqual(self.show.open_call_phase, 'jury')
 
-    def test_non_open_call_show_has_no_phase(self):
-        closed_show = Show.objects.create(
-            name='Closed Show',
-            start=datetime.date.today(),
-            end=datetime.date.today() + datetime.timedelta(days=7),
-            is_open_call=False,
-        )
-        self.assertIsNone(closed_show.open_call_phase)
+    def test_show_not_in_open_call_or_review_status_has_no_phase(self):
+        for status in (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_DRAFT,
+                       Show.STATUS_PUBLISHED, Show.STATUS_CLOSED):
+            with self.subTest(status=status):
+                self.show.status = status
+                self.assertIsNone(self.show.open_call_phase)
 
     # --- Submission flow ---
 
@@ -607,15 +609,15 @@ class OpenCallFlowTests(TestCase):
         # Already-submitted artwork should not appear in the form choices
         self.assertNotContains(response, self.artwork.name)
 
-    def test_submission_blocked_after_deadline(self):
-        self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
-        self.show.save(update_fields=['submission_deadline'])
+    def test_submission_blocked_when_status_is_in_review(self):
+        self.show.status = Show.STATUS_IN_REVIEW
+        self.show.save(update_fields=['status'])
         self.client.force_login(self.artist_user)
 
         response = self.client.get(
             reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
         )
-        # Should redirect away (show is no longer accepting)
+        # Status is In Review — no longer accepting, should redirect away
         self.assertEqual(response.status_code, 302)
 
     def test_unauthenticated_user_cannot_submit(self):
@@ -840,3 +842,284 @@ class OpenCallFlowTests(TestCase):
         self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+)
+class ShowStatusTests(TestCase):
+    """Tests for Show status state machine: transitions, visibility, and access control."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='staff@example.com', email='staff@example.com', password='pw'
+        )
+        add_staff_role(self.staff_user)
+
+        self.curator_user = User.objects.create_user(
+            username='curator@example.com', email='curator@example.com', password='pw'
+        )
+        self.curator_artist = Artist.objects.create(
+            user=self.curator_user,
+            name='Curator One',
+            first_name='Curator',
+            last_name='One',
+            email='curator@example.com',
+            phone='',
+        )
+
+        self.juror_user = User.objects.create_user(
+            username='juror@example.com', email='juror@example.com', password='pw'
+        )
+
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='pw'
+        )
+
+        self.show = Show.objects.create(
+            name='Test Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+        )
+        self.show.curators.add(self.curator_artist)
+
+        from reviews.models import ShowJuror
+        ShowJuror.objects.create(show=self.show, user=self.juror_user)
+
+    # --- Default and initial state ---
+
+    def test_default_status_is_under_consideration(self):
+        show = Show.objects.create(name='New Show', start=datetime.date.today(), end=datetime.date.today())
+        self.assertEqual(show.status, Show.STATUS_UNDER_CONSIDERATION)
+
+    # --- transition_to() ---
+
+    def test_valid_transitions_succeed(self):
+        transitions = [
+            (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_OPEN_CALL),
+            (Show.STATUS_OPEN_CALL, Show.STATUS_IN_REVIEW),
+            (Show.STATUS_IN_REVIEW, Show.STATUS_DRAFT),
+            (Show.STATUS_DRAFT, Show.STATUS_PUBLISHED),
+            (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED),
+        ]
+        show = Show.objects.create(name='Transition Show', start=datetime.date.today(), end=datetime.date.today())
+        for from_status, to_status in transitions:
+            with self.subTest(from_status=from_status, to_status=to_status):
+                show.status = from_status
+                show.save(update_fields=['status'])
+                show.transition_to(to_status)
+                show.refresh_from_db()
+                self.assertEqual(show.status, to_status)
+
+    def test_invalid_transition_raises_value_error(self):
+        invalid = [
+            (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_PUBLISHED),
+            (Show.STATUS_OPEN_CALL, Show.STATUS_DRAFT),
+            (Show.STATUS_IN_REVIEW, Show.STATUS_OPEN_CALL),
+            (Show.STATUS_PUBLISHED, Show.STATUS_DRAFT),
+            (Show.STATUS_CLOSED, Show.STATUS_PUBLISHED),
+        ]
+        show = Show.objects.create(name='Invalid Show', start=datetime.date.today(), end=datetime.date.today())
+        for from_status, to_status in invalid:
+            with self.subTest(from_status=from_status, to_status=to_status):
+                show.status = from_status
+                show.save(update_fields=['status'])
+                with self.assertRaises(ValueError):
+                    show.transition_to(to_status)
+
+    def test_under_consideration_can_also_transition_to_draft(self):
+        show = Show.objects.create(name='Draft Show', start=datetime.date.today(), end=datetime.date.today())
+        show.transition_to(Show.STATUS_DRAFT)
+        self.assertEqual(show.status, Show.STATUS_DRAFT)
+
+    # --- is_accepting_submissions ---
+
+    def test_accepting_submissions_when_open_call_status_and_within_deadline(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.is_open_call = True
+        self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=3)
+        self.show.save(update_fields=['status', 'is_open_call', 'submission_deadline'])
+        self.assertTrue(self.show.is_accepting_submissions)
+
+    def test_not_accepting_when_status_is_not_open_call(self):
+        self.show.is_open_call = True
+        self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=3)
+        for status in (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_IN_REVIEW,
+                       Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED):
+            with self.subTest(status=status):
+                self.show.status = status
+                self.assertFalse(self.show.is_accepting_submissions)
+
+    def test_accepting_when_open_call_status_regardless_of_deadline(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.is_open_call = True
+        self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
+        self.show.save(update_fields=['status', 'is_open_call', 'submission_deadline'])
+        # Deadline is informational only — only status controls acceptance
+        self.assertTrue(self.show.is_accepting_submissions)
+
+    # --- open_call_phase ---
+
+    def test_open_call_phase_is_open_when_status_is_open_call(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.assertEqual(self.show.open_call_phase, 'open')
+
+    def test_open_call_phase_is_jury_when_status_is_in_review(self):
+        self.show.status = Show.STATUS_IN_REVIEW
+        self.assertEqual(self.show.open_call_phase, 'jury')
+
+    def test_open_call_phase_is_none_for_non_call_statuses(self):
+        for status in (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_DRAFT,
+                       Show.STATUS_PUBLISHED, Show.STATUS_CLOSED):
+            with self.subTest(status=status):
+                self.show.status = status
+                self.assertIsNone(self.show.open_call_phase)
+
+    # --- Show list visibility ---
+
+    def test_public_user_only_sees_public_status_shows(self):
+        for status in Show.PUBLIC_STATUSES:
+            Show.objects.create(
+                name=f'Public {status}', start=datetime.date.today(),
+                end=datetime.date.today(), status=status,
+            )
+
+        response = self.client.get(reverse('gallery:show_list'))
+        self.assertEqual(response.status_code, 200)
+
+        for show in response.context['object_list']:
+            self.assertIn(show.status, Show.PUBLIC_STATUSES)
+
+    def test_public_user_does_not_see_under_consideration_shows(self):
+        private = Show.objects.create(
+            name='Private Show', start=datetime.date.today(),
+            end=datetime.date.today(), status=Show.STATUS_UNDER_CONSIDERATION,
+        )
+        response = self.client.get(reverse('gallery:show_list'))
+        ids = [s.id for s in response.context['object_list']]
+        self.assertNotIn(private.id, ids)
+
+    def test_public_user_does_not_see_draft_shows(self):
+        draft = Show.objects.create(
+            name='Draft Show', start=datetime.date.today(),
+            end=datetime.date.today(), status=Show.STATUS_DRAFT,
+        )
+        response = self.client.get(reverse('gallery:show_list'))
+        ids = [s.id for s in response.context['object_list']]
+        self.assertNotIn(draft.id, ids)
+
+    def test_staff_sees_all_shows_regardless_of_status(self):
+        Show.objects.create(
+            name='Hidden Show', start=datetime.date.today(),
+            end=datetime.date.today(), status=Show.STATUS_UNDER_CONSIDERATION,
+        )
+        self.client.force_login(self.staff_user)
+        response = self.client.get(reverse('gallery:show_list'))
+        statuses = {s.status for s in response.context['object_list']}
+        self.assertIn(Show.STATUS_UNDER_CONSIDERATION, statuses)
+
+    def test_curator_sees_all_shows_regardless_of_status(self):
+        Show.objects.create(
+            name='Hidden Show', start=datetime.date.today(),
+            end=datetime.date.today(), status=Show.STATUS_UNDER_CONSIDERATION,
+        )
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:show_list'))
+        statuses = {s.status for s in response.context['object_list']}
+        self.assertIn(Show.STATUS_UNDER_CONSIDERATION, statuses)
+
+    def test_juror_sees_all_shows_regardless_of_status(self):
+        Show.objects.create(
+            name='Hidden Show', start=datetime.date.today(),
+            end=datetime.date.today(), status=Show.STATUS_UNDER_CONSIDERATION,
+        )
+        self.client.force_login(self.juror_user)
+        response = self.client.get(reverse('gallery:show_list'))
+        statuses = {s.status for s in response.context['object_list']}
+        self.assertIn(Show.STATUS_UNDER_CONSIDERATION, statuses)
+
+    # --- Show detail visibility ---
+
+    def test_public_user_gets_404_for_under_consideration_show(self):
+        self.show.status = Show.STATUS_UNDER_CONSIDERATION
+        self.show.save(update_fields=['status'])
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_user_gets_404_for_draft_show(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_user_can_view_all_public_status_shows(self):
+        for status in Show.PUBLIC_STATUSES:
+            with self.subTest(status=status):
+                self.show.status = status
+                self.show.save(update_fields=['status'])
+                response = self.client.get(self.show.get_absolute_url())
+                self.assertEqual(response.status_code, 200)
+
+    def test_staff_can_view_under_consideration_show(self):
+        self.show.status = Show.STATUS_UNDER_CONSIDERATION
+        self.show.save(update_fields=['status'])
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+    def test_curator_can_view_draft_show(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        self.client.force_login(self.curator_user)
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+    def test_juror_can_view_under_consideration_show(self):
+        self.show.status = Show.STATUS_UNDER_CONSIDERATION
+        self.show.save(update_fields=['status'])
+        self.client.force_login(self.juror_user)
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+    def test_regular_artist_cannot_view_draft_show(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        self.client.force_login(self.artist_user)
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+
+    # --- Index page ---
+
+    def test_index_hides_non_public_shows_for_anonymous_users(self):
+        private = Show.objects.create(
+            name='Private Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=1),
+            status=Show.STATUS_UNDER_CONSIDERATION,
+        )
+        response = self.client.get(reverse('index'))
+        all_shows = (
+            list(response.context['current_shows'])
+            + list(response.context['future_shows'])
+            + list(response.context['past_shows'])
+        )
+        ids = [s.id for s in all_shows]
+        self.assertNotIn(private.id, ids)
+
+    def test_index_shows_non_public_shows_for_staff(self):
+        private = Show.objects.create(
+            name='Private Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=1),
+            status=Show.STATUS_UNDER_CONSIDERATION,
+        )
+        self.client.force_login(self.staff_user)
+        response = self.client.get(reverse('index'))
+        all_shows = (
+            list(response.context['current_shows'])
+            + list(response.context['future_shows'])
+            + list(response.context['past_shows'])
+        )
+        ids = [s.id for s in all_shows]
+        self.assertIn(private.id, ids)

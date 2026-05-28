@@ -5,12 +5,14 @@ from django.shortcuts import render
 from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import Event, Show
-from gallery.permissions import can_manage_show, is_curator_user, is_juror_user, is_staff_user
+from gallery.permissions import can_manage_show, can_see_all_shows, is_curator_user, is_juror_user, is_staff_user
 
 
 def index(request):
     today = dt.date.today()
     base = Show.objects.prefetch_related('curators', 'tags', 'events')
+    if not can_see_all_shows(request.user):
+        base = base.filter(status__in=Show.PUBLIC_STATUSES)
     current_shows = list(base.filter(start__lte=today, end__gte=today).order_by('-start'))
     future_shows = list(base.filter(start__gt=today).order_by('start'))
     past_shows = list(base.filter(end__lt=today).order_by('-start'))

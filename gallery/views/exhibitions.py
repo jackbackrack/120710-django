@@ -12,7 +12,7 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
-from gallery.permissions import can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import can_manage_show, can_see_all_shows, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -21,10 +21,10 @@ class ShowListView(ListView):
     template_name = 'gallery/show_list.html'
 
     def get_queryset(self):
-        return tag_filter_queryset(
-            Show.objects.prefetch_related('curators', 'tags'),
-            self.request.GET.get('tag'),
-        ).distinct()
+        qs = Show.objects.prefetch_related('curators', 'tags')
+        if not can_see_all_shows(self.request.user):
+            qs = qs.filter(status__in=Show.PUBLIC_STATUSES)
+        return tag_filter_queryset(qs, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -44,6 +44,12 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
     model = Show
     schema_mapper = show_to_schema
     template_name = 'gallery/show_detail.html'
+
+    def get_queryset(self):
+        qs = Show.objects.all()
+        if not can_see_all_shows(self.request.user):
+            qs = qs.filter(status__in=Show.PUBLIC_STATUSES)
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
