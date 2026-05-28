@@ -1,4 +1,7 @@
 import datetime
+import zoneinfo
+
+_PACIFIC = zoneinfo.ZoneInfo('America/Los_Angeles')
 
 from django.db import models
 from django.urls import reverse
@@ -78,7 +81,8 @@ class Show(models.Model):
         if not self.is_open_call:
             return False
         if self.submission_deadline:
-            return self.submission_deadline >= datetime.date.today()
+            today_pacific = datetime.datetime.now(_PACIFIC).date()
+            return self.submission_deadline >= today_pacific
         return True
 
     @property
