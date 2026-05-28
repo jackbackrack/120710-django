@@ -113,6 +113,11 @@ body {
     text-decoration: underline;
 }
 
+.nav-active {
+    font-weight: bold;
+    text-decoration: underline;
+}
+
 #footer {
     display: flex;
     flex-direction: row;
