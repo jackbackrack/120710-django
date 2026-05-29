@@ -1,0 +1,51 @@
+{% if group %}
+<div class="text-center section-label"><h3>{{ label }} ({{ group|length }})</h3></div>
+<table class="table table-sm align-middle mb-4">
+  <thead>
+    <tr>
+      <th>Artwork</th>
+      <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Score</th>
+      <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Reviews</th>
+      <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Decision</th>
+      <th style="width:1%;padding-left:1rem;padding-right:1rem"></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for sub in group %}
+  <tr class="{{ row_class }}">
+    <td>
+      <div class="card" style="width:175px;display:inline-block;vertical-align:top">
+        {% if sub.artwork.image %}
+        <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image"></a>
+        {% endif %}
+        <div class="card__content">
+          <h3 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h3>
+          <p class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+          {% if sub.statement %}<p class="text-sm text-muted">{{ sub.statement|truncatewords:15 }}</p>{% endif %}
+        </div>
+      </div>
+    </td>
+    <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">{% if sub.avg_rating %}{{ sub.avg_rating|floatformat:1 }}/10{% else %}&mdash;{% endif %}</td>
+    <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">{{ sub.review_count }}</td>
+    <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">
+      {% if can_manage %}
+      <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}">
+        {% csrf_token %}
+        <select name="decision" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto">
+          <option value="undecided" {% if sub.curator_decision == 'undecided' %}selected{% endif %}>Undecided</option>
+          <option value="selected" {% if sub.curator_decision == 'selected' %}selected{% endif %}>Selected</option>
+          <option value="rejected" {% if sub.curator_decision == 'rejected' %}selected{% endif %}>Rejected</option>
+        </select>
+      </form>
+      {% else %}
+      {{ sub.get_status_display }}
+      {% endif %}
+    </td>
+    <td style="width:1%;padding-left:1rem;padding-right:1rem">
+      <a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=sub.artwork.slug %}">Review</a>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
