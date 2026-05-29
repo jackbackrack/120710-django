@@ -217,6 +217,28 @@ def show_juror_assignment(request, show_slug):
 
 
 @login_required
+def copy_rubric_from_show(request, show_slug):
+    show = get_object_or_404(Show, slug=show_slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    if request.method == 'POST':
+        source_slug = request.POST.get('source_show')
+        source = get_object_or_404(Show, slug=source_slug)
+        source_criteria = list(source.rubric_criteria.order_by('order'))
+        if source_criteria:
+            RubricCriterion.objects.filter(show=show).delete()
+            for c in source_criteria:
+                RubricCriterion.objects.create(
+                    show=show,
+                    name=c.name,
+                    description=c.description,
+                    weight=c.weight,
+                    order=c.order,
+                )
+    return redirect('reviews:manage_rubric_criteria', show_slug=show.slug)
+
+
+@login_required
 def manage_rubric_criteria(request, show_slug):
     show = get_object_or_404(Show, slug=show_slug)
     if not can_manage_show(request.user, show):
@@ -237,9 +259,17 @@ def manage_rubric_criteria(request, show_slug):
     else:
         formset = RubricCriterionFormSet(queryset=qs)
 
+    other_shows = (
+        Show.objects
+        .filter(rubric_criteria__isnull=False)
+        .exclude(pk=show.pk)
+        .distinct()
+        .order_by('name')
+    )
     context = {
         'show': show,
         'formset': formset,
         'criteria': qs,
+        'other_shows': other_shows,
     }
     return render(request, 'reviews/rubric_criteria.html', context)
