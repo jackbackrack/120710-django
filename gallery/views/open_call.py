@@ -166,22 +166,30 @@ def show_submissions(request, slug):
         .order_by('-avg_rating', 'artwork__name')
     )
 
-    if request.method == 'POST' and can_manage_show(request.user, show):
-        for sub in ArtworkSubmission.objects.filter(show=show):
-            new_status = request.POST.get(f'status_{sub.id}')
-            if new_status in {ArtworkSubmission.SUBMITTED, ArtworkSubmission.SELECTED, ArtworkSubmission.REJECTED}:
-                if sub.status != new_status:
-                    sub.status = new_status
-                    sub.save(update_fields=['status'])
-        return redirect('gallery:show_submissions', slug=slug)
-
+    submissions = list(submissions)
     context = {
         'show': show,
         'submissions': submissions,
+        'selected_submissions': [s for s in submissions if s.status == ArtworkSubmission.SELECTED],
+        'n_selected': sum(1 for s in submissions if s.status == ArtworkSubmission.SELECTED),
+        'n_rejected': sum(1 for s in submissions if s.status == ArtworkSubmission.REJECTED),
+        'n_submitted': sum(1 for s in submissions if s.status == ArtworkSubmission.SUBMITTED),
         'can_manage': can_manage_show(request.user, show),
-        'status_choices': ArtworkSubmission.STATUS_CHOICES,
     }
     return render(request, 'gallery/show_submissions.html', context)
+
+
+@login_required
+def update_submission_status(request, pk):
+    submission = get_object_or_404(ArtworkSubmission, pk=pk)
+    if not can_manage_show(request.user, submission.show):
+        raise Http404
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        if new_status in {ArtworkSubmission.SUBMITTED, ArtworkSubmission.SELECTED, ArtworkSubmission.REJECTED}:
+            submission.status = new_status
+            submission.save(update_fields=['status'])
+    return redirect('gallery:show_submissions', slug=submission.show.slug)
 
 
 @login_required
@@ -190,24 +198,24 @@ def promote_artworks(request, slug):
     if not can_manage_show(request.user, show):
         raise Http404
 
-    selected = list(
+    selected_subs = list(
         ArtworkSubmission.objects.filter(show=show, status=ArtworkSubmission.SELECTED)
         .select_related('artwork', 'submitted_by')
         .prefetch_related('artwork__artists')
+        .order_by('submitted_at')
     )
-    rejected = list(
+    rejected_subs = list(
         ArtworkSubmission.objects.filter(show=show, status=ArtworkSubmission.REJECTED)
         .select_related('artwork', 'submitted_by')
         .prefetch_related('artwork__artists')
     )
 
+    current_artwork_ids = set(show.artworks.values_list('id', flat=True))
+    to_add = [s for s in selected_subs if s.artwork_id not in current_artwork_ids]
+    to_keep = [s for s in selected_subs if s.artwork_id in current_artwork_ids]
+    to_remove = [s for s in rejected_subs if s.artwork_id in current_artwork_ids]
+
     if request.method == 'POST':
-        selected_subs = (
-            ArtworkSubmission.objects
-            .filter(show=show, status=ArtworkSubmission.SELECTED)
-            .select_related('artwork')
-            .order_by('submitted_at')
-        )
         selected_artworks = [s.artwork for s in selected_subs]
         if selected_artworks:
             show.artworks.add(*selected_artworks)
@@ -227,12 +235,20 @@ def promote_artworks(request, slug):
                     ShowArtworkNumber.objects.create(show=show, artwork=artwork, number=next_number)
                     next_number += 1
 
+        if to_remove:
+            remove_artworks = [s.artwork for s in to_remove]
+            show.artworks.remove(*remove_artworks)
+            ShowArtworkNumber.objects.filter(show=show, artwork__in=remove_artworks).delete()
+
         return redirect(show)
 
     context = {
         'show': show,
-        'selected_submissions': selected,
-        'rejected_submissions': rejected,
+        'to_add': to_add,
+        'to_keep': to_keep,
+        'to_remove': to_remove,
+        'selected_submissions': selected_subs,
+        'rejected_submissions': rejected_subs,
     }
     return render(request, 'gallery/promote_artworks.html', context)
 
