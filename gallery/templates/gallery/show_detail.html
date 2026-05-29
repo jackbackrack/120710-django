@@ -60,6 +60,10 @@
   {% endif %}
   {% if show.is_open_call and can_manage_show %}
     <a class="card__link" href="{% url 'gallery:promote_artworks' show.slug %}">Promote</a>
+    <form method="post" action="{% url 'gallery:renumber_artworks' show.slug %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-link p-0 card__link" onclick="return confirm('Reassign artwork numbers from scratch?')">Renumber</button>
+    </form>
   {% endif %}
   </div>
 </div>

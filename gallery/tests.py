@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.roles import add_staff_role
-from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show
+from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber
 
 
 class ArtistModelTests(TestCase):
@@ -1168,3 +1168,163 @@ class ShowStatusTests(TestCase):
         )
         ids = [s.id for s in all_shows]
         self.assertIn(private.id, ids)
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+)
+class PlacardTests(TestCase):
+    """Tests for ShowArtworkNumber assignment, placard HTML/JSON endpoints, and renumber."""
+
+    def setUp(self):
+        self.curator_user = User.objects.create_user(
+            username='curator@example.com', email='curator@example.com', password='pw'
+        )
+        self.curator_artist = Artist.objects.create(
+            user=self.curator_user, name='Curator', first_name='Curator', last_name='C', email='curator@example.com', phone='',
+        )
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='pw'
+        )
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='Artist A', first_name='Artist', last_name='A', email='artist@example.com', phone='',
+        )
+        self.show = Show.objects.create(
+            name='Placard Test Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=30),
+            is_open_call=True,
+            status=Show.STATUS_OPEN_CALL,
+        )
+        self.show.curators.add(self.curator_artist)
+        self.artwork1 = Artwork.objects.create(name='Artwork One', created_by=self.artist_user, end_year=2025)
+        self.artwork1.artists.add(self.artist)
+        self.artwork2 = Artwork.objects.create(name='Artwork Two', created_by=self.artist_user, end_year=2025)
+        self.artwork2.artists.add(self.artist)
+
+    def _submit_and_select(self, artwork):
+        return ArtworkSubmission.objects.create(
+            show=self.show, artwork=artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.SELECTED,
+        )
+
+    def _promote(self):
+        self.client.force_login(self.curator_user)
+        self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
+
+    # --- Number assignment ---
+
+    def test_promote_assigns_numbers_in_submission_order(self):
+        sub1 = self._submit_and_select(self.artwork1)
+        sub2 = self._submit_and_select(self.artwork2)
+        self._promote()
+        n1 = ShowArtworkNumber.objects.get(show=self.show, artwork=self.artwork1)
+        n2 = ShowArtworkNumber.objects.get(show=self.show, artwork=self.artwork2)
+        self.assertEqual(n1.number, 1)
+        self.assertEqual(n2.number, 2)
+
+    def test_promote_does_not_renumber_already_numbered_artworks(self):
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        # Submit and select artwork2 after first promote
+        self._submit_and_select(self.artwork2)
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.save(update_fields=['status'])
+        self._promote()
+        n1 = ShowArtworkNumber.objects.get(show=self.show, artwork=self.artwork1)
+        n2 = ShowArtworkNumber.objects.get(show=self.show, artwork=self.artwork2)
+        self.assertEqual(n1.number, 1)
+        self.assertEqual(n2.number, 2)
+
+    def test_rejected_artworks_do_not_get_numbers(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork1, submitted_by=self.artist_user,
+            status=ArtworkSubmission.REJECTED,
+        )
+        self._promote()
+        self.assertFalse(ShowArtworkNumber.objects.filter(show=self.show, artwork=self.artwork1).exists())
+
+    # --- Placard HTML endpoint ---
+
+    def test_placard_html_returns_200_for_valid_number(self):
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        response = self.client.get(reverse('gallery:placard_html', kwargs={'number': 1}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.artwork1.name)
+
+    def test_placard_html_shows_not_found_for_missing_number(self):
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        response = self.client.get(reverse('gallery:placard_html', kwargs={'number': 99}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No artwork')
+
+    def test_placard_html_accessible_without_login(self):
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        self.client.logout()
+        response = self.client.get(reverse('gallery:placard_html', kwargs={'number': 1}))
+        self.assertEqual(response.status_code, 200)
+
+    # --- Placard JSON endpoint ---
+
+    def test_placard_json_returns_artwork_data(self):
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        response = self.client.get(reverse('gallery:placard_json', kwargs={'number': 1}))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['number'], 1)
+        self.assertEqual(data['artwork']['name'], self.artwork1.name)
+        self.assertIn(self.artist.name, data['artwork']['artists'])
+
+    def test_placard_json_returns_404_for_missing_number(self):
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        response = self.client.get(reverse('gallery:placard_json', kwargs={'number': 99}))
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()['error'], 'not found')
+
+    def test_placard_json_accessible_without_login(self):
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        self.client.logout()
+        response = self.client.get(reverse('gallery:placard_json', kwargs={'number': 1}))
+        self.assertEqual(response.status_code, 200)
+
+    # --- Renumber ---
+
+    def test_renumber_reassigns_numbers_from_scratch(self):
+        self._submit_and_select(self.artwork1)
+        self._submit_and_select(self.artwork2)
+        self._promote()
+        # Manually flip numbers to simulate out-of-order state
+        ShowArtworkNumber.objects.filter(show=self.show, artwork=self.artwork1).update(number=99)
+        self.client.force_login(self.curator_user)
+        self.client.post(reverse('gallery:renumber_artworks', kwargs={'slug': self.show.slug}))
+        numbers = list(ShowArtworkNumber.objects.filter(show=self.show).order_by('number').values_list('number', flat=True))
+        self.assertEqual(numbers, [1, 2])
+
+    def test_artist_cannot_renumber(self):
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        self.client.force_login(self.artist_user)
+        response = self.client.post(reverse('gallery:renumber_artworks', kwargs={'slug': self.show.slug}))
+        self.assertEqual(response.status_code, 404)
+
+    def test_unauthenticated_user_cannot_renumber(self):
+        self.client.logout()
+        response = self.client.post(reverse('gallery:renumber_artworks', kwargs={'slug': self.show.slug}))
+        self.assertNotEqual(response.status_code, 200)

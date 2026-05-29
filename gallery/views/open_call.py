@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from gallery.forms import ArtworkSubmissionForm
-from gallery.models import Artist, Artwork, ArtworkSubmission, Show
+from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
 
 
@@ -202,7 +202,13 @@ def promote_artworks(request, slug):
     )
 
     if request.method == 'POST':
-        selected_artworks = [s.artwork for s in selected]
+        selected_subs = (
+            ArtworkSubmission.objects
+            .filter(show=show, status=ArtworkSubmission.SELECTED)
+            .select_related('artwork')
+            .order_by('submitted_at')
+        )
+        selected_artworks = [s.artwork for s in selected_subs]
         if selected_artworks:
             show.artworks.add(*selected_artworks)
             artist_ids = []
@@ -210,6 +216,16 @@ def promote_artworks(request, slug):
                 artist_ids.extend(artwork.artists.values_list('id', flat=True))
             if artist_ids:
                 show.artists.add(*Artist.objects.filter(id__in=artist_ids).distinct())
+            existing_ids = set(
+                ShowArtworkNumber.objects.filter(show=show).values_list('artwork_id', flat=True)
+            )
+            next_number = (
+                ShowArtworkNumber.objects.filter(show=show).order_by('-number').values_list('number', flat=True).first() or 0
+            ) + 1
+            for artwork in selected_artworks:
+                if artwork.id not in existing_ids:
+                    ShowArtworkNumber.objects.create(show=show, artwork=artwork, number=next_number)
+                    next_number += 1
 
         return redirect(show)
 
@@ -219,6 +235,25 @@ def promote_artworks(request, slug):
         'rejected_submissions': rejected,
     }
     return render(request, 'gallery/promote_artworks.html', context)
+
+
+@login_required
+def renumber_artworks(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    if request.method == 'POST':
+        ShowArtworkNumber.objects.filter(show=show).delete()
+        subs = (
+            ArtworkSubmission.objects
+            .filter(show=show, status=ArtworkSubmission.SELECTED)
+            .select_related('artwork')
+            .order_by('submitted_at')
+        )
+        for number, sub in enumerate(subs, start=1):
+            ShowArtworkNumber.objects.create(show=show, artwork=sub.artwork, number=number)
+        messages.success(request, 'Artwork numbers have been reassigned.')
+    return redirect(show)
 
 
 @login_required

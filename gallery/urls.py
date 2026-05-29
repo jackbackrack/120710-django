@@ -1,5 +1,6 @@
 from django.urls import path, re_path
 
+from gallery.views.placards import placard_html, placard_json
 from gallery.views import (
     ArtistCreateView,
     ArtistDeleteView,
@@ -20,6 +21,7 @@ from gallery.views import (
     artwork_submit,
     show_submissions,
     promote_artworks,
+    renumber_artworks,
     retract_submission,
     SearchResultsListView,
     ShowCreateView,
@@ -36,9 +38,12 @@ from gallery.views import (
 app_name = 'gallery'
 
 urlpatterns = [
+    path('placard/<int:number>/', placard_html, name='placard_html'),
+    path('placard/<int:number>/data/', placard_json, name='placard_json'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submit/$', artwork_submit, name='artwork_submit'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submissions/$', show_submissions, name='show_submissions'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/promote/$', promote_artworks, name='promote_artworks'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/renumber/$', renumber_artworks, name='renumber_artworks'),
     path('submission/<int:pk>/retract/', retract_submission, name='retract_submission'),
     path('artists/', ArtistListView.as_view(), name='artist_list'),
     path('artists/mailchimp', ArtistMailChimpView.as_view(), name='artist_mailchimp_list'),
