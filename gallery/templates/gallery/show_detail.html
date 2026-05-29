@@ -41,7 +41,7 @@
     {{ event.date }}: {{ event.time_range }}</h3>
     {% endfor %}
   </div>
-  <div class="card__info">
+  <div class="card__info" style="flex-wrap:wrap">
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
@@ -53,12 +53,8 @@
       <button type="submit" class="btn btn-sm btn-link p-0 card__link" onclick="return confirm('Reassign artwork numbers from scratch?')">Renumber</button>
     </form>
   {% endif %}
-  {% if can_view_reviews %}
-    <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
-  {% endif %}
-  </div>
-  {% if show.is_open_call and can_manage_show or show.is_open_call and can_view_reviews %}
-  <div class="card__info">
+  {% if show.is_open_call and can_view_reviews or show.is_open_call and can_manage_show %}
+    <br style="width:100%">
     {% if show.is_open_call and can_view_reviews %}
       <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
     {% endif %}
@@ -66,8 +62,15 @@
       <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Assign Jurors</a>
       <a class="card__link" href="{% url 'gallery:promote_artworks' show.slug %}">Promote</a>
     {% endif %}
-  </div>
+    {% if can_view_reviews %}
+      <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
+    {% endif %}
+  {% else %}
+    {% if can_view_reviews %}
+      <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
+    {% endif %}
   {% endif %}
+  </div>
 </div>
 </div>
 <div class="text-center section-label"><h2>Artworks</h2></div>
