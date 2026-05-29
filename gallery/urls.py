@@ -1,6 +1,7 @@
 from django.urls import path, re_path
 
 from gallery.views.placards import placard_html, placard_json
+from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views import (
     ArtistCreateView,
     ArtistDeleteView,
@@ -38,6 +39,8 @@ from gallery.views import (
 app_name = 'gallery'
 
 urlpatterns = [
+    path('artwork/<int:pk>/regenerate-thumbnail/', regenerate_artwork_thumbnail, name='regenerate_artwork_thumbnail'),
+    path('artist/<int:pk>/regenerate-thumbnail/', regenerate_artist_thumbnail, name='regenerate_artist_thumbnail'),
     path('placard/<int:number>/', placard_html, name='placard_html'),
     path('placard/<int:number>/data/', placard_json, name='placard_json'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submit/$', artwork_submit, name='artwork_submit'),

@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.urls import reverse
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFit
+from imagekit.processors import ResizeToFit, Transpose
 
 from gallery.models.slugs import build_unique_slug
 
@@ -21,7 +21,7 @@ class Artist(models.Model):
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='artist_images', null=True)
-    card_thumbnail = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+    card_thumbnail = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     tags = models.ManyToManyField('gallery.Tag', related_name='artists', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
