@@ -33,7 +33,14 @@ def show_review_dashboard(request, show_slug):
     if not can_view_reviews(request.user, show):
         raise Http404
 
+    query = request.GET.get('q', '').strip()
     artworks = Artwork.objects.filter(submissions__show=show).order_by('name')
+    if query:
+        artworks = artworks.filter(
+            Q(name__icontains=query) |
+            Q(artists__first_name__icontains=query) |
+            Q(artists__last_name__icontains=query)
+        ).distinct()
     criteria = list(show.rubric_criteria.all())
 
     if is_curator_user(request.user):

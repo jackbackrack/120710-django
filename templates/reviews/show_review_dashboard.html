@@ -2,13 +2,11 @@
 
 {% block title %}Reviews: {{ show.name }}{% endblock %}
 {% block block_title %}Reviews: {{ show.name }}{% endblock %}
+{% block search_action %}{% url 'reviews:show_review_dashboard' show_slug=show.slug %}{% endblock %}
 
 {% block content %}
-<div class="cards">
-<div class="card" id="big_card">
-  <div class="card__content">
+<div class="container mt-3">
     <h1 class="mb-6 text-3xl">Reviews: {{ show.name }}</h1>
-    <p><a class="card__link" href="{{ show.get_absolute_url }}">&larr; Back to show</a></p>
     {% include 'includes/help_by_role_panel.html' %}
 
     {% if is_curator %}
@@ -186,15 +184,11 @@
       {% for artwork in pending_artworks %}
       <div class="card">
         {% if artwork.image %}
-        <img src="{{ artwork.image.url }}" class="card__image">
+        <a style="display:contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_thumbnail.url }}" class="card__image"></a>
         {% endif %}
         <div class="card__content">
-          <h2 class="text-sm">
-            {% for artist in artwork.artists.all %}
-            <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}, {% endif %}
-            {% endfor %}
-          </h2>
-          <h2 class="text-sm">{{ artwork.name }}</h2>
+          <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
+          <p class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
           {% if artwork.medium %}<p class="text-sm">{{ artwork.medium }}</p>{% endif %}
         </div>
         <div class="card__info">
@@ -208,7 +202,5 @@
     {% endif %}
 
     {% endif %}
-  </div>
-</div>
 </div>
 {% endblock %}

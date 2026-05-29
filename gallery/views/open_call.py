@@ -96,11 +96,11 @@ def send_submission_emails(show):
     """Send acceptance/rejection emails to all submitters. Called when a show is published."""
     subs = (
         ArtworkSubmission.objects.filter(
-            show=show, status__in=[ArtworkSubmission.SELECTED, ArtworkSubmission.REJECTED]
+            show=show, status__in=[ArtworkSubmission.ACCEPTED, ArtworkSubmission.REJECTED]
         ).select_related('artwork', 'submitted_by')
     )
     for sub in subs:
-        _send_selection_email(sub, accepted=(sub.status == ArtworkSubmission.SELECTED))
+        _send_selection_email(sub, accepted=(sub.status == ArtworkSubmission.ACCEPTED))
 
 
 @login_required
@@ -148,6 +148,7 @@ def show_submissions(request, slug):
     if not can_view_reviews(request.user, show):
         raise Http404
 
+    query = request.GET.get('q', '').strip()
     submissions = (
         ArtworkSubmission.objects.filter(show=show)
         .select_related('artwork', 'submitted_by')
@@ -165,15 +166,22 @@ def show_submissions(request, slug):
         )
         .order_by('-avg_rating', 'artwork__name')
     )
+    if query:
+        submissions = submissions.filter(
+            Q(artwork__name__icontains=query) |
+            Q(artwork__artists__first_name__icontains=query) |
+            Q(artwork__artists__last_name__icontains=query)
+        ).distinct()
 
     submissions = list(submissions)
     context = {
         'show': show,
         'submissions': submissions,
-        'selected_submissions': [s for s in submissions if s.status == ArtworkSubmission.SELECTED],
-        'n_selected': sum(1 for s in submissions if s.status == ArtworkSubmission.SELECTED),
-        'n_rejected': sum(1 for s in submissions if s.status == ArtworkSubmission.REJECTED),
-        'n_submitted': sum(1 for s in submissions if s.status == ArtworkSubmission.SUBMITTED),
+        'selected_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED],
+        'rejected_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED],
+        'n_selected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED),
+        'n_rejected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED),
+        'n_undecided': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED),
         'can_manage': can_manage_show(request.user, show),
     }
     return render(request, 'gallery/show_submissions.html', context)
@@ -185,10 +193,10 @@ def update_submission_status(request, pk):
     if not can_manage_show(request.user, submission.show):
         raise Http404
     if request.method == 'POST':
-        new_status = request.POST.get('status')
-        if new_status in {ArtworkSubmission.SUBMITTED, ArtworkSubmission.SELECTED, ArtworkSubmission.REJECTED}:
-            submission.status = new_status
-            submission.save(update_fields=['status'])
+        new_decision = request.POST.get('decision')
+        if new_decision in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}:
+            submission.curator_decision = new_decision
+            submission.save(update_fields=['curator_decision'])
     return redirect('gallery:show_submissions', slug=submission.show.slug)
 
 
@@ -199,13 +207,13 @@ def promote_artworks(request, slug):
         raise Http404
 
     selected_subs = list(
-        ArtworkSubmission.objects.filter(show=show, status=ArtworkSubmission.SELECTED)
+        ArtworkSubmission.objects.filter(show=show, curator_decision=ArtworkSubmission.CURATOR_SELECTED)
         .select_related('artwork', 'submitted_by')
         .prefetch_related('artwork__artists')
         .order_by('submitted_at')
     )
     rejected_subs = list(
-        ArtworkSubmission.objects.filter(show=show, status=ArtworkSubmission.REJECTED)
+        ArtworkSubmission.objects.filter(show=show, curator_decision=ArtworkSubmission.CURATOR_REJECTED)
         .select_related('artwork', 'submitted_by')
         .prefetch_related('artwork__artists')
     )
@@ -240,6 +248,14 @@ def promote_artworks(request, slug):
             show.artworks.remove(*remove_artworks)
             ShowArtworkNumber.objects.filter(show=show, artwork__in=remove_artworks).delete()
 
+        # Publish decisions: update artist-visible status
+        for sub in selected_subs:
+            sub.status = ArtworkSubmission.ACCEPTED
+            sub.save(update_fields=['status'])
+        for sub in rejected_subs:
+            sub.status = ArtworkSubmission.REJECTED
+            sub.save(update_fields=['status'])
+
         return redirect(show)
 
     context = {
@@ -262,7 +278,7 @@ def renumber_artworks(request, slug):
         ShowArtworkNumber.objects.filter(show=show).delete()
         subs = (
             ArtworkSubmission.objects
-            .filter(show=show, status=ArtworkSubmission.SELECTED)
+            .filter(show=show, curator_decision=ArtworkSubmission.CURATOR_SELECTED)
             .select_related('artwork')
             .order_by('submitted_at')
         )

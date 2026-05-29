@@ -2,94 +2,142 @@
 
 {% block title %}Submissions — {{ show.name }}{% endblock %}
 {% block block_title %}Submissions — {{ show.name }}{% endblock %}
+{% block search_action %}{% url 'gallery:show_submissions' show.slug %}{% endblock %}
 
 {% block content %}
 
 {% if submissions %}
-<div class="d-flex gap-4 mb-3 ms-2 align-items-center">
-  <span><strong>{{ n_submitted }}</strong> pending</span>
+<div class="d-flex gap-4 mb-2 ms-2 align-items-center">
+  <span><strong>{{ n_undecided }}</strong> undecided</span>
   <span class="text-success"><strong>{{ n_selected }}</strong> selected</span>
   <span class="text-danger"><strong>{{ n_rejected }}</strong> rejected</span>
   <span class="text-muted">{{ submissions|length }} total</span>
   {% if can_manage %}
-  <a class="card__link ms-auto me-2" href="{% url 'gallery:promote_artworks' show.slug %}">Sync to Show &rarr;</a>
+  <a class="card__link ms-auto me-2" href="{% url 'gallery:promote_artworks' show.slug %}">Publish Show &rarr;</a>
   {% endif %}
 </div>
 
-{% if selected_submissions %}
-<div class="mb-3 ms-2">
-  <strong>Selected:</strong>
-  <div class="d-flex flex-wrap gap-2 mt-1">
-    {% for sub in selected_submissions %}
-    {% if sub.artwork.image %}
-    <img src="{{ sub.artwork.image.url }}" title="{{ sub.artwork.name }}"
-         style="height:64px;width:64px;object-fit:cover;border:2px solid #28a745;border-radius:4px;">
-    {% else %}
-    <div style="height:64px;width:64px;background:#eee;border:2px solid #28a745;border-radius:4px;display:flex;align-items:center;justify-content:center;">
-      <small class="text-muted text-center" style="font-size:0.6em;padding:2px;">{{ sub.artwork.name|truncatewords:3 }}</small>
+<div class="d-flex gap-3 align-items-start">
+
+  {# Left: submissions table #}
+  <div style="flex:1;min-width:0">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Artwork</th>
+          <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Score</th>
+          <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Reviews</th>
+          <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Decision</th>
+          <th style="width:1%"></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for sub in submissions %}
+      <tr class="{% if sub.curator_decision == 'selected' %}table-success{% elif sub.curator_decision == 'rejected' %}table-danger{% endif %}">
+        <td>
+          <div class="card" style="width:175px;display:inline-block;vertical-align:top">
+            {% if sub.artwork.image %}
+            <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image"></a>
+            {% endif %}
+            <div class="card__content">
+              <h3 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h3>
+              <p class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+              {% if sub.statement %}<p class="text-sm text-muted">{{ sub.statement|truncatewords:15 }}</p>{% endif %}
+            </div>
+          </div>
+        </td>
+        <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">{% if sub.avg_rating %}{{ sub.avg_rating|floatformat:1 }}/10{% else %}&mdash;{% endif %}</td>
+        <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">{{ sub.review_count }}</td>
+        <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">
+          {% if can_manage %}
+          <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}">
+            {% csrf_token %}
+            <select name="decision" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto">
+              <option value="undecided" {% if sub.curator_decision == 'undecided' %}selected{% endif %}>Undecided</option>
+              <option value="selected" {% if sub.curator_decision == 'selected' %}selected{% endif %}>Selected</option>
+              <option value="rejected" {% if sub.curator_decision == 'rejected' %}selected{% endif %}>Rejected</option>
+            </select>
+          </form>
+          {% else %}
+          {{ sub.get_status_display }}
+          {% endif %}
+        </td>
+        <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">
+          <a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=sub.artwork.slug %}">Review</a>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Right: selected and rejected grids #}
+  <div style="width:400px;flex-shrink:0">
+    {% if selected_submissions %}
+    <strong>Selected ({{ n_selected }}):</strong>
+    <div class="cards mt-1">
+      {% for sub in selected_submissions %}
+      <div class="card">
+        {% if sub.artwork.image %}
+        <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image"></a>
+        {% endif %}
+        <div class="card__content">
+          <h3 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h3>
+          <p class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+        </div>
+        {% if can_manage %}
+        <div class="card__info">
+          <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="display:inline">
+            {% csrf_token %}<input type="hidden" name="decision" value="rejected">
+            <button type="submit" class="btn btn-sm btn-link p-0 card__link text-danger">Reject</button>
+          </form>
+          <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="display:inline">
+            {% csrf_token %}<input type="hidden" name="decision" value="undecided">
+            <button type="submit" class="btn btn-sm btn-link p-0 card__link">Reset</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
 
-<table class="table table-sm">
-  <thead>
-    <tr>
-      <th>Artwork</th>
-      <th>Artist(s)</th>
-      <th>Score</th>
-      <th>Reviews</th>
-      <th>Status</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for sub in submissions %}
-  <tr class="{% if sub.status == 'selected' %}table-success{% elif sub.status == 'rejected' %}table-danger{% endif %}">
-    <td>
-      {% if sub.artwork.image %}
-      <img src="{{ sub.artwork.image.url }}" style="height:48px;width:48px;object-fit:cover;" class="me-2">
-      {% endif %}
-      <a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a>
-      {% if sub.statement %}
-      <br><small class="text-muted">{{ sub.statement|truncatewords:20 }}</small>
-      {% endif %}
-    </td>
-    <td>{% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
-    <td>{% if sub.avg_rating %}{{ sub.avg_rating|floatformat:1 }}/10{% else %}&mdash;{% endif %}</td>
-    <td>{{ sub.review_count }}</td>
-    <td>
-      {% if can_manage %}
-      <div class="btn-group btn-group-sm" role="group">
-        <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="display:inline">
-          {% csrf_token %}
-          <input type="hidden" name="status" value="selected">
-          <button type="submit" class="btn btn-sm {% if sub.status == 'selected' %}btn-success{% else %}btn-outline-success{% endif %}">Select</button>
-        </form>
-        <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="display:inline">
-          {% csrf_token %}
-          <input type="hidden" name="status" value="rejected">
-          <button type="submit" class="btn btn-sm {% if sub.status == 'rejected' %}btn-danger{% else %}btn-outline-danger{% endif %}">Reject</button>
-        </form>
-        <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="display:inline">
-          {% csrf_token %}
-          <input type="hidden" name="status" value="submitted">
-          <button type="submit" class="btn btn-sm {% if sub.status == 'submitted' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Reset</button>
-        </form>
+    {% if rejected_submissions %}
+    <strong class="{% if selected_submissions %}d-block mt-3{% endif %}">Rejected ({{ n_rejected }}):</strong>
+    <div class="cards mt-1">
+      {% for sub in rejected_submissions %}
+      <div class="card" style="opacity:0.6">
+        {% if sub.artwork.image %}
+        <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image"></a>
+        {% endif %}
+        <div class="card__content">
+          <h3 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h3>
+          <p class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+        </div>
+        {% if can_manage %}
+        <div class="card__info">
+          <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="display:inline">
+            {% csrf_token %}<input type="hidden" name="decision" value="selected">
+            <button type="submit" class="btn btn-sm btn-link p-0 card__link text-success">Select</button>
+          </form>
+          <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="display:inline">
+            {% csrf_token %}<input type="hidden" name="decision" value="undecided">
+            <button type="submit" class="btn btn-sm btn-link p-0 card__link">Reset</button>
+          </form>
+        </div>
+        {% endif %}
       </div>
-      {% else %}
-      {{ sub.get_status_display }}
-      {% endif %}
-    </td>
-    <td>
-      <a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=sub.artwork.slug %}">Review</a>
-    </td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not selected_submissions and not rejected_submissions %}
+    <p class="text-muted">No decisions yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+
 {% else %}
 <p>No submissions yet.</p>
 {% endif %}
