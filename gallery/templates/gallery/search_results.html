@@ -10,32 +10,52 @@
 <p class="text-center text-gray-500">No results for &ldquo;{{ query }}&rdquo;.</p>
 {% else %}
 
-{% if show_list %}
-<div class="text-center section-label"><h2>Shows</h2></div>
-<div class="cards">
-  {% for show in show_list %}
-    {% include 'gallery/_show_card.html' %}
-  {% endfor %}
-</div>
+{% with priority=request.GET.priority %}
+
+{% if priority == 'artist' %}
+  {% if artist_list %}
+  <div class="text-center section-label"><h2>Artists</h2></div>
+  <div class="cards">{% for artist in artist_list %}{% include 'gallery/_artist_card.html' %}{% endfor %}</div>
+  {% endif %}
+  {% if artwork_list %}
+  <div class="text-center section-label"><h2>Artworks</h2></div>
+  <div class="cards">{% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}</div>
+  {% endif %}
+  {% if show_list %}
+  <div class="text-center section-label"><h2>Shows</h2></div>
+  <div class="cards">{% for show in show_list %}{% include 'gallery/_show_card.html' %}{% endfor %}</div>
+  {% endif %}
+
+{% elif priority == 'artwork' %}
+  {% if artwork_list %}
+  <div class="text-center section-label"><h2>Artworks</h2></div>
+  <div class="cards">{% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}</div>
+  {% endif %}
+  {% if artist_list %}
+  <div class="text-center section-label"><h2>Artists</h2></div>
+  <div class="cards">{% for artist in artist_list %}{% include 'gallery/_artist_card.html' %}{% endfor %}</div>
+  {% endif %}
+  {% if show_list %}
+  <div class="text-center section-label"><h2>Shows</h2></div>
+  <div class="cards">{% for show in show_list %}{% include 'gallery/_show_card.html' %}{% endfor %}</div>
+  {% endif %}
+
+{% else %}
+  {% if show_list %}
+  <div class="text-center section-label"><h2>Shows</h2></div>
+  <div class="cards">{% for show in show_list %}{% include 'gallery/_show_card.html' %}{% endfor %}</div>
+  {% endif %}
+  {% if artist_list %}
+  <div class="text-center section-label"><h2>Artists</h2></div>
+  <div class="cards">{% for artist in artist_list %}{% include 'gallery/_artist_card.html' %}{% endfor %}</div>
+  {% endif %}
+  {% if artwork_list %}
+  <div class="text-center section-label"><h2>Artworks</h2></div>
+  <div class="cards">{% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}</div>
+  {% endif %}
 {% endif %}
 
-{% if artist_list %}
-<div class="text-center section-label"><h2>Artists</h2></div>
-<div class="cards">
-  {% for artist in artist_list %}
-    {% include 'gallery/_artist_card.html' %}
-  {% endfor %}
-</div>
-{% endif %}
-
-{% if artwork_list %}
-<div class="text-center section-label"><h2>Artworks</h2></div>
-<div class="cards">
-  {% for artwork in artwork_list %}
-    {% include 'gallery/_artwork_card.html' %}
-  {% endfor %}
-</div>
-{% endif %}
+{% endwith %}
 
 {% endif %}
 {% endblock %}
