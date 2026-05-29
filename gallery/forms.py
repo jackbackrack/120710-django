@@ -1,10 +1,18 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Field, Row, Column, HTML
 
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
 from gallery.permissions import is_curator_user, is_staff_user
+
+MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+def validate_image_size(image):
+    if image and hasattr(image, 'size') and image.size > MAX_IMAGE_SIZE:
+        raise ValidationError(f'Image file too large — maximum size is 50 MB (got {image.size // (1024*1024)} MB).')
 
 User = get_user_model()
 
@@ -14,6 +22,13 @@ class UserAwareModelForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        for field_name, value in cleaned.items():
+            if hasattr(value, 'size'):
+                validate_image_size(value)
+        return cleaned
 
 
 class ArtistForm(UserAwareModelForm):
