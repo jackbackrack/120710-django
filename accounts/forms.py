@@ -50,6 +50,32 @@ class ArtistUserCreateForm(forms.ModelForm):
         )
 
 
+class ClaimArtistForm(forms.Form):
+    email = forms.EmailField(
+        label="Your email address",
+        help_text="Enter the email address associated with your artist record.",
+    )
+
+
+class LinkArtistToUserForm(forms.Form):
+    artist = forms.ModelChoiceField(
+        queryset=None,
+        label="Artist record",
+        empty_label="— select artist —",
+    )
+    user = forms.ModelChoiceField(
+        queryset=None,
+        label="User account",
+        empty_label="— select user —",
+    )
+
+    def __init__(self, *args, **kwargs):
+        from gallery.models import Artist
+        super().__init__(*args, **kwargs)
+        self.fields['artist'].queryset = Artist.objects.filter(user__isnull=True).order_by('name')
+        self.fields['user'].queryset = User.objects.order_by('email')
+
+
 class UserNameUpdateForm(forms.ModelForm):
     class Meta:
         model = User

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<h1>Link artist to user</h1>
+<p class="text-muted">Select an unlinked artist record and the user account to associate it with.</p>
+
+<form method="post" style="max-width:480px">
+  {% csrf_token %}
+  {{ form|crispy }}
+  <button class="btn btn-primary" type="submit">Link</button>
+</form>
+{% endblock content %}

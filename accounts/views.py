@@ -1,18 +1,20 @@
 import random
 import string
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 
 from django.views.generic.edit import CreateView
 from django.views.generic.edit import UpdateView
 from allauth.account.views import SignupView, PasswordResetView
 
+from gallery.models import Artist
 from gallery.permissions import is_staff_user
 
-from .forms import ArtistUserCreateForm, CustomResetPasswordForm, CustomSignupForm, UserNameUpdateForm
+from .forms import ArtistUserCreateForm, ClaimArtistForm, CustomResetPasswordForm, CustomSignupForm, LinkArtistToUserForm, UserNameUpdateForm
 
 class CustomPasswordResetView(PasswordResetView):
     form_class = CustomResetPasswordForm
@@ -57,3 +59,48 @@ class ArtistUserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def test_func(self):
         return is_staff_user(self.request.user)
+
+
+@login_required
+def claim_artist(request):
+    artist = getattr(request.user, 'artists', None)
+    if artist and artist.exists():
+        messages.info(request, "You already have an artist profile linked to your account.")
+        return redirect('gallery:artist_detail', slug=artist.first().slug)
+
+    if request.method == 'POST':
+        form = ClaimArtistForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            candidate = Artist.objects.filter(email__iexact=email, user__isnull=True).first()
+            if candidate:
+                candidate.user = request.user
+                candidate.save(update_fields=['user'])
+                messages.success(request, f'Artist profile "{candidate.name}" has been linked to your account.')
+                return redirect('gallery:artist_detail', slug=candidate.slug)
+            else:
+                form.add_error('email', "No unlinked artist record was found with that email address.")
+    else:
+        form = ClaimArtistForm(initial={'email': request.user.email})
+
+    return render(request, 'accounts/claim_artist.html', {'form': form})
+
+
+def link_artist_to_user(request):
+    if not is_staff_user(request.user):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden()
+
+    if request.method == 'POST':
+        form = LinkArtistToUserForm(request.POST)
+        if form.is_valid():
+            artist = form.cleaned_data['artist']
+            user = form.cleaned_data['user']
+            artist.user = user
+            artist.save(update_fields=['user'])
+            messages.success(request, f'Linked "{artist.name}" to {user.email}.')
+            return redirect('link_artist_to_user')
+    else:
+        form = LinkArtistToUserForm()
+
+    return render(request, 'accounts/link_artist_to_user.html', {'form': form})

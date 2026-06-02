@@ -127,7 +127,20 @@ HOW_TO_GUIDES = [
         'steps': [
             'If you were added to the system as an artist before you had an account (e.g. a curator or staff member created your profile), sign up using the same email address that is on your artist profile.',
             'The system will automatically detect the matching email and link your new account to the existing artist profile — no duplicate will be created.',
-            'If you signed up with a different email and a duplicate profile was created, email info@120710.art. A staff member can merge the two profiles and link the correct one to your account.',
+            'If you signed up with a different email and a duplicate was created, sign in and go to Accounts → Claim Artist Profile (/accounts/claim-artist/).',
+            'Enter the email address on your existing artist record. If a match is found the profile is linked to your account immediately.',
+            'If you are unsure what email is on your artist record, email info@120710.art and a staff member can look it up or link the profile for you.',
+        ],
+    },
+    {
+        'title': 'How to link an artist profile to a user (staff only)',
+        'roles': {'staff'},
+        'steps': [
+            'Sign in as a staff user, then go to /accounts/link-artists/.',
+            'Select the unlinked artist record from the first dropdown (only artists with no user account appear).',
+            'Select the user account to link it to from the second dropdown.',
+            'Click Link. The artist record is immediately associated with that user account.',
+            'After linking, the user can sign in and manage that artist profile.',
         ],
     },
 ]
@@ -173,7 +186,8 @@ ROLE_DOCUMENTATION = {
             'Submit artworks to open call shows via the show detail page while the deadline is open.',
             'Track your submission statuses and retract submissions from the show detail page while the deadline is open.',
             'Your artworks and profile become publicly visible once you are part of a show whose start date has passed.',
-            'If you already have an artist profile in the system and your account created a new one instead of reusing it, email info@120710.art to ask a staff member to merge them.',
+            'If you already have an artist profile and your account created a duplicate, go to Accounts → Claim Artist Profile and enter the email on your existing record to link it yourself.',
+            'If you cannot claim the profile (wrong email on record), email info@120710.art and a staff member can link it for you.',
         ],
         'forms': [
             {
@@ -357,6 +371,7 @@ ROLE_DOCUMENTATION = {
             'Assign artists as curators of shows via the Show Edit page — this grants them edit access and makes their artist profile publicly visible.',
             'Assign jurors to any show from the show\'s Reviews page.',
             'View and edit juror reviews across all shows.',
+            'Link unlinked artist records to user accounts from /accounts/link-artists/.',
             'Edit and Delete links are shown only for records you can manage.',
         ],
         'forms': [
@@ -368,6 +383,15 @@ ROLE_DOCUMENTATION = {
                     {'name': 'artists', 'input_type': 'multi-select', 'purpose': 'Associate one or more artists with the work.'},
                     {'name': 'shows', 'input_type': 'multi-select', 'purpose': 'Associate the artwork with one or more shows. Artwork becomes publicly visible once added to a show whose start date has passed.'},
                     {'name': 'tags', 'input_type': 'multi-select', 'purpose': 'Internal or public categorization tags.'},
+                ],
+            },
+            {
+                'name': 'Link Artist to User',
+                'where_used': 'Staff-only artist linking page',
+                'breadcrumb': '/accounts/link-artists/',
+                'fields': [
+                    {'name': 'artist', 'input_type': 'dropdown select', 'purpose': 'Unlinked artist record to claim. Only artists with no user account are listed.'},
+                    {'name': 'user', 'input_type': 'dropdown select', 'purpose': 'User account to associate with the selected artist record.'},
                 ],
             },
             {

@@ -40,7 +40,7 @@ def ensure_signup_profile(user):
 
     # Check if an unlinked artist with matching email already exists and claim it.
     if user.email:
-        unlinked = Artist.objects.filter(email=user.email, user__isnull=True).first()
+        unlinked = Artist.objects.filter(email__iexact=user.email, user__isnull=True).first()
         if unlinked:
             unlinked.user = user
             unlinked.save(update_fields=['user'])

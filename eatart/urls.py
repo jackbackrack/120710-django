@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 
-from accounts.views import ArtistUserCreateView, CustomPasswordResetView, CustomSignupView, UserNameUpdateView
+from accounts.views import ArtistUserCreateView, CustomPasswordResetView, CustomSignupView, UserNameUpdateView, claim_artist, link_artist_to_user
 from eatart.views.public import index, visit, contact, about, howto
 from eatart.views.subscribe import subscribe, subscribe_kiosk
 
@@ -21,6 +21,8 @@ urlpatterns = [
     path('subscribe/', subscribe, name='subscribe'),
     path('subscribe/kiosk/', subscribe_kiosk, name='subscribe_kiosk'),
     path('accounts/artist_user_new/', ArtistUserCreateView.as_view()),
+    path('accounts/claim-artist/', claim_artist, name='claim_artist'),
+    path('accounts/link-artists/', link_artist_to_user, name='link_artist_to_user'),
     path('accounts/profile/', UserNameUpdateView.as_view(), name='account_profile'),
     path("admin/", admin.site.urls),
     path("accounts/signup/", CustomSignupView.as_view()),
