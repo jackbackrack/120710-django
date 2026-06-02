@@ -3,7 +3,7 @@ from django.urls import path, include
 
 from accounts.views import ArtistUserCreateView, CustomPasswordResetView, CustomSignupView, UserNameUpdateView
 from eatart.views.public import index, visit, contact, about, howto
-from eatart.views.subscribe import subscribe
+from eatart.views.subscribe import subscribe, subscribe_kiosk
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
@@ -19,6 +19,7 @@ urlpatterns = [
     path('about/', about, name='about'),
     path('howto/', howto, name='howto'),
     path('subscribe/', subscribe, name='subscribe'),
+    path('subscribe/kiosk/', subscribe_kiosk, name='subscribe_kiosk'),
     path('accounts/artist_user_new/', ArtistUserCreateView.as_view()),
     path('accounts/profile/', UserNameUpdateView.as_view(), name='account_profile'),
     path("admin/", admin.site.urls),

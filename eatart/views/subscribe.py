@@ -29,3 +29,30 @@ def subscribe(request):
         form = SubscribeForm()
 
     return render(request, 'subscribe/form.html', {'form': form})
+
+
+@check_honeypot()
+def subscribe_kiosk(request):
+    success = failure = None
+    if request.method == 'POST':
+        form = SubscribeForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            try:
+                subscribe_to_mailing_list(
+                    first_name=form.cleaned_data['first_name'],
+                    last_name=form.cleaned_data['last_name'],
+                    email=email,
+                )
+                success = f'Thanks! {email} has been subscribed.'
+            except ApiClientError:
+                failure = f'Something went wrong — {email} could not be subscribed.'
+            form = SubscribeForm()
+    else:
+        form = SubscribeForm()
+
+    return render(request, 'subscribe/kiosk.html', {
+        'form': form,
+        'success': success,
+        'failure': failure,
+    })
