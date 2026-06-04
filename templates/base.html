@@ -26,8 +26,7 @@
     <a href="{% url 'index' %}"><img width="50px" src="{% static 'img/120710-box-logo-03.png' %}"></a>
     <b>{% block block_title %}{% endblock %} | 120710</b> -
     {% with u=request.resolver_match.url_name %}
-    <a class="card__link{% if u == 'index' %} nav-active{% endif %}" href="{% url 'index'%}">Home</a>
-    | <a class="card__link{% if 'show' in u %} nav-active{% endif %}" href="{% url 'gallery:show_list'%}">Shows</a>
+    <a class="card__link{% if 'show' in u %} nav-active{% endif %}" href="{% url 'gallery:show_list'%}">Shows</a>
     | <a class="card__link{% if 'artist' in u and request.path != my_artist_url %} nav-active{% endif %}" href="{% url 'gallery:artist_list'%}">Artists</a>
     {% if my_artist_url %}| <a class="card__link{% if request.path == my_artist_url %} nav-active{% endif %}" href="{{ my_artist_url }}">Me</a>{% endif %}
     | <a class="card__link{% if 'artwork' in u %} nav-active{% endif %}" href="{% url 'gallery:artwork_list'%}">Artworks</a>
