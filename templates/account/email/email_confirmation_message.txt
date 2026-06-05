@@ -4,7 +4,9 @@
 
 {% block content %}{% autoescape off %}{% user_display user as user_display %}
 {% blocktrans with site_name=current_site.name site_domain=current_site.domain %}
-You are receiving this e-mail becaues user {{ user_display }} has given your e-mail address to register an account on {{ site_domain }}.
+Welcome to {{ site_name }}! Please confirm your email address by clicking the link below.
 
-To confirm this is correct, go to {{ activate_url }}
+{{ activate_url }}
+
+If you did not sign up for an account, you can safely ignore this email.
 {% endblocktrans %}{% endautoescape %}{% endblock %}

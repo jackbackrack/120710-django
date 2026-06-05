@@ -17,4 +17,6 @@
   {{ form|crispy }}
   <button class="btn btn-success" type="submit">Log in with email and password</button>
 </form>
+<hr>
+<p class="text-muted">Don't have an account? <a href="{% url 'account_signup' %}">Sign up</a></p>
 {% endblock content %}

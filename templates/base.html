@@ -44,6 +44,7 @@
     {% if my_artist_name %}| <b>{{ my_artist_name }}</b>{% endif %}
   {% else %}
     <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
+    | <a class="card__link" href="{% url 'account_signup' %}">SignUp</a>
   {% endif %}
     <form class="d-flex col-8 mx-auto mt-4" action="{% block search_action %}{% url 'gallery:search_results' %}{% endblock %}" method="get">
       <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search" value="{{ request.GET.q }}">
