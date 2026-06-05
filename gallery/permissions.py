@@ -1,4 +1,4 @@
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Q
 
 
 def is_staff_user(user):
@@ -64,15 +64,15 @@ def can_manage_event(user, event):
 PUBLISHED_SHOW_STATUSES = ['published', 'closed']
 
 
+def _published_show_ids():
+    from gallery.models import Show
+    return Show.objects.filter(status__in=PUBLISHED_SHOW_STATUSES).values('pk')
+
+
 def visible_artwork_queryset(user):
     if is_curator_user(user):
         return Q()
-    from gallery.models import Show
-    in_published_show = Show.objects.filter(
-        artworks=OuterRef('pk'),
-        status__in=PUBLISHED_SHOW_STATUSES,
-    )
-    public = Q(Exists(in_published_show))
+    public = Q(shows__in=_published_show_ids())
     if user.is_authenticated:
         public |= Q(created_by=user) | Q(artists__user=user)
     return public
@@ -81,12 +81,7 @@ def visible_artwork_queryset(user):
 def visible_artist_queryset(user):
     if is_curator_user(user):
         return Q()
-    from gallery.models import Artwork
-    has_artwork_in_published_show = Artwork.objects.filter(
-        artists=OuterRef('pk'),
-        shows__status__in=PUBLISHED_SHOW_STATUSES,
-    )
-    public = Q(Exists(has_artwork_in_published_show)) | Q(curated_shows__isnull=False)
+    public = Q(artworks__shows__in=_published_show_ids()) | Q(curated_shows__isnull=False)
     if user.is_authenticated:
         public |= Q(user=user)
     return public
