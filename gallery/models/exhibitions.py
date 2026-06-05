@@ -57,7 +57,7 @@ class Show(models.Model):
     decision_date = models.DateField(blank=True, null=True)
     start = models.DateField(default=datetime.date.today)
     end = models.DateField(default=datetime.date.today)
-    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_UNDER_CONSIDERATION)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_UNDER_CONSIDERATION, db_index=True)
     tags = models.ManyToManyField('gallery.Tag', related_name='shows', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

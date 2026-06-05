@@ -1,6 +1,4 @@
-import datetime
-
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 
 
 def is_staff_user(user):
@@ -69,7 +67,12 @@ PUBLISHED_SHOW_STATUSES = ['published', 'closed']
 def visible_artwork_queryset(user):
     if is_curator_user(user):
         return Q()
-    public = Q(shows__status__in=PUBLISHED_SHOW_STATUSES)
+    from gallery.models import Show
+    in_published_show = Show.objects.filter(
+        artworks=OuterRef('pk'),
+        status__in=PUBLISHED_SHOW_STATUSES,
+    )
+    public = Q(Exists(in_published_show))
     if user.is_authenticated:
         public |= Q(created_by=user) | Q(artists__user=user)
     return public
@@ -78,7 +81,12 @@ def visible_artwork_queryset(user):
 def visible_artist_queryset(user):
     if is_curator_user(user):
         return Q()
-    public = Q(artworks__shows__status__in=PUBLISHED_SHOW_STATUSES) | Q(curated_shows__isnull=False)
+    from gallery.models import Artwork
+    has_artwork_in_published_show = Artwork.objects.filter(
+        artists=OuterRef('pk'),
+        shows__status__in=PUBLISHED_SHOW_STATUSES,
+    )
+    public = Q(Exists(has_artwork_in_published_show)) | Q(curated_shows__isnull=False)
     if user.is_authenticated:
         public |= Q(user=user)
     return public
