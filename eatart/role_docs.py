@@ -17,7 +17,7 @@ HOW_TO_GUIDES = [
             'Click New at the top of the Artists page to create or fill in your artist profile.',
             'If your profile already exists (created when you signed up), find it in the Artists list and click Edit.',
             'Fill in your bio, statement, website, Instagram handle, Venmo, and upload a profile photo.',
-            'Your profile will become publicly visible once you are part of a show whose start date has passed, or once a staff member adds you as a curator of a show.',
+            'Your profile will become publicly visible once you are part of a show whose status is Published or Closed, or once a staff member adds you as a curator of a show.',
         ],
     },
     {
@@ -28,7 +28,7 @@ HOW_TO_GUIDES = [
             'Click New at the top of the Artworks page.',
             'Fill in the title, year, medium, dimensions (width × height × depth), and upload an image — image is required for new artworks.',
             'Optionally add price, pricing notes (e.g. NFS, POA), replacement cost, and a description.',
-            'Newly added artworks are private until they are included in a show whose start date has passed.',
+            'Newly added artworks are private until they are included in a show whose status is Published or Closed.',
         ],
     },
     {
@@ -185,7 +185,7 @@ ROLE_DOCUMENTATION = {
             'Create and edit your own artworks.',
             'Submit artworks to open call shows via the show detail page while the deadline is open.',
             'Track your submission statuses and retract submissions from the show detail page while the deadline is open.',
-            'Your artworks and profile become publicly visible once you are part of a show whose start date has passed.',
+            'Your artworks and profile become publicly visible once you are part of a show whose status is Published or Closed.',
             'If you already have an artist profile and your account created a duplicate, go to Accounts → Claim Artist Profile and enter the email on your existing record to link it yourself.',
             'If you cannot claim the profile (wrong email on record), email info@120710.art and a staff member can link it for you.',
         ],
@@ -381,7 +381,7 @@ ROLE_DOCUMENTATION = {
                 'breadcrumb': 'Artworks > New (top of page) or Artwork Detail > Edit',
                 'fields': [
                     {'name': 'artists', 'input_type': 'multi-select', 'purpose': 'Associate one or more artists with the work.'},
-                    {'name': 'shows', 'input_type': 'multi-select', 'purpose': 'Associate the artwork with one or more shows. Artwork becomes publicly visible once added to a show whose start date has passed.'},
+                    {'name': 'shows', 'input_type': 'multi-select', 'purpose': 'Associate the artwork with one or more shows. Artwork becomes publicly visible once added to a show whose status is Published or Closed.'},
                     {'name': 'tags', 'input_type': 'multi-select', 'purpose': 'Internal or public categorization tags.'},
                 ],
             },

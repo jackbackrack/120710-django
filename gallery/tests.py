@@ -813,36 +813,44 @@ class OpenCallFlowTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    # --- Date-driven visibility ---
+    # --- Status-driven visibility ---
 
-    def test_artwork_not_visible_to_public_before_show_starts(self):
-        self.show.start = datetime.date.today() + datetime.timedelta(days=30)
-        self.show.save(update_fields=['start'])
+    def test_artwork_not_visible_to_public_when_show_not_published(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.save(update_fields=['status'])
         self.artwork.shows.add(self.show)
 
         response = self.client.get(reverse('gallery:artwork_list'))
         self.assertNotContains(response, self.artwork.name)
 
-    def test_artwork_visible_to_public_once_show_has_started(self):
-        self.show.start = datetime.date.today() - datetime.timedelta(days=1)
-        self.show.save(update_fields=['start'])
+    def test_artwork_visible_to_public_when_show_is_published(self):
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
         self.artwork.shows.add(self.show)
 
         response = self.client.get(reverse('gallery:artwork_list'))
         self.assertContains(response, self.artwork.name)
 
-    def test_artist_can_view_own_artwork_regardless_of_show_date(self):
-        self.show.start = datetime.date.today() + datetime.timedelta(days=30)
-        self.show.save(update_fields=['start'])
+    def test_artwork_visible_to_public_when_show_is_closed(self):
+        self.show.status = Show.STATUS_CLOSED
+        self.show.save(update_fields=['status'])
+        self.artwork.shows.add(self.show)
+
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertContains(response, self.artwork.name)
+
+    def test_artist_can_view_own_artwork_regardless_of_show_status(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.save(update_fields=['status'])
         self.artwork.shows.add(self.show)
         self.client.force_login(self.artist_user)
 
         response = self.client.get(self.artwork.get_absolute_url())
         self.assertEqual(response.status_code, 200)
 
-    def test_curator_can_view_all_artworks_regardless_of_show_date(self):
-        self.show.start = datetime.date.today() + datetime.timedelta(days=30)
-        self.show.save(update_fields=['start'])
+    def test_curator_can_view_all_artworks_regardless_of_show_status(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.save(update_fields=['status'])
         self.artwork.shows.add(self.show)
         self.client.force_login(self.curator_user)
 

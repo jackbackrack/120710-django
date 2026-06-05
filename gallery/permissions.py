@@ -63,10 +63,13 @@ def can_manage_event(user, event):
     return can_manage_show(user, event.show)
 
 
+PUBLISHED_SHOW_STATUSES = ['published', 'closed']
+
+
 def visible_artwork_queryset(user):
     if is_curator_user(user):
         return Q()
-    public = Q(shows__start__lte=datetime.date.today())
+    public = Q(shows__status__in=PUBLISHED_SHOW_STATUSES)
     if user.is_authenticated:
         public |= Q(created_by=user) | Q(artists__user=user)
     return public
@@ -75,7 +78,7 @@ def visible_artwork_queryset(user):
 def visible_artist_queryset(user):
     if is_curator_user(user):
         return Q()
-    public = Q(artworks__shows__start__lte=datetime.date.today()) | Q(curated_shows__isnull=False)
+    public = Q(artworks__shows__status__in=PUBLISHED_SHOW_STATUSES) | Q(curated_shows__isnull=False)
     if user.is_authenticated:
         public |= Q(user=user)
     return public
