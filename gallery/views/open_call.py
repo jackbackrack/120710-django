@@ -294,6 +294,7 @@ def retract_submission(request, pk):
     submission = get_object_or_404(ArtworkSubmission, pk=pk, submitted_by=request.user)
     if not submission.show.is_accepting_submissions:
         raise Http404
+    show = submission.show
     if request.method == 'POST':
         submission.delete()
-    return redirect('gallery:artist_open_call')
+    return redirect(show)

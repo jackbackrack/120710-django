@@ -661,20 +661,20 @@ class OpenCallFlowTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_curator_can_bulk_update_submission_statuses(self):
+    def test_curator_can_select_submission(self):
         sub = ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user
         )
         self.client.force_login(self.curator_user)
 
         response = self.client.post(
-            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}),
-            {f'status_{sub.id}': ArtworkSubmission.SELECTED},
-            follow=True,
+            reverse('gallery:update_submission_status', kwargs={'pk': sub.pk}),
+            {'decision': ArtworkSubmission.CURATOR_SELECTED},
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         sub.refresh_from_db()
-        self.assertEqual(sub.status, ArtworkSubmission.SELECTED)
+        self.assertEqual(sub.curator_decision, ArtworkSubmission.CURATOR_SELECTED)
+        self.assertEqual(sub.status, ArtworkSubmission.SUBMITTED)
 
     def test_curator_can_reject_submission(self):
         sub = ArtworkSubmission.objects.create(
@@ -683,18 +683,47 @@ class OpenCallFlowTests(TestCase):
         self.client.force_login(self.curator_user)
 
         self.client.post(
-            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}),
-            {f'status_{sub.id}': ArtworkSubmission.REJECTED},
+            reverse('gallery:update_submission_status', kwargs={'pk': sub.pk}),
+            {'decision': ArtworkSubmission.CURATOR_REJECTED},
         )
         sub.refresh_from_db()
-        self.assertEqual(sub.status, ArtworkSubmission.REJECTED)
+        self.assertEqual(sub.curator_decision, ArtworkSubmission.CURATOR_REJECTED)
+        self.assertEqual(sub.status, ArtworkSubmission.SUBMITTED)
+
+    def test_curator_decision_not_visible_to_submitting_artist(self):
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.curator_user)
+        self.client.post(
+            reverse('gallery:update_submission_status', kwargs={'pk': sub.pk}),
+            {'decision': ArtworkSubmission.CURATOR_SELECTED},
+        )
+        sub.refresh_from_db()
+        self.assertEqual(sub.curator_decision, ArtworkSubmission.CURATOR_SELECTED)
+
+        self.client.force_login(self.artist_user)
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Selected')
+        self.assertNotContains(response, 'Rejected')
+
+    def test_artist_sees_own_pending_submission_on_show_detail(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.artist_user)
+
+        response = self.client.get(self.show.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.artwork.name)
 
     # --- Promote artworks ---
 
     def test_curator_can_view_promote_page(self):
         sub = ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.SELECTED,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
         )
         self.client.force_login(self.curator_user)
 
@@ -707,7 +736,7 @@ class OpenCallFlowTests(TestCase):
     def test_promote_adds_selected_artworks_and_artists_to_show(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.SELECTED,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
         )
         self.client.force_login(self.curator_user)
 
@@ -735,7 +764,7 @@ class OpenCallFlowTests(TestCase):
     def test_promote_does_not_send_emails(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.SELECTED,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
         )
         self.client.force_login(self.curator_user)
 
@@ -748,7 +777,7 @@ class OpenCallFlowTests(TestCase):
     def test_publish_sends_acceptance_email_to_artist(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.SELECTED,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
         )
         self.client.force_login(self.curator_user)
         self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
@@ -762,7 +791,7 @@ class OpenCallFlowTests(TestCase):
     def test_publish_sends_rejection_email_for_rejected_submissions(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.REJECTED,
+            curator_decision=ArtworkSubmission.CURATOR_REJECTED,
         )
         second_artwork = Artwork.objects.create(
             name='Second Piece', created_by=self.artist_user, end_year=2026
@@ -770,7 +799,7 @@ class OpenCallFlowTests(TestCase):
         second_artwork.artists.add(self.artist)
         ArtworkSubmission.objects.create(
             show=self.show, artwork=second_artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.SELECTED,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
         )
         self.client.force_login(self.curator_user)
         self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
@@ -782,9 +811,10 @@ class OpenCallFlowTests(TestCase):
     def test_publish_does_not_resend_emails_if_already_published(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.SELECTED,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
         )
         self.client.force_login(self.curator_user)
+        self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
         self._publish_show()
         self.assertEqual(len(mail.outbox), 1)
 
@@ -795,7 +825,7 @@ class OpenCallFlowTests(TestCase):
     def test_promote_does_not_add_rejected_artworks_to_show(self):
         ArtworkSubmission.objects.create(
             show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.REJECTED,
+            curator_decision=ArtworkSubmission.CURATOR_REJECTED,
         )
         self.client.force_login(self.curator_user)
 
@@ -857,6 +887,64 @@ class OpenCallFlowTests(TestCase):
         response = self.client.get(reverse('gallery:artwork_list'))
         self.assertContains(response, self.artwork.name)
 
+    def test_submitted_artwork_not_visible_to_public_during_open_call(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.save(update_fields=['status'])
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertNotContains(response, self.artwork.name)
+
+    def test_submitted_artwork_not_visible_to_public_during_in_review(self):
+        self.show.status = Show.STATUS_IN_REVIEW
+        self.show.save(update_fields=['status'])
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertNotContains(response, self.artwork.name)
+
+    def test_submitted_artwork_not_visible_to_public_in_draft_after_promote(self):
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+        self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        self.client.logout()
+
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertNotContains(response, self.artwork.name)
+
+    def test_artist_can_retract_submission_while_open(self):
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.artist_user)
+
+        self.client.post(reverse('gallery:retract_submission', kwargs={'pk': sub.pk}))
+
+        self.assertFalse(ArtworkSubmission.objects.filter(pk=sub.pk).exists())
+
+    def test_artist_cannot_retract_submission_after_deadline_closed(self):
+        self.show.status = Show.STATUS_IN_REVIEW
+        self.show.save(update_fields=['status'])
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user
+        )
+        self.client.force_login(self.artist_user)
+
+        response = self.client.post(reverse('gallery:retract_submission', kwargs={'pk': sub.pk}))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(ArtworkSubmission.objects.filter(pk=sub.pk).exists())
+
     # --- Complete end-to-end flow ---
 
     def test_full_open_call_flow(self):
@@ -870,14 +958,15 @@ class OpenCallFlowTests(TestCase):
         sub = ArtworkSubmission.objects.get(show=self.show, artwork=self.artwork)
         self.assertEqual(sub.status, ArtworkSubmission.SUBMITTED)
 
-        # 2. Curator selects the submission
+        # 2. Curator marks submission as selected (curator_decision only — not visible to artist yet)
         self.client.force_login(self.curator_user)
         self.client.post(
-            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}),
-            {f'status_{sub.id}': ArtworkSubmission.SELECTED},
+            reverse('gallery:update_submission_status', kwargs={'pk': sub.pk}),
+            {'decision': ArtworkSubmission.CURATOR_SELECTED},
         )
         sub.refresh_from_db()
-        self.assertEqual(sub.status, ArtworkSubmission.SELECTED)
+        self.assertEqual(sub.curator_decision, ArtworkSubmission.CURATOR_SELECTED)
+        self.assertEqual(sub.status, ArtworkSubmission.SUBMITTED)
 
         # confirmation email sent on submit
         self.assertEqual(len(mail.outbox), 1)
