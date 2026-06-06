@@ -44,7 +44,7 @@
 <form method="post" class="mt-4">
   {% csrf_token %}
   <button type="submit" class="btn btn-primary" {% if not to_add and not to_remove %}disabled{% endif %}>
-    Confirm &amp; Send Emails
+    Confirm &amp; Sync to Show
   </button>
   <a class="card__link ms-3" href="{% url 'gallery:show_submissions' show.slug %}">Cancel</a>
 </form>

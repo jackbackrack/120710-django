@@ -94,9 +94,10 @@ HOW_TO_GUIDES = [
             'After the deadline, set status to In Review. Submissions are now closed. Assign jurors from the show\'s Reviews page.',
             'Optionally define a rubric (weighted scoring criteria) from the Reviews page before jurors begin scoring.',
             'Jurors score each submitted artwork. View aggregated scores on the Reviews dashboard.',
-            'Go to Submissions (on the show detail page) to set each submission to Selected or Rejected.',
-            'Go to Promote (on the show detail page) to add all Selected artworks and their artists to the show and send acceptance/rejection emails.',
-            'Set status to Draft to assemble the final show privately, then Published when it is ready to go public.',
+            'Go to Submissions (on the show detail page) to privately mark each submission as Selected, Rejected, or Undecided using the dropdown. Artists cannot see these decisions yet.',
+            'Go to Publish Show (on the show detail page) to review the diff and click "Confirm & Sync to Show". This adds selected artworks and artists to the show and records decisions, but does not yet notify artists.',
+            'Optionally set status to Draft to review the assembled show privately before going live.',
+            'Set status to Published when ready. This makes artwork publicly visible and sends acceptance/rejection emails to all submitting artists.',
         ],
     },
     {
@@ -289,7 +290,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Open call promotion page',
                 'breadcrumb': 'Home > Shows > Select Show > Promote',
                 'fields': [
-                    {'name': '(confirm button)', 'input_type': 'form submit', 'purpose': 'Adds all Selected artworks and their artists to the show, then sends acceptance/rejection emails to all submitting artists.'},
+                    {'name': '(confirm button)', 'input_type': 'form submit', 'purpose': 'Adds all Selected artworks and their artists to the show and records decisions. Acceptance/rejection emails are sent later when the show status is set to Published.'},
                 ],
             },
             {
