@@ -16,9 +16,6 @@
   {% if artwork.id in can_manage_artwork %}
     <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
-    {# {% if artwork.image %}
-    <form method="post" action="{% url 'gallery:regenerate_artwork_thumbnail' artwork.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 card__link">↺</button></form>
-    {% endif %} #}
   {% endif %}
   </div>
 </div>
