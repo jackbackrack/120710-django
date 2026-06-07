@@ -86,7 +86,20 @@ def show_review_dashboard(request, show_slug):
             'total_submissions': total_submissions,
             'criteria': criteria,
             'is_curator': True,
+            'is_also_juror': False,
         }
+        if is_juror_for_show(request.user, show):
+            my_reviews = (
+                ArtworkReview.objects
+                .filter(show=show, juror=request.user)
+                .select_related('artwork')
+                .prefetch_related('criterion_scores__criterion')
+            )
+            reviewed_ids = set(my_reviews.values_list('artwork_id', flat=True))
+            pending = Artwork.objects.filter(submissions__show=show).exclude(pk__in=reviewed_ids).order_by('name')
+            context['is_also_juror'] = True
+            context['my_reviews'] = my_reviews
+            context['pending_artworks'] = pending
     else:
         my_reviews = (
             ArtworkReview.objects
@@ -115,7 +128,7 @@ def artwork_review(request, show_slug, artwork_slug):
     if not is_juror_for_show(request.user, show) and not can_manage_show(request.user, show):
         raise Http404
 
-    if can_manage_show(request.user, show):
+    if can_manage_show(request.user, show) and not is_juror_for_show(request.user, show):
         reviews = (
             ArtworkReview.objects
             .filter(show=show, artwork=artwork)

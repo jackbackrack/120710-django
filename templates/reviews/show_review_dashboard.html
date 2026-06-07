@@ -96,6 +96,51 @@
       </tbody>
     </table>
 
+    {% if is_also_juror %}
+    <h2 class="mt-4">Your Reviews</h2>
+    {% if show.review_deadline %}<p>Please complete your reviews by <strong>{{ show.review_deadline }}</strong>.</p>{% endif %}
+    {% if my_reviews %}
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Artwork</th>
+          {% if criteria %}{% for criterion in criteria %}<th>{{ criterion.name }}</th>{% endfor %}{% endif %}
+          <th>Overall</th><th>Notes</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for review in my_reviews %}
+        <tr>
+          <td>{{ review.artwork.name }}</td>
+          {% if criteria %}{% for criterion in criteria %}<td>{% for cs in review.criterion_scores.all %}{% if cs.criterion_id == criterion.pk %}{{ cs.score }}{% endif %}{% endfor %}</td>{% endfor %}{% endif %}
+          <td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>
+          <td>{{ review.body|default:"&mdash;" }}</td>
+          <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=review.artwork.slug %}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% if pending_artworks %}
+    <h3 class="mt-3">Pending ({{ pending_artworks.count }})</h3>
+    <div class="cards">
+      {% for artwork in pending_artworks %}
+      <div class="card">
+        {% if artwork.image %}<a style="display:contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_thumbnail.url }}" class="card__image"></a>{% endif %}
+        <div class="card__content">
+          <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
+        </div>
+        <div class="card__info">
+          <a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">Review</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">All artworks reviewed — thank you!</p>
+    {% endif %}
+    {% endif %}
+
     {% if all_reviews %}
     <h2 class="mt-4">All Reviews</h2>
     <table class="table table-sm">
