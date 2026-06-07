@@ -124,5 +124,4 @@ class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return super().form_valid(form)
 
     def test_func(self):
-        user = self.request.user
-        return not user.artists.exists() and is_artist_user(user)
+        return not self.request.user.artists.exists()
