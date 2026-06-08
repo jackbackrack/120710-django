@@ -3,8 +3,8 @@ HOW_TO_GUIDES = [
         'title': 'How to sign up for an account',
         'roles': None,
         'steps': [
-            'Go to the Sign Up page via the LogIn link in the header, then choose "Sign up".',
-            'Enter your first name, last name, email, and password — or use the "Continue with Google" option to sign in with your Google account.',
+            'Go to the Sign Up page via the Log In link in the header, then choose "Sign up".',
+            'Enter your first name, last name, email address, and password — or use the "Continue with Google" option to skip the password. There is no separate username; your email address is how you log in.',
             'After signing up, an artist profile is automatically created for you using your name and email.',
             'If you already have an artist profile in the system (e.g. you were added by a staff member before you signed up), and signing up created a duplicate profile, email info@120710.art to have a staff member merge them.',
         ],
