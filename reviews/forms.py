@@ -12,7 +12,7 @@ class ArtworkReviewForm(forms.ModelForm):
         widget=forms.RadioSelect,
         required=False,
         empty_value=None,
-        label='Overall rating (optional when criteria are set)',
+        label='Overall rating',
     )
 
     class Meta:
@@ -51,8 +51,12 @@ class ArtworkReviewForm(forms.ModelForm):
             if criterion.pk in existing_scores:
                 self.initial[field_key] = existing_scores[criterion.pk]
 
-        for key in ['rating', 'body']:
-            self.fields[key] = self.fields.pop(key)
+        if self.criteria:
+            del self.fields['rating']
+            self.fields['body'] = self.fields.pop('body')
+        else:
+            for key in ['rating', 'body']:
+                self.fields[key] = self.fields.pop(key)
 
     def save_criterion_scores(self, review):
         for criterion in self.criteria:
