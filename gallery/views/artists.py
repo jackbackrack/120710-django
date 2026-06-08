@@ -72,7 +72,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                 .order_by('-submitted_at')
             )
         from gallery.permissions import can_manage_show
-        shows_qs = Show.objects.filter(artworks__artists=artist).prefetch_related('curators', 'tags').distinct()
+        shows_qs = Show.objects.filter(artworks__artists=artist).prefetch_related('curators', 'tags', 'events').distinct()
         if not can_see_all_shows(user):
             shows_qs = shows_qs.filter(status__in=Show.PUBLIC_STATUSES)
         shows = list(shows_qs.order_by('name'))

@@ -24,7 +24,7 @@ class ShowListView(ListView):
     template_name = 'gallery/show_list.html'
 
     def get_queryset(self):
-        qs = Show.objects.prefetch_related('curators', 'tags')
+        qs = Show.objects.prefetch_related('curators', 'tags', 'events')
         if not can_see_all_shows(self.request.user):
             qs = qs.filter(status__in=Show.PUBLIC_STATUSES)
         return tag_filter_queryset(qs, self.request.GET.get('tag')).distinct()

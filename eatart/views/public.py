@@ -4,7 +4,7 @@ from django.shortcuts import render
 
 from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
-from gallery.models import Event, Show
+from gallery.models import Show
 from gallery.permissions import can_manage_show, can_see_all_shows, is_curator_user, is_juror_user, is_staff_user
 
 
@@ -21,15 +21,12 @@ def index(request):
     hero_is_current = bool(current_shows)
     display_future_shows = future_shows if hero_is_current else future_shows[1:]
 
-    next_event = Event.objects.filter(date__gte=today).order_by('date').first()
-
     all_shows = current_shows + future_shows + past_shows
     manageable_show_ids = {s.id for s in all_shows if can_manage_show(request.user, s)}
 
     return render(request, 'public/index.html', {
         'hero_show': hero_show,
         'hero_is_current': hero_is_current,
-        'next_event': next_event,
         'current_shows': current_shows,
         'future_shows': display_future_shows,
         'past_shows': past_shows,

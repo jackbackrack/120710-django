@@ -1,6 +1,6 @@
 <div class="card">
-  {% if show.status == show.STATUS_OPEN_CALL %}
-  <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}{% if show.submission_type == 'invited' %}Invitation Only{% else %}Open Call{% endif %}</h2></div>
+  {% if show.status == show.STATUS_OPEN_CALL and show.submission_type != 'invited' %}
+  <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}Open Call</h2></div>
   {% elif show.status == show.STATUS_IN_REVIEW %}
   <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}Open Call &middot; Jury Review</h2></div>
   {% elif show.show_type == 'public_art' %}
@@ -18,7 +18,15 @@
       {% if show.curators.all %}<br>{% endif %}
       {% if show.location %}<br><small>{{ show.location }}</small>{% endif %}
       {{ show.date_range }}
-      {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline %}<br>Deadline: {{ show.submission_deadline }}{% endif %}
+      {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline %}
+      <br><span class="badge bg-warning text-dark me-1" style="font-size:0.7rem;vertical-align:middle">Deadline</span> {{ show.submission_deadline }}
+      {% endif %}
+      {% with next_ev=show.get_next_event %}
+      {% if next_ev %}
+      <br><span class="badge bg-secondary me-1" style="font-size:0.7rem;vertical-align:middle">Next</span>
+      <a class="card__link" href="{{ next_ev.get_absolute_url }}">{{ next_ev.name }}</a>: {{ next_ev.date }}, {{ next_ev.time_range }}
+      {% endif %}
+      {% endwith %}
     </h4>
   </div>
   <div class="card__info">

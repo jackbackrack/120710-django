@@ -124,6 +124,11 @@ class Show(models.Model):
         self.status = new_status
         self.save()
 
+    def get_next_event(self):
+        today = datetime.date.today()
+        upcoming = [e for e in self.events.all() if e.date >= today]
+        return min(upcoming, key=lambda e: e.date, default=None)
+
     @property
     def is_accepting_submissions(self):
         return self.status == self.STATUS_OPEN_CALL

@@ -65,7 +65,7 @@ class SearchResultsListView(ListView):
                 | Q(start__icontains=query)
                 | Q(end__icontains=query),
             )
-            .prefetch_related('curators', 'tags')
+            .prefetch_related('curators', 'tags', 'events')
         )
         if not can_see_all_shows(user):
             show_qs = show_qs.filter(status__in=Show.PUBLIC_STATUSES)
