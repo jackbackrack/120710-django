@@ -81,6 +81,8 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             for aw in artworks
         ]
         context['pending_submissions'] = pending_submissions
+        from reviews.models import ShowJuror
+        context['jurors'] = list(ShowJuror.objects.filter(show=show).select_related('user').order_by('user__last_name'))
         return context
 
 

@@ -15,12 +15,19 @@
     {% if show.location %}<p class="text-gray-500 text-sm"><strong>Location: </strong>{{ show.location }}</p>{% endif %}
     <p class="mb-6 text-3xl">{{ show.date_range }}</p>
     <h3 class="mb-6">Curated by:
-    {% if show.curator_artist %}
-    <a class="card__link" href="{{ show.curator_artist.get_absolute_url }}">{{ show.curator_artist.name }}</a>
+    {% with curators=show.curators.all %}
+    {% if curators %}
+    {% for curator in curators %}<a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}
     {% else %}
     Unassigned
     {% endif %}
+    {% endwith %}
     </h3>
+    {% if jurors %}
+    <h3 class="mb-6">Jurors:
+    {% for j in jurors %}{% with artist=j.user.artists.first %}{% if artist %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% else %}{{ j.user.get_full_name|default:j.user.username }}{% endif %}{% endwith %}{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}
+    </h3>
+    {% endif %}
     {% if show.description %}
     <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ show.description|safe }}</p>
     {% endif %}
