@@ -179,5 +179,66 @@
 
   {% endblock javascript %}
   {% block extra_js %}{% endblock %}
+
+  <!-- Walkthrough floating widget -->
+  <div id="wt-widget" style="display:none;position:fixed;bottom:1.5rem;right:1.5rem;z-index:1090;width:22rem;max-width:calc(100vw - 2rem);background:#fff;border:2px solid #0d6efd;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,0.18);padding:1rem 1.1rem 0.85rem">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem">
+      <span id="wt-title" style="font-size:0.78rem;color:#6c757d;font-weight:600;text-transform:uppercase;letter-spacing:.04em"></span>
+      <button id="wt-close" style="background:none;border:none;font-size:1.1rem;line-height:1;color:#6c757d;cursor:pointer;padding:0 0 0 0.5rem" title="Exit walkthrough">&times;</button>
+    </div>
+    <div id="wt-counter" style="font-size:0.78rem;color:#6c757d;margin-bottom:0.4rem"></div>
+    <div id="wt-text" style="font-size:0.97rem;margin-bottom:0.85rem;line-height:1.45"></div>
+    <div id="wt-done-msg" style="display:none;color:#198754;font-weight:600;font-size:0.97rem;margin-bottom:0.85rem">All steps complete!</div>
+    <div style="display:flex;gap:0.5rem;align-items:center">
+      <button id="wt-prev" class="btn btn-sm btn-outline-secondary">&#8592; Prev</button>
+      <button id="wt-next" class="btn btn-sm btn-primary">Next &#8594;</button>
+      <button id="wt-finish" class="btn btn-sm btn-success" style="display:none">Finish &#10003;</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var KEY = 'activeWalkthrough';
+    var widget = document.getElementById('wt-widget');
+
+    function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch(e) { return null; } }
+    function save(wt) { localStorage.setItem(KEY, JSON.stringify(wt)); }
+    function clear() { localStorage.removeItem(KEY); }
+
+    window.wtRender = render;
+    function render(wt) {
+      if (!wt) { widget.style.display = 'none'; return; }
+      var total = wt.steps.length;
+      var done = wt.step >= total;
+      document.getElementById('wt-title').textContent = wt.title;
+      document.getElementById('wt-counter').textContent = done ? (total + ' of ' + total + ' steps complete') : ('Step ' + (wt.step + 1) + ' of ' + total);
+      document.getElementById('wt-text').textContent = done ? '' : wt.steps[wt.step];
+      document.getElementById('wt-text').style.display = done ? 'none' : '';
+      document.getElementById('wt-done-msg').style.display = done ? '' : 'none';
+      document.getElementById('wt-next').style.display = done ? 'none' : '';
+      document.getElementById('wt-finish').style.display = done ? '' : 'none';
+      document.getElementById('wt-prev').disabled = wt.step === 0;
+      widget.style.display = '';
+    }
+
+    render(load());
+
+    document.getElementById('wt-prev').addEventListener('click', function () {
+      var wt = load(); if (!wt || wt.step <= 0) return;
+      wt.step--; save(wt); render(wt);
+    });
+    document.getElementById('wt-next').addEventListener('click', function () {
+      var wt = load(); if (!wt) return;
+      wt.step++; save(wt); render(wt);
+    });
+    document.getElementById('wt-finish').addEventListener('click', function () {
+      clear(); widget.style.display = 'none';
+    });
+    document.getElementById('wt-close').addEventListener('click', function () {
+      clear(); widget.style.display = 'none';
+    });
+  })();
+  </script>
+
   </body>
 </html>
