@@ -2,7 +2,7 @@
 
 {% block title %}Artists{% endblock %}
 {% block block_title %}Artists
-{% if user.is_authenticated %}
+{% if user.is_authenticated and not user.artists.all %}
   <a class="card__link new-button" href="{% url 'gallery:artist_new' %}">New</a>
 {% endif %}
   {% endblock %}
