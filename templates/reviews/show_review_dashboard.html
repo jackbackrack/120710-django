@@ -88,7 +88,7 @@
             {% endif %}
           </td>
           <td>{{ artwork.review_count }}</td>
-          <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">View reviews</a></td>
+          <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}?all=1">View reviews</a></td>
         </tr>
         {% empty %}
         <tr><td colspan="4">No artworks submitted to this show.</td></tr>

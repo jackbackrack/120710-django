@@ -128,7 +128,8 @@ def artwork_review(request, show_slug, artwork_slug):
     if not is_juror_for_show(request.user, show) and not can_manage_show(request.user, show):
         raise Http404
 
-    if can_manage_show(request.user, show) and not is_juror_for_show(request.user, show):
+    view_all = request.GET.get('all') == '1'
+    if can_manage_show(request.user, show) and (not is_juror_for_show(request.user, show) or view_all):
         reviews = (
             ArtworkReview.objects
             .filter(show=show, artwork=artwork)
