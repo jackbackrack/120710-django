@@ -21,7 +21,9 @@ class Artist(models.Model):
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='artist_images', null=True)
-    card_thumbnail = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+    detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
     tags = models.ManyToManyField('gallery.Tag', related_name='artists', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

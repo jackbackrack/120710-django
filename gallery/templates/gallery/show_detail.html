@@ -7,7 +7,7 @@
 <div class="cards">
 <div class="card" id="big_card">
   {% if show.image %}
-  <img src="{{ show.image.url }}" class="card__image zoomable">
+  <img src="{{ show.card_md.url }}" data-full-src="{{ show.detail_lg.url }}" class="card__image zoomable">
   {% endif %}
   <div class="card__content">
     <h1 class="mb-6 text-3xl">{{ show.name }}</h1>
@@ -89,7 +89,7 @@
 {% with artwork=entry.artwork sub=entry.submission %}
   <div class="card">
     {% if artwork.image %}
-    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_thumbnail.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_sm.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h2>
@@ -121,7 +121,7 @@
 {% for sub in pending_submissions %}
   <div class="card">
     {% if sub.artwork.image %}
-    <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_sm.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <h2 class="text-sm">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h2>
@@ -142,7 +142,7 @@
   {% for artist in artists %}
   <div class="card">
     {% if artist.image %}
-    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img src="{{ artist.card_thumbnail.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img src="{{ artist.card_sm.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
     <div class="card__info">

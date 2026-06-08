@@ -7,7 +7,7 @@
 <div class="cards">
 <div class="card" id="big_card">
   {% if artwork.image %}
-  <img src="{{ artwork.image.url }}" class="card__image zoomable">
+  <img src="{{ artwork.card_md.url }}" data-full-src="{{ artwork.detail_lg.url }}" class="card__image zoomable">
   {% endif %}
   <div class="card__content">
     <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h2>
@@ -47,7 +47,7 @@
   {% for show in artwork.shows.all %}
     <div class="card">
      {% if show.image %}
-     <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.image.url }}" class="card__image"></a>
+     <a style="display: contents" href="{{ show.get_absolute_url }}"><img src="{{ show.card_sm.url }}" class="card__image"></a>
      {% endif %}
      <div class="card__content"><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></div>
      <div class="card__info">

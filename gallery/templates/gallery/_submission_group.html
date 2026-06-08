@@ -5,7 +5,7 @@
 <div class="card" style="width:200px;max-width:200px;{% if row_class == 'table-success' %}border-color:#198754{% elif row_class == 'table-danger' %}border-color:#dc3545{% endif %}">
   {% if sub.artwork.image %}
   <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}">
-    <img src="{{ sub.artwork.card_thumbnail.url }}" data-full-src="{{ sub.artwork.image.url }}" class="card__image zoomable">
+    <img src="{{ sub.artwork.card_sm.url }}" data-full-src="{{ sub.artwork.detail_lg.url }}" class="card__image zoomable">
   </a>
   {% endif %}
   <div class="card__content">

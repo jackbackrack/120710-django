@@ -7,7 +7,7 @@
 <div class="cards">
 <div class="card" id="big_card">
   {% if artwork.image %}
-  <img src="{{ artwork.card_thumbnail.url }}" data-full-src="{{ artwork.image.url }}" class="card__image zoomable" style="width:100%">
+  <img src="{{ artwork.card_md.url }}" data-full-src="{{ artwork.detail_lg.url }}" class="card__image zoomable" style="width:100%">
   {% endif %}
   <div class="card__content">
     <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to {{ show.name }} reviews</a></p>

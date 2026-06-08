@@ -12,7 +12,9 @@ def regenerate_artwork_thumbnail(request, pk):
     if not can_manage_artwork(request.user, artwork):
         raise Http404
     if request.method == 'POST' and artwork.image:
-        artwork.card_thumbnail.generate(force=True)
+        artwork.card_sm.generate(force=True)
+        artwork.card_md.generate(force=True)
+        artwork.detail_lg.generate(force=True)
     return redirect(request.META.get('HTTP_REFERER', artwork.get_absolute_url()))
 
 
@@ -22,5 +24,7 @@ def regenerate_artist_thumbnail(request, pk):
     if not can_manage_artist(request.user, artist):
         raise Http404
     if request.method == 'POST' and artist.image:
-        artist.card_thumbnail.generate(force=True)
+        artist.card_sm.generate(force=True)
+        artist.card_md.generate(force=True)
+        artist.detail_lg.generate(force=True)
     return redirect(request.META.get('HTTP_REFERER', artist.get_absolute_url()))

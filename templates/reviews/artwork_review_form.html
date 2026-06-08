@@ -11,7 +11,7 @@
     {% include 'includes/help_by_role_panel.html' %}
 
     {% if artwork.image %}
-    <img src="{{ artwork.card_thumbnail.url }}" data-full-src="{{ artwork.image.url }}" class="card__image zoomable" style="width:100%">
+    <img src="{{ artwork.card_md.url }}" data-full-src="{{ artwork.detail_lg.url }}" class="card__image zoomable" style="width:100%">
     {% endif %}
 
     <h1 class="mb-6 text-3xl">{{ artwork.name }}</h1>

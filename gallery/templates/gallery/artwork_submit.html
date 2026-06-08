@@ -31,7 +31,7 @@
         <input type="radio" name="artwork" value="{{ artwork.pk }}" required {% if preseed_pk == artwork.pk|stringformat:"s" %}checked{% endif %}>
         <div class="card">
           {% if artwork.image %}
-          <img src="{{ artwork.card_thumbnail.url }}" class="card__image" alt="{{ artwork.name }}">
+          <img src="{{ artwork.card_sm.url }}" class="card__image" alt="{{ artwork.name }}">
           {% endif %}
           <div class="card__content">
             <h3>{{ artwork.name }}</h3>

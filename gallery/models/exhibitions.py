@@ -47,7 +47,9 @@ class Show(models.Model):
     location = models.TextField(blank=True, null=True, verbose_name='Location (address or site description)')
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
-    card_thumbnail = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+    card_sm = ImageSpecField(source='image', processors=[ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+    detail_lg = ImageSpecField(source='image', processors=[ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
     curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
     submission_type = models.CharField(
         max_length=16, choices=SUBMISSION_TYPE_CHOICES, default=SUBMISSION_OPEN,
