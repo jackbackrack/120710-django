@@ -27,7 +27,11 @@
         {% if hero_show.status == hero_show.STATUS_OPEN_CALL %}<br>Open Call{% if hero_show.submission_deadline %} &middot; Deadline: {{ hero_show.submission_deadline }}{% endif %}{% endif %}
         {% if hero_show.status == hero_show.STATUS_IN_REVIEW %}<br>Open Call &middot; Jury Review{% endif %}
         {% for event in hero_show.events.all %}
-          <br><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.time_range }}
+          <br>
+          {% if next_event and event.pk == next_event.pk %}
+          <span class="badge bg-secondary me-1" style="font-size:0.7rem;vertical-align:middle">Next</span>
+          {% endif %}
+          <a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.time_range }}
         {% endfor %}
       </h4>
     </div>
@@ -39,7 +43,7 @@
     </div>
   </div>
   {% endif %}
-  {% if next_event %}
+  {% if next_event and next_event.show != hero_show %}
   <div class="card big-card">
     <div class="text-center"><h2>Next Event</h2></div>
     {% if next_event.image %}
