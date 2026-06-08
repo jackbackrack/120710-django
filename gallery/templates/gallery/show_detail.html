@@ -55,29 +55,25 @@
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
-    <a class="card__link" href="{% url 'gallery:show_catalog' show.slug %}">Catalog</a>
-    <a class="card__link" href="{{ show.get_placards_url }}">Placards</a>
-    <a class="card__link" href="{{ show.get_instagram_url }}">Instagram</a>
+  {% endif %}
+  {% if show.is_open_call and can_view_reviews %}
+    <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
+  {% endif %}
+  {% if show.is_open_call and can_manage_show %}
+    <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Assign Jurors</a>
+  {% endif %}
+  {% if can_view_reviews %}
+    <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
+  {% endif %}
+  {% if can_manage_show %}
+  <div style="width:100%"></div>
     <form method="post" action="{% url 'gallery:renumber_artworks' show.slug %}" style="display:inline">
       {% csrf_token %}
       <button type="submit" class="btn btn-sm btn-link p-0 card__link" onclick="return confirm('Reassign artwork numbers from scratch?')">Renumber</button>
     </form>
-  {% endif %}
-  {% if can_view_reviews and not show.is_open_call %}
-    <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
-  {% endif %}
-  {% if show.is_open_call and can_view_reviews or show.is_open_call and can_manage_show %}
-  <div style="width:100%;display:flex;justify-content:space-between">
-    {% if show.is_open_call and can_view_reviews %}
-      <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
-    {% endif %}
-    {% if show.is_open_call and can_manage_show %}
-      <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Assign Jurors</a>
-    {% endif %}
-    {% if can_view_reviews %}
-      <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
-    {% endif %}
-  </div>
+    <a class="card__link" href="{% url 'gallery:show_catalog' show.slug %}">Catalog</a>
+    <a class="card__link" href="{{ show.get_placards_url }}">Placards</a>
+    <a class="card__link" href="{{ show.get_instagram_url }}">Instagram</a>
   {% endif %}
   </div>
 </div>
