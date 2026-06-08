@@ -35,7 +35,7 @@
         <th>{{ criterion.name }}<br><small class="text-muted">w={{ criterion.weight|floatformat:"-1" }}</small></th>
         {% endfor %}
         {% endif %}
-        <th>Overall</th>
+        {% if not criteria %}<th>Overall</th>{% endif %}
         <th>Notes</th>
         <th>Date</th>
         <th></th>
@@ -54,7 +54,7 @@
         </td>
         {% endfor %}
         {% endif %}
-        <td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>
+        {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>{% endif %}
         <td>{{ review.body|default:"&mdash;" }}</td>
         <td>{{ review.updated_at|date:"N j, Y" }}</td>
         <td><a class="card__link" href="{% url 'reviews:curator_edit_review' show_slug=show.slug artwork_slug=artwork.slug review_id=review.id %}">Edit</a></td>

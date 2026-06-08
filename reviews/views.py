@@ -17,7 +17,7 @@ def _compute_weighted_scores(show, criteria):
     rows = (
         CriterionScore.objects
         .filter(review__show=show)
-        .values('review__artwork_id', 'criterion__weight')
+        .values('review__artwork_id', 'criterion_id', 'criterion__weight')
         .annotate(avg_score=Avg('score'))
     )
     sums = {}
