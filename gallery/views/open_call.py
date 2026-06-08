@@ -8,7 +8,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
-from gallery.forms import ArtworkSubmissionForm
+from gallery.forms import ArtworkSubmissionForm, QuickArtworkForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber, ShowInvitation
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
 from reviews.views import _compute_weighted_scores
@@ -193,23 +193,44 @@ def artwork_submit(request, slug):
     )
 
     if request.method == 'POST':
-        form = ArtworkSubmissionForm(request.POST, show=show, artist=artist)
-        if form.is_valid():
-            submission = form.save(commit=False)
-            submission.show = show
-            submission.submitted_by = request.user
-            submission.save()
-            messages.success(request, f'"{submission.artwork.name}" has been submitted to {show.name}.')
-            _send_submission_confirmation(submission, request)
-            return redirect(show)
+        action = request.POST.get('action')
+
+        if action == 'create_artwork':
+            quick_form = QuickArtworkForm(request.POST, request.FILES)
+            if quick_form.is_valid():
+                artwork = quick_form.save(commit=False)
+                artwork.created_by = request.user
+                artwork.save()
+                artwork.artists.add(artist)
+                url = reverse('gallery:artwork_submit', kwargs={'slug': slug})
+                return redirect(f'{url}?new_pk={artwork.pk}')
+            form = ArtworkSubmissionForm(show=show, artist=artist)
+            preseed_pk = None
+        else:
+            quick_form = QuickArtworkForm()
+            form = ArtworkSubmissionForm(request.POST, show=show, artist=artist)
+            if form.is_valid():
+                submission = form.save(commit=False)
+                submission.show = show
+                submission.submitted_by = request.user
+                submission.save()
+                messages.success(request, f'"{submission.artwork.name}" has been submitted to {show.name}.')
+                _send_submission_confirmation(submission, request)
+                return redirect(show)
+            preseed_pk = None
     else:
         form = ArtworkSubmissionForm(show=show, artist=artist)
+        quick_form = QuickArtworkForm()
+        preseed_pk = request.GET.get('new_pk')
 
     return render(request, 'gallery/artwork_submit.html', {
         'show': show,
         'form': form,
+        'quick_form': quick_form,
         'available_artworks': available_artworks,
         'has_any_artworks': artist.artworks.exists(),
+        'preseed_pk': preseed_pk,
+        'show_quick_form': action == 'create_artwork' if request.method == 'POST' else False,
     })
 
 

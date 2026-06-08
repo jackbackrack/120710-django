@@ -127,6 +127,23 @@ class ArtworkForm(UserAwareModelForm):
         )
 
 
+class QuickArtworkForm(forms.ModelForm):
+    class Meta:
+        model = Artwork
+        fields = ('name', 'end_year', 'start_year', 'medium', 'width_inches', 'height_inches', 'depth_inches', 'image')
+        widgets = {
+            'width_inches': forms.NumberInput(attrs={'placeholder': 'W', 'class': 'dim-input', 'step': 'any', 'min': '0'}),
+            'height_inches': forms.NumberInput(attrs={'placeholder': 'H', 'class': 'dim-input', 'step': 'any', 'min': '0'}),
+            'depth_inches': forms.NumberInput(attrs={'placeholder': 'D', 'class': 'dim-input', 'step': 'any', 'min': '0'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['width_inches'].required = True
+        self.fields['height_inches'].required = True
+        self.fields['image'].required = False
+
+
 class ArtworkSubmissionForm(forms.ModelForm):
     class Meta:
         model = ArtworkSubmission

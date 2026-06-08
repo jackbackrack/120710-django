@@ -13,23 +13,22 @@
   <p>Decision date: <strong>{{ show.decision_date }}</strong></p>
   {% endif %}
 
-  {% if not has_any_artworks %}
-  <p>You have no artworks yet. <a class="card__link" href="{% url 'gallery:artwork_new' %}">Add an artwork</a> before submitting to a show.</p>
-  <a class="card__link" href="{{ show.get_absolute_url }}">Back to show</a>
-
+  {% if not available_artworks and not has_any_artworks %}
+  <p>You have no artworks yet. Add one below or <a class="card__link" href="{{ show.get_absolute_url }}">go back to the show</a>.</p>
   {% elif not available_artworks %}
-  <p>All of your artworks have already been submitted to this show.</p>
-  <a class="card__link" href="{{ show.get_absolute_url }}">Back to show</a>
+  <p>All of your artworks have already been submitted to this show. You can add a new artwork below.</p>
+  {% endif %}
 
-  {% else %}
-  <form method="post">
+  {% if available_artworks %}
+  <form method="post" id="submit-form">
     {% csrf_token %}
+    <input type="hidden" name="action" value="submit">
     {{ form.statement|as_crispy_field }}
     <p class="mt-3 mb-2"><strong>Select an artwork to submit:</strong></p>
-    <div class="cards artwork-select-cards">
+    <div class="cards artwork-select-cards" id="artwork-cards">
       {% for artwork in available_artworks %}
-      <label class="artwork-select-label">
-        <input type="radio" name="artwork" value="{{ artwork.pk }}" required>
+      <label class="artwork-select-label" data-pk="{{ artwork.pk }}">
+        <input type="radio" name="artwork" value="{{ artwork.pk }}" required {% if preseed_pk == artwork.pk|stringformat:"s" %}checked{% endif %}>
         <div class="card">
           {% if artwork.image %}
           <img src="{{ artwork.card_thumbnail.url }}" class="card__image" alt="{{ artwork.name }}">
@@ -48,7 +47,41 @@
     <button type="submit" class="btn btn-primary mt-3">Submit</button>
     <a class="card__link ms-3" href="{{ show.get_absolute_url }}">Cancel</a>
   </form>
+  {% else %}
+  <a class="card__link" href="{{ show.get_absolute_url }}">Cancel</a>
   {% endif %}
+
+  <div class="mt-4">
+    <button class="btn btn-outline-secondary btn-sm" type="button" id="toggle-quick-form">
+      + Add a new artwork
+    </button>
+    <div id="quick-artwork-form" style="display:{% if show_quick_form %}block{% else %}none{% endif %};" class="mt-3 p-3 border rounded">
+      <h5>New Artwork</h5>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_artwork">
+        {% if quick_form.errors %}
+        <div class="alert alert-danger">Please correct the errors below.</div>
+        {% endif %}
+        {{ quick_form.name|as_crispy_field }}
+        <div class="row g-2">
+          <div class="col-auto">{{ quick_form.end_year|as_crispy_field }}</div>
+          <div class="col-auto">{{ quick_form.start_year|as_crispy_field }}</div>
+        </div>
+        {{ quick_form.medium|as_crispy_field }}
+        <div class="d-flex gap-2 align-items-end mb-3">
+          <div>{{ quick_form.width_inches|as_crispy_field }}</div>
+          <span class="mb-3">×</span>
+          <div>{{ quick_form.height_inches|as_crispy_field }}</div>
+          <span class="mb-3">×</span>
+          <div>{{ quick_form.depth_inches|as_crispy_field }}</div>
+        </div>
+        {{ quick_form.image|as_crispy_field }}
+        <button type="submit" class="btn btn-secondary">Create &amp; Select</button>
+        <button type="button" class="btn btn-link" id="cancel-quick-form">Cancel</button>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -74,4 +107,32 @@
   outline: 2px solid #aaa;
 }
 </style>
+<script>
+(function () {
+  var toggleBtn = document.getElementById('toggle-quick-form');
+  var cancelBtn = document.getElementById('cancel-quick-form');
+  var panel = document.getElementById('quick-artwork-form');
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    });
+  }
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function () {
+      panel.style.display = 'none';
+    });
+  }
+
+  // Auto-select the newly created artwork card
+  var preseedPk = '{{ preseed_pk|default:"" }}';
+  if (preseedPk) {
+    var label = document.querySelector('.artwork-select-label[data-pk="' + preseedPk + '"]');
+    if (label) {
+      label.querySelector('input[type="radio"]').checked = true;
+      label.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
+  }
+})();
+</script>
 {% endblock %}
