@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Publish Show — {{ show.name }}{% endblock %}
-{% block block_title %}Publish Show — {{ show.name }}{% endblock %}
+{% block block_title %}{% if will_publish %}Publish Show{% else %}Sync Artworks{% endif %} — {{ show.name }}{% endblock %}
 
 {% block content %}
 <div class="container mt-3">
@@ -43,8 +43,8 @@
 
 <form method="post" class="mt-4">
   {% csrf_token %}
-  <button type="submit" class="btn btn-primary" {% if not to_add and not to_remove %}disabled{% endif %}>
-    Confirm &amp; Sync to Show
+  <button type="submit" class="btn btn-primary">
+    {% if will_publish %}Confirm &amp; Publish Show{% else %}Confirm &amp; Sync to Show{% endif %}
   </button>
   <a class="card__link ms-3" href="{% url 'gallery:show_submissions' show.slug %}">Cancel</a>
 </form>

@@ -46,6 +46,27 @@
     {% else %}
     {% if can_manage_show %}<p class="text-gray-500 text-sm"><strong>Status: </strong>{{ show.get_status_display }}</p>{% endif %}
     {% endif %}
+    {% if can_manage_show and allowed_transitions %}
+    <form method="post" action="{% url 'gallery:transition_show_status' show.pk %}" class="mt-2">
+      {% csrf_token %}
+      {% if allowed_transitions|length == 1 %}
+      <input type="hidden" name="status" value="{{ allowed_transitions.0.0 }}">
+      <button type="submit" class="btn btn-sm btn-outline-secondary"
+              onclick="return confirm('Change status to {{ allowed_transitions.0.1 }}?')">
+        &rarr; {{ allowed_transitions.0.1 }}
+      </button>
+      {% else %}
+      <div class="d-flex align-items-center gap-2">
+        <select name="status" class="form-select form-select-sm" style="width:auto">
+          {% for value, label in allowed_transitions %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Change Status</button>
+      </div>
+      {% endif %}
+    </form>
+    {% endif %}
     {% for event in show.events.all %}
     <h3 class="mb-6"> <a class="card__link" href="{{ event.get_absolute_url }}"> {{ event.name }}</a>:
     {{ event.date }}: {{ event.time_range }}</h3>
@@ -76,9 +97,6 @@
     {% endif %}
     {% if can_view_reviews %}
       <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
-    {% endif %}
-    {% if show.is_open_call and can_manage_show %}
-      <a class="card__link" href="{% url 'gallery:promote_artworks' show.slug %}">Publish Show</a>
     {% endif %}
   </div>
   {% endif %}

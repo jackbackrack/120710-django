@@ -257,6 +257,12 @@ def promote_artworks(request, slug):
             sub.status = ArtworkSubmission.REJECTED
             sub.save(update_fields=['status'])
 
+        # If transitioning an open call from Draft, publish and send emails
+        if show.is_open_call and show.status == Show.STATUS_DRAFT:
+            show.status = Show.STATUS_PUBLISHED
+            show.save(update_fields=['status'])
+            send_submission_emails(show)
+
         return redirect(show)
 
     context = {
@@ -266,6 +272,7 @@ def promote_artworks(request, slug):
         'to_remove': to_remove,
         'selected_submissions': selected_subs,
         'rejected_submissions': rejected_subs,
+        'will_publish': show.is_open_call and show.status == Show.STATUS_DRAFT,
     }
     return render(request, 'gallery/promote_artworks.html', context)
 

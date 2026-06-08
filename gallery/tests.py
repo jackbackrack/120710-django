@@ -945,6 +945,38 @@ class OpenCallFlowTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(ArtworkSubmission.objects.filter(pk=sub.pk).exists())
 
+    # --- Promote in Draft state auto-publishes ---
+
+    def test_promote_in_draft_state_publishes_show_and_sends_emails(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+
+        self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_PUBLISHED)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
+
+    def test_promote_in_open_call_state_does_not_auto_publish(self):
+        # show starts as STATUS_OPEN_CALL in setUp
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
+        )
+        self.client.force_login(self.curator_user)
+
+        self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_OPEN_CALL)
+        self.assertEqual(len(mail.outbox), 0)
+
     # --- Complete end-to-end flow ---
 
     def test_full_open_call_flow(self):
@@ -1265,6 +1297,97 @@ class ShowStatusTests(TestCase):
         )
         ids = [s.id for s in all_shows]
         self.assertIn(private.id, ids)
+
+    # --- transition_show_status view ---
+
+    def test_curator_can_transition_status(self):
+        self.show.status = Show.STATUS_UNDER_CONSIDERATION
+        self.show.save(update_fields=['status'])
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_OPEN_CALL},
+        )
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_OPEN_CALL)
+
+    def test_invalid_transition_rejected_by_view(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.save(update_fields=['status'])
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_PUBLISHED},  # not a valid transition from OPEN_CALL
+        )
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_OPEN_CALL)
+
+    def test_artist_cannot_transition_status(self):
+        self.show.status = Show.STATUS_UNDER_CONSIDERATION
+        self.show.save(update_fields=['status'])
+        self.client.force_login(self.artist_user)
+
+        response = self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_OPEN_CALL},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_UNDER_CONSIDERATION)
+
+    def test_transition_to_in_review_sends_juror_emails(self):
+        self.show.status = Show.STATUS_OPEN_CALL
+        self.show.is_open_call = True
+        self.show.save(update_fields=['status', 'is_open_call'])
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_IN_REVIEW},
+        )
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_IN_REVIEW)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.juror_user.email, mail.outbox[0].recipients())
+
+    def test_draft_to_published_on_open_call_redirects_to_promote(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.is_open_call = True
+        self.show.save(update_fields=['status', 'is_open_call'])
+        self.client.force_login(self.curator_user)
+
+        response = self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_PUBLISHED},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}),
+            fetch_redirect_response=False,
+        )
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_DRAFT)  # not changed yet
+
+    def test_draft_to_published_on_non_open_call_changes_status_directly(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.is_open_call = False
+        self.show.save(update_fields=['status', 'is_open_call'])
+        self.client.force_login(self.curator_user)
+
+        self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_PUBLISHED},
+        )
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_PUBLISHED)
 
 
 @override_settings(

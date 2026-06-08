@@ -31,6 +31,7 @@ from gallery.views.exhibitions import (
     ShowPlacardsView,
     ShowUpdateView,
     redirect_to_latest_show,
+    transition_show_status,
 )
 from gallery.views.open_call import artwork_submit, show_submissions, promote_artworks, update_submission_status, renumber_artworks, retract_submission
 from gallery.views.search import SearchResultsListView
@@ -57,6 +58,7 @@ __all__ = [
     'ShowDeleteView',
     'ShowCreateView',
     'redirect_to_latest_show',
+    'transition_show_status',
     'artwork_submit',
     'show_submissions',
     'promote_artworks',

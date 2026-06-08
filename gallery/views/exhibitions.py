@@ -2,9 +2,12 @@ import datetime
 
 from eatart.schemaorg.mappers import show_to_schema
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Min, Q
-from django.shortcuts import redirect
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
@@ -83,6 +86,9 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['pending_submissions'] = pending_submissions
         from reviews.models import ShowJuror
         context['jurors'] = list(ShowJuror.objects.filter(show=show).select_related('user').order_by('user__last_name'))
+        allowed = Show.VALID_TRANSITIONS.get(show.status, [])
+        status_choices = dict(Show.STATUS_CHOICES)
+        context['allowed_transitions'] = [(s, status_choices[s]) for s in allowed]
         return context
 
 
@@ -180,3 +186,27 @@ class ShowCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def test_func(self):
         return is_staff_user(self.request.user)
+
+
+@login_required
+def transition_show_status(request, pk):
+    show = get_object_or_404(Show, pk=pk)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        allowed = Show.VALID_TRANSITIONS.get(show.status, [])
+        if new_status not in allowed:
+            messages.error(request, 'Invalid status transition.')
+            return redirect(show)
+        # Open call Draft→Published: go through the promote/publish page
+        if new_status == Show.STATUS_PUBLISHED and show.is_open_call:
+            return redirect('gallery:promote_artworks', slug=show.slug)
+        old_status = show.status
+        show.status = new_status
+        show.save(update_fields=['status'])
+        if old_status != Show.STATUS_IN_REVIEW and new_status == Show.STATUS_IN_REVIEW:
+            from gallery.views.open_call import send_juror_review_notifications
+            send_juror_review_notifications(show, request)
+        messages.success(request, f'Status changed to {show.get_status_display()}.')
+    return redirect(show)
