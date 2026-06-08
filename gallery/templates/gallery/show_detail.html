@@ -47,7 +47,7 @@
     {% if can_manage_show %}<p class="text-gray-500 text-sm"><strong>Status: </strong>{{ show.get_status_display }}</p>{% endif %}
     {% endif %}
     {% if can_manage_show and allowed_transitions %}
-    <form method="post" action="{% url 'gallery:transition_show_status' show.pk %}" class="mt-2">
+    <form method="post" action="{% url 'gallery:transition_show_status' show.pk %}" class="mt-2 mb-3">
       {% csrf_token %}
       {% if allowed_transitions|length == 1 %}
       <input type="hidden" name="status" value="{{ allowed_transitions.0.0 }}">

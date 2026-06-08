@@ -12,9 +12,6 @@
   <span class="text-success"><strong>{{ n_selected }}</strong> selected</span>
   <span class="text-danger"><strong>{{ n_rejected }}</strong> rejected</span>
   <span class="text-muted">{{ submissions|length }} total</span>
-  {% if can_manage %}
-  <a class="card__link ms-auto me-2" href="{% url 'gallery:promote_artworks' show.slug %}">Publish Show &rarr;</a>
-  {% endif %}
 </div>
 
 {% include 'gallery/_submission_group.html' with label="Undecided" group=undecided_submissions row_class="" %}
