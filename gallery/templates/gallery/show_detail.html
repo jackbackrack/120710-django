@@ -57,11 +57,11 @@
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
   {% endif %}
-  {% if can_view_reviews %}
-    <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
-  {% endif %}
   {% if show.submission_type == 'invited' and can_manage_show %}
     <a class="card__link" href="{% url 'gallery:invite_artists' show.slug %}">Invite Artists</a>
+  {% endif %}
+  {% if can_view_reviews %}
+    <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
   {% endif %}
   {% if show.submission_type == 'open' and can_manage_show %}
     <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Assign Jurors</a>
