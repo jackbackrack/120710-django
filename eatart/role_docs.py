@@ -118,6 +118,7 @@ HOW_TO_GUIDES = [
         'title': 'How to jury a show',
         'roles': {'juror', 'curator', 'staff'},
         'steps': [
+            'Make sure you have an account on this site and that your artist profile information is complete — the curator will need to assign you by name.',
             'A curator or staff member assigns you as a juror. You will receive an email when the show moves to In Review status.',
             'Sign in and go to Shows. Open the show you are jurying and click Reviews on the show detail page.',
             'You will see a Pending Review section listing all artworks you have not yet scored. Click Review on any artwork.',
