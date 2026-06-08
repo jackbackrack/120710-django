@@ -11,6 +11,7 @@ from django.urls import reverse
 from gallery.forms import ArtworkSubmissionForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
+from reviews.views import _compute_weighted_scores
 
 
 def _send_selection_email(submission, accepted):
@@ -174,8 +175,14 @@ def show_submissions(request, slug):
         ).distinct()
 
     submissions = list(submissions)
+    criteria = list(show.rubric_criteria.all())
+    weighted_scores = _compute_weighted_scores(show, criteria) if criteria else {}
+    for sub in submissions:
+        sub.weighted_score = weighted_scores.get(sub.artwork_id)
+
     context = {
         'show': show,
+        'criteria': criteria,
         'submissions': submissions,
         'undecided_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED],
         'selected_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED],

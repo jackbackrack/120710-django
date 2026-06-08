@@ -4,7 +4,7 @@
   <thead>
     <tr>
       <th>Artwork</th>
-      <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Score</th>
+      <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">{% if criteria %}Weighted Score{% else %}Score{% endif %}</th>
       <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Reviews</th>
       <th style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">Decision</th>
       <th style="width:1%;padding-left:1rem;padding-right:1rem"></th>
@@ -25,7 +25,13 @@
         </div>
       </div>
     </td>
-    <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">{% if sub.avg_rating %}{{ sub.avg_rating|floatformat:1 }}/10{% else %}&mdash;{% endif %}</td>
+    <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">
+      {% if criteria %}
+        {% if sub.weighted_score %}{{ sub.weighted_score|floatformat:1 }}/10{% else %}&mdash;{% endif %}
+      {% else %}
+        {% if sub.avg_rating %}{{ sub.avg_rating|floatformat:1 }}/10{% else %}&mdash;{% endif %}
+      {% endif %}
+    </td>
     <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">{{ sub.review_count }}</td>
     <td style="width:1%;white-space:nowrap;padding-left:1rem;padding-right:1rem">
       {% if can_manage %}
