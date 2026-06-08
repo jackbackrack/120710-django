@@ -51,6 +51,9 @@ class ArtworkReviewForm(forms.ModelForm):
             if criterion.pk in existing_scores:
                 self.initial[field_key] = existing_scores[criterion.pk]
 
+        for key in ['rating', 'body']:
+            self.fields[key] = self.fields.pop(key)
+
     def save_criterion_scores(self, review):
         for criterion in self.criteria:
             score = self.cleaned_data.get(f'criterion_{criterion.pk}')
