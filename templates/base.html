@@ -46,7 +46,7 @@
     <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
     | <a class="card__link" href="{% url 'account_signup' %}">SignUp</a>
   {% endif %}
-    <a href="https://www.reset.art" target="_blank" rel="noopener"><img src="{% static 'img/reset-art-logo.png' %}" width="100" alt="Reset Art"></a>
+    <a href="https://www.reset.art" target="_blank" rel="noopener"><img src="{% static 'img/reset-art-logo.png' %}" width="50" alt="Reset Art"></a>
     <form class="d-flex col-8 mx-auto mt-4" action="{% block search_action %}{% url 'gallery:search_results' %}{% endblock %}" method="get">
       <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search" value="{{ request.GET.q }}">
       {% with u=request.resolver_match.url_name %}{% if 'artist' in u %}<input type="hidden" name="priority" value="artist">{% elif 'artwork' in u %}<input type="hidden" name="priority" value="artwork">{% elif 'show' in u or 'event' in u %}<input type="hidden" name="priority" value="show">{% endif %}{% endwith %}
