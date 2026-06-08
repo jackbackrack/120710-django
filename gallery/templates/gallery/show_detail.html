@@ -28,6 +28,9 @@
     {% for j in jurors %}{% with artist=j.user.artists.first %}{% if artist %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% else %}{{ j.user.get_full_name|default:j.user.username }}{% endif %}{% endwith %}{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}
     </h3>
     {% endif %}
+    {% if can_manage_show %}
+    <p class="text-gray-500 text-sm"><strong>Status: </strong>{{ show.get_status_display }}</p>
+    {% endif %}
     {% if show.description %}
     <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ show.description|safe }}</p>
     {% endif %}
