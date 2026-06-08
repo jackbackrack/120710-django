@@ -29,9 +29,10 @@
         {% for event in hero_show.events.all %}
           <br>
           {% if next_ev and event.pk == next_ev.pk %}
-          <span class="badge bg-secondary me-1" style="font-size:0.7rem;vertical-align:middle">Next</span>
-          {% endif %}
+          <span style="background:#fff176;padding:0 2px"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.time_range }}</span>
+          {% else %}
           <a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.time_range }}
+          {% endif %}
         {% endfor %}
         {% endwith %}
       </h4>

@@ -23,8 +23,7 @@
       {% endif %}
       {% with next_ev=show.get_next_event %}
       {% if next_ev %}
-      <br><span class="badge bg-secondary me-1" style="font-size:0.7rem;vertical-align:middle">Next</span>
-      <a class="card__link" href="{{ next_ev.get_absolute_url }}">{{ next_ev.name }}</a>: {{ next_ev.date }}, {{ next_ev.time_range }}
+      <br><span style="background:#fff176;padding:0 2px"><a class="card__link" href="{{ next_ev.get_absolute_url }}">{{ next_ev.name }}</a>: {{ next_ev.date }}, {{ next_ev.time_range }}</span>
       {% endif %}
       {% endwith %}
     </h4>
