@@ -149,7 +149,7 @@
       document.querySelectorAll('img.zoomable').forEach(function (img) {
         img.style.cursor = 'zoom-in';
         img.addEventListener('click', function () {
-          modalImg.src = this.src;
+          modalImg.src = this.dataset.fullSrc || this.src;
           modalImg.alt = this.alt;
           zoomed = false;
           modalImg.style.maxWidth = '100%';

@@ -16,7 +16,7 @@
     <td>
       <div class="card" style="width:175px;display:inline-block;vertical-align:top">
         {% if sub.artwork.image %}
-        <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_thumbnail.url }}" class="card__image" style="width:100%"></a>
+        <img src="{{ sub.artwork.card_thumbnail.url }}" data-full-src="{{ sub.artwork.image.url }}" class="card__image zoomable" style="width:100%">
         {% endif %}
         <div class="card__content">
           <h3 class="text-sm"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></h3>
