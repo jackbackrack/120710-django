@@ -150,7 +150,6 @@ class ArtworkSubmissionForm(forms.ModelForm):
 
 
 class ShowForm(UserAwareModelForm):
-    artists = forms.ModelMultipleChoiceField(queryset=Artist.objects.none(), required=False)
     artworks = forms.ModelMultipleChoiceField(queryset=Artwork.objects.none(), required=False)
     curators = forms.ModelMultipleChoiceField(queryset=Artist.objects.none(), required=False)
 
@@ -182,13 +181,11 @@ class ShowForm(UserAwareModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
-        self.fields['artists'].queryset = Artist.objects.order_by('name')
         self.fields['artworks'].queryset = Artwork.objects.order_by('name').distinct()
         self.fields['curators'].queryset = Artist.objects.filter(
             user__isnull=False
         ).order_by('name')
         if self.instance.pk:
-            self.fields['artists'].initial = self.instance.artists.all()
             self.fields['artworks'].initial = self.instance.artworks.all()
             self.fields['curators'].initial = self.instance.curators.all()
         if not is_staff_user(self.user) and not is_curator_user(self.user):
@@ -199,11 +196,7 @@ class ShowForm(UserAwareModelForm):
         if not commit:
             return show
 
-        selected_artworks = self.cleaned_data['artworks']
-        selected_artist_ids = list(self.cleaned_data['artists'].values_list('id', flat=True))
-        selected_artwork_artist_ids = list(selected_artworks.values_list('artists__id', flat=True))
-        show.artists.set(Artist.objects.filter(id__in=selected_artist_ids + selected_artwork_artist_ids).distinct())
-        show.artworks.set(selected_artworks)
+        show.artworks.set(self.cleaned_data['artworks'])
         show.curators.set(self.cleaned_data['curators'])
         return show
 

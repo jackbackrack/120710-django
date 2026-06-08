@@ -395,7 +395,7 @@ class AuthorizationWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_curator_can_assign_artists_and_artworks_to_show(self):
+    def test_curator_can_assign_artworks_to_show(self):
         self.client.force_login(self.curator_user)
 
         response = self.client.post(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}), {
@@ -405,7 +405,6 @@ class AuthorizationWorkflowTests(TestCase):
             'start': self.show.start,
             'end': self.show.end,
             'status': self.show.status,
-            'artists': [self.artist.pk],
             'artworks': [self.private_artwork.pk],
             'curators': [self.curator_artist.pk],
             'tags': [],
@@ -414,7 +413,6 @@ class AuthorizationWorkflowTests(TestCase):
         self.show.refresh_from_db()
 
         self.assertRedirects(response, self.show.get_absolute_url())
-        self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
         self.assertTrue(self.show.artworks.filter(pk=self.private_artwork.pk).exists())
 
     def test_artist_can_edit_artwork_without_open_call_available_field(self):
@@ -745,7 +743,6 @@ class OpenCallFlowTests(TestCase):
         )
 
         self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
-        self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
 
     def _publish_show(self):
         """Helper: POST to show_edit to set status to published."""
@@ -1009,7 +1006,6 @@ class OpenCallFlowTests(TestCase):
             reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
         )
         self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
-        self.assertTrue(self.show.artists.filter(pk=self.artist.pk).exists())
         self.assertEqual(len(mail.outbox), 1)
 
         # 4. Curator publishes — acceptance email sent

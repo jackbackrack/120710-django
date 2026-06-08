@@ -24,7 +24,7 @@ class ShowJurorInline(admin.TabularInline):
 
 
 class ShowAdmin(ImportExportAdmin):
-    filter_horizontal = ['artists', 'curators', 'tags']
+    filter_horizontal = ['curators', 'tags']
     inlines = [ArtworkInline, ShowJurorInline]
 
 

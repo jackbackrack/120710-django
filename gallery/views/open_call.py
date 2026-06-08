@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from gallery.forms import ArtworkSubmissionForm
-from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber
+from gallery.models import Artwork, ArtworkSubmission, Show, ShowArtworkNumber
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
 from reviews.views import _compute_weighted_scores
 
@@ -235,11 +235,6 @@ def promote_artworks(request, slug):
         selected_artworks = [s.artwork for s in selected_subs]
         if selected_artworks:
             show.artworks.add(*selected_artworks)
-            artist_ids = []
-            for artwork in selected_artworks:
-                artist_ids.extend(artwork.artists.values_list('id', flat=True))
-            if artist_ids:
-                show.artists.add(*Artist.objects.filter(id__in=artist_ids).distinct())
             existing_ids = set(
                 ShowArtworkNumber.objects.filter(show=show).values_list('artwork_id', flat=True)
             )

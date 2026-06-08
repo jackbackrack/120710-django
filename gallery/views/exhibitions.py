@@ -5,7 +5,7 @@ from eatart.schemaorg.mappers import show_to_schema
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Min, Q
+from django.db.models import Min
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -57,7 +57,7 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object')
         artworks = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).annotate(first_artist_name=Min('artists__name')).order_by('first_artist_name', 'name').distinct()
-        artists = Artist.objects.filter(Q(shows=show) | Q(artworks__in=artworks)).distinct().order_by('name')
+        artists = Artist.objects.filter(artworks__in=artworks).distinct().order_by('name')
         context['artists'] = artists
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
         context['can_manage_show'] = can_manage_show(self.request.user, show)
