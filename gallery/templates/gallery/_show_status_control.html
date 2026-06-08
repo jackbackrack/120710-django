@@ -1,0 +1,20 @@
+<form method="post" action="{% url 'gallery:transition_show_status' show.pk %}" class="d-flex align-items-center gap-2 mb-1" style="flex-wrap:wrap">
+  {% csrf_token %}
+  <p class="text-gray-500 text-sm mb-0"><strong>Status: </strong>{{ show.get_status_display }}</p>
+  {% if allowed_transitions %}
+  {% if allowed_transitions|length == 1 %}
+  <input type="hidden" name="status" value="{{ allowed_transitions.0.0 }}">
+  <button type="submit" class="btn btn-sm btn-outline-secondary"
+          onclick="return confirm('Change status to {{ allowed_transitions.0.1 }}?')">
+    &rarr; {{ allowed_transitions.0.1 }}
+  </button>
+  {% else %}
+  <select name="status" class="form-select form-select-sm" style="width:auto">
+    {% for value, label in allowed_transitions %}
+    <option value="{{ value }}">{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-sm btn-outline-secondary">Change Status</button>
+  {% endif %}
+  {% endif %}
+</form>
