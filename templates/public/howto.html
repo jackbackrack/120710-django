@@ -6,7 +6,35 @@
 {% block content %}
 <style>
   #howto .card { width: 100%; max-width: 100%; background-color: #fff; }
+
+  .guide-steps li { transition: opacity 0.15s; }
+  .guide-steps li.step-done { opacity: 0.4; text-decoration: line-through; }
+  .guide-steps li.step-current { font-weight: 600; }
+
+  .walkthrough-box {
+    border: 2px solid #0d6efd;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    background: #f0f6ff;
+    margin-top: 0.75rem;
+  }
+  .walkthrough-counter {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+  }
+  .walkthrough-step-text {
+    font-size: 1.05rem;
+    margin-bottom: 1rem;
+  }
+  .walkthrough-done-msg {
+    font-size: 1.05rem;
+    color: #198754;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
 </style>
+
 <div id="howto" class="container-fluid py-4">
   <h1 class="mb-3">Help</h1>
 
@@ -16,12 +44,26 @@
     {% for guide in how_to_guides %}
     <article class="card mb-3">
       <div class="card-body">
-        <h4 class="card-title">{{ guide.title }}</h4>
-        <ol class="mb-0">
+        <div class="d-flex justify-content-between align-items-start">
+          <h4 class="card-title mb-0">{{ guide.title }}</h4>
+          <button class="btn btn-sm btn-outline-primary ms-3 walkthrough-btn" type="button">Walk me through it</button>
+        </div>
+        <ol class="mb-0 mt-3 guide-steps">
           {% for step in guide.steps %}
           <li>{{ step }}</li>
           {% endfor %}
         </ol>
+        <div class="walkthrough-box d-none">
+          <div class="walkthrough-counter"></div>
+          <div class="walkthrough-step-text"></div>
+          <div class="walkthrough-done-msg d-none">All done! ✓</div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary wt-prev">← Prev</button>
+            <button class="btn btn-sm btn-primary wt-next">Next →</button>
+            <button class="btn btn-sm btn-success wt-finish d-none">Finish ✓</button>
+            <button class="btn btn-sm btn-link ms-auto wt-exit">Exit</button>
+          </div>
+        </div>
       </div>
     </article>
     {% endfor %}
@@ -108,4 +150,73 @@
   {% endif %}
 
 </div>
+
+<script>
+document.querySelectorAll('.walkthrough-btn').forEach(btn => {
+  const card = btn.closest('.card-body');
+  const ol = card.querySelector('.guide-steps');
+  const box = card.querySelector('.walkthrough-box');
+  const items = Array.from(ol.querySelectorAll('li'));
+  const counter = box.querySelector('.walkthrough-counter');
+  const stepText = box.querySelector('.walkthrough-step-text');
+  const doneMsg = box.querySelector('.walkthrough-done-msg');
+  const prevBtn = box.querySelector('.wt-prev');
+  const nextBtn = box.querySelector('.wt-next');
+  const finishBtn = box.querySelector('.wt-finish');
+  const exitBtn = box.querySelector('.wt-exit');
+  let current = 0;
+
+  function render() {
+    const total = items.length;
+    const done = current >= total;
+
+    items.forEach((li, i) => {
+      li.classList.remove('step-done', 'step-current');
+      if (i < current) li.classList.add('step-done');
+      else if (i === current && !done) li.classList.add('step-current');
+    });
+
+    if (done) {
+      counter.textContent = `${total} of ${total} steps complete`;
+      stepText.classList.add('d-none');
+      doneMsg.classList.remove('d-none');
+      nextBtn.classList.add('d-none');
+      finishBtn.classList.remove('d-none');
+    } else {
+      counter.textContent = `Step ${current + 1} of ${total}`;
+      stepText.textContent = items[current].textContent;
+      stepText.classList.remove('d-none');
+      doneMsg.classList.add('d-none');
+      nextBtn.classList.remove('d-none');
+      finishBtn.classList.add('d-none');
+    }
+
+    prevBtn.disabled = current === 0;
+  }
+
+  function enter() {
+    current = 0;
+    ol.classList.remove('d-none');
+    box.classList.remove('d-none');
+    btn.textContent = 'Hide walkthrough';
+    render();
+  }
+
+  function exit() {
+    box.classList.add('d-none');
+    ol.classList.remove('d-none');
+    items.forEach(li => li.classList.remove('step-done', 'step-current'));
+    btn.textContent = 'Walk me through it';
+  }
+
+  btn.addEventListener('click', () => {
+    if (box.classList.contains('d-none')) enter(); else exit();
+  });
+
+  prevBtn.addEventListener('click', () => { if (current > 0) { current--; render(); } });
+  nextBtn.addEventListener('click', () => { if (current < items.length) { current++; render(); } });
+  finishBtn.addEventListener('click', exit);
+  exitBtn.addEventListener('click', exit);
+});
+</script>
 {% endblock %}
