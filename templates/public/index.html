@@ -7,11 +7,7 @@
 {% block content %}
 
 {% if hero_show %}
-<div style="display:flex;align-items:flex-start;gap:1.5rem;flex-wrap:wrap;justify-content:center">
-  <div style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding-top:1rem">
-    <a href="{% url 'index' %}"><img src="{% static 'img/120710-box-logo-03.png' %}" width="200" alt="120710"></a>
-    <a href="https://www.reset.art" target="_blank" rel="noopener"><img src="{% static 'img/reset-art-logo.png' %}" width="200" alt="Reset Art"></a>
-  </div>
+<div class="cards">
   <div class="card big-card">
     <div class="text-center">
       <h2>{% if hero_is_current %}Current Show{% else %}Upcoming Show{% endif %}</h2>
