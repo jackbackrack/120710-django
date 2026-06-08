@@ -1,7 +1,7 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 
-from gallery.models import Artist, Artwork, Event, Show, Tag
+from gallery.models import Artist, Artwork, Event, Show, ShowInvitation, Tag
 from reviews.models import ShowJuror
 
 
@@ -31,5 +31,6 @@ class ShowAdmin(ImportExportAdmin):
 admin.site.register(Artwork, ImportExportAdmin)
 admin.site.register(Artist, ImportExportAdmin)
 admin.site.register(Show, ShowAdmin)
+admin.site.register(ShowInvitation)
 admin.site.register(Event, ImportExportAdmin)
 admin.site.register(Tag, ImportExportAdmin)

@@ -15,6 +15,13 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request):
         return True
 
+    def login(self, request, user):
+        result = super().login(request, user)
+        from accounts.signup import _link_invitations
+        artist = user.artists.first()
+        _link_invitations(user, artist)
+        return result
+
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
 

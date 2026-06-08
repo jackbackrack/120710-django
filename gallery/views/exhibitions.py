@@ -64,12 +64,18 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
 
         user = self.request.user
         context['can_submit'] = False
+        context['has_invitation'] = False
         submissions_by_artwork_id = {}
         pending_submissions = []
-        if show.is_open_call and user.is_authenticated:
+        if user.is_authenticated:
             artist = user.artists.order_by('-created_at').first()
             if artist:
-                context['can_submit'] = show.is_accepting_submissions
+                if show.submission_type == Show.SUBMISSION_OPEN:
+                    context['can_submit'] = show.is_accepting_submissions
+                elif show.submission_type == Show.SUBMISSION_INVITED:
+                    has_inv = show.invitations.filter(email__iexact=user.email).exists()
+                    context['has_invitation'] = has_inv
+                    context['can_submit'] = show.is_accepting_submissions and has_inv
                 subs = list(
                     ArtworkSubmission.objects.filter(show=show, submitted_by=user)
                     .select_related('artwork')
@@ -86,7 +92,7 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['pending_submissions'] = pending_submissions
         from reviews.models import ShowJuror
         context['jurors'] = list(ShowJuror.objects.filter(show=show).select_related('user').order_by('user__last_name'))
-        allowed = Show.VALID_TRANSITIONS.get(show.status, [])
+        allowed = show.get_valid_transitions().get(show.status, [])
         status_choices = dict(Show.STATUS_CHOICES)
         context['allowed_transitions'] = [(s, status_choices[s]) for s in allowed]
         return context
@@ -195,12 +201,12 @@ def transition_show_status(request, pk):
         raise Http404
     if request.method == 'POST':
         new_status = request.POST.get('status')
-        allowed = Show.VALID_TRANSITIONS.get(show.status, [])
+        allowed = show.get_valid_transitions().get(show.status, [])
         if new_status not in allowed:
             messages.error(request, 'Invalid status transition.')
             return redirect(show)
-        # Open call Draft→Published: go through the promote/publish page
-        if new_status == Show.STATUS_PUBLISHED and show.is_open_call:
+        # Draft→Published always goes through promote/publish page
+        if new_status == Show.STATUS_PUBLISHED:
             return redirect('gallery:promote_artworks', slug=show.slug)
         old_status = show.status
         show.status = new_status

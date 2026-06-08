@@ -57,7 +57,8 @@ class ArtistModelTests(TestCase):
             phone='555-9999',
         )
 
-        self.assertFalse(artist.shows.exists())
+        from gallery.models import Show
+        self.assertFalse(Show.objects.filter(artworks__artists=artist).exists())
 
 
 class PublicSlugNormalizationTests(TestCase):
@@ -273,6 +274,7 @@ class AuthorizationWorkflowTests(TestCase):
             name='Spring Show',
             start=datetime.date.today(),
             end=datetime.date.today() + datetime.timedelta(days=7),
+            status=Show.STATUS_PUBLISHED,
         )
         self.show.curators.add(self.curator_artist)
 
@@ -396,19 +398,17 @@ class AuthorizationWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_curator_can_assign_artworks_to_show(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        ArtworkSubmission.objects.create(
+            show=self.show,
+            artwork=self.private_artwork,
+            submitted_by=self.artist_user,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
+        )
         self.client.force_login(self.curator_user)
 
-        response = self.client.post(reverse('gallery:show_edit', kwargs={'pk': self.show.pk}), {
-            'name': self.show.name,
-            'show_type': self.show.show_type,
-            'description': self.show.description or '',
-            'start': self.show.start,
-            'end': self.show.end,
-            'status': self.show.status,
-            'artworks': [self.private_artwork.pk],
-            'curators': [self.curator_artist.pk],
-            'tags': [],
-        })
+        response = self.client.post(reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug}))
 
         self.show.refresh_from_db()
 
@@ -531,7 +531,7 @@ class OpenCallFlowTests(TestCase):
             name='Open Call Spring 2026',
             start=datetime.date.today() + datetime.timedelta(days=30),
             end=datetime.date.today() + datetime.timedelta(days=60),
-            is_open_call=True,
+            submission_type=Show.SUBMISSION_OPEN,
             submission_deadline=datetime.date.today() + datetime.timedelta(days=7),
             status=Show.STATUS_OPEN_CALL,
         )
@@ -752,7 +752,7 @@ class OpenCallFlowTests(TestCase):
             'start': self.show.start,
             'end': self.show.end,
             'status': Show.STATUS_PUBLISHED,
-            'is_open_call': True,
+            'submission_type': Show.SUBMISSION_OPEN,
             'submission_deadline': self.show.submission_deadline,
             'curators': [self.curator_artist.pk],
             'tags': [],
@@ -1109,13 +1109,11 @@ class ShowStatusTests(TestCase):
 
     def test_accepting_submissions_when_open_call_status_and_within_deadline(self):
         self.show.status = Show.STATUS_OPEN_CALL
-        self.show.is_open_call = True
         self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=3)
-        self.show.save(update_fields=['status', 'is_open_call', 'submission_deadline'])
+        self.show.save(update_fields=['status', 'submission_deadline'])
         self.assertTrue(self.show.is_accepting_submissions)
 
     def test_not_accepting_when_status_is_not_open_call(self):
-        self.show.is_open_call = True
         self.show.submission_deadline = datetime.date.today() + datetime.timedelta(days=3)
         for status in (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_IN_REVIEW,
                        Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED):
@@ -1125,9 +1123,8 @@ class ShowStatusTests(TestCase):
 
     def test_accepting_when_open_call_status_regardless_of_deadline(self):
         self.show.status = Show.STATUS_OPEN_CALL
-        self.show.is_open_call = True
         self.show.submission_deadline = datetime.date.today() - datetime.timedelta(days=1)
-        self.show.save(update_fields=['status', 'is_open_call', 'submission_deadline'])
+        self.show.save(update_fields=['status', 'submission_deadline'])
         # Deadline is informational only — only status controls acceptance
         self.assertTrue(self.show.is_accepting_submissions)
 
@@ -1338,8 +1335,8 @@ class ShowStatusTests(TestCase):
 
     def test_transition_to_in_review_sends_juror_emails(self):
         self.show.status = Show.STATUS_OPEN_CALL
-        self.show.is_open_call = True
-        self.show.save(update_fields=['status', 'is_open_call'])
+        self.show.submission_type = Show.SUBMISSION_OPEN
+        self.show.save(update_fields=['status', 'submission_type'])
         self.client.force_login(self.curator_user)
 
         self.client.post(
@@ -1352,10 +1349,9 @@ class ShowStatusTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(self.juror_user.email, mail.outbox[0].recipients())
 
-    def test_draft_to_published_on_open_call_redirects_to_promote(self):
+    def test_draft_to_published_redirects_to_promote(self):
         self.show.status = Show.STATUS_DRAFT
-        self.show.is_open_call = True
-        self.show.save(update_fields=['status', 'is_open_call'])
+        self.show.save(update_fields=['status'])
         self.client.force_login(self.curator_user)
 
         response = self.client.post(
@@ -1370,20 +1366,6 @@ class ShowStatusTests(TestCase):
         )
         self.show.refresh_from_db()
         self.assertEqual(self.show.status, Show.STATUS_DRAFT)  # not changed yet
-
-    def test_draft_to_published_on_non_open_call_changes_status_directly(self):
-        self.show.status = Show.STATUS_DRAFT
-        self.show.is_open_call = False
-        self.show.save(update_fields=['status', 'is_open_call'])
-        self.client.force_login(self.curator_user)
-
-        self.client.post(
-            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
-            {'status': Show.STATUS_PUBLISHED},
-        )
-
-        self.show.refresh_from_db()
-        self.assertEqual(self.show.status, Show.STATUS_PUBLISHED)
 
 
 @override_settings(
@@ -1412,7 +1394,7 @@ class PlacardTests(TestCase):
             name='Placard Test Show',
             start=datetime.date.today(),
             end=datetime.date.today() + datetime.timedelta(days=30),
-            is_open_call=True,
+            submission_type=Show.SUBMISSION_OPEN,
             status=Show.STATUS_OPEN_CALL,
         )
         self.show.curators.add(self.curator_artist)
@@ -1424,7 +1406,7 @@ class PlacardTests(TestCase):
     def _submit_and_select(self, artwork):
         return ArtworkSubmission.objects.create(
             show=self.show, artwork=artwork, submitted_by=self.artist_user,
-            status=ArtworkSubmission.SELECTED,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
         )
 
     def _promote(self):

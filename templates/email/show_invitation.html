@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>You have been invited to submit artwork to <strong>{{ show.name }}</strong>.</p>
+{% if show.submission_deadline %}
+<p>The submission deadline is <strong>{{ show.submission_deadline }}</strong>.</p>
+{% endif %}
+{% if show.decision_date %}
+<p>We expect to notify artists of our decisions by <strong>{{ show.decision_date }}</strong>.</p>
+{% endif %}
+<p>To submit your work, visit the <a href="{{ show_url }}">show page</a>.</p>
+<p>If you do not yet have an account, <a href="{{ signup_url }}">sign up here</a>. Use the same email address this invitation was sent to so your invitation is automatically linked to your account.</p>
+<p>— The 120710 Team</p>
+</body>
+</html>

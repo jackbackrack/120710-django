@@ -31,10 +31,14 @@
     {% if show.description %}
     <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ show.description|safe }}</p>
     {% endif %}
-    {% if show.is_open_call %}
     <div class="mt-3">
       {% if show.status == show.STATUS_OPEN_CALL %}
-        <p><strong>Open Call</strong> &mdash; Accepting submissions</p>
+        {% if show.submission_type == 'open' %}
+          <p><strong>Open Call</strong> &mdash; Accepting submissions</p>
+        {% else %}
+          <p><strong>Invitation Only</strong> &mdash; Accepting submissions</p>
+          {% if user.is_authenticated and not has_invitation %}<p class="text-gray-500 text-sm">Submissions to this show are by invitation only.</p>{% endif %}
+        {% endif %}
         {% if show.submission_deadline %}<p class="text-gray-500 text-sm">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>{% endif %}
         {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
       {% elif show.status == show.STATUS_IN_REVIEW %}
@@ -43,9 +47,6 @@
       {% endif %}
       {% if can_manage_show %}{% include 'gallery/_show_status_control.html' %}{% endif %}
     </div>
-    {% else %}
-    {% if can_manage_show %}{% include 'gallery/_show_status_control.html' %}{% endif %}
-    {% endif %}
     {% for event in show.events.all %}
     <h3 class="mb-6"> <a class="card__link" href="{{ event.get_absolute_url }}"> {{ event.name }}</a>:
     {{ event.date }}: {{ event.time_range }}</h3>
@@ -56,13 +57,16 @@
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
   {% endif %}
-  {% if show.is_open_call and can_view_reviews %}
+  {% if can_view_reviews %}
     <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
   {% endif %}
-  {% if show.is_open_call and can_manage_show %}
+  {% if show.submission_type == 'invited' and can_manage_show %}
+    <a class="card__link" href="{% url 'gallery:invite_artists' show.slug %}">Invite Artists</a>
+  {% endif %}
+  {% if show.submission_type == 'open' and can_manage_show %}
     <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Assign Jurors</a>
   {% endif %}
-  {% if can_view_reviews %}
+  {% if show.submission_type == 'open' and can_view_reviews %}
     <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
   {% endif %}
   {% if can_manage_show %}

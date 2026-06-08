@@ -112,15 +112,17 @@
     {% if show.curator_artist %}{{ show.curator_artist.name }}{% else %}Unassigned{% endif %}
   </p>
   {% if show.description %}<p style="margin-top:8px;">{{ show.description }}</p>{% endif %}
-  {% if show.is_open_call %}
-    {% if show.status == show.STATUS_OPEN_CALL %}
+  {% if show.status == show.STATUS_OPEN_CALL %}
+    {% if show.submission_type == 'open' %}
       <p><strong>Open Call</strong> &mdash; Accepting submissions</p>
-      {% if show.submission_deadline %}<p class="meta">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>{% endif %}
-      {% if show.decision_date %}<p class="meta">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
-    {% elif show.status == show.STATUS_IN_REVIEW %}
-      <p><strong>Open Call</strong> &mdash; In jury review (submissions closed)</p>
-      {% if show.decision_date %}<p class="meta">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
+    {% else %}
+      <p><strong>Invitation Only</strong> &mdash; Accepting submissions</p>
     {% endif %}
+    {% if show.submission_deadline %}<p class="meta">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>{% endif %}
+    {% if show.decision_date %}<p class="meta">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
+  {% elif show.status == show.STATUS_IN_REVIEW %}
+    <p><strong>Open Call</strong> &mdash; In jury review (submissions closed)</p>
+    {% if show.decision_date %}<p class="meta">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
   {% endif %}
   {% for event in show.events.all %}
   <p class="meta"><strong>{{ event.name }}:</strong> {{ event.date }}, {{ event.time_range }}</p>

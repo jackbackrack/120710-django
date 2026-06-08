@@ -66,4 +66,12 @@ def ensure_signup_profile(user):
     if changed_fields:
         artist.save(update_fields=changed_fields)
 
+    _link_invitations(user, artist)
     return artist
+
+
+def _link_invitations(user, artist):
+    if not user.email or not artist:
+        return
+    from gallery.models import ShowInvitation
+    ShowInvitation.objects.filter(email__iexact=user.email, artist__isnull=True).update(artist=artist)

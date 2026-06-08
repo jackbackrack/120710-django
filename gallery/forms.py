@@ -150,7 +150,6 @@ class ArtworkSubmissionForm(forms.ModelForm):
 
 
 class ShowForm(UserAwareModelForm):
-    artworks = forms.ModelMultipleChoiceField(queryset=Artwork.objects.none(), required=False)
     curators = forms.ModelMultipleChoiceField(queryset=Artist.objects.none(), required=False)
 
     class Meta:
@@ -162,7 +161,7 @@ class ShowForm(UserAwareModelForm):
             'description',
             'image',
             'status',
-            'is_open_call',
+            'submission_type',
             'submission_deadline',
             'review_deadline',
             'decision_date',
@@ -181,12 +180,10 @@ class ShowForm(UserAwareModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
-        self.fields['artworks'].queryset = Artwork.objects.order_by('name').distinct()
         self.fields['curators'].queryset = Artist.objects.filter(
             user__isnull=False
         ).order_by('name')
         if self.instance.pk:
-            self.fields['artworks'].initial = self.instance.artworks.all()
             self.fields['curators'].initial = self.instance.curators.all()
         if not is_staff_user(self.user) and not is_curator_user(self.user):
             self.fields.pop('status')
@@ -195,8 +192,6 @@ class ShowForm(UserAwareModelForm):
         show = super().save(commit=commit)
         if not commit:
             return show
-
-        show.artworks.set(self.cleaned_data['artworks'])
         show.curators.set(self.cleaned_data['curators'])
         return show
 

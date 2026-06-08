@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from gallery.forms import ArtworkSubmissionForm
-from gallery.models import Artwork, ArtworkSubmission, Show, ShowArtworkNumber
+from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber, ShowInvitation
 from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
 from reviews.views import _compute_weighted_scores
 
@@ -104,6 +104,71 @@ def send_submission_emails(show):
         _send_selection_email(sub, accepted=(sub.status == ArtworkSubmission.ACCEPTED))
 
 
+def _send_invitation_email(show, email, request):
+    show_url = request.build_absolute_uri(show.get_absolute_url())
+    signup_url = request.build_absolute_uri(reverse('account_signup'))
+    html = render_to_string('email/show_invitation.html', {
+        'show': show,
+        'show_url': show_url,
+        'signup_url': signup_url,
+    })
+    send_mail(
+        subject=f'Invitation to submit artwork to {show.name}',
+        message=(
+            f'You have been invited to submit artwork to {show.name}. '
+            f'Visit {show_url} to submit. '
+            f'If you do not have an account, sign up at {signup_url}.'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        html_message=html,
+        fail_silently=True,
+    )
+
+
+@login_required
+def invite_artists(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    if show.submission_type != Show.SUBMISSION_INVITED:
+        raise Http404
+
+    invitations = show.invitations.select_related('artist').order_by('sent_at')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'delete':
+            inv_pk = request.POST.get('invitation_pk')
+            ShowInvitation.objects.filter(pk=inv_pk, show=show).delete()
+            messages.success(request, 'Invitation removed.')
+        else:
+            email = request.POST.get('email', '').strip().lower()
+            if email:
+                invitation, created = ShowInvitation.objects.get_or_create(
+                    show=show, email=email,
+                    defaults={'invited_by': request.user},
+                )
+                if created:
+                    artist = (
+                        Artist.objects.filter(user__email__iexact=email).first()
+                        or Artist.objects.filter(email__iexact=email, user__isnull=True).first()
+                    )
+                    if artist:
+                        invitation.artist = artist
+                        invitation.save(update_fields=['artist'])
+                    _send_invitation_email(show, email, request)
+                    messages.success(request, f'Invitation sent to {email}.')
+                else:
+                    messages.info(request, f'{email} has already been invited.')
+        return redirect('gallery:invite_artists', slug=slug)
+
+    return render(request, 'gallery/invite_artists.html', {
+        'show': show,
+        'invitations': invitations,
+    })
+
+
 @login_required
 def artwork_submit(request, slug):
     show = get_object_or_404(Show, slug=slug)
@@ -113,6 +178,11 @@ def artwork_submit(request, slug):
     artist = request.user.artists.order_by('-created_at').first()
     if not artist:
         return redirect(show)
+
+    if show.submission_type == Show.SUBMISSION_INVITED:
+        if not show.invitations.filter(email__iexact=request.user.email).exists():
+            messages.error(request, 'Submissions to this show are by invitation only.')
+            return redirect(show)
 
     already_submitted_ids = ArtworkSubmission.objects.filter(show=show).values_list('artwork_id', flat=True)
     available_artworks = (
@@ -259,8 +329,8 @@ def promote_artworks(request, slug):
             sub.status = ArtworkSubmission.REJECTED
             sub.save(update_fields=['status'])
 
-        # If transitioning an open call from Draft, publish and send emails
-        if show.is_open_call and show.status == Show.STATUS_DRAFT:
+        # Publish from Draft: transition to Published and send acceptance/rejection emails
+        if show.status == Show.STATUS_DRAFT:
             show.status = Show.STATUS_PUBLISHED
             show.save(update_fields=['status'])
             send_submission_emails(show)
@@ -274,7 +344,7 @@ def promote_artworks(request, slug):
         'to_remove': to_remove,
         'selected_submissions': selected_subs,
         'rejected_submissions': rejected_subs,
-        'will_publish': show.is_open_call and show.status == Show.STATUS_DRAFT,
+        'will_publish': show.status == Show.STATUS_DRAFT,
     }
     return render(request, 'gallery/promote_artworks.html', context)
 

@@ -1,5 +1,6 @@
 import datetime
 
+from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from imagekit.models import ImageSpecField
@@ -33,14 +34,12 @@ class Show(models.Model):
     ]
     PUBLIC_STATUSES = {STATUS_OPEN_CALL, STATUS_IN_REVIEW, STATUS_PUBLISHED, STATUS_CLOSED}
 
-    VALID_TRANSITIONS = {
-        STATUS_UNDER_CONSIDERATION: [STATUS_OPEN_CALL, STATUS_DRAFT],
-        STATUS_OPEN_CALL: [STATUS_IN_REVIEW],
-        STATUS_IN_REVIEW: [STATUS_DRAFT],
-        STATUS_DRAFT: [STATUS_PUBLISHED],
-        STATUS_PUBLISHED: [STATUS_CLOSED],
-        STATUS_CLOSED: [],
-    }
+    SUBMISSION_OPEN = 'open'
+    SUBMISSION_INVITED = 'invited'
+    SUBMISSION_TYPE_CHOICES = [
+        (SUBMISSION_OPEN, 'Open Call'),
+        (SUBMISSION_INVITED, 'Invitation Only'),
+    ]
 
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
@@ -50,7 +49,10 @@ class Show(models.Model):
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
     card_thumbnail = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
-    is_open_call = models.BooleanField(default=False)
+    submission_type = models.CharField(
+        max_length=16, choices=SUBMISSION_TYPE_CHOICES, default=SUBMISSION_OPEN,
+        verbose_name='Submission type',
+    )
     submission_deadline = models.DateField(blank=True, null=True)
     review_deadline = models.DateField(blank=True, null=True, verbose_name='Review deadline (for jurors)')
     decision_date = models.DateField(blank=True, null=True)
@@ -99,8 +101,22 @@ class Show(models.Model):
           end = self.end.strftime("%b %d, %Y")
         return f"{start} – {end}"
 
+    def get_valid_transitions(self):
+        base = {
+            self.STATUS_UNDER_CONSIDERATION: [self.STATUS_OPEN_CALL, self.STATUS_DRAFT],
+            self.STATUS_DRAFT: [self.STATUS_PUBLISHED],
+            self.STATUS_PUBLISHED: [self.STATUS_CLOSED],
+            self.STATUS_CLOSED: [],
+        }
+        if self.submission_type == self.SUBMISSION_OPEN:
+            base[self.STATUS_OPEN_CALL] = [self.STATUS_IN_REVIEW]
+            base[self.STATUS_IN_REVIEW] = [self.STATUS_DRAFT]
+        else:
+            base[self.STATUS_OPEN_CALL] = [self.STATUS_DRAFT]
+        return base
+
     def transition_to(self, new_status):
-        allowed = self.VALID_TRANSITIONS.get(self.status, [])
+        allowed = self.get_valid_transitions().get(self.status, [])
         if new_status not in allowed:
             raise ValueError(
                 f'Cannot transition from {self.status!r} to {new_status!r}. Allowed: {allowed}'
@@ -123,3 +139,22 @@ class Show(models.Model):
     @property
     def curator_artist(self):
         return self.curators.order_by('-created_at').first()
+
+
+class ShowInvitation(models.Model):
+    show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='invitations')
+    email = models.EmailField()
+    artist = models.ForeignKey(
+        Artist, null=True, blank=True, on_delete=models.SET_NULL, related_name='show_invitations',
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='sent_invitations',
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('show', 'email')
+        ordering = ['sent_at']
+
+    def __str__(self):
+        return f'{self.email} → {self.show}'
