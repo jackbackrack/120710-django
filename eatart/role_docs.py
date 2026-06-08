@@ -95,7 +95,7 @@ HOW_TO_GUIDES = [
             'Optionally assign jurors now via Assign Jurors on the show detail page, or wait until after submissions close.',
             'Artists submit their work via the show detail page. You can monitor submissions at any time via Submissions on the show detail page.',
             'When the submission period ends, click → In Review on the show detail page. Submissions are now closed and all assigned jurors are emailed automatically.',
-            'Optionally define a rubric (weighted scoring criteria) from the Reviews page before jurors begin scoring.',
+            'Optionally define a rubric (weighted scoring criteria) from the Reviews page before jurors begin scoring. Click "Manage Rubric Criteria" to add, edit, or remove criteria. If a previous show already has the rubric you want, use the "Copy rubric from another show" dropdown on that page to import it in one step — existing criteria are replaced.',
             'Jurors score each submitted artwork. Monitor progress and view aggregated scores on the Reviews dashboard.',
             'Click → Draft on the show detail page. This closes the review phase and lets you work privately.',
             'Go to Submissions on the show detail page. Use the dropdown on each artwork row to mark it Selected, Rejected, or Undecided. Artists cannot see these decisions yet.',
