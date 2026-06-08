@@ -37,7 +37,7 @@ class ArtistListView(ListView):
         return context
 
 
-class ArtistMailChimpView(ListView, LoginRequiredMixin, UserPassesTestMixin):
+class ArtistMailChimpView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = Artist
     template_name = 'gallery/artist_mailchimp_list.html'
 
