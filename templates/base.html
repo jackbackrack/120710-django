@@ -48,7 +48,7 @@
   {% endif %}
     <form class="d-flex col-8 mx-auto mt-4" action="{% block search_action %}{% url 'gallery:search_results' %}{% endblock %}" method="get">
       <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search" value="{{ request.GET.q }}">
-      {% with u=request.resolver_match.url_name %}{% if 'artist' in u %}<input type="hidden" name="priority" value="artist">{% elif 'artwork' in u %}<input type="hidden" name="priority" value="artwork">{% endif %}{% endwith %}
+      {% with u=request.resolver_match.url_name %}{% if 'artist' in u %}<input type="hidden" name="priority" value="artist">{% elif 'artwork' in u %}<input type="hidden" name="priority" value="artwork">{% elif 'show' in u or 'event' in u %}<input type="hidden" name="priority" value="show">{% endif %}{% endwith %}
       <button class="btn btn-outline-success" type="submit">Search</button>
     </form>
   </div>
