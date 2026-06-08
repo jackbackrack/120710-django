@@ -1,6 +1,6 @@
 <div class="card">
   {% if show.status == show.STATUS_OPEN_CALL %}
-  <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}Open Call</h2></div>
+  <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}{% if show.submission_type == 'invited' %}Invitation Only{% else %}Open Call{% endif %}</h2></div>
   {% elif show.status == show.STATUS_IN_REVIEW %}
   <div class="text-center"><h2>{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}Open Call &middot; Jury Review</h2></div>
   {% elif show.show_type == 'public_art' %}
