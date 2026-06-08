@@ -30,7 +30,7 @@
       {% load crispy_forms_tags %}
 
       {% for field in form %}
-        {% if field.name|slice:":9" == "criterion" %}
+        {% if field.name|slice:":9" == "criterion" or field.name == "rating" %}
         <div class="mb-3">
           <label class="form-label fw-semibold">{{ field.label }}</label>
           <div class="d-flex flex-wrap gap-2">
