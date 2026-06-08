@@ -14,7 +14,7 @@
     {% if show.show_type == 'public_art' %}<p class="text-gray-500 text-sm"><strong>Public Art Site</strong></p>{% endif %}
     {% if show.location %}<p class="text-gray-500 text-sm"><strong>Location: </strong>{{ show.location }}</p>{% endif %}
     <p class="mb-6 text-3xl">{{ show.date_range }}</p>
-    <h3 class="mb-6">Curated by:
+    <h3 class="mb-6">Curators:
     {% with curators=show.curators.all %}
     {% if curators %}
     {% for curator in curators %}<a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}
