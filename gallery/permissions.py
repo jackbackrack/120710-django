@@ -33,6 +33,14 @@ def can_manage_artist(user, artist):
     return bool(user.is_authenticated and (is_staff_user(user) or artist.user_id == user.id))
 
 
+def can_delete_artist(user, artist):
+    if not can_manage_artist(user, artist):
+        return False
+    if is_staff_user(user):
+        return True
+    return not artist.artworks.filter(shows__isnull=False).exists()
+
+
 def can_manage_artwork(user, artwork):
     if not user.is_authenticated:
         return False

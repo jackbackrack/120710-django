@@ -8,6 +8,7 @@ from django.urls import reverse_lazy
 from gallery.forms import ArtistForm
 from gallery.models import Artist, Tag
 from gallery.permissions import (
+    can_delete_artist,
     can_manage_artist,
     is_artist_user,
     is_staff_user,
@@ -34,6 +35,7 @@ class ArtistListView(ListView):
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
         context['can_manage_artist'] = {a.id for a in artists if can_manage_artist(self.request.user, a)}
+        context['can_delete_artist'] = {a.id for a in artists if can_delete_artist(self.request.user, a)}
         return context
 
 
@@ -54,7 +56,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         return Artist.objects.filter(visible_artist_queryset(self.request.user)).distinct()
 
     def get_context_data(self, **kwargs):
-        from gallery.permissions import can_delete_artwork, can_manage_artist, can_manage_artwork, visible_show_queryset
+        from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, visible_show_queryset
         from gallery.models.submissions import ArtworkSubmission
         from gallery.models import Show
         context = super().get_context_data(**kwargs)
@@ -62,6 +64,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         artworks = artist.artworks.filter(visible_artwork_queryset(self.request.user)).prefetch_related('shows').distinct()
         context['artworks'] = artworks
         context['can_manage_artist'] = can_manage_artist(self.request.user, artist)
+        context['can_delete_artist'] = can_delete_artist(self.request.user, artist)
         context['can_manage_artwork'] = {a.id for a in artworks if can_manage_artwork(self.request.user, a)}
         context['can_delete_artwork'] = {a.id for a in artworks if can_delete_artwork(self.request.user, a)}
         user = self.request.user
@@ -116,7 +119,7 @@ class ArtistDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def test_func(self):
         obj = self.get_object()
-        return can_manage_artist(self.request.user, obj)
+        return can_delete_artist(self.request.user, obj)
 
 
 class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):

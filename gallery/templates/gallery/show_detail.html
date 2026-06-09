@@ -154,8 +154,10 @@
     {% endif %}
     <div class="card__content"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
     <div class="card__info">
-    {% if user.is_authenticated %}
+    {% if artist.id in can_manage_artist_ids %}
         <a class="card__link" href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
+    {% endif %}
+    {% if artist.id in can_delete_artist_ids %}
         <a class="card__link" href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
     {% endif %}
     </div>

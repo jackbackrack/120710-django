@@ -30,6 +30,8 @@
   <div class="card__info">
     {% if can_manage_artist %}
     <a href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
+    {% endif %}
+    {% if can_delete_artist %}
     <a href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
     {% endif %}
   </div>

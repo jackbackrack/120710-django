@@ -15,7 +15,7 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
-from gallery.permissions import can_delete_artwork, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
+from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -56,6 +56,8 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         artworks = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').annotate(first_artist_name=Min('artists__name')).order_by('first_artist_name', 'name').distinct()
         artists = Artist.objects.filter(artworks__in=artworks).distinct().order_by('name')
         context['artists'] = artists
+        context['can_manage_artist_ids'] = {a.id for a in artists if can_manage_artist(self.request.user, a)}
+        context['can_delete_artist_ids'] = {a.id for a in artists if can_delete_artist(self.request.user, a)}
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
         context['can_manage_show'] = can_manage_show(self.request.user, show)
 
