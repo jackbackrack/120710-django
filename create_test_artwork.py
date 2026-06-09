@@ -3,11 +3,11 @@
 Create an artwork and assign it to the artist matching the given email.
 
 Usage:
-    python create_artwork.py --email EMAIL --name NAME --year YEAR
+    python create_test_artwork.py --email EMAIL --name NAME --year YEAR
                              --width WIDTH --height HEIGHT --image IMAGE_PATH
 
 Example:
-    python create_artwork.py --email artist@example.com --name "My Painting" \\
+    python create_test_artwork.py --email artist@example.com --name "My Painting" \\
                              --year 2025 --width 12.5 --height 18 \\
                              --image ~/Downloads/painting.jpg
 """
