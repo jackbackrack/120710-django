@@ -15,7 +15,7 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
-from gallery.permissions import can_manage_show, can_see_all_shows, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import can_delete_artwork, can_manage_artwork, can_manage_show, can_see_all_shows, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -94,17 +94,12 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             {'artwork': aw, 'submission': submissions_by_artwork_id.get(aw.id)}
             for aw in artworks
         ]
-        if user.is_authenticated:
-            from gallery.permissions import is_staff_user
-            if is_staff_user(user):
-                context['can_manage_artwork_ids'] = {aw.id for aw in artworks}
-            else:
-                context['can_manage_artwork_ids'] = {
-                    aw.id for aw in artworks
-                    if aw.created_by_id == user.id or any(a.user_id == user.id for a in aw.artists.all())
-                }
-        else:
-            context['can_manage_artwork_ids'] = set()
+        context['can_manage_artwork_ids'] = {
+            aw.id for aw in artworks if can_manage_artwork(user, aw)
+        }
+        context['can_delete_artwork_ids'] = {
+            aw.id for aw in artworks if can_delete_artwork(user, aw)
+        }
         context['pending_submissions'] = pending_submissions
         from reviews.models import ShowJuror
         context['jurors'] = list(ShowJuror.objects.filter(show=show).select_related('user').order_by('user__last_name'))

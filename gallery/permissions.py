@@ -34,13 +34,20 @@ def can_manage_artist(user, artist):
 
 
 def can_manage_artwork(user, artwork):
-    return bool(
-        user.is_authenticated and (
-            is_staff_user(user)
-            or artwork.created_by_id == user.id
-            or artwork.artists.filter(user=user).exists()
-        )
-    )
+    if not user.is_authenticated:
+        return False
+    if is_staff_user(user):
+        return True
+    return artwork.created_by_id == user.id or artwork.artists.filter(user=user).exists()
+
+
+def can_delete_artwork(user, artwork):
+    if not can_manage_artwork(user, artwork):
+        return False
+    if is_staff_user(user):
+        return True
+    published_statuses = {'published', 'closed'}
+    return not artwork.shows.filter(status__in=published_statuses).exists()
 
 
 def can_manage_show(user, show):

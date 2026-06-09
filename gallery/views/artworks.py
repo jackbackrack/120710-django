@@ -8,7 +8,7 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ArtworkForm
 from gallery.models import Artwork, Tag
-from gallery.permissions import can_manage_artwork, is_artist_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -35,12 +35,10 @@ class ArtworkListView(ListView):
         context['active_tag'] = self.request.GET.get('tag', '')
         user = self.request.user
         context['can_manage_artwork'] = {
-            a.id for a in artworks
-            if user.is_authenticated and (
-                is_staff_user(user)
-                or a.created_by_id == user.id
-                or any(artist.user_id == user.id for artist in a.artists.all())
-            )
+            a.id for a in artworks if can_manage_artwork(user, a)
+        }
+        context['can_delete_artwork'] = {
+            a.id for a in artworks if can_delete_artwork(user, a)
         }
         return context
 
@@ -52,10 +50,10 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
     template_name = 'gallery/artwork_detail.html'
 
     def get_context_data(self, **kwargs):
-        from gallery.permissions import can_manage_artwork
         context = super().get_context_data(**kwargs)
         artwork = self.object
         context['can_manage_artwork'] = can_manage_artwork(self.request.user, artwork)
+        context['can_delete_artwork'] = can_delete_artwork(self.request.user, artwork)
         return context
 
     def get_queryset(self):
@@ -94,7 +92,7 @@ class ArtworkDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def test_func(self):
         obj = self.get_object()
-        return can_manage_artwork(self.request.user, obj)
+        return can_delete_artwork(self.request.user, obj)
 
 
 class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):

@@ -54,7 +54,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         return Artist.objects.filter(visible_artist_queryset(self.request.user)).distinct()
 
     def get_context_data(self, **kwargs):
-        from gallery.permissions import can_manage_artist, can_manage_artwork, can_see_all_shows
+        from gallery.permissions import can_delete_artwork, can_manage_artist, can_manage_artwork, can_see_all_shows
         from gallery.models.submissions import ArtworkSubmission
         from gallery.models import Show
         context = super().get_context_data(**kwargs)
@@ -63,6 +63,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         context['artworks'] = artworks
         context['can_manage_artist'] = can_manage_artist(self.request.user, artist)
         context['can_manage_artwork'] = {a.id for a in artworks if can_manage_artwork(self.request.user, a)}
+        context['can_delete_artwork'] = {a.id for a in artworks if can_delete_artwork(self.request.user, a)}
         user = self.request.user
         if user.is_authenticated and artist.user == user:
             context['my_submissions'] = (
