@@ -65,7 +65,6 @@ class ArtworkForm(UserAwareModelForm):
         model = Artwork
         fields = (
             'name',
-            'shows',
             'artists',
             'end_year',
             'start_year',
@@ -78,7 +77,6 @@ class ArtworkForm(UserAwareModelForm):
             'pricing',
             'replacement_cost',
             'is_sold',
-            'tags',
             'description',
             'installation',
         )
@@ -86,8 +84,7 @@ class ArtworkForm(UserAwareModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
         if not is_staff_user(self.user):
-            for field_name in ('artists', 'shows', 'tags'):
-                self.fields.pop(field_name)
+            self.fields.pop('artists')
 
         self.fields['width_inches'].required = True
         self.fields['height_inches'].required = True
@@ -104,7 +101,7 @@ class ArtworkForm(UserAwareModelForm):
         self.helper.form_tag = False
         self.helper.layout = Layout(
             'name',
-            *((['shows', 'artists'] if 'artists' in self.fields else [])),
+            *((['artists'] if 'artists' in self.fields else [])),
             'end_year',
             'start_year',
             'medium',
@@ -121,7 +118,6 @@ class ArtworkForm(UserAwareModelForm):
             'pricing',
             'replacement_cost',
             'is_sold',
-            *((['tags'] if 'tags' in self.fields else [])),
             'description',
             'installation',
         )
