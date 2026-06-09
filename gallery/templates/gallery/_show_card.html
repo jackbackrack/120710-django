@@ -19,7 +19,7 @@
       {% if show.location %}<br><small>{{ show.location }}</small>{% endif %}
       {{ show.date_range }}
       {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline %}
-      <br><span class="badge bg-warning text-dark me-1" style="font-size:0.7rem;vertical-align:middle">Deadline</span> {{ show.submission_deadline }}
+      <br><strong>Deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ show.submission_deadline }}</span>
       {% endif %}
       {% with next_ev=show.get_next_event %}
       {% if next_ev %}

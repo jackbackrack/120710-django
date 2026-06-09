@@ -29,7 +29,7 @@
     </h3>
     {% endif %}
     {% if show.description %}
-    <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ show.description|safe }}</p>
+    <p class="text-gray-500 text-sm mt-3"><strong>Description: </strong>{{ show.description|safe }}</p>
     {% endif %}
     <div class="mt-3">
       {% if show.status == show.STATUS_OPEN_CALL %}
@@ -39,11 +39,11 @@
           <p><strong>Invitation Only</strong> &mdash; Accepting submissions</p>
           {% if user.is_authenticated and not has_invitation %}<p class="text-gray-500 text-sm">Submissions to this show are by invitation only.</p>{% endif %}
         {% endif %}
-        {% if show.submission_deadline %}<p class="text-gray-500 text-sm">Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>{% endif %}
-        {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
+        {% if show.submission_deadline %}<p class="text-gray-500 text-sm"><strong>Submission deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ show.submission_deadline }}</span></p>{% endif %}
+        {% if show.decision_date %}<p class="text-gray-500 text-sm"><strong>Decision date:</strong> {{ show.decision_date }}</p>{% endif %}
       {% elif show.status == show.STATUS_IN_REVIEW %}
         <p><strong>Open Call</strong> &mdash; In jury review (submissions closed)</p>
-        {% if show.decision_date %}<p class="text-gray-500 text-sm">Decision date: <strong>{{ show.decision_date }}</strong></p>{% endif %}
+        {% if show.decision_date %}<p class="text-gray-500 text-sm"><strong>Decision date:</strong> <span style="background:#fff176;padding:0 2px">{{ show.decision_date }}</span></p>{% endif %}
       {% endif %}
       {% if can_manage_show %}{% include 'gallery/_show_status_control.html' %}{% endif %}
     </div>
