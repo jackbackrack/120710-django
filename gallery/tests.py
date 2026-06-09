@@ -723,6 +723,23 @@ class CuratorScopedPermissionTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Show.objects.filter(pk=self.other_show.pk).exists())
 
+    # --- Artwork edit access ---
+
+    def test_curator_can_edit_artwork_in_own_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:artwork_edit', kwargs={'pk': self.own_artwork.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_curator_cannot_edit_artwork_in_other_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:artwork_edit', kwargs={'pk': self.other_artwork.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    def test_curator_cannot_edit_private_artwork_by_other_artist(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:artwork_edit', kwargs={'pk': self.private_artwork.pk}))
+        self.assertEqual(response.status_code, 403)
+
 
 @override_settings(
     STORAGES={
