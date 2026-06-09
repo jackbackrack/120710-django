@@ -3,7 +3,7 @@
 Create a test user with a verified email, bypassing allauth's email confirmation.
 
 Usage:
-    python create_test_user.py --email EMAIL [--password PASSWORD]
+    python create_test_artist.py --email EMAIL [--password PASSWORD]
                                [--artist] [--curator]
                                [--first FIRST] [--last LAST]
                                [--image IMAGE_PATH]
