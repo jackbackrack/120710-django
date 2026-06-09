@@ -1,6 +1,8 @@
 import datetime
+import io
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -1087,6 +1089,7 @@ class ShowStatusTests(TestCase):
     def test_invalid_transition_raises_value_error(self):
         invalid = [
             (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_PUBLISHED),
+            (Show.STATUS_UNDER_CONSIDERATION, Show.STATUS_DRAFT),
             (Show.STATUS_OPEN_CALL, Show.STATUS_DRAFT),
             (Show.STATUS_IN_REVIEW, Show.STATUS_OPEN_CALL),
             (Show.STATUS_PUBLISHED, Show.STATUS_DRAFT),
@@ -1100,10 +1103,11 @@ class ShowStatusTests(TestCase):
                 with self.assertRaises(ValueError):
                     show.transition_to(to_status)
 
-    def test_under_consideration_can_also_transition_to_draft(self):
+    def test_under_consideration_transitions_only_to_open_call(self):
         show = Show.objects.create(name='Draft Show', start=datetime.date.today(), end=datetime.date.today())
-        show.transition_to(Show.STATUS_DRAFT)
-        self.assertEqual(show.status, Show.STATUS_DRAFT)
+        self.assertEqual(show.get_valid_transitions()[Show.STATUS_UNDER_CONSIDERATION], [Show.STATUS_OPEN_CALL])
+        with self.assertRaises(ValueError):
+            show.transition_to(Show.STATUS_DRAFT)
 
     # --- is_accepting_submissions ---
 
@@ -1366,6 +1370,179 @@ class ShowStatusTests(TestCase):
         )
         self.show.refresh_from_db()
         self.assertEqual(self.show.status, Show.STATUS_DRAFT)  # not changed yet
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+)
+class SubmittableShowsTests(TestCase):
+    """Tests for the submittable_shows context on the artist detail page."""
+
+    def setUp(self):
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='pw'
+        )
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='Test Artist',
+            first_name='Test', last_name='Artist',
+            email='artist@example.com', phone='',
+        )
+        self.open_show = Show.objects.create(
+            name='Open Call Show',
+            start=datetime.date.today(), end=datetime.date.today(),
+            status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_OPEN,
+        )
+        self.invited_show = Show.objects.create(
+            name='Invited Show',
+            start=datetime.date.today(), end=datetime.date.today(),
+            status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_INVITED,
+        )
+
+    def test_open_call_show_appears_in_submittable_shows(self):
+        self.client.force_login(self.artist_user)
+        response = self.client.get(self.artist.get_absolute_url())
+        self.assertIn(self.open_show, response.context['submittable_shows'])
+
+    def test_invited_show_excluded_without_invitation(self):
+        self.client.force_login(self.artist_user)
+        response = self.client.get(self.artist.get_absolute_url())
+        self.assertNotIn(self.invited_show, response.context['submittable_shows'])
+
+    def test_invited_show_included_with_invitation(self):
+        from gallery.models.exhibitions import ShowInvitation
+        ShowInvitation.objects.create(
+            show=self.invited_show, email='artist@example.com', artist=self.artist,
+            invited_by=self.artist_user,
+        )
+        self.client.force_login(self.artist_user)
+        response = self.client.get(self.artist.get_absolute_url())
+        self.assertIn(self.invited_show, response.context['submittable_shows'])
+
+    def test_submittable_shows_not_in_context_for_other_artist_page(self):
+        other_user = User.objects.create_user(
+            username='other@example.com', email='other@example.com', password='pw'
+        )
+        other_artist = Artist.objects.create(
+            user=other_user, name='Other Artist',
+            first_name='Other', last_name='Artist',
+            email='other@example.com', phone='',
+        )
+        self.client.force_login(self.artist_user)
+        response = self.client.get(other_artist.get_absolute_url())
+        self.assertNotIn('submittable_shows', response.context)
+
+    def test_non_open_call_show_excluded(self):
+        draft_show = Show.objects.create(
+            name='Draft Show', start=datetime.date.today(), end=datetime.date.today(),
+            status=Show.STATUS_DRAFT, submission_type=Show.SUBMISSION_OPEN,
+        )
+        self.client.force_login(self.artist_user)
+        response = self.client.get(self.artist.get_absolute_url())
+        self.assertNotIn(draft_show, response.context['submittable_shows'])
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+)
+class ArtworkCreateAutoAssignTests(TestCase):
+    """Tests for automatic artist assignment and created_by on artwork creation."""
+
+    def setUp(self):
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='pw'
+        )
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='Test Artist',
+            first_name='Test', last_name='Artist',
+            email='artist@example.com', phone='',
+        )
+        artist_group, _ = Group.objects.get_or_create(name='artist')
+        self.artist_user.groups.add(artist_group)
+
+    def _minimal_image(self):
+        # 1x1 red pixel GIF — smallest valid image file
+        gif = (
+            b'GIF87a\x01\x00\x01\x00\x80\x00\x00\xff\x00\x00\xff\xff\xff'
+            b'!\xf9\x04\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01'
+            b'\x00\x00\x02\x02D\x01\x00;'
+        )
+        return SimpleUploadedFile('test.gif', gif, content_type='image/gif')
+
+    def test_artist_auto_assigned_on_create(self):
+        self.client.force_login(self.artist_user)
+        response = self.client.post(
+            reverse('gallery:artwork_new'),
+            {
+                'name': 'New Piece',
+                'end_year': 2026,
+                'width_inches': '10',
+                'height_inches': '12',
+                'image': self._minimal_image(),
+            },
+        )
+        artwork = Artwork.objects.filter(name='New Piece').first()
+        self.assertIsNotNone(artwork)
+        self.assertIn(self.artist, artwork.artists.all())
+        self.assertEqual(artwork.created_by, self.artist_user)
+
+    def test_artists_field_hidden_for_user_with_linked_artist(self):
+        self.client.force_login(self.artist_user)
+        response = self.client.get(reverse('gallery:artwork_new'))
+        self.assertNotIn('artists', response.context['form'].fields)
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+)
+class InvitedShowDisplayTests(TestCase):
+    """Tests that invited shows suppress Open Call label and deadline for non-invited users."""
+
+    def setUp(self):
+        self.invited_show = Show.objects.create(
+            name='Secret Show',
+            start=datetime.date.today(), end=datetime.date.today(),
+            status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_INVITED,
+            submission_deadline=datetime.date.today() + datetime.timedelta(days=7),
+        )
+
+    def test_deadline_hidden_for_anonymous_user_on_invited_show(self):
+        response = self.client.get(self.invited_show.get_absolute_url())
+        self.assertNotContains(response, 'Submission deadline')
+
+    def test_invited_show_submissions_context_has_correct_invited_total(self):
+        curator_user = User.objects.create_user(
+            username='curator@example.com', email='curator@example.com', password='pw',
+            is_staff=True,
+        )
+        curator_artist = Artist.objects.create(
+            user=curator_user, name='Curator', first_name='Curator', last_name='One',
+            email='curator@example.com', phone='',
+        )
+        self.invited_show.curators.add(curator_artist)
+        from gallery.models.exhibitions import ShowInvitation
+        ShowInvitation.objects.create(
+            show=self.invited_show, email='a@example.com', invited_by=curator_user,
+        )
+        ShowInvitation.objects.create(
+            show=self.invited_show, email='b@example.com', invited_by=curator_user,
+        )
+        self.client.force_login(curator_user)
+        response = self.client.get(
+            reverse('gallery:show_submissions', kwargs={'slug': self.invited_show.slug})
+        )
+        self.assertEqual(response.context['invited_total'], 2)
 
 
 @override_settings(
