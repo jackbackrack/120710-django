@@ -7,10 +7,10 @@ from gallery.permissions import (
     can_manage_artist,
     can_manage_artwork,
     can_manage_show,
-    can_see_all_shows,
     tag_filter_queryset,
     visible_artist_queryset,
     visible_artwork_queryset,
+    visible_show_queryset,
 )
 
 
@@ -67,8 +67,7 @@ class SearchResultsListView(ListView):
             )
             .prefetch_related('curators', 'tags', 'events')
         )
-        if not can_see_all_shows(user):
-            show_qs = show_qs.filter(status__in=Show.PUBLIC_STATUSES)
+        show_qs = visible_show_queryset(show_qs, user)
         shows = list(tag_filter_queryset(show_qs, tag).distinct())
         context['show_list'] = shows
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(user, s)}

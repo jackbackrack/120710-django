@@ -54,7 +54,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         return Artist.objects.filter(visible_artist_queryset(self.request.user)).distinct()
 
     def get_context_data(self, **kwargs):
-        from gallery.permissions import can_delete_artwork, can_manage_artist, can_manage_artwork, can_see_all_shows
+        from gallery.permissions import can_delete_artwork, can_manage_artist, can_manage_artwork, visible_show_queryset
         from gallery.models.submissions import ArtworkSubmission
         from gallery.models import Show
         context = super().get_context_data(**kwargs)
@@ -84,8 +84,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
             context['submittable_show_ids'] = {s.id for s in submittable_shows}
         from gallery.permissions import can_manage_show
         shows_qs = Show.objects.filter(artworks__artists=artist).prefetch_related('curators', 'tags', 'events').distinct()
-        if not can_see_all_shows(user):
-            shows_qs = shows_qs.filter(status__in=Show.PUBLIC_STATUSES)
+        shows_qs = visible_show_queryset(shows_qs, user)
         shows = list(shows_qs.order_by('name'))
         context['shows'] = shows
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(user, s)}

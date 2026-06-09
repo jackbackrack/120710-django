@@ -10,7 +10,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from gallery.forms import ArtworkSubmissionForm, QuickArtworkForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber, ShowInvitation
-from gallery.permissions import can_manage_show, can_view_reviews, is_curator_user
+from gallery.permissions import can_manage_show, can_view_reviews
 from reviews.views import _compute_weighted_scores
 
 

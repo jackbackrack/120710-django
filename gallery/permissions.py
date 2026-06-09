@@ -76,9 +76,29 @@ def _published_show_ids():
     return Show.objects.filter(status__in=PUBLISHED_SHOW_STATUSES).values('pk')
 
 
-def visible_artwork_queryset(user):
+def _curator_show_ids(user):
+    from gallery.models import Show
+    return Show.objects.filter(curators__user=user).values('pk')
+
+
+def visible_show_queryset(qs, user):
+    from gallery.models import Show
+    if is_staff_user(user):
+        return qs
+    if is_juror_user(user):
+        return qs
     if is_curator_user(user):
+        return qs.filter(Q(status__in=Show.PUBLIC_STATUSES) | Q(pk__in=_curator_show_ids(user)))
+    return qs.filter(status__in=Show.PUBLIC_STATUSES)
+
+
+def visible_artwork_queryset(user):
+    if is_staff_user(user):
         return Q()
+    if is_curator_user(user):
+        q = Q(shows__in=_curator_show_ids(user)) | Q(shows__in=_published_show_ids())
+        q |= Q(created_by=user) | Q(artists__user=user)
+        return q
     public = Q(shows__in=_published_show_ids())
     if user.is_authenticated:
         public |= Q(created_by=user) | Q(artists__user=user)
@@ -86,8 +106,14 @@ def visible_artwork_queryset(user):
 
 
 def visible_artist_queryset(user):
-    if is_curator_user(user):
+    if is_staff_user(user):
         return Q()
+    if is_curator_user(user):
+        q = (Q(artworks__shows__in=_curator_show_ids(user))
+             | Q(artworks__shows__in=_published_show_ids())
+             | Q(curated_shows__isnull=False))
+        q |= Q(user=user)
+        return q
     public = Q(artworks__shows__in=_published_show_ids()) | Q(curated_shows__isnull=False)
     if user.is_authenticated:
         public |= Q(user=user)
@@ -119,7 +145,7 @@ def is_juror_for_show(user, show):
 
 
 def can_see_all_shows(user):
-    return is_staff_user(user) or is_curator_user(user) or is_juror_user(user)
+    return is_staff_user(user) or is_juror_user(user)
 
 
 def can_view_reviews(user, show):
