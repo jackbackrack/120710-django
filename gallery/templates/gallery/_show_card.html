@@ -18,7 +18,7 @@
       {% if show.curators.all %}<br>{% endif %}
       {% if show.location %}<br><small>{{ show.location }}</small>{% endif %}
       {{ show.date_range }}
-      {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline %}
+      {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline and show.submission_type == 'open' %}
       <br><strong>Deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ show.submission_deadline }}</span>
       {% endif %}
       {% with next_ev=show.get_next_event %}
@@ -32,6 +32,9 @@
     {% if show.id in can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
+    {% endif %}
+    {% if show.id in submittable_show_ids %}
+    <a class="card__link" href="{% url 'gallery:artwork_submit' show.slug %}">Submit</a>
     {% endif %}
   </div>
 </div>

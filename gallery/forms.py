@@ -83,7 +83,13 @@ class ArtworkForm(UserAwareModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
-        if not is_staff_user(self.user):
+        user_has_artist = (
+            self.user and
+            is_staff_user(self.user) and
+            hasattr(self.user, 'artists') and
+            self.user.artists.exists()
+        )
+        if not is_staff_user(self.user) or user_has_artist:
             self.fields.pop('artists')
 
         self.fields['width_inches'].required = True

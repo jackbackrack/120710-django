@@ -108,8 +108,7 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        if not is_staff_user(self.request.user):
-            form.instance.created_by = self.request.user
+        form.instance.created_by = self.request.user
         response = super().form_valid(form)
         artist = self.request.user.artists.order_by('-created_at').first()
         if artist:

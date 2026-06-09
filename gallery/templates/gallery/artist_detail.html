@@ -55,6 +55,14 @@
   {% endfor %}
 </div>
 {% endif %}
+{% if submittable_shows %}
+<div class="text-center section-label"><h2>Shows Accepting Submissions</h2></div>
+<div class="cards">
+  {% for show in submittable_shows %}
+  {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
 <div class="text-center section-label"><h2>Artworks</h2></div>
 {% if user.is_authenticated %}
 <div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_new' %}">New</a></div>

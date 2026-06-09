@@ -71,6 +71,16 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                 .select_related('artwork', 'show')
                 .order_by('-submitted_at')
             )
+            open_call_shows = Show.objects.filter(status=Show.STATUS_OPEN_CALL).prefetch_related('curators')
+            submittable_shows = []
+            for show in open_call_shows:
+                if show.submission_type == Show.SUBMISSION_OPEN:
+                    submittable_shows.append(show)
+                elif show.submission_type == Show.SUBMISSION_INVITED:
+                    if show.invitations.filter(email__iexact=user.email).exists():
+                        submittable_shows.append(show)
+            context['submittable_shows'] = submittable_shows
+            context['submittable_show_ids'] = {s.id for s in submittable_shows}
         from gallery.permissions import can_manage_show
         shows_qs = Show.objects.filter(artworks__artists=artist).prefetch_related('curators', 'tags', 'events').distinct()
         if not can_see_all_shows(user):
