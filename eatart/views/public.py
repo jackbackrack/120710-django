@@ -5,7 +5,7 @@ from django.shortcuts import render
 from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import Show
-from gallery.permissions import can_manage_show, is_curator_user, is_juror_user, is_staff_user, visible_show_queryset
+from gallery.permissions import can_delete_show, can_manage_show, is_curator_user, is_juror_user, is_staff_user, visible_show_queryset
 
 
 def index(request):
@@ -22,6 +22,7 @@ def index(request):
 
     all_shows = current_shows + future_shows + past_shows
     manageable_show_ids = {s.id for s in all_shows if can_manage_show(request.user, s)}
+    deletable_show_ids = {s.id for s in all_shows if can_delete_show(request.user, s)}
 
     return render(request, 'public/index.html', {
         'hero_show': hero_show,
@@ -30,6 +31,7 @@ def index(request):
         'future_shows': display_future_shows,
         'past_shows': past_shows,
         'can_manage_show': manageable_show_ids,
+        'can_delete_show': deletable_show_ids,
         'structured_data_json': dump_json_ld(schema_to_dict(gallery_to_schema(request))),
     })
 

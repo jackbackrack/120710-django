@@ -15,7 +15,7 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
-from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
+from gallery.permissions import can_delete_artist, can_delete_artwork, can_delete_show, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -38,6 +38,7 @@ class ShowListView(ListView):
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')
         context['can_manage_show'] = {s.id for s in all_shows if can_manage_show(self.request.user, s)}
+        context['can_delete_show'] = {s.id for s in all_shows if can_delete_show(self.request.user, s)}
         return context
 
 
@@ -60,6 +61,7 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['can_delete_artist_ids'] = {a.id for a in artists if can_delete_artist(self.request.user, a)}
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
         context['can_manage_show'] = can_manage_show(self.request.user, show)
+        context['can_delete_show'] = can_delete_show(self.request.user, show)
 
         user = self.request.user
         context['can_submit'] = False
@@ -189,7 +191,7 @@ class ShowDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def test_func(self):
         obj = self.get_object()
-        return can_manage_show(self.request.user, obj)
+        return can_delete_show(self.request.user, obj)
 
 
 class ShowCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):

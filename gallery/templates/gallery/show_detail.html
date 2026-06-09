@@ -61,6 +61,8 @@
   <div class="card__info" style="flex-wrap:wrap">
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
+  {% endif %}
+  {% if can_delete_show %}
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
   {% endif %}
   {% if show.submission_type == 'invited' and can_manage_show %}

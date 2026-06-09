@@ -50,10 +50,14 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
     template_name = 'gallery/artwork_detail.html'
 
     def get_context_data(self, **kwargs):
+        from gallery.permissions import can_delete_show, can_manage_show
         context = super().get_context_data(**kwargs)
         artwork = self.object
         context['can_manage_artwork'] = can_manage_artwork(self.request.user, artwork)
         context['can_delete_artwork'] = can_delete_artwork(self.request.user, artwork)
+        shows = list(artwork.shows.all())
+        context['can_manage_show'] = {s.id for s in shows if can_manage_show(self.request.user, s)}
+        context['can_delete_show'] = {s.id for s in shows if can_delete_show(self.request.user, s)}
         return context
 
     def get_queryset(self):

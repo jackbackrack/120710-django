@@ -78,6 +78,10 @@ def can_manage_show(user, show):
     return show.curators.filter(user=user).exists()
 
 
+def can_delete_show(user, show):
+    return bool(user.is_authenticated and user.is_superuser)
+
+
 def can_manage_event(user, event):
     return can_manage_show(user, event.show)
 

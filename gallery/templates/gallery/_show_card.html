@@ -31,6 +31,8 @@
   <div class="card__info">
     {% if show.id in can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
+    {% endif %}
+    {% if show.id in can_delete_show %}
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
     {% endif %}
     {% if show.id in submittable_show_ids %}

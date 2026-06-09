@@ -4,6 +4,7 @@ from django.views.generic import ListView
 
 from gallery.models import Artist, Artwork, Show, Tag
 from gallery.permissions import (
+    can_delete_show,
     can_manage_artist,
     can_manage_artwork,
     can_manage_show,
@@ -71,6 +72,7 @@ class SearchResultsListView(ListView):
         shows = list(tag_filter_queryset(show_qs, tag).distinct())
         context['show_list'] = shows
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(user, s)}
+        context['can_delete_show'] = {s.id for s in shows if can_delete_show(user, s)}
 
         context['available_tags'] = Tag.objects.order_by('name')
         context['active_tag'] = self.request.GET.get('tag', '')

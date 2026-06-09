@@ -41,6 +41,8 @@
     <div class="card__info">
       {% if hero_show.id in can_manage_show %}
         <a class="card__link" href="{% url 'gallery:show_edit' hero_show.pk %}">Edit</a>
+      {% endif %}
+      {% if hero_show.id in can_delete_show %}
         <a class="card__link" href="{% url 'gallery:show_delete' hero_show.pk %}">Delete</a>
       {% endif %}
     </div>

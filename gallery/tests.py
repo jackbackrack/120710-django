@@ -740,6 +740,23 @@ class CuratorScopedPermissionTests(TestCase):
         response = self.client.get(reverse('gallery:artwork_edit', kwargs={'pk': self.private_artwork.pk}))
         self.assertEqual(response.status_code, 403)
 
+    # --- Show delete access ---
+
+    def test_curator_cannot_delete_own_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.post(reverse('gallery:show_delete', kwargs={'pk': self.own_show.pk}))
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Show.objects.filter(pk=self.own_show.pk).exists())
+
+    def test_superuser_can_delete_show(self):
+        superuser = User.objects.create_superuser(
+            username='admin@example.com', email='admin@example.com', password='pw'
+        )
+        self.client.force_login(superuser)
+        response = self.client.post(reverse('gallery:show_delete', kwargs={'pk': self.own_show.pk}))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Show.objects.filter(pk=self.own_show.pk).exists())
+
 
 @override_settings(
     STORAGES={

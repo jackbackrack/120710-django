@@ -85,12 +85,13 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                         submittable_shows.append(show)
             context['submittable_shows'] = submittable_shows
             context['submittable_show_ids'] = {s.id for s in submittable_shows}
-        from gallery.permissions import can_manage_show
+        from gallery.permissions import can_delete_show, can_manage_show
         shows_qs = Show.objects.filter(artworks__artists=artist).prefetch_related('curators', 'tags', 'events').distinct()
         shows_qs = visible_show_queryset(shows_qs, user)
         shows = list(shows_qs.order_by('name'))
         context['shows'] = shows
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(user, s)}
+        context['can_delete_show'] = {s.id for s in shows if can_delete_show(user, s)}
         if user.is_authenticated and artist.user == user:
             curated_shows = list(
                 Show.objects.filter(curators=artist)
@@ -98,7 +99,9 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                 .order_by('-start')
             )
             context['curated_shows'] = curated_shows
-            context['can_manage_show'] = {s.id for s in (shows + curated_shows) if can_manage_show(user, s)}
+            all_shows = shows + curated_shows
+            context['can_manage_show'] = {s.id for s in all_shows if can_manage_show(user, s)}
+            context['can_delete_show'] = {s.id for s in all_shows if can_delete_show(user, s)}
         return context
 
 
