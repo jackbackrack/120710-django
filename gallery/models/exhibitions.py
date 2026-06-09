@@ -105,7 +105,7 @@ class Show(models.Model):
 
     def get_valid_transitions(self):
         base = {
-            self.STATUS_UNDER_CONSIDERATION: [self.STATUS_OPEN_CALL, self.STATUS_DRAFT],
+            self.STATUS_UNDER_CONSIDERATION: [self.STATUS_OPEN_CALL],
             self.STATUS_DRAFT: [self.STATUS_PUBLISHED],
             self.STATUS_PUBLISHED: [self.STATUS_CLOSED],
             self.STATUS_CLOSED: [],
