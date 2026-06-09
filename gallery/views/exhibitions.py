@@ -56,7 +56,7 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object')
-        artworks = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).annotate(first_artist_name=Min('artists__name')).order_by('first_artist_name', 'name').distinct()
+        artworks = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').annotate(first_artist_name=Min('artists__name')).order_by('first_artist_name', 'name').distinct()
         artists = Artist.objects.filter(artworks__in=artworks).distinct().order_by('name')
         context['artists'] = artists
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
@@ -89,6 +89,17 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             {'artwork': aw, 'submission': submissions_by_artwork_id.get(aw.id)}
             for aw in artworks
         ]
+        if user.is_authenticated:
+            from gallery.permissions import is_staff_user
+            if is_staff_user(user):
+                context['can_manage_artwork_ids'] = {aw.id for aw in artworks}
+            else:
+                context['can_manage_artwork_ids'] = {
+                    aw.id for aw in artworks
+                    if aw.created_by_id == user.id or any(a.user_id == user.id for a in aw.artists.all())
+                }
+        else:
+            context['can_manage_artwork_ids'] = set()
         context['pending_submissions'] = pending_submissions
         from reviews.models import ShowJuror
         context['jurors'] = list(ShowJuror.objects.filter(show=show).select_related('user').order_by('user__last_name'))
