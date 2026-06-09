@@ -22,6 +22,7 @@ Usage:
   --status STATUS               Initial status (default: under_consideration).
                                 Choices: under_consideration, open_call, in_review,
                                          draft, published, closed.
+  --invited                     Set submission type to invitation only (default: open call).
 
 Example:
     python create_test_show.py --name "Spring Show" --start 2026-03-01 --end 2026-03-31 \\
@@ -59,6 +60,12 @@ def _pop_flag_values(args, flag):
         values.append(_pop_flag_value(args, flag))
     return values
 
+def _pop_flag(args, flag):
+    if flag in args:
+        args.remove(flag)
+        return True
+    return False
+
 def parse_date(s, label):
     try:
         return datetime.date.fromisoformat(s)
@@ -78,6 +85,7 @@ decision_date       = _pop_flag_value(args, '--decision-date')
 image_path          = _pop_flag_value(args, '--image')
 status              = _pop_flag_value(args, '--status') or Show.STATUS_UNDER_CONSIDERATION
 curator_emails      = _pop_flag_values(args, '--curator')
+invited             = _pop_flag(args, '--invited')
 
 if not name:
     print('--name is required')
@@ -110,6 +118,7 @@ show = Show(
     review_deadline=review_deadline,
     decision_date=decision_date,
     status=status,
+    submission_type=Show.SUBMISSION_INVITED if invited else Show.SUBMISSION_OPEN,
 )
 
 if image_path:

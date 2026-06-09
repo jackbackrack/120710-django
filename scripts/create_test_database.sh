@@ -20,29 +20,44 @@ echo "Created superuser: $SUPERUSER_EMAIL / $SUPERUSER_PASSWORD"
 
 echo "=== Creating artists ==="
 
-$ARTIST --email curator@example.com --password testpass123 --curator \
-        --first Alice --last Curator
+$ARTIST --email oliver@hawk.com --password pass --curator \
+        --first Oliver --last Hawk --image media/artist_images/oliver-hawk.jpg
 
-$ARTIST --email artist1@example.com --password testpass123 --artist \
-        --first Bob --last Artist
+$ARTIST --email miguel@novelo.com --password pass --artist \
+        --first Miguel --last Novelo --image media/artist_images/miguel-novelo.jpg
 
-$ARTIST --email artist2@example.com --password testpass123 --artist \
-        --first Carol --last Maker
+$ARTIST --email laura@rokas.com --password pass --artist \
+        --first Laura --last Rokas --image media/artist_images/laura-rokas.jpg
+
+$ARTIST --email dave@carter.com --password pass --artist \
+        --first Dave --last Carter --image media/artist_images/dave-carter.jpg
 
 echo "=== Creating artworks ==="
 
-$ARTWORK --email artist1@example.com --name "Untitled 1" \
+$ARTWORK --email oliver@hawk.com --name "Oliver" \
          --year 2024 --width 12 --height 16 \
-         --image media/piece_images/minimal-camel.jpg
+         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg
 
-$ARTWORK --email artist2@example.com --name "Untitled 2" \
+$ARTWORK --email dave@carter.com --name "Drawing" \
+         --year 2024 --width 12 --height 16 \
+         --image media/piece_images/IMG_2448_-_David_Carter.jpeg
+
+$ARTWORK --email laura@rokas.com --name "Quilt" \
          --year 2025 --width 18 --height 24 \
-         --image media/piece_images/out-of-body-lady-staring-small.jpg
+         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
+
+$ARTWORK --email miguel@novelo.com --name "Rock Worship" \
+         --year 2025 --width 18 --height 24 \
+         --image media/piece_images/miguel-rock_small.jpg
 
 echo "=== Creating shows ==="
 
-$SHOW --name "Test Show" \
+$SHOW --name "Working Craft" \
       --start 2026-01-01 --end 2026-02-01 \
-      --curator curator@example.com
+      --curator oliver@hawk.com
+
+$SHOW --name "Working Craft" \
+      --start 2026-01-01 --end 2026-02-01 \
+      --curator oliver@hawk.com
 
 echo "=== Done ==="
