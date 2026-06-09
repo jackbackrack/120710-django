@@ -83,7 +83,12 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
                 )
                 submissions_by_artwork_id = {sub.artwork_id: sub for sub in subs}
                 artwork_ids_in_show = set(artworks.values_list('id', flat=True))
-                pending_submissions = [sub for sub in subs if sub.artwork_id not in artwork_ids_in_show]
+                hide_rejected = show.status in (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED)
+                pending_submissions = [
+                    sub for sub in subs
+                    if sub.artwork_id not in artwork_ids_in_show
+                    and not (hide_rejected and sub.status == ArtworkSubmission.REJECTED)
+                ]
 
         context['artwork_data'] = [
             {'artwork': aw, 'submission': submissions_by_artwork_id.get(aw.id)}

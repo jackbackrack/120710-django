@@ -50,7 +50,7 @@
     </div>
     <div class="card__info">
       <span>{{ sub.get_status_display }}</span>
-      <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract submission of &quot;{{ sub.artwork.name }}&quot; from {{ sub.show.name }}?')">Retract</button></form>
+      {% if sub.show.is_accepting_submissions %}<form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract submission of &quot;{{ sub.artwork.name }}&quot; from {{ sub.show.name }}?')">Retract</button></form>{% endif %}
     </div>
   </div>
   {% endfor %}
