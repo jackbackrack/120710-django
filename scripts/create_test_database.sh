@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Populate the database with test artists, artworks, and shows.
+# Run from the project root: bash scripts/create_test_database.sh
 set -e
 
-MANAGE="python manage.py"
-ARTIST="python create_test_artist.py"
-ARTWORK="python create_test_artwork.py"
-SHOW="python create_test_show.py"
+DIR="$(dirname "$0")"
+
+ARTIST="python $DIR/create_test_artist.py"
+ARTWORK="python $DIR/create_test_artwork.py"
+SHOW="python $DIR/create_test_show.py"
 
 SUPERUSER_EMAIL="admin@example.com"
 SUPERUSER_PASSWORD="adminpass123"
