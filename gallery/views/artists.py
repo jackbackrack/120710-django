@@ -91,6 +91,14 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         shows = list(shows_qs.order_by('name'))
         context['shows'] = shows
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(user, s)}
+        if user.is_authenticated and artist.user == user:
+            curated_shows = list(
+                Show.objects.filter(curators=artist)
+                .prefetch_related('curators', 'tags', 'events')
+                .order_by('-start')
+            )
+            context['curated_shows'] = curated_shows
+            context['can_manage_show'] = {s.id for s in (shows + curated_shows) if can_manage_show(user, s)}
         return context
 
 

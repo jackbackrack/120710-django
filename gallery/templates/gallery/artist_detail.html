@@ -58,6 +58,14 @@
   {% endfor %}
 </div>
 {% endif %}
+{% if curated_shows %}
+<div class="text-center section-label"><h2>My Shows</h2></div>
+<div class="cards">
+  {% for show in curated_shows %}
+  {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% endif %}
 {% if submittable_shows %}
 <div class="text-center section-label"><h2>Shows Accepting Submissions</h2></div>
 <div class="cards">
