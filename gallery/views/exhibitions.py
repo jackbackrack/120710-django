@@ -103,6 +103,8 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         allowed = show.get_valid_transitions().get(show.status, [])
         status_choices = dict(Show.STATUS_CHOICES)
         context['allowed_transitions'] = [(s, status_choices[s]) for s in allowed]
+        late_statuses = {Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED}
+        context['can_assign_jurors'] = can_manage_show(user, show) and show.status not in late_statuses
         return context
 
 

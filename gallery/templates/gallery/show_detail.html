@@ -69,7 +69,7 @@
   {% if can_view_reviews %}
     <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
   {% endif %}
-  {% if show.submission_type == 'open' and can_manage_show %}
+  {% if show.submission_type == 'open' and can_assign_jurors %}
     <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Assign Jurors</a>
   {% endif %}
   {% if show.submission_type == 'open' and can_view_reviews %}
