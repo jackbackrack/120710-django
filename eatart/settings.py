@@ -226,7 +226,7 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # django-imagekit: generate thumbnails eagerly on image save.
-IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = 'imagekit.cachefiles.strategies.JustInTime'
+IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = 'eatart.imagekit_strategy.JustInTime'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
