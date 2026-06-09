@@ -29,22 +29,40 @@ def is_artist_user(user):
     return cached
 
 
+def _is_gallery_admin(user):
+    """Staff user who has no artist-curator profile — a real gallery admin, not a curator."""
+    if not (user.is_authenticated and user.is_staff and not user.is_superuser):
+        return False
+    cached = getattr(user, '_is_gallery_admin_cache', None)
+    if cached is None:
+        from gallery.models.people import Artist
+        cached = not Artist.objects.filter(user=user, curated_shows__isnull=False).exists()
+        user._is_gallery_admin_cache = cached
+    return cached
+
+
 def can_manage_artist(user, artist):
-    return bool(user.is_authenticated and (is_staff_user(user) or artist.user_id == user.id))
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser or _is_gallery_admin(user):
+        return True
+    return artist.user_id == user.id
 
 
 def can_delete_artist(user, artist):
-    if not can_manage_artist(user, artist):
+    if not user.is_authenticated:
         return False
-    if is_staff_user(user):
+    if user.is_superuser or _is_gallery_admin(user):
         return True
+    if artist.user_id != user.id:
+        return False
     return not artist.artworks.filter(shows__isnull=False).exists()
 
 
 def can_manage_artwork(user, artwork):
     if not user.is_authenticated:
         return False
-    if user.is_superuser:
+    if user.is_superuser or _is_gallery_admin(user):
         return True
     if artwork.created_by_id == user.id or artwork.artists.filter(user=user).exists():
         return True
@@ -67,7 +85,7 @@ def can_delete_artwork(user, artwork):
 def can_manage_show(user, show):
     if not user.is_authenticated:
         return False
-    if is_staff_user(user):
+    if user.is_superuser or _is_gallery_admin(user):
         return True
     if not is_curator_user(user):
         return False
@@ -79,7 +97,9 @@ def can_manage_show(user, show):
 
 
 def can_delete_show(user, show):
-    return bool(user.is_authenticated and user.is_superuser)
+    if not user.is_authenticated:
+        return False
+    return user.is_superuser or _is_gallery_admin(user)
 
 
 def can_manage_event(user, event):
