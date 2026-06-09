@@ -317,12 +317,19 @@ def promote_artworks(request, slug):
         .prefetch_related('artwork__artists')
     )
 
+    undecided_count = ArtworkSubmission.objects.filter(
+        show=show, curator_decision=ArtworkSubmission.UNDECIDED
+    ).count()
+
     current_artwork_ids = set(show.artworks.values_list('id', flat=True))
     to_add = [s for s in selected_subs if s.artwork_id not in current_artwork_ids]
     to_keep = [s for s in selected_subs if s.artwork_id in current_artwork_ids]
     to_remove = [s for s in rejected_subs if s.artwork_id in current_artwork_ids]
 
     if request.method == 'POST':
+        if undecided_count:
+            messages.error(request, f'{undecided_count} submission{"s" if undecided_count != 1 else ""} still undecided. Decide all submissions before publishing.')
+            return redirect('gallery:promote_artworks', slug=show.slug)
         selected_artworks = [s.artwork for s in selected_subs]
         if selected_artworks:
             show.artworks.add(*selected_artworks)
@@ -366,6 +373,7 @@ def promote_artworks(request, slug):
         'selected_submissions': selected_subs,
         'rejected_submissions': rejected_subs,
         'will_publish': show.status == Show.STATUS_DRAFT,
+        'undecided_count': undecided_count,
     }
     return render(request, 'gallery/promote_artworks.html', context)
 

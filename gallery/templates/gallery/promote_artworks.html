@@ -41,9 +41,16 @@
 <p class="text-muted">No changes — show is already in sync with current selections.</p>
 {% endif %}
 
+{% if undecided_count %}
+<div class="alert alert-warning mt-4">
+  <strong>{{ undecided_count }} submission{{ undecided_count|pluralize }} still undecided.</strong>
+  Decide all submissions before publishing.
+</div>
+{% endif %}
+
 <form method="post" class="mt-4">
   {% csrf_token %}
-  <button type="submit" class="btn btn-primary">
+  <button type="submit" class="btn btn-primary" {% if undecided_count %}disabled{% endif %}>
     {% if will_publish %}Confirm &amp; Publish Show{% else %}Confirm &amp; Sync to Show{% endif %}
   </button>
   <a class="card__link ms-3" href="{% url 'gallery:show_submissions' show.slug %}">Cancel</a>
