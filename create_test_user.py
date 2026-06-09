@@ -3,13 +3,16 @@
 Create a test user with a verified email, bypassing allauth's email confirmation.
 
 Usage:
-    python create_test_user.py [email] [password] [--artist] [--curator] [image_path]
+    python create_test_user.py [email] [password] [--artist] [--curator]
+                               [--first FIRST] [--last LAST] [image_path]
 
 Defaults to test@example.com / testpass123 if not provided.
 
-  --artist     Create a linked Artist profile (like normal signup).
-  --curator    Create a linked Artist profile and set is_staff=True (curator access).
-  image_path   Optional path to an artist profile image (requires --artist or --curator).
+  --artist        Create a linked Artist profile (like normal signup).
+  --curator       Create a linked Artist profile and set is_staff=True (curator access).
+  --first FIRST   Set artist first name (requires --artist or --curator).
+  --last LAST     Set artist last name (requires --artist or --curator).
+  image_path      Optional path to an artist profile image (requires --artist or --curator).
 """
 import os
 import sys
@@ -24,6 +27,22 @@ from django.contrib.auth.models import Group
 from allauth.account.models import EmailAddress
 
 args = sys.argv[1:]
+
+def _pop_flag_value(args, flag):
+    """Remove --flag VALUE pair from args list and return VALUE, or None."""
+    if flag in args:
+        idx = args.index(flag)
+        if idx + 1 < len(args):
+            value = args[idx + 1]
+            args.remove(flag)
+            args.remove(value)
+            return value
+        args.remove(flag)
+    return None
+
+first_name = _pop_flag_value(args, '--first')
+last_name = _pop_flag_value(args, '--last')
+
 flags = {a for a in args if a.startswith('--')}
 positional = [a for a in args if not a.startswith('--')]
 
@@ -46,6 +65,13 @@ if make_artist:
     from accounts.signup import ensure_signup_profile
     from django.core.files import File
     artist = ensure_signup_profile(user)
+    if artist and (first_name or last_name):
+        if first_name:
+            artist.first_name = first_name
+        if last_name:
+            artist.last_name = last_name
+        update = [f for f, v in (('first_name', first_name), ('last_name', last_name)) if v]
+        artist.save(update_fields=update)
     if image_path and artist:
         if not os.path.exists(image_path):
             print(f'Warning: image not found: {image_path}')
