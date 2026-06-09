@@ -499,6 +499,148 @@ class AuthorizationWorkflowTests(TestCase):
         'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     },
+)
+class CuratorScopedPermissionTests(TestCase):
+    """Curators should only have elevated access to shows they are explicitly assigned to."""
+
+    def setUp(self):
+        # Curator A assigned only to own_show
+        self.curator_user = User.objects.create_user(
+            username='curator@example.com', email='curator@example.com', password='pw'
+        )
+        self.curator_artist = Artist.objects.create(
+            user=self.curator_user, name='Curator One',
+            first_name='Curator', last_name='One', email='curator@example.com', phone='',
+        )
+
+        # Curator B assigned only to other_show
+        self.other_curator_user = User.objects.create_user(
+            username='other@example.com', email='other@example.com', password='pw'
+        )
+        self.other_curator_artist = Artist.objects.create(
+            user=self.other_curator_user, name='Curator Two',
+            first_name='Curator', last_name='Two', email='other@example.com', phone='',
+        )
+
+        # Artist with artworks in each show and one private artwork
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='pw'
+        )
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='Test Artist',
+            first_name='Test', last_name='Artist', email='artist@example.com', phone='',
+        )
+
+        today = datetime.date.today()
+        # own_show is in draft — not publicly visible
+        self.own_show = Show.objects.create(
+            name='Own Show', start=today, end=today + datetime.timedelta(days=7),
+            status=Show.STATUS_DRAFT,
+        )
+        self.own_show.curators.add(self.curator_artist)
+
+        # other_show is in draft — managed by a different curator
+        self.other_show = Show.objects.create(
+            name='Other Show', start=today, end=today + datetime.timedelta(days=7),
+            status=Show.STATUS_DRAFT,
+        )
+        self.other_show.curators.add(self.other_curator_artist)
+
+        # Artwork visible only via own_show
+        self.own_artwork = Artwork.objects.create(
+            name='Own Show Artwork', created_by=self.artist_user, end_year=2024,
+        )
+        self.own_artwork.artists.add(self.artist)
+        self.own_artwork.shows.add(self.own_show)
+
+        # Artwork visible only via other_show
+        self.other_artwork = Artwork.objects.create(
+            name='Other Show Artwork', created_by=self.artist_user, end_year=2024,
+        )
+        self.other_artwork.artists.add(self.artist)
+        self.other_artwork.shows.add(self.other_show)
+
+        # Artwork in no show at all (private)
+        self.private_artwork = Artwork.objects.create(
+            name='Private Artwork', created_by=self.artist_user, end_year=2024,
+        )
+        self.private_artwork.artists.add(self.artist)
+
+    # --- Show list visibility ---
+
+    def test_curator_sees_own_unpublished_show_in_list(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:show_list'))
+        self.assertContains(response, 'Own Show')
+
+    def test_curator_does_not_see_other_unpublished_show_in_list(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:show_list'))
+        self.assertNotContains(response, 'Other Show')
+
+    def test_curator_cannot_access_detail_of_other_unpublished_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(self.other_show.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+
+    def test_curator_can_access_detail_of_own_unpublished_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(self.own_show.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+    # --- Artwork visibility ---
+
+    def test_curator_sees_artworks_in_own_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertContains(response, 'Own Show Artwork')
+
+    def test_curator_does_not_see_artworks_only_in_other_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertNotContains(response, 'Other Show Artwork')
+
+    def test_curator_does_not_see_private_artworks_by_other_artists(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:artwork_list'))
+        self.assertNotContains(response, 'Private Artwork')
+
+    def test_curator_cannot_access_detail_of_artwork_in_other_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(self.other_artwork.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+
+    # --- Artist visibility ---
+
+    def test_curator_sees_artists_who_have_work_in_own_show(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:artist_list'))
+        self.assertContains(response, 'Test Artist')
+
+    # --- Show management gates ---
+
+    def test_curator_cannot_edit_show_they_do_not_curate(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:show_edit', kwargs={'pk': self.other_show.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    def test_curator_can_edit_show_they_curate(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(reverse('gallery:show_edit', kwargs={'pk': self.own_show.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_curator_cannot_delete_show_they_do_not_curate(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.post(reverse('gallery:show_delete', kwargs={'pk': self.other_show.pk}))
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Show.objects.filter(pk=self.other_show.pk).exists())
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
 )
 class OpenCallFlowTests(TestCase):
