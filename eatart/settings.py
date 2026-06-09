@@ -254,9 +254,10 @@ if os.environ.get('POSTGRES_DB'):
         f'@{postgres_host}:{postgres_port}/{postgres_db}'
     )
 
-db_from_env = dj_database_url.config(default=default_database_url, conn_max_age=500)
-if db_from_env:
-    DATABASES['default'].update(db_from_env)
+if default_database_url or os.environ.get('DATABASE_URL'):
+    db_from_env = dj_database_url.config(default=default_database_url, conn_max_age=500)
+    if db_from_env:
+        DATABASES['default'].update(db_from_env)
 
 # Storage backend selection:
 # - Production: set USE_S3=True to use S3 for static/media.
