@@ -3,16 +3,20 @@
 Create a test user with a verified email, bypassing allauth's email confirmation.
 
 Usage:
-    python create_test_user.py [email] [password] [--artist] [--curator]
-                               [--first FIRST] [--last LAST] [image_path]
+    python create_test_user.py --email EMAIL [--password PASSWORD]
+                               [--artist] [--curator]
+                               [--first FIRST] [--last LAST]
+                               [--image IMAGE_PATH]
 
 Defaults to test@example.com / testpass123 if not provided.
 
-  --artist        Create a linked Artist profile (like normal signup).
-  --curator       Create a linked Artist profile and set is_staff=True (curator access).
-  --first FIRST   Set artist first name (requires --artist or --curator).
-  --last LAST     Set artist last name (requires --artist or --curator).
-  image_path      Optional path to an artist profile image (requires --artist or --curator).
+  --email EMAIL       User email address (default: test@example.com).
+  --password PASSWORD User password (default: testpass123).
+  --artist            Create a linked Artist profile (like normal signup).
+  --curator           Create a linked Artist profile and set is_staff=True (curator access).
+  --first FIRST       Set artist first name (requires --artist or --curator).
+  --last LAST         Set artist last name (requires --artist or --curator).
+  --image IMAGE_PATH  Optional path to an artist profile image (requires --artist or --curator).
 """
 import os
 import sys
@@ -29,7 +33,6 @@ from allauth.account.models import EmailAddress
 args = sys.argv[1:]
 
 def _pop_flag_value(args, flag):
-    """Remove --flag VALUE pair from args list and return VALUE, or None."""
     if flag in args:
         idx = args.index(flag)
         if idx + 1 < len(args):
@@ -40,17 +43,22 @@ def _pop_flag_value(args, flag):
         args.remove(flag)
     return None
 
+def _pop_flag(args, flag):
+    if flag in args:
+        args.remove(flag)
+        return True
+    return False
+
+email      = _pop_flag_value(args, '--email') or 'test@example.com'
+password   = _pop_flag_value(args, '--password') or 'testpass123'
 first_name = _pop_flag_value(args, '--first')
-last_name = _pop_flag_value(args, '--last')
+last_name  = _pop_flag_value(args, '--last')
+image_path = _pop_flag_value(args, '--image')
+make_curator = _pop_flag(args, '--curator')
+make_artist  = _pop_flag(args, '--artist') or make_curator
 
-flags = {a for a in args if a.startswith('--')}
-positional = [a for a in args if not a.startswith('--')]
-
-email = positional[0] if len(positional) > 0 else 'test@example.com'
-password = positional[1] if len(positional) > 1 else 'testpass123'
-image_path = os.path.expanduser(positional[2]) if len(positional) > 2 else None
-make_artist = '--artist' in flags or '--curator' in flags
-make_curator = '--curator' in flags
+if image_path:
+    image_path = os.path.expanduser(image_path)
 
 User = get_user_model()
 
