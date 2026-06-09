@@ -7,6 +7,15 @@ ARTIST="python create_test_artist.py"
 ARTWORK="python create_test_artwork.py"
 SHOW="python create_test_show.py"
 
+SUPERUSER_EMAIL="admin@example.com"
+SUPERUSER_PASSWORD="adminpass123"
+
+echo "=== Creating superuser ==="
+DJANGO_SUPERUSER_PASSWORD="$SUPERUSER_PASSWORD" \
+  python manage.py createsuperuser --no-input \
+    --username "$SUPERUSER_EMAIL" --email "$SUPERUSER_EMAIL"
+echo "Created superuser: $SUPERUSER_EMAIL / $SUPERUSER_PASSWORD"
+
 echo "=== Creating artists ==="
 
 $ARTIST --email curator@example.com --password testpass123 --curator \
