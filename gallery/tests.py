@@ -500,6 +500,94 @@ class AuthorizationWorkflowTests(TestCase):
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     },
 )
+class ArtistDeletePermissionTests(TestCase):
+    """Artists with artworks in shows cannot be deleted except by staff."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='staff@example.com', email='staff@example.com', password='pw'
+        )
+        add_staff_role(self.staff_user)
+
+        # Artist whose artworks are NOT in any show
+        self.free_user = User.objects.create_user(
+            username='free@example.com', email='free@example.com', password='pw'
+        )
+        self.free_artist = Artist.objects.create(
+            user=self.free_user, name='Free Artist',
+            first_name='Free', last_name='Artist', email='free@example.com', phone='',
+        )
+        self.free_artwork = Artwork.objects.create(
+            name='Free Artwork', created_by=self.free_user, end_year=2024,
+        )
+        self.free_artwork.artists.add(self.free_artist)
+
+        # Artist whose artworks ARE in a show
+        self.shown_user = User.objects.create_user(
+            username='shown@example.com', email='shown@example.com', password='pw'
+        )
+        self.shown_artist = Artist.objects.create(
+            user=self.shown_user, name='Shown Artist',
+            first_name='Shown', last_name='Artist', email='shown@example.com', phone='',
+        )
+        today = datetime.date.today()
+        self.show = Show.objects.create(
+            name='Test Show', start=today, end=today + datetime.timedelta(days=7),
+            status=Show.STATUS_PUBLISHED,
+        )
+        self.shown_artwork = Artwork.objects.create(
+            name='Shown Artwork', created_by=self.shown_user, end_year=2024,
+        )
+        self.shown_artwork.artists.add(self.shown_artist)
+        self.shown_artwork.shows.add(self.show)
+
+    def test_artist_can_delete_themselves_when_no_artworks_in_shows(self):
+        self.client.force_login(self.free_user)
+        response = self.client.post(reverse('gallery:artist_delete', kwargs={'pk': self.free_artist.pk}))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Artist.objects.filter(pk=self.free_artist.pk).exists())
+
+    def test_artist_cannot_delete_themselves_when_artworks_in_show(self):
+        self.client.force_login(self.shown_user)
+        response = self.client.post(reverse('gallery:artist_delete', kwargs={'pk': self.shown_artist.pk}))
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Artist.objects.filter(pk=self.shown_artist.pk).exists())
+
+    def test_staff_can_delete_artist_with_artworks_in_show(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.post(reverse('gallery:artist_delete', kwargs={'pk': self.shown_artist.pk}))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Artist.objects.filter(pk=self.shown_artist.pk).exists())
+
+    def test_other_artist_cannot_delete_unrelated_artist(self):
+        self.client.force_login(self.free_user)
+        response = self.client.post(reverse('gallery:artist_delete', kwargs={'pk': self.shown_artist.pk}))
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Artist.objects.filter(pk=self.shown_artist.pk).exists())
+
+    def test_delete_button_hidden_on_artist_detail_when_artworks_in_show(self):
+        self.client.force_login(self.shown_user)
+        response = self.client.get(self.shown_artist.get_absolute_url())
+        self.assertContains(response, 'Edit')
+        self.assertNotContains(response, reverse('gallery:artist_delete', kwargs={'pk': self.shown_artist.pk}))
+
+    def test_delete_button_visible_on_artist_detail_when_no_artworks_in_shows(self):
+        self.client.force_login(self.free_user)
+        response = self.client.get(self.free_artist.get_absolute_url())
+        self.assertContains(response, reverse('gallery:artist_delete', kwargs={'pk': self.free_artist.pk}))
+
+    def test_delete_button_visible_on_artist_detail_for_staff_even_with_shown_artworks(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.shown_artist.get_absolute_url())
+        self.assertContains(response, reverse('gallery:artist_delete', kwargs={'pk': self.shown_artist.pk}))
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+)
 class CuratorScopedPermissionTests(TestCase):
     """Curators should only have elevated access to shows they are explicitly assigned to."""
 
