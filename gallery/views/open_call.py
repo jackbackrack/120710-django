@@ -127,6 +127,53 @@ def _send_invitation_email(show, email, request):
 
 
 @login_required
+def send_submission_reminders(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    if request.method != 'POST':
+        return redirect('gallery:show_submissions', slug=slug)
+
+    submitted_emails = set(
+        ArtworkSubmission.objects.filter(show=show)
+        .exclude(submitted_by__isnull=True)
+        .values_list('submitted_by__email', flat=True)
+    )
+    submitted_emails = {e.lower() for e in submitted_emails if e}
+
+    not_submitted = show.invitations.exclude(
+        email__in=submitted_emails
+    ).exclude(
+        email__in=[e.upper() for e in submitted_emails]
+    )
+    # Case-insensitive exclusion via Python
+    not_submitted = [inv for inv in show.invitations.all() if (inv.email or '').lower() not in submitted_emails]
+
+    show_url = request.build_absolute_uri(show.get_absolute_url())
+    count = 0
+    for inv in not_submitted:
+        html = render_to_string('email/show_submission_reminder.html', {
+            'show': show,
+            'show_url': show_url,
+        })
+        send_mail(
+            subject=f'Reminder: submit your artwork to {show.name}',
+            message=(
+                f'This is a reminder to submit your artwork to {show.name}. '
+                f'The show will be closing shortly. Visit {show_url} to submit.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[inv.email],
+            html_message=html,
+            fail_silently=True,
+        )
+        count += 1
+
+    messages.success(request, f'Reminder sent to {count} artist{"s" if count != 1 else ""}.')
+    return redirect('gallery:show_submissions', slug=slug)
+
+
+@login_required
 def invite_artists(request, slug):
     show = get_object_or_404(Show, slug=slug)
     if not can_manage_show(request.user, show):
@@ -271,6 +318,27 @@ def show_submissions(request, slug):
     for sub in submissions:
         sub.weighted_score = weighted_scores.get(sub.artwork_id)
 
+    # For invited shows, compute who has and hasn't submitted.
+    invited_submitted = []
+    invited_not_submitted = []
+    if show.submission_type == Show.SUBMISSION_INVITED:
+        from gallery.models import ShowInvitation
+        invitations = list(
+            show.invitations.select_related('artist').order_by('email')
+        )
+        submitted_emails = {
+            (s.submitted_by.email or '').lower()
+            for s in submissions
+            if s.submitted_by_id
+        }
+        for inv in invitations:
+            email = (inv.email or '').lower()
+            artist = inv.artist
+            if email in submitted_emails:
+                invited_submitted.append(inv)
+            else:
+                invited_not_submitted.append(inv)
+
     context = {
         'show': show,
         'criteria': criteria,
@@ -282,6 +350,8 @@ def show_submissions(request, slug):
         'n_rejected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED),
         'n_undecided': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED),
         'can_manage': can_manage_show(request.user, show),
+        'invited_submitted': invited_submitted,
+        'invited_not_submitted': invited_not_submitted,
     }
     return render(request, 'gallery/show_submissions.html', context)
 

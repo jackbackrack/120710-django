@@ -33,7 +33,7 @@ from gallery.views.exhibitions import (
     redirect_to_latest_show,
     transition_show_status,
 )
-from gallery.views.open_call import artwork_submit, invite_artists, show_submissions, promote_artworks, update_submission_status, renumber_artworks, retract_submission
+from gallery.views.open_call import artwork_submit, invite_artists, show_submissions, promote_artworks, update_submission_status, renumber_artworks, retract_submission, send_submission_reminders
 from gallery.views.search import SearchResultsListView
 
 __all__ = [
@@ -65,6 +65,7 @@ __all__ = [
     'promote_artworks',
     'update_submission_status',
     'retract_submission',
+    'send_submission_reminders',
     'EventListView',
     'EventDetailView',
     'EventUpdateView',

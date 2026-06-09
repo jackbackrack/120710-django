@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>This is a friendly reminder that you have been invited to submit artwork to <strong>{{ show.name }}</strong> and we have not yet received your submission.</p>
+<p>Please get your artwork submitted as soon as possible — the show will be closing shortly.</p>
+{% if show.submission_deadline %}
+<p>Submission deadline: <strong>{{ show.submission_deadline }}</strong>.</p>
+{% endif %}
+<p>To submit your work, visit the <a href="{{ show_url }}">show page</a>.</p>
+<p>— The 120710 Team</p>
+</body>
+</html>
