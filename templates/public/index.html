@@ -9,8 +9,8 @@
 {% if hero_show %}
 <div class="cards">
   <div class="card big-card">
-    <div class="text-center">
-      <h2>{% if hero_is_current %}Current Show{% else %}Upcoming Show{% endif %}</h2>
+    <div class="text-center" style="padding:2px 0">
+      <h2 style="margin:0">{% if hero_is_current %}Current Show{% else %}Upcoming Show{% endif %}</h2>
     </div>
     {% if hero_show.image %}
     <a style="display: contents" href="{{ hero_show.get_absolute_url }}"><img loading="lazy" class="card__image" src="{{ hero_show.card_md.url }}"></a>
