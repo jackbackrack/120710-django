@@ -45,14 +45,12 @@ class ArtistForm(UserAwareModelForm):
             'bio',
             'statement',
             'image',
-            'tags',
             'user',
         )
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
         if not is_staff_user(self.user):
-            self.fields.pop('tags')
             self.fields.pop('user')
         else:
             self.fields['user'].queryset = User.objects.order_by('email')
@@ -186,7 +184,6 @@ class ShowForm(UserAwareModelForm):
             'decision_date',
             'start',
             'end',
-            'tags',
         )
         widgets = {
             'submission_deadline': forms.DateInput(attrs={'type': 'date'}),
@@ -226,7 +223,6 @@ class EventForm(UserAwareModelForm):
             'date',
             'start',
             'end',
-            'tags',
         )
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
