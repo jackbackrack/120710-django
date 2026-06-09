@@ -103,7 +103,7 @@
 </div>
 
 <div class="show-header">
-  {% if show.image %}<img src="{{ show.image.url }}" alt="{{ show.name }}" style="max-width:400px;display:block;margin-bottom:12px;border:2px solid #333;">{% endif %}
+  {% if show.image %}<img loading="lazy" src="{{ show.image.url }}" alt="{{ show.name }}" style="max-width:400px;display:block;margin-bottom:12px;border:2px solid #333;">{% endif %}
   <h1>{{ show.name }}</h1>
   {% if show.show_type == 'public_art' %}<p class="meta"><strong>Public Art Site</strong></p>{% endif %}
   {% if show.location %}<p class="meta"><strong>Location:</strong> {{ show.location }}</p>{% endif %}
@@ -136,7 +136,7 @@
   {% with artwork=entry.artwork %}
   <div class="card">
     {% if artwork.image %}
-    <img src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}">
+    <img loading="lazy" src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}">
     {% endif %}
     <div class="card-body">
       <p class="artwork-name">{{ artwork.name }}</p>
@@ -161,7 +161,7 @@
   {% for artist in artists %}
   <div class="card">
     {% if artist.image %}
-    <img src="{{ artist.card_md.url }}" alt="{{ artist.name }}">
+    <img loading="lazy" src="{{ artist.card_md.url }}" alt="{{ artist.name }}">
     {% endif %}
     <div class="card-body">
       <p class="artwork-name">{{ artist.full_name }}</p>

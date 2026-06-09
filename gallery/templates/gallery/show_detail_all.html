@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="card">
-  <img src="{{ show.image.url }}" class="card__image">
+  <img loading="lazy" src="{{ show.image.url }}" class="card__image">
   <div class="card__content">
 <h1 class="mb-6 text-2xl">{{ show.name }}</h1>
 <h2 class="mb-6">{{ show.date_range }}</h2>
@@ -24,7 +24,7 @@
     <div>
       <a class="card__link" href="{{ artwork.get_absolute_url }}">
         {% if artwork.image %}
-        <img src="{{ artwork.image.url }}" class="card__image">
+        <img loading="lazy" src="{{ artwork.image.url }}" class="card__image">
         {% endif %}
         <div class="card__content">
           <h2 class="text-sm">{{ artwork.name }} </h2>

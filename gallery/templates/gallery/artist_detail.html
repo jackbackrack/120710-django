@@ -7,7 +7,7 @@
 <div class="cards">
 <div class="card" id="big_card">
   {% if artist.image %}
-  <img src="{{ artist.card_md.url }}" data-full-src="{{ artist.detail_lg.url }}" class="card__image zoomable">
+  <img loading="lazy" src="{{ artist.card_md.url }}" data-full-src="{{ artist.detail_lg.url }}" class="card__image zoomable">
   {% endif %}
   <div class="card__content">
     <h1 class="mb-6 text-3xl">{{ artist.full_name }}</h1>
@@ -41,7 +41,7 @@
   {% for sub in my_submissions %}
   <div class="card">
     {% if sub.artwork.image %}
-    <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img src="{{ sub.artwork.card_sm.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img loading="lazy" src="{{ sub.artwork.card_sm.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a>
@@ -63,7 +63,7 @@
   {% for artwork in artworks %}
   <div class="card">
     {% if artwork.image %}
-    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_sm.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>

@@ -12,7 +12,7 @@
 {% for event in event_list %}
   <div class="card">
     {% if event.image %}
-    <img src="{{ event.image.url }}" class="card__image">
+    <img loading="lazy" src="{{ event.image.url }}" class="card__image">
     {% endif %}
     <div class="card__content"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.show.name }} of {{ event.name }}</a></div>
     <div class="card__info">

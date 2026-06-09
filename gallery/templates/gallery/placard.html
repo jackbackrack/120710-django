@@ -73,7 +73,7 @@
   <div class="number-badge">#{{ data.number }}</div>
   <p class="show-name">{{ data.show }}</p>
   {% if data.artwork.image_url %}
-  <img src="{{ data.artwork.image_url }}" alt="{{ data.artwork.name }}">
+  <img loading="lazy" src="{{ data.artwork.image_url }}" alt="{{ data.artwork.name }}">
   {% endif %}
   <p class="artwork-name">{{ data.artwork.name }}</p>
   <p class="artwork-year">{{ data.artwork.year }}</p>

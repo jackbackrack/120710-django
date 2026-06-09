@@ -126,7 +126,7 @@
     <div class="cards">
       {% for artwork in pending_artworks %}
       <div class="card">
-        {% if artwork.image %}<a style="display:contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_sm.url }}" class="card__image"></a>{% endif %}
+        {% if artwork.image %}<a style="display:contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>{% endif %}
         <div class="card__content">
           <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
         </div>
@@ -229,7 +229,7 @@
       {% for artwork in pending_artworks %}
       <div class="card">
         {% if artwork.image %}
-        <a style="display:contents" href="{{ artwork.get_absolute_url }}"><img src="{{ artwork.card_sm.url }}" class="card__image"></a>
+        <a style="display:contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>
         {% endif %}
         <div class="card__content">
           <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>

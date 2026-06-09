@@ -1,6 +1,6 @@
 <div class="card">
   {% if artist.image %}
-  <a style="display: contents" href="{{ artist.get_absolute_url }}"><img src="{{ artist.card_sm.url }}" class="card__image"></a>
+  <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" class="card__image"></a>
   {% endif %}
   <div class="card__content">
     <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>

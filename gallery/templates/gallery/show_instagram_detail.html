@@ -9,12 +9,12 @@
 {% for artist in artwork.artists.all %}
 <br><br>
 {% if artist.image %}
-<img src="{{ artist.image.url }}" width=800>
+<img loading="lazy" src="{{ artist.image.url }}" width=800>
 {% endif %}
 <br> <br>
 {% endfor %}
 {% if artwork.image %}
-<img src="{{ artwork.image.url }}" width=800>
+<img loading="lazy" src="{{ artwork.image.url }}" width=800>
 {% endif %}
 <br><br>
 We are so excited to introduce
