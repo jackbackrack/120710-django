@@ -352,6 +352,7 @@ def show_submissions(request, slug):
         'can_manage': can_manage_show(request.user, show),
         'invited_submitted': invited_submitted,
         'invited_not_submitted': invited_not_submitted,
+        'invited_total': len(invited_submitted) + len(invited_not_submitted),
     }
     return render(request, 'gallery/show_submissions.html', context)
 

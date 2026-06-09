@@ -9,7 +9,7 @@
 {% if invited_submitted or invited_not_submitted %}
 <div class="mb-3 p-3 border rounded text-center">
   <strong>Invited artists:</strong>
-  {{ invited_submitted|length }} of {{ invited_submitted|length|add:invited_not_submitted|length }} submitted
+  {{ invited_submitted|length }} of {{ invited_total }} submitted
   {% if invited_submitted %}
   <div class="mt-2">
     <span class="text-success"><strong>Submitted ({{ invited_submitted|length }}):</strong></span>
