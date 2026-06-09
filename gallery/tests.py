@@ -326,13 +326,13 @@ class AuthorizationWorkflowTests(TestCase):
 
         self.assertRedirects(response, self.private_artwork.get_absolute_url())
 
-    def test_curator_can_browse_private_artworks(self):
+    def test_curator_cannot_see_private_artworks_by_other_artists(self):
         self.client.force_login(self.curator_user)
 
         response = self.client.get(reverse('gallery:artwork_list'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Private Study')
+        self.assertNotContains(response, 'Private Study')
 
     def test_staff_can_create_shows_but_curator_cannot(self):
         self.client.force_login(self.staff_user)
