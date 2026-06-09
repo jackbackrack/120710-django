@@ -325,6 +325,7 @@ def promote_artworks(request, slug):
     to_add = [s for s in selected_subs if s.artwork_id not in current_artwork_ids]
     to_keep = [s for s in selected_subs if s.artwork_id in current_artwork_ids]
     to_remove = [s for s in rejected_subs if s.artwork_id in current_artwork_ids]
+    to_reject = [s for s in rejected_subs if s.artwork_id not in current_artwork_ids]
 
     if request.method == 'POST':
         if undecided_count:
@@ -372,6 +373,7 @@ def promote_artworks(request, slug):
         'to_remove': to_remove,
         'selected_submissions': selected_subs,
         'rejected_submissions': rejected_subs,
+        'to_reject': to_reject,
         'will_publish': show.status == Show.STATUS_DRAFT,
         'undecided_count': undecided_count,
     }

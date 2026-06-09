@@ -11,7 +11,7 @@
 <ul>
   {% for sub in to_add %}
   <li><strong>{{ sub.artwork.name }}</strong> by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-    {% if sub.submitted_by %}<small class="text-muted">— email to {{ sub.submitted_by.email }}</small>{% endif %}
+    {% if will_publish and sub.submitted_by %}<small class="text-muted">— acceptance email to {{ sub.submitted_by.email }}</small>{% endif %}
   </li>
   {% endfor %}
 </ul>
@@ -27,11 +27,22 @@
 {% endif %}
 
 {% if to_remove %}
-<h3 class="text-danger mt-3">Removing ({{ to_remove|length }})</h3>
+<h3 class="text-danger mt-3">Removing from show ({{ to_remove|length }})</h3>
 <ul>
   {% for sub in to_remove %}
   <li><strong>{{ sub.artwork.name }}</strong> by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-    {% if sub.submitted_by %}<small class="text-muted">— email to {{ sub.submitted_by.email }}</small>{% endif %}
+    {% if will_publish and sub.submitted_by %}<small class="text-muted">— rejection email to {{ sub.submitted_by.email }}</small>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if will_publish and to_reject %}
+<h3 class="text-danger mt-3">Rejecting ({{ to_reject|length }})</h3>
+<ul>
+  {% for sub in to_reject %}
+  <li><strong>{{ sub.artwork.name }}</strong> by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    {% if sub.submitted_by %}<small class="text-muted">— rejection email to {{ sub.submitted_by.email }}</small>{% endif %}
   </li>
   {% endfor %}
 </ul>
