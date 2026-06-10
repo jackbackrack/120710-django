@@ -428,8 +428,8 @@ class AuthorizationWorkflowTests(TestCase):
             'width_inches': '10',
             'height_inches': '12',
             'depth_inches': '',
+            'pricing_type': self.private_artwork.pricing_type,
             'price': '',
-            'pricing': self.private_artwork.pricing or '',
             'replacement_cost': '',
             'is_sold': '',
             'description': self.private_artwork.description or '',
@@ -1750,6 +1750,7 @@ class ArtworkCreateAutoAssignTests(TestCase):
                 'width_inches': '10',
                 'height_inches': '12',
                 'image': self._minimal_image(),
+                'pricing_type': 'on_request',
             },
         )
         artwork = Artwork.objects.filter(name='New Piece').first()

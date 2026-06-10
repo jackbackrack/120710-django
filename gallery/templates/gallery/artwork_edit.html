@@ -24,6 +24,33 @@
       }
     });
   });
+
+  function updatePriceField() {
+    var typeEl = document.getElementById('id_pricing_type');
+    var priceRow = document.getElementById('div_id_price');
+    var priceInput = document.getElementById('id_price');
+    var priceLabel = priceRow ? priceRow.querySelector('label') : null;
+    if (!typeEl || !priceRow) return;
+    var val = typeEl.value;
+    if (val === 'nfs' || val === 'on_request') {
+      priceRow.style.display = 'none';
+      if (priceInput) { priceInput.value = ''; priceInput.required = false; }
+    } else if (val === 'best_offer') {
+      priceRow.style.display = '';
+      if (priceLabel) priceLabel.textContent = 'Minimum offer ($) — optional';
+      if (priceInput) priceInput.required = false;
+    } else {
+      priceRow.style.display = '';
+      if (priceLabel) priceLabel.textContent = 'Price ($)';
+      if (priceInput) priceInput.required = true;
+    }
+  }
+
+  var typeEl = document.getElementById('id_pricing_type');
+  if (typeEl) {
+    typeEl.addEventListener('change', updatePriceField);
+    updatePriceField();
+  }
 }());
 </script>
 {% endblock %}

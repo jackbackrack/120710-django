@@ -31,8 +31,23 @@ class Artwork(models.Model):
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
-    price = models.FloatField(verbose_name='Price: numeric price', blank=True, null=True)
-    pricing = models.CharField(verbose_name='Pricing: anything more sophisticated like "Upon request" or "NFS"', max_length=255, blank=True, null=True)
+    PRICING_FOR_SALE = 'for_sale'
+    PRICING_ON_REQUEST = 'on_request'
+    PRICING_BEST_OFFER = 'best_offer'
+    PRICING_NFS = 'nfs'
+    PRICING_TYPE_CHOICES = [
+        (PRICING_FOR_SALE, 'For Sale'),
+        (PRICING_ON_REQUEST, 'Price on Request'),
+        (PRICING_BEST_OFFER, 'Best Offer'),
+        (PRICING_NFS, 'Not For Sale'),
+    ]
+    pricing_type = models.CharField(
+        max_length=20,
+        choices=PRICING_TYPE_CHOICES,
+        default=PRICING_ON_REQUEST,
+        verbose_name='Pricing',
+    )
+    price = models.FloatField(verbose_name='Price ($)', blank=True, null=True)
     replacement_cost = models.FloatField(verbose_name='Replacment Cost: redo cost in the rare case that it gets stolen or damaged', blank=True, null=True)
     is_sold = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
@@ -45,9 +60,16 @@ class Artwork(models.Model):
 
     @property
     def formatted_price(self):
-        if self.pricing:
-            return self.pricing
-        if self.price is not None:
+        if self.pricing_type == self.PRICING_NFS:
+            return 'Not For Sale'
+        if self.pricing_type == self.PRICING_ON_REQUEST:
+            return 'Price on Request'
+        if self.pricing_type == self.PRICING_BEST_OFFER:
+            if self.price is not None:
+                amount = int(self.price) if self.price == int(self.price) else self.price
+                return f'Best Offer (min ${amount:,})'
+            return 'Best Offer'
+        if self.pricing_type == self.PRICING_FOR_SALE and self.price is not None:
             amount = int(self.price) if self.price == int(self.price) else self.price
             return f'${amount:,}'
         return ''

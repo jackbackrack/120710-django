@@ -71,8 +71,8 @@ class ArtworkForm(UserAwareModelForm):
             'height_inches',
             'depth_inches',
             'image',
+            'pricing_type',
             'price',
-            'pricing',
             'replacement_cost',
             'is_sold',
             'description',
@@ -118,13 +118,24 @@ class ArtworkForm(UserAwareModelForm):
                 css_class='align-items-end g-2',
             ),
             'image',
-            'price',
-            'pricing',
+            'pricing_type',
+            Field('price', wrapper_id='div_id_price'),
             'replacement_cost',
             'is_sold',
             'description',
             'installation',
         )
+
+    def clean(self):
+        cleaned = super().clean()
+        pricing_type = cleaned.get('pricing_type')
+        price = cleaned.get('price')
+        from gallery.models import Artwork
+        if pricing_type == Artwork.PRICING_FOR_SALE and price is None:
+            self.add_error('price', 'A price is required when "For Sale" is selected.')
+        if pricing_type in (Artwork.PRICING_NFS, Artwork.PRICING_ON_REQUEST):
+            cleaned['price'] = None
+        return cleaned
 
 
 class QuickArtworkForm(forms.ModelForm):
