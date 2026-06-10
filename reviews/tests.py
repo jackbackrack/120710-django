@@ -124,13 +124,13 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
 
         post_response = self.client.post(
             self.artwork_review_url,
-            {'rating': '4', 'body': 'Strong work with clean presentation.'},
+            {'rating': '75', 'body': 'Strong work with clean presentation.'},
             follow=True,
         )
 
         self.assertEqual(post_response.status_code, 200)
         review = ArtworkReview.objects.get(show=self.show, artwork=self.artwork, juror=self.juror_user)
-        self.assertEqual(review.rating, 4)
+        self.assertEqual(review.rating, 75)
         self.assertIn('clean presentation', review.body)
 
     def test_curator_not_on_show_cannot_view_artwork_reviews(self):
@@ -178,7 +178,7 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
             show=self.show,
             artwork=self.artwork,
             juror=self.juror_user,
-            rating=2,
+            rating=20,
             body='Initial notes',
         )
         edit_url = reverse(
@@ -197,13 +197,13 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
 
         post_response = self.client.post(
             edit_url,
-            {'rating': '5', 'body': 'Curator adjusted notes.'},
+            {'rating': '50', 'body': 'Curator adjusted notes.'},
             follow=True,
         )
         self.assertEqual(post_response.status_code, 200)
 
         review.refresh_from_db()
-        self.assertEqual(review.rating, 5)
+        self.assertEqual(review.rating, 50)
         self.assertEqual(review.body, 'Curator adjusted notes.')
 
     def test_curator_on_show_can_assign_and_remove_juror(self):

@@ -54,8 +54,6 @@ class RubricCriterion(models.Model):
 
 class ArtworkReview(models.Model):
     """A juror's rating and review of an artwork within the context of a specific show."""
-    RATING_CHOICES = [(i, str(i)) for i in range(1, 11)]
-
     show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='reviews')
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='reviews')
     juror = models.ForeignKey(
@@ -65,7 +63,7 @@ class ArtworkReview(models.Model):
         related_name='artwork_reviews',
     )
     rating = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
         null=True,
         blank=True,
     )
@@ -79,7 +77,7 @@ class ArtworkReview(models.Model):
 
     def __str__(self):
         name = self.juror.get_full_name() or self.juror.username if self.juror else '(deleted user)'
-        return f'{name}: {self.artwork.name} ({self.show.name}) - {self.rating}/10'
+        return f'{name}: {self.artwork.name} ({self.show.name}) - {self.rating}/100'
 
 
 class CriterionScore(models.Model):
@@ -87,7 +85,7 @@ class CriterionScore(models.Model):
     review = models.ForeignKey(ArtworkReview, on_delete=models.CASCADE, related_name='criterion_scores')
     criterion = models.ForeignKey(RubricCriterion, on_delete=models.CASCADE, related_name='scores')
     score = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
 
     class Meta:

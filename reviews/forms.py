@@ -6,13 +6,12 @@ from reviews.models import ArtworkReview, CriterionScore, RubricCriterion
 
 
 class ArtworkReviewForm(forms.ModelForm):
-    rating = forms.TypedChoiceField(
-        choices=[(i, str(i)) for i in range(1, 11)],
-        coerce=int,
-        widget=forms.RadioSelect,
+    rating = forms.IntegerField(
+        min_value=0,
+        max_value=100,
         required=False,
-        empty_value=None,
-        label='Overall rating',
+        label='Overall rating (0–100)',
+        widget=forms.NumberInput(attrs={'min': '0', 'max': '100', 'style': 'width:6em'}),
     )
 
     class Meta:
@@ -41,12 +40,12 @@ class ArtworkReviewForm(forms.ModelForm):
             label = f'{criterion.name} — weight {weight_label}'
             if criterion.description:
                 label += f' ({criterion.description})'
-            self.fields[field_key] = forms.TypedChoiceField(
-                choices=[(i, str(i)) for i in range(1, 11)],
-                coerce=int,
-                widget=forms.RadioSelect,
-                label=label,
+            self.fields[field_key] = forms.IntegerField(
+                min_value=0,
+                max_value=100,
+                label=label + ' (0–100)',
                 required=True,
+                widget=forms.NumberInput(attrs={'min': '0', 'max': '100', 'style': 'width:6em'}),
             )
             if criterion.pk in existing_scores:
                 self.initial[field_key] = existing_scores[criterion.pk]

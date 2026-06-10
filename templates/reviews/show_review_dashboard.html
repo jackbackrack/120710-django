@@ -24,7 +24,7 @@
       {% for criterion in criteria %}
       {{ criterion.name }} (weight {{ criterion.weight|floatformat:"-1" }}){% if not forloop.last %}, {% endif %}
       {% endfor %}
-      — scores shown as weighted composite out of 10.
+      — scores shown as weighted composite out of 100.
     </div>
     {% endif %}
 
@@ -73,13 +73,13 @@
           <td>
             {% if criteria %}
               {% if artwork.weighted_score %}
-              {{ artwork.weighted_score|floatformat:2 }}/10
+              {{ artwork.weighted_score|floatformat:2 }}/100
               {% else %}
               <span class="text-muted">No scores</span>
               {% endif %}
             {% else %}
               {% if artwork.avg_rating %}
-              {{ artwork.avg_rating|floatformat:1 }}/10
+              {{ artwork.avg_rating|floatformat:1 }}/100
               {% else %}
               <span class="text-muted">No reviews</span>
               {% endif %}
@@ -111,7 +111,7 @@
         <tr>
           <td>{{ review.artwork.name }}</td>
           {% if criteria %}{% for criterion in criteria %}<td>{% for cs in review.criterion_scores.all %}{% if cs.criterion_id == criterion.pk %}{{ cs.score }}{% endif %}{% endfor %}</td>{% endfor %}{% endif %}
-          {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>{% endif %}
+          {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/100{% else %}&mdash;{% endif %}</td>{% endif %}
           <td>{{ review.body|default:"&mdash;" }}</td>
           <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=review.artwork.slug %}">Edit</a></td>
         </tr>
@@ -170,7 +170,7 @@
           </td>
           {% endfor %}
           {% endif %}
-          {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>{% endif %}
+          {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/100{% else %}&mdash;{% endif %}</td>{% endif %}
           <td>{{ review.body|default:"&mdash;" }}</td>
           <td>{{ review.updated_at|date:"N j, Y" }}</td>
         </tr>
@@ -212,7 +212,7 @@
           </td>
           {% endfor %}
           {% endif %}
-          <td>{% if review.rating %}{{ review.rating }}/10{% else %}&mdash;{% endif %}</td>
+          <td>{% if review.rating %}{{ review.rating }}/100{% else %}&mdash;{% endif %}</td>
           <td>{{ review.body|default:"&mdash;" }}</td>
           <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=review.artwork.slug %}">Edit</a></td>
         </tr>

@@ -136,7 +136,7 @@ HOW_TO_GUIDES = [
             'A curator or staff member assigns you as a juror. You will receive an email when the show moves to In Review status.',
             'Sign in and go to Shows. Open the show you are jurying and click Reviews on the show detail page.',
             'You will see a Pending Review section listing all artworks you have not yet scored. Click Review on any artwork.',
-            'If the curator has defined a rubric, score each criterion 1–10 individually. Otherwise rate the artwork 1–10 overall.',
+            'If the curator has defined a rubric, score each criterion 0–100 individually. Otherwise rate the artwork 0–100 overall.',
             'Optionally add review notes, then click Submit review. You can return to update your scores at any time before the curator closes the review phase by moving the show to Draft status.',
             'Your scores are averaged with other jurors\' scores and shown to the curator on the Reviews dashboard.',
             'If you are also a curator of this show, scroll past the curator overview section on the Reviews page to find your own Pending Review section.',
@@ -267,7 +267,7 @@ ROLE_DOCUMENTATION = {
             'Advance a show through its lifecycle by changing the Status field on the show edit page.',
             'Run open call shows: set status to Open Call to accept submissions, advance to In Review after the deadline, then select or reject submissions, promote selected artworks, and publish.',
             'Run invitation-only shows: invite artists by email, set status to Open Call so invited artists can submit, then advance to Draft, select or reject, and publish.',
-            'Define a weighted rubric for jury scoring: add named criteria with weights from the Manage Rubric Criteria page. Jurors score each criterion 1–10; the dashboard shows a weighted composite score per artwork.',
+            'Define a weighted rubric for jury scoring: add named criteria with weights from the Manage Rubric Criteria page. Jurors score each criterion 0–100; the dashboard shows a weighted composite score per artwork.',
             'Assign artists as jurors for your show from the Reviews page.',
             'View all juror reviews and average ratings (or weighted composite scores when a rubric is defined) per artwork.',
             'Edit juror reviews when corrections are needed.',
@@ -352,7 +352,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Artwork reviews detail (curator view)',
                 'breadcrumb': 'Home > Shows > Select Show > Reviews > Select Artwork > Edit Review',
                 'fields': [
-                    {'name': 'rating', 'input_type': 'radio select (1–10)', 'purpose': 'Adjust juror score when corrections are required.'},
+                    {'name': 'rating', 'input_type': 'number input (0–100)', 'purpose': 'Adjust juror score when corrections are required.'},
                     {'name': 'body', 'input_type': 'multi-line text area', 'purpose': 'Adjust juror note text when needed.'},
                 ],
             },
@@ -364,7 +364,7 @@ ROLE_DOCUMENTATION = {
         'allowed_actions': [
             'Access the Reviews page for shows you have been assigned to as juror.',
             'Score each submitted artwork in your assigned show. You can return to update your scores at any time.',
-            'If the curator has defined a rubric, score each named criterion individually. Otherwise give an overall 1–10 rating.',
+            'If the curator has defined a rubric, score each named criterion individually. Otherwise give an overall 0–100 rating.',
             'Optionally add qualitative review notes alongside your score.',
         ],
         'forms': [
@@ -373,8 +373,8 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Show review workflow for assigned jurors',
                 'breadcrumb': 'Home > Shows > Select Show > Reviews > Select Artwork',
                 'fields': [
-                    {'name': 'criterion scores', 'input_type': 'radio select (1–10) per criterion', 'purpose': 'Score each rubric criterion if the curator has defined one. All criteria are required.'},
-                    {'name': 'rating', 'input_type': 'radio select (1–10)', 'purpose': 'Overall score when no rubric is defined. Optional when criteria are present.'},
+                    {'name': 'criterion scores', 'input_type': 'number input (0–100) per criterion', 'purpose': 'Score each rubric criterion if the curator has defined one. All criteria are required.'},
+                    {'name': 'rating', 'input_type': 'number input (0–100)', 'purpose': 'Overall score when no rubric is defined. Optional when criteria are present.'},
                     {'name': 'body', 'input_type': 'multi-line text area', 'purpose': 'Optional qualitative review notes visible to the curator.'},
                 ],
             },
