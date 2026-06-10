@@ -6,6 +6,7 @@
 
 {% block content %}
 <div class="col-8 mx-auto mt-4">
+  <div class="text-center">
   {% if show.submission_deadline %}
   <p>Submission deadline: <strong>{{ show.submission_deadline }}</strong></p>
   {% endif %}
@@ -18,12 +19,13 @@
   {% elif not available_artworks %}
   <p>All of your artworks have already been submitted to this show. You can add a new artwork below.</p>
   {% endif %}
+  </div>
 
   {% if available_artworks %}
   <form method="post" id="submit-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="submit">
-    {{ form.statement|as_crispy_field }}
+    <div class="col-8 mx-auto">{{ form.statement|as_crispy_field }}</div>
     <p class="mt-3 mb-2 text-center"><strong>Select an artwork to submit:</strong></p>
     <div class="cards artwork-select-cards" id="artwork-cards">
       {% for artwork in available_artworks %}
