@@ -22,65 +22,90 @@
   </head>
   <body>
   <header>
-  <div class="text-center">
-    <a href="{% url 'index' %}"><img loading="lazy" width="50px" src="{% static 'img/120710-box-logo-03.png' %}"></a>
-    <b>{% block block_title %}{% endblock %} | 120710</b> -
-    {% with u=request.resolver_match.url_name %}
-    <a class="card__link{% if 'show' in u %} nav-active{% endif %}" href="{% url 'gallery:show_list'%}">Shows</a>
-    | <a class="card__link{% if 'artist' in u and request.path != my_artist_url %} nav-active{% endif %}" href="{% url 'gallery:artist_list'%}">Artists</a>
-    {% if my_artist_url %}| <a class="card__link{% if request.path == my_artist_url %} nav-active{% endif %}" href="{{ my_artist_url }}">Me</a>{% endif %}
-    | <a class="card__link{% if 'artwork' in u %} nav-active{% endif %}" href="{% url 'gallery:artwork_list'%}">Artworks</a>
-    - <a class="card__link{% if u == 'about' %} nav-active{% endif %}" href="{% url 'about'%}">About</a>
-    | <a class="card__link{% if u == 'visit' %} nav-active{% endif %}" href="{% url 'visit'%}">Visit</a>
-    | <a class="card__link{% if u == 'contact' %} nav-active{% endif %}" href="{% url 'contact'%}">Contact</a>
-    | <a class="card__link{% if u == 'subscribe' %} nav-active{% endif %}" href="{% url 'subscribe'%}">Subscribe</a>
-    | <a class="card__link{% if u == 'howto' %} nav-active{% endif %}" href="{% url 'howto'%}">Help</a>
-    {% endwith %}
-    -
-  {% if user.is_authenticated %}
-    <a class="card__link" href="{% url 'account_profile' %}">Profile</a> |
-    <a class="card__link" href="{% url 'account_change_password' %}">ChangePassword</a> |
-    <a class="card__link" href="{% url 'account_logout' %}">LogOut</a>
-    {% if my_artist_name %}| <b>{{ my_artist_name }}</b>{% endif %}
-  {% else %}
-    <a class="card__link" href="{% url 'account_login' %}">LogIn</a>
-    | <a class="card__link" href="{% url 'account_signup' %}">SignUp</a>
-  {% endif %}
-    <a href="https://www.reset.art" target="_blank" rel="noopener"><img loading="lazy" src="{% static 'img/reset-art-power-on-circular.png' %}" width="50" alt="Reset Art"></a>
-    <form class="d-flex col-8 mx-auto mt-4" action="{% block search_action %}{% url 'gallery:search_results' %}{% endblock %}" method="get">
-      <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search" value="{{ request.GET.q }}">
-      {% with u=request.resolver_match.url_name %}{% if 'artist' in u %}<input type="hidden" name="priority" value="artist">{% elif 'artwork' in u %}<input type="hidden" name="priority" value="artwork">{% elif 'show' in u or 'event' in u %}<input type="hidden" name="priority" value="show">{% endif %}{% endwith %}
-      <button class="btn btn-outline-success" type="submit">Search</button>
-    </form>
-  </div>
-  </header>
-  <!--
-  <nav class="navbar navbar-expand-lg bg-body-tertiary">
+  {% with u=request.resolver_match.url_name %}
+  <nav class="navbar navbar-expand-md bg-white border-bottom" id="site-nav">
     <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
-        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+
+      <a class="navbar-brand p-0" href="{% url 'index' %}">
+        <img loading="lazy" width="40" src="{% static 'img/120710-box-logo-03.png' %}" alt="120710">
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain"
+        aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse" id="navbarSupportedContent">
-        {% if user.is_authenticated %}
-        <div class="mr-auto">
-          <form class="form d-flex">
-            <a href="{% url 'account_change_password' %}" class="btn btn-primary ms-2">Change Password</a>
-            <a href="{% url 'account_logout' %}" class="btn btn-outline-secondary">Log out</a>
-          </form>
-        </div>
-        {% else %}
-        <div class="mr-auto">
-          <form class="form d-flex">
-            <a href="{% url 'account_login' %}" class="btn btn-outline-secondary">Log in</a>
-            <a href="{% url 'account_signup' %}" class="btn btn-primary ms-2">Sign up</a>
-          </form>
-        </div>
-        {% endif %}
+
+      <div class="collapse navbar-collapse" id="navbarMain">
+        <ul class="navbar-nav me-auto mb-2 mb-md-0">
+
+          <li class="nav-item">
+            <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{% url 'gallery:show_list' %}">Shows</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link{% if 'artist' in u and request.path != my_artist_url %} active{% endif %}" href="{% url 'gallery:artist_list' %}">Artists</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link{% if 'artwork' in u %} active{% endif %}" href="{% url 'gallery:artwork_list' %}">Artworks</a>
+          </li>
+
+          {% if my_artist_url %}
+          <li class="nav-item">
+            <a class="nav-link{% if request.path == my_artist_url %} active{% endif %}" href="{{ my_artist_url }}">Me</a>
+          </li>
+          {% endif %}
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle{% if u == 'about' or u == 'visit' or u == 'contact' or u == 'subscribe' %} active{% endif %}"
+               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">About</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item{% if u == 'about' %} active{% endif %}" href="{% url 'about' %}">Info</a></li>
+              <li><a class="dropdown-item{% if u == 'visit' %} active{% endif %}" href="{% url 'visit' %}">Visit</a></li>
+              <li><a class="dropdown-item{% if u == 'contact' %} active{% endif %}" href="{% url 'contact' %}">Contact</a></li>
+              <li><a class="dropdown-item{% if u == 'subscribe' %} active{% endif %}" href="{% url 'subscribe' %}">Subscribe</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link{% if u == 'howto' %} active{% endif %}" href="{% url 'howto' %}">Help</a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Account</a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% if user.is_authenticated %}
+              {% if my_artist_name %}
+              <li><span class="dropdown-item-text fw-semibold">{{ my_artist_name }}</span></li>
+              <li><hr class="dropdown-divider"></li>
+              {% endif %}
+              <li><a class="dropdown-item" href="{% url 'account_change_password' %}">Change Password</a></li>
+              <li><a class="dropdown-item" href="{% url 'account_logout' %}">Log Out</a></li>
+              {% else %}
+              <li><a class="dropdown-item" href="{% url 'account_login' %}">Log In</a></li>
+              <li><a class="dropdown-item" href="{% url 'account_signup' %}">Sign Up</a></li>
+              {% endif %}
+            </ul>
+          </li>
+
+        </ul>
+
+        <form class="d-flex align-items-center gap-1" action="{% block search_action %}{% url 'gallery:search_results' %}{% endblock %}" method="get">
+          <input class="form-control form-control-sm" type="search" name="q" placeholder="Search" aria-label="Search" value="{{ request.GET.q }}" style="width:140px">
+          {% if 'artist' in u %}<input type="hidden" name="priority" value="artist">{% elif 'artwork' in u %}<input type="hidden" name="priority" value="artwork">{% elif 'show' in u or 'event' in u %}<input type="hidden" name="priority" value="show">{% endif %}
+          <button class="btn btn-outline-success btn-sm" type="submit">Search</button>
+        </form>
+
+        <a href="https://www.reset.art" target="_blank" rel="noopener" class="ms-3 d-none d-md-inline">
+          <img loading="lazy" src="{% static 'img/reset-art-power-on-circular.png' %}" width="36" alt="Reset Art">
+        </a>
+
       </div>
     </div>
   </nav>
-  -->
+  {% endwith %}
+  {% block block_title %}{% endblock %}
+  </header>
   {% if messages %}
   <div class="container mt-3">
     {% for message in messages %}
