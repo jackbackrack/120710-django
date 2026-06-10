@@ -35,7 +35,7 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
                     f'Welcome! Your account has been linked to your existing artist profile '
                     f'"{artist.name}" because your email matched our records.',
                 )
-                return reverse('gallery:artist_edit', kwargs={'pk': claimed_pk})
+                return artist.get_absolute_url()
             except Artist.DoesNotExist:
                 pass
         new_pk = request.session.pop('new_artist_pk', None)

@@ -1,9 +1,10 @@
 from eatart.schemaorg.mappers import artist_to_schema
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.shortcuts import redirect
+from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
-from django.urls import reverse_lazy
 
 from gallery.forms import ArtistForm
 from gallery.models import Artist, Tag
@@ -54,6 +55,17 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
 
     def get_queryset(self):
         return Artist.objects.filter(visible_artist_queryset(self.request.user)).distinct()
+
+    def get(self, request, *args, **kwargs):
+        if self.kwargs.get(self.pk_url_kwarg) is not None:
+            return super().get(request, *args, **kwargs)
+        self.object = self.get_object()
+        if (request.user.is_authenticated
+                and self.object.user == request.user
+                and not self.object.image):
+            return redirect(reverse('gallery:artist_edit', kwargs={'pk': self.object.pk}))
+        context = self.get_context_data(object=self.object)
+        return self.render_to_response(context)
 
     def get_context_data(self, **kwargs):
         from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, visible_show_queryset

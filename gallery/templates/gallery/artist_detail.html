@@ -4,6 +4,11 @@
 {% block block_title %}{{ artist.full_name }}{% endblock %}
 
 {% block content %}
+{% if can_manage_artist and not artist.image %}
+<div class="alert alert-warning text-center mx-3 mt-3">
+  Your artist profile has no photo. <a href="{% url 'gallery:artist_edit' artist.pk %}">Add one now</a> so visitors can recognise your work.
+</div>
+{% endif %}
 <div class="cards">
 <div class="card" id="big_card">
   {% if artist.image %}

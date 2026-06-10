@@ -252,7 +252,7 @@ class ClaimArtistViewTests(TestCase):
 
         response = self.client.get('/accounts/claim-artist/')
 
-        self.assertRedirects(response, artist.get_absolute_url())
+        self.assertRedirects(response, artist.get_absolute_url(), fetch_redirect_response=False)
 
     def test_empty_linked_profile_allows_claim(self):
         _existing = Artist.objects.create(
