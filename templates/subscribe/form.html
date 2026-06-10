@@ -14,6 +14,7 @@
     </ul>
 {% endif %}
 
+<div class="col-8 mx-auto">
 <h2>Join our mailing list to receive information about upcoming shows/events.</h2>
 
 <form method="post">
@@ -22,9 +23,10 @@
   {{ form|crispy }}
   <button class="btn btn-success" type="submit">Sign up</button>
 </form>
+</div>
 
 <style>
-    .honeypot {
+    #div_id_address, .honeypot {
         display: none;
     }
 </style>
