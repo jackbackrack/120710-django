@@ -32,15 +32,6 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to submit artwork to an open call show',
-        'roles': None,
-        'public_only': True,
-        'steps': [
-            'First, create an artist account — see "How to sign up for an account" above.',
-            'Once you are signed in as an artist, return to this help section for detailed submission instructions that will appear here.',
-        ],
-    },
-    {
-        'title': 'How to submit artwork to an open call show',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Shows Accepting Submissions" and click the Submit button.',
@@ -148,6 +139,15 @@ HOW_TO_GUIDES = [
             'Case 2 — Different email: You were already in the system but you signed up with a different email than the one on your existing artist record. Sign in, then go to your artist edit page — you will see a link to "link it to your account here". Click it, enter the OLD email address that is on your existing record, and submit. Your blank auto-created profile is replaced with your existing record, preserving all artworks and show history. The artist email is left unchanged (it is your public contact address and may intentionally differ from your login email — you can update it from the edit page if needed).',
             'Case 3 — New to the system: You have no existing record. A new artist profile was created for you automatically when you signed up. Go to your artist profile and fill in your bio, statement, website, Instagram, and upload a profile photo.',
             'Not sure which case applies? Email info@120710.art — a staff member can look up your record, tell you which email is on it, and link it for you if needed.',
+        ],
+    },
+    {
+        'title': 'How to submit artwork to an open call show',
+        'roles': None,
+        'public_only': True,
+        'steps': [
+            'First, create an artist account — see "How to sign up for an account" above.',
+            'Once you are signed in as an artist, return to this help section for detailed submission instructions that will appear here.',
         ],
     },
     {
