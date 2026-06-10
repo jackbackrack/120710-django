@@ -24,7 +24,7 @@
     {% csrf_token %}
     <input type="hidden" name="action" value="submit">
     {{ form.statement|as_crispy_field }}
-    <p class="mt-3 mb-2"><strong>Select an artwork to submit:</strong></p>
+    <p class="mt-3 mb-2 text-center"><strong>Select an artwork to submit:</strong></p>
     <div class="cards artwork-select-cards" id="artwork-cards">
       {% for artwork in available_artworks %}
       <label class="artwork-select-label" data-pk="{{ artwork.pk }}">
@@ -42,17 +42,21 @@
       {% endfor %}
     </div>
     {% if form.artwork.errors %}
-    <div class="text-danger mt-2">{{ form.artwork.errors }}</div>
+    <div class="text-danger mt-2 text-center">{{ form.artwork.errors }}</div>
     {% endif %}
-    <button type="submit" class="btn btn-primary mt-3">Submit</button>
-    <a class="card__link ms-3" href="{{ show.get_absolute_url }}">Cancel</a>
+    <div class="text-center mt-3">
+      <button type="submit" class="btn btn-primary">Submit</button>
+      <a class="card__link ms-3" href="{{ show.get_absolute_url }}">Cancel</a>
+    </div>
   </form>
   {% else %}
-  <a class="card__link" href="{{ show.get_absolute_url }}">Cancel</a>
+  <div class="text-center mt-3">
+    <a class="card__link" href="{{ show.get_absolute_url }}">Cancel</a>
+  </div>
   {% endif %}
 
-  <div class="mt-4">
-    <button class="btn btn-outline-secondary btn-sm" type="button" id="toggle-quick-form">
+  <div class="mt-4 text-center">
+    <button class="card__link new-button" type="button" id="toggle-quick-form">
       + Add a new artwork
     </button>
     <div id="quick-artwork-form" style="display:{% if show_quick_form %}block{% else %}none{% endif %};" class="mt-3 p-3 border rounded">
