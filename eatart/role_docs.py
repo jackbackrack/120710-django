@@ -3,7 +3,7 @@ HOW_TO_GUIDES = [
         'title': 'How to sign up for an account',
         'roles': None,
         'steps': [
-            'Go to the Sign Up page via the Log In link in the header, then choose "Sign up".',
+            'Open the Account menu in the navigation and choose Sign Up.',
             'Enter your first name, last name, email address, and password — or use the "Continue with Google" option to skip the password. There is no separate username; your email address is how you log in.',
             'After signing up, an artist profile is automatically created for you using your name and email. If your email matches an existing artist record you were added under, the link is made for you automatically.',
             'If you were added under a different email, visit your artist edit page after signing in — you will see a link to claim your existing record. See "Linking your account to an existing artist profile" in the how-to guides for full details.',
@@ -179,16 +179,16 @@ GENERAL_GUIDE = {
     'title': 'Account Basics',
     'summary': 'Use these steps to access your account and keep your profile current.',
     'allowed_actions': [
-        'Reset your password from the login page if needed.',
-        'Sign in and update your name from the Profile page.',
-        'Change your password from ChangePassword in the header.',
+        'Sign in via Account → Log In in the navigation.',
+        'Reset your password from the login page if you have forgotten it.',
+        'Change your password via Account → Change Password in the navigation.',
         'Edit and Delete links only appear when your account can manage that record.',
     ],
     'forms': [
         {
             'name': 'Name Profile Form',
-            'where_used': 'Accounts → Profile',
-            'breadcrumb': 'Home > Profile',
+            'where_used': 'Account → Profile (/accounts/profile/)',
+            'breadcrumb': 'Home > Account > Profile',
             'fields': [
                 {
                     'name': 'first_name',
