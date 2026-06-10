@@ -96,7 +96,8 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                     if show.invitations.filter(email__iexact=user.email).exists():
                         submittable_shows.append(show)
             context['submittable_shows'] = submittable_shows
-            context['submittable_show_ids'] = {s.id for s in submittable_shows}
+            context['submittable_show_ids'] = {s.id for s in submittable_shows} if artist.image else set()
+            context['profile_complete'] = bool(artist.image)
         from gallery.permissions import can_delete_show, can_manage_show
         shows_qs = Show.objects.filter(artworks__artists=artist).prefetch_related('curators', 'tags', 'events').distinct()
         shows_qs = visible_show_queryset(shows_qs, user)

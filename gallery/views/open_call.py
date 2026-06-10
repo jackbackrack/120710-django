@@ -260,6 +260,10 @@ def artwork_submit(request, slug):
     if not artist:
         return redirect(show)
 
+    if not artist.image:
+        messages.error(request, 'Please complete your artist profile by adding a photo before submitting to a show.')
+        return redirect(reverse('gallery:artist_edit', kwargs={'pk': artist.pk}))
+
     if show.submission_type == Show.SUBMISSION_INVITED:
         if not show.invitations.filter(email__iexact=request.user.email).exists():
             messages.error(request, 'Submissions to this show are by invitation only.')

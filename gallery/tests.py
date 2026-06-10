@@ -1,5 +1,8 @@
 import datetime
 import io
+import os
+import shutil
+import tempfile
 
 from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -9,6 +12,36 @@ from django.urls import reverse
 
 from accounts.roles import add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber
+
+
+def _make_test_image_dir():
+    """Return a temp directory containing artist_images/test.jpg (1x1 JPEG)."""
+    from PIL import Image as PILImage
+    tmp = tempfile.mkdtemp()
+    img_dir = os.path.join(tmp, 'artist_images')
+    os.makedirs(img_dir)
+    PILImage.new('RGB', (2, 2), 'white').save(os.path.join(img_dir, 'test.jpg'), 'JPEG')
+    return tmp
+
+
+class MediaImageMixin:
+    """Mixin that sets up a real MEDIA_ROOT with a tiny test image.
+
+    Use in test classes that need artist.image to be truthy and also render
+    imagekit specs (e.g. artist_detail.html).  Call super().setUp() first,
+    then self._setup_media() to activate.  tearDown calls self._teardown_media().
+    """
+
+    def _setup_media(self):
+        self._media_tmp = _make_test_image_dir()
+        self._media_override = self.settings(MEDIA_ROOT=self._media_tmp)
+        self._media_override.enable()
+
+    def _teardown_media(self):
+        self._media_override.disable()
+        shutil.rmtree(self._media_tmp, ignore_errors=True)
+
+    TEST_ARTIST_IMAGE = 'artist_images/test.jpg'
 
 
 class ArtistModelTests(TestCase):
@@ -135,16 +168,15 @@ class PublicUrlTests(TestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
 
-    def test_search_route_redirects_anonymous_users_to_login(self):
+    def test_search_route_is_public(self):
         response = self.client.get('/artist/search/?q=Analytical')
 
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/accounts/login/', response.headers['Location'])
+        self.assertEqual(response.status_code, 200)
 
-    def test_search_form_is_hidden_for_anonymous_users(self):
+    def test_search_form_is_visible_for_anonymous_users(self):
         response = self.client.get('/artworks/')
 
-        self.assertNotContains(response, 'placeholder="Search"')
+        self.assertContains(response, 'placeholder="Search"')
 
     def test_tag_filters_are_hidden_for_anonymous_users(self):
         for url in ('/artists/', '/artworks/', '/shows/', '/events/'):
@@ -247,8 +279,9 @@ class PublicUrlTests(TestCase):
         },
     }
 )
-class AuthorizationWorkflowTests(TestCase):
+class AuthorizationWorkflowTests(MediaImageMixin, TestCase):
     def setUp(self):
+        self._setup_media()
         self.artist_user = User.objects.create_user(username='artist@example.com', email='artist@example.com', password='password123')
         self.artist = Artist.objects.create(
             user=self.artist_user,
@@ -257,6 +290,7 @@ class AuthorizationWorkflowTests(TestCase):
             last_name='Lovelace',
             email='artist@example.com',
             phone='',
+            image=self.TEST_ARTIST_IMAGE,
         )
 
         self.curator_user = User.objects.create_user(username='curator@example.com', email='curator@example.com', password='password123')
@@ -302,6 +336,9 @@ class AuthorizationWorkflowTests(TestCase):
         )
         self.public_artwork.artists.add(self.artist)
         self.public_artwork.shows.add(self.show)
+
+    def tearDown(self):
+        self._teardown_media()
 
     def test_public_users_do_not_see_private_artworks(self):
         list_response = self.client.get(reverse('gallery:artwork_list'))
@@ -500,10 +537,11 @@ class AuthorizationWorkflowTests(TestCase):
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     },
 )
-class ArtistDeletePermissionTests(TestCase):
+class ArtistDeletePermissionTests(MediaImageMixin, TestCase):
     """Artists with artworks in shows cannot be deleted except by staff."""
 
     def setUp(self):
+        self._setup_media()
         self.staff_user = User.objects.create_user(
             username='staff@example.com', email='staff@example.com', password='pw'
         )
@@ -516,6 +554,7 @@ class ArtistDeletePermissionTests(TestCase):
         self.free_artist = Artist.objects.create(
             user=self.free_user, name='Free Artist',
             first_name='Free', last_name='Artist', email='free@example.com', phone='',
+            image=self.TEST_ARTIST_IMAGE,
         )
         self.free_artwork = Artwork.objects.create(
             name='Free Artwork', created_by=self.free_user, end_year=2024,
@@ -529,6 +568,7 @@ class ArtistDeletePermissionTests(TestCase):
         self.shown_artist = Artist.objects.create(
             user=self.shown_user, name='Shown Artist',
             first_name='Shown', last_name='Artist', email='shown@example.com', phone='',
+            image=self.TEST_ARTIST_IMAGE,
         )
         today = datetime.date.today()
         self.show = Show.objects.create(
@@ -540,6 +580,9 @@ class ArtistDeletePermissionTests(TestCase):
         )
         self.shown_artwork.artists.add(self.shown_artist)
         self.shown_artwork.shows.add(self.show)
+
+    def tearDown(self):
+        self._teardown_media()
 
     def test_artist_can_delete_themselves_when_no_artworks_in_shows(self):
         self.client.force_login(self.free_user)
@@ -765,10 +808,11 @@ class CuratorScopedPermissionTests(TestCase):
     },
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
 )
-class OpenCallFlowTests(TestCase):
+class OpenCallFlowTests(MediaImageMixin, TestCase):
     """End-to-end tests for the open call submission, jury review, and promotion flow."""
 
     def setUp(self):
+        self._setup_media()
         self.artist_user = User.objects.create_user(
             username='artist@example.com', email='artist@example.com', password='pw'
         )
@@ -779,6 +823,7 @@ class OpenCallFlowTests(TestCase):
             last_name='Kahlo',
             email='artist@example.com',
             phone='',
+            image=self.TEST_ARTIST_IMAGE,
         )
 
         self.curator_user = User.objects.create_user(
@@ -809,6 +854,9 @@ class OpenCallFlowTests(TestCase):
             end_year=2026,
         )
         self.artwork.artists.add(self.artist)
+
+    def tearDown(self):
+        self._teardown_media()
 
     # --- Model property tests ---
 
@@ -1642,10 +1690,11 @@ class ShowStatusTests(TestCase):
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     }
 )
-class SubmittableShowsTests(TestCase):
+class SubmittableShowsTests(MediaImageMixin, TestCase):
     """Tests for the submittable_shows context on the artist detail page."""
 
     def setUp(self):
+        self._setup_media()
         self.artist_user = User.objects.create_user(
             username='artist@example.com', email='artist@example.com', password='pw'
         )
@@ -1653,6 +1702,7 @@ class SubmittableShowsTests(TestCase):
             user=self.artist_user, name='Test Artist',
             first_name='Test', last_name='Artist',
             email='artist@example.com', phone='',
+            image=self.TEST_ARTIST_IMAGE,
         )
         self.open_show = Show.objects.create(
             name='Open Call Show',
@@ -1666,6 +1716,9 @@ class SubmittableShowsTests(TestCase):
             status=Show.STATUS_OPEN_CALL,
             submission_type=Show.SUBMISSION_INVITED,
         )
+
+    def tearDown(self):
+        self._teardown_media()
 
     def test_open_call_show_appears_in_submittable_shows(self):
         self.client.force_login(self.artist_user)

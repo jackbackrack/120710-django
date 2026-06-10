@@ -27,7 +27,7 @@ class Artwork(models.Model):
     width_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Width (inches)')
     height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Height (inches)')
     depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Depth (inches, optional)')
-    image = models.ImageField(upload_to='artwork_images', null=True)
+    image = models.ImageField(upload_to='artwork_images', blank=True, null=True)
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})

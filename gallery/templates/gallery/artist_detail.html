@@ -72,6 +72,9 @@
 {% endif %}
 {% if submittable_shows %}
 <div class="text-center section-label"><h2>Shows Accepting Submissions</h2></div>
+{% if not profile_complete %}
+<p class="text-center text-muted"><a href="{% url 'gallery:artist_edit' artist.pk %}">Complete your profile</a> (photo required) to submit to these shows.</p>
+{% endif %}
 <div class="cards">
   {% for show in submittable_shows %}
   {% include 'gallery/_show_card.html' %}
