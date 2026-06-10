@@ -44,18 +44,6 @@ HOW_TO_GUIDES = [
         ],
     },
     {
-        'title': 'How to buy a piece of artwork',
-        'roles': None,
-        'steps': [
-            'Find the artwork you are interested in — browse Shows or Artists from the navigation, or ask the gallery for a direct link.',
-            'On the artwork detail page, check the price listed. If it shows "Not For Sale" the work is unavailable. If it shows "Price on Request" or "Best Offer", the artist will discuss pricing with you directly.',
-            'Click the Inquire button on the artwork page.',
-            'Fill in your name, email address, and a message to the artist — for example, express your interest and ask any questions about the work.',
-            'Submit the form. Your message is sent directly to the artist with your email address included so they can reply to you.',
-            'The artist will follow up with you by email to arrange payment and delivery or pickup.',
-        ],
-    },
-    {
         'title': 'How to create a show (staff only)',
         'roles': {'staff'},
         'steps': [
@@ -151,6 +139,18 @@ HOW_TO_GUIDES = [
             'Case 2 — Different email: You were already in the system but you signed up with a different email than the one on your existing artist record. Sign in, then go to your artist edit page — you will see a link to "link it to your account here". Click it, enter the OLD email address that is on your existing record, and submit. Your blank auto-created profile is replaced with your existing record, preserving all artworks and show history. The artist email is left unchanged (it is your public contact address and may intentionally differ from your login email — you can update it from the edit page if needed).',
             'Case 3 — New to the system: You have no existing record. A new artist profile was created for you automatically when you signed up. Go to your artist profile and fill in your bio, statement, website, Instagram, and upload a profile photo.',
             'Not sure which case applies? Email info@120710.art — a staff member can look up your record, tell you which email is on it, and link it for you if needed.',
+        ],
+    },
+    {
+        'title': 'How to buy a piece of artwork',
+        'roles': None,
+        'steps': [
+            'Find the artwork you are interested in — browse Shows or Artists from the navigation, or ask the gallery for a direct link.',
+            'On the artwork detail page, check the price listed. If it shows "Not For Sale" the work is unavailable. If it shows "Price on Request" or "Best Offer", the artist will discuss pricing with you directly.',
+            'Click the Inquire button on the artwork page.',
+            'Fill in your name, email address, and a message to the artist — for example, express your interest and ask any questions about the work.',
+            'Submit the form. Your message is sent directly to the artist with your email address included so they can reply to you.',
+            'The artist will follow up with you by email to arrange payment and delivery or pickup.',
         ],
     },
     {
