@@ -34,7 +34,9 @@ class CustomSignupForm(SignupForm):
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
         user.save(update_fields=["first_name", "last_name"])
-        ensure_signup_profile(user)
+        artist, is_new = ensure_signup_profile(user)
+        if is_new and artist:
+            request.session['new_artist_pk'] = artist.pk
         return user
 
 

@@ -22,7 +22,21 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
         _link_invitations(user, artist)
         return result
 
+    def get_signup_redirect_url(self, request):
+        from django.urls import reverse
+        new_pk = request.session.pop('new_artist_pk', None)
+        if new_pk:
+            return reverse('gallery:artist_edit', kwargs={'pk': new_pk})
+        artist = request.user.artists.order_by('-created_at').first()
+        if artist:
+            return reverse('gallery:artist_edit', kwargs={'pk': artist.pk})
+        return super().get_signup_redirect_url(request)
+
     def get_login_redirect_url(self, request):
+        from django.urls import reverse
+        new_pk = request.session.pop('new_artist_pk', None)
+        if new_pk:
+            return reverse('gallery:artist_edit', kwargs={'pk': new_pk})
         artist = request.user.artists.order_by('-created_at').first()
         if artist:
             return artist.get_absolute_url()
@@ -88,5 +102,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         changed_fields = apply_google_profile_data(user, extra_data)
         if changed_fields:
             user.save(update_fields=changed_fields)
-        ensure_signup_profile(user)
+        artist, is_new = ensure_signup_profile(user)
+        if is_new and artist:
+            request.session['new_artist_pk'] = artist.pk
         return user

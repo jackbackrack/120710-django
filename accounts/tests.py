@@ -133,7 +133,7 @@ class SignupFlowTests(TestCase):
             last_name='Lovelace',
         )
 
-        artist = ensure_signup_profile(user)
+        artist, _ = ensure_signup_profile(user)
 
         self.assertEqual(artist.user, user)
         self.assertEqual(artist.name, 'Ada Lovelace')
@@ -320,7 +320,7 @@ class EnsureSignupProfileEmailCaseTests(TestCase):
             last_name='Lovelace',
         )
 
-        artist = ensure_signup_profile(user)
+        artist, _ = ensure_signup_profile(user)
 
         self.assertEqual(artist.user, user)
         self.assertEqual(artist.email, 'Ada@Example.COM')

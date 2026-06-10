@@ -29,6 +29,12 @@ def apply_google_profile_data(user, extra_data):
 
 
 def ensure_signup_profile(user):
+    """Create or claim an artist profile for a newly signed-up user.
+
+    Returns (artist, is_new) where is_new is True if the artist was just
+    created or claimed from an unlinked record — i.e. the user should be
+    sent to the edit page to complete their profile.
+    """
     full_name = ' '.join(part for part in [user.first_name, user.last_name] if part).strip() or user.email or user.username
     defaults = {
         'name': full_name,
@@ -44,12 +50,12 @@ def ensure_signup_profile(user):
         if unlinked:
             unlinked.user = user
             unlinked.save(update_fields=['user'])
-            return unlinked
+            return unlinked, True
 
     artist, created = Artist.objects.get_or_create(user=user, defaults=defaults)
 
     if created:
-        return artist
+        return artist, True
 
     changed_fields = []
     field_values = {
@@ -67,7 +73,7 @@ def ensure_signup_profile(user):
         artist.save(update_fields=changed_fields)
 
     _link_invitations(user, artist)
-    return artist
+    return artist, False
 
 
 def _link_invitations(user, artist):
