@@ -20,15 +20,19 @@
 
     <form method="post" class="mb-6">
       {% csrf_token %}
-      <div class="flex gap-2 items-end">
-        <div>
-          <label for="email" class="block text-sm font-medium mb-1">Artist email address</label>
-          <input type="email" name="email" id="email" required
-                 placeholder="artist@example.com"
-                 class="border rounded px-3 py-1 text-sm">
-        </div>
-        <button type="submit" class="btn btn-sm btn-primary">Send Invitation</button>
+      <div class="mb-3">
+        <label for="emails" class="block text-sm font-medium mb-1">
+          Email addresses — one per line, or comma/semicolon separated
+        </label>
+        <textarea name="emails" id="emails" rows="8"
+                  placeholder="artist1@example.com&#10;artist2@example.com&#10;artist3@example.com"
+                  class="form-control font-monospace"
+                  style="font-size:0.85rem">{{ current_emails }}</textarea>
+        <p class="text-gray-500 text-sm mt-1">
+          Emails added here will be sent an invitation. Emails removed from this list will have their invitation deleted (unless they have already submitted).
+        </p>
       </div>
+      <button type="submit" class="btn btn-sm btn-primary">Save &amp; Send Invitations</button>
     </form>
 
     <h2 class="text-xl mb-3">Invitations sent ({{ invitations|length }})</h2>

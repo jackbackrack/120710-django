@@ -175,13 +175,12 @@ def send_submission_reminders(request, slug):
 
 @login_required
 def invite_artists(request, slug):
+    import re as _re
     show = get_object_or_404(Show, slug=slug)
     if not can_manage_show(request.user, show):
         raise Http404
     if show.submission_type != Show.SUBMISSION_INVITED:
         raise Http404
-
-    invitations = show.invitations.select_related('artist').order_by('sent_at')
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -190,29 +189,64 @@ def invite_artists(request, slug):
             ShowInvitation.objects.filter(pk=inv_pk, show=show).delete()
             messages.success(request, 'Invitation removed.')
         else:
-            email = request.POST.get('email', '').strip().lower()
-            if email:
-                invitation, created = ShowInvitation.objects.get_or_create(
-                    show=show, email=email,
-                    defaults={'invited_by': request.user},
+            raw = request.POST.get('emails', '')
+            new_emails = {
+                e.strip().lower() for e in _re.split(r'[\s,;]+', raw)
+                if _re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', e.strip())
+            }
+            existing_map = {inv.email.lower(): inv for inv in show.invitations.all()}
+            existing_emails = set(existing_map)
+
+            added = 0
+            for email in sorted(new_emails - existing_emails):
+                invitation = ShowInvitation.objects.create(
+                    show=show, email=email, invited_by=request.user,
                 )
-                if created:
-                    artist = (
-                        Artist.objects.filter(user__email__iexact=email).first()
-                        or Artist.objects.filter(email__iexact=email, user__isnull=True).first()
-                    )
-                    if artist:
-                        invitation.artist = artist
-                        invitation.save(update_fields=['artist'])
-                    _send_invitation_email(show, email, request)
-                    messages.success(request, f'Invitation sent to {email}.')
+                artist = (
+                    Artist.objects.filter(user__email__iexact=email).first()
+                    or Artist.objects.filter(email__iexact=email, user__isnull=True).first()
+                )
+                if artist:
+                    invitation.artist = artist
+                    invitation.save(update_fields=['artist'])
+                _send_invitation_email(show, email, request)
+                added += 1
+
+            submitted_emails = {
+                e.lower() for e in
+                ArtworkSubmission.objects.filter(show=show)
+                .values_list('submitted_by__email', flat=True)
+                if e
+            }
+            removed = 0
+            kept = []
+            for email in existing_emails - new_emails:
+                if email in submitted_emails:
+                    kept.append(email)
                 else:
-                    messages.info(request, f'{email} has already been invited.')
+                    ShowInvitation.objects.filter(show=show, email__iexact=email).delete()
+                    removed += 1
+
+            parts = []
+            if added:
+                parts.append(f'{added} invitation{"s" if added != 1 else ""} sent')
+            if removed:
+                parts.append(f'{removed} removed')
+            if kept:
+                parts.append(f'{len(kept)} kept (already submitted: {", ".join(kept)})')
+            if parts:
+                messages.success(request, ', '.join(parts).capitalize() + '.')
+            else:
+                messages.info(request, 'No changes.')
+
         return redirect('gallery:invite_artists', slug=slug)
 
+    invitations = show.invitations.select_related('artist').order_by('email')
+    current_emails = '\n'.join(inv.email for inv in invitations)
     return render(request, 'gallery/invite_artists.html', {
         'show': show,
         'invitations': invitations,
+        'current_emails': current_emails,
     })
 
 
