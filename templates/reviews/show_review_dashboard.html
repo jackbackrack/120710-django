@@ -5,22 +5,21 @@
 {% block search_action %}{% url 'reviews:show_review_dashboard' show_slug=show.slug %}{% endblock %}
 
 {% block content %}
-<div class="container mt-3">
-    <h1 class="mb-6 text-3xl">Reviews: {{ show.name }}</h1>
+<div class="col-10 mx-auto mt-3">
 
     {% if is_curator %}
 
-    <p>
+    <div class="text-center mb-3">
       <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Manage jurors</a>
       &nbsp;|&nbsp;
       <a class="card__link" href="{% url 'reviews:manage_rubric_criteria' show_slug=show.slug %}">Manage rubric criteria</a>
       {% if criteria %}
       <span class="badge bg-secondary ms-2">{{ criteria|length }} criteri{% if criteria|length == 1 %}on{% else %}a{% endif %}</span>
       {% endif %}
-    </p>
+    </div>
 
     {% if criteria %}
-    <div class="alert alert-info py-2 mt-2">
+    <div class="alert alert-info py-2 mt-2 text-center">
       <strong>Rubric:</strong>
       {% for criterion in criteria %}
       {{ criterion.name }} (weight {{ criterion.weight|floatformat:"-1" }}){% if not forloop.last %}, {% endif %}
@@ -30,13 +29,13 @@
     {% endif %}
 
     {% if all_jurors_done %}
-    <div class="alert alert-success mt-3">All jurors have finished reviewing all {{ total_submissions }} submission{{ total_submissions|pluralize }}.</div>
+    <div class="alert alert-success mt-3 text-center">All jurors have finished reviewing all {{ total_submissions }} submission{{ total_submissions|pluralize }}.</div>
     {% endif %}
 
-    <h2 class="mt-4">Juror Progress ({{ jurors|length }})</h2>
-    {% if show.review_deadline %}<p class="text-muted">Review deadline: <strong>{{ show.review_deadline }}</strong></p>{% endif %}
+    <div class="text-center section-label"><h2>Juror Progress ({{ jurors|length }})</h2></div>
+    {% if show.review_deadline %}<p class="text-center text-muted">Review deadline: <strong>{{ show.review_deadline }}</strong></p>{% endif %}
     {% if juror_progress %}
-    <table class="table table-sm">
+    <table class="table table-sm mx-auto" style="width:auto">
       <thead>
         <tr><th>Juror</th><th>Progress</th><th>Assigned</th></tr>
       </thead>
@@ -54,11 +53,11 @@
       </tbody>
     </table>
     {% else %}
-    <p class="text-muted">No jurors assigned to this show yet.</p>
+    <p class="text-center text-muted">No jurors assigned to this show yet.</p>
     {% endif %}
 
-    <h2 class="mt-4">Artworks ({{ artworks|length }})</h2>
-    <table class="table table-sm">
+    <div class="text-center section-label"><h2>Artworks ({{ artworks|length }})</h2></div>
+    <table class="table table-sm mx-auto" style="width:auto">
       <thead>
         <tr>
           <th>Artwork</th>
@@ -90,16 +89,16 @@
           <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}?all=1">View reviews</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="4">No artworks submitted to this show.</td></tr>
+        <tr><td colspan="4" class="text-center">No artworks submitted to this show.</td></tr>
         {% endfor %}
       </tbody>
     </table>
 
     {% if is_also_juror %}
-    <h2 class="mt-4">Your Reviews</h2>
-    {% if show.review_deadline %}<p>Please complete your reviews by <strong>{{ show.review_deadline }}</strong>.</p>{% endif %}
+    <div class="text-center section-label"><h2>Your Reviews</h2></div>
+    {% if show.review_deadline %}<p class="text-center">Please complete your reviews by <strong>{{ show.review_deadline }}</strong>.</p>{% endif %}
     {% if my_reviews %}
-    <table class="table table-sm">
+    <table class="table table-sm mx-auto" style="width:auto">
       <thead>
         <tr>
           <th>Artwork</th>
@@ -121,7 +120,7 @@
     </table>
     {% endif %}
     {% if pending_artworks %}
-    <h3 class="mt-3">Pending ({{ pending_artworks.count }})</h3>
+    <div class="text-center section-label"><h3>Pending ({{ pending_artworks.count }})</h3></div>
     <div class="cards">
       {% for artwork in pending_artworks %}
       <div class="card">
@@ -136,13 +135,13 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-muted">All artworks reviewed — thank you!</p>
+    <p class="text-center text-muted">All artworks reviewed — thank you!</p>
     {% endif %}
     {% endif %}
 
     {% if all_reviews %}
-    <h2 class="mt-4">All Reviews</h2>
-    <table class="table table-sm">
+    <div class="text-center section-label"><h2>All Reviews</h2></div>
+    <table class="table table-sm mx-auto" style="width:auto">
       <thead>
         <tr>
           <th>Artwork</th>
@@ -183,10 +182,10 @@
     {% else %}
 
     {# Juror view #}
-    {% if show.review_deadline %}<p>Please complete your reviews by <strong>{{ show.review_deadline }}</strong>.</p>{% endif %}
-    <h2>My Reviews ({{ my_reviews.count }})</h2>
+    {% if show.review_deadline %}<p class="text-center">Please complete your reviews by <strong>{{ show.review_deadline }}</strong>.</p>{% endif %}
+    <div class="text-center section-label"><h2>My Reviews ({{ my_reviews.count }})</h2></div>
     {% if my_reviews %}
-    <table class="table table-sm">
+    <table class="table table-sm mx-auto" style="width:auto">
       <thead>
         <tr>
           <th>Artwork</th>
@@ -222,7 +221,7 @@
     </table>
     {% endif %}
 
-    <h2 class="mt-4">Pending Review ({{ pending_artworks.count }})</h2>
+    <div class="text-center section-label"><h2>Pending Review ({{ pending_artworks.count }})</h2></div>
     {% if pending_artworks %}
     <div class="cards">
       {% for artwork in pending_artworks %}
@@ -242,7 +241,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-muted">All artworks reviewed — thank you!</p>
+    <p class="text-center text-muted">All artworks reviewed — thank you!</p>
     {% endif %}
 
     {% endif %}
