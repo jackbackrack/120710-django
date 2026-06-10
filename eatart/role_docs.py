@@ -24,8 +24,7 @@ HOW_TO_GUIDES = [
         'title': 'How to add artworks',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
-            'Sign in, then go to Artworks in the navigation.',
-            'Click New at the top of the Artworks page.',
+            'Sign in, then go to your Me page. Find the Artworks section and click the New button.',
             'Fill in the title, year, medium, dimensions (width × height × depth), and upload an image — image is required for new artworks.',
             'Optionally add price, pricing notes (e.g. NFS, POA), replacement cost, and a description.',
             'Newly added artworks are private until they are included in a show whose status is Published or Closed.',
