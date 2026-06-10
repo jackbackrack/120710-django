@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
-{% block title %}Search{% endblock %}
-{% block block_title %}Search{% endblock %}
+{% block title %}{% if query %}Search "{{ query }}"{% else %}Search{% endif %}{% endblock %}
+{% block block_title %}{% if query %}Search "{{ query }}"{% else %}Search{% endif %}{% endblock %}
 
 {% block content %}
 {% if not query %}
