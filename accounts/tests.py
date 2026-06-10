@@ -211,7 +211,7 @@ class ClaimArtistViewTests(TestCase):
         artist.refresh_from_db()
 
         self.assertEqual(artist.user, self.user)
-        self.assertRedirects(response, artist.get_absolute_url())
+        self.assertRedirects(response, reverse('gallery:artist_edit', kwargs={'pk': artist.pk}))
 
     def test_claim_matches_case_insensitive_email(self):
         artist = _make_unlinked_artist(email='Old@Example.COM')
@@ -223,7 +223,7 @@ class ClaimArtistViewTests(TestCase):
         artist.refresh_from_db()
 
         self.assertEqual(artist.user, self.user)
-        self.assertRedirects(response, artist.get_absolute_url())
+        self.assertRedirects(response, reverse('gallery:artist_edit', kwargs={'pk': artist.pk}))
 
     def test_claim_no_match_returns_form_error(self):
         self.client.force_login(self.user)
@@ -245,13 +245,27 @@ class ClaimArtistViewTests(TestCase):
 
     def test_already_linked_user_is_redirected(self):
         artist = Artist.objects.create(
-            user=self.user, name='My Artist', email='new@example.com', phone=''
+            user=self.user, name='My Artist', email='new@example.com', phone='',
+            bio='Some bio text',
         )
         self.client.force_login(self.user)
 
         response = self.client.get('/accounts/claim-artist/')
 
         self.assertRedirects(response, artist.get_absolute_url())
+
+    def test_empty_linked_profile_allows_claim(self):
+        _existing = Artist.objects.create(
+            user=self.user, name='New User', email='new@example.com', phone=''
+        )
+        old_artist = _make_unlinked_artist(email='old@example.com', name='Old Artist')
+        self.client.force_login(self.user)
+
+        response = self.client.post('/accounts/claim-artist/', {'email': 'old@example.com'})
+        old_artist.refresh_from_db()
+
+        self.assertEqual(old_artist.user, self.user)
+        self.assertRedirects(response, reverse('gallery:artist_edit', kwargs={'pk': old_artist.pk}))
 
 
 @STORAGE_OVERRIDE

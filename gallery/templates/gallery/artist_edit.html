@@ -3,6 +3,14 @@
 
 {% block content %}
 <h1>Edit</h1>
+{% if show_claim_hint %}
+<div class="alert alert-info">
+  <strong>Were you already in our system?</strong>
+  If you have an existing artist record under a different email address, you can
+  <a href="{% url 'claim_artist' %}">link it to your account here</a>
+  — your existing profile, artworks, and show history will be preserved.
+</div>
+{% endif %}
 <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
   {{ form|crispy }}
   <button class="btn btn-info ms-2" type="submit">Update</button>

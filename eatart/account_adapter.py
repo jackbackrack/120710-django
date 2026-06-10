@@ -24,6 +24,20 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
 
     def get_signup_redirect_url(self, request):
         from django.urls import reverse
+        from django.contrib import messages
+        claimed_pk = request.session.pop('claimed_artist_pk', None)
+        if claimed_pk:
+            from gallery.models import Artist
+            try:
+                artist = Artist.objects.get(pk=claimed_pk)
+                messages.success(
+                    request,
+                    f'Welcome! Your account has been linked to your existing artist profile '
+                    f'"{artist.name}" because your email matched our records.',
+                )
+                return artist.get_absolute_url()
+            except Artist.DoesNotExist:
+                pass
         new_pk = request.session.pop('new_artist_pk', None)
         if new_pk:
             return reverse('gallery:artist_edit', kwargs={'pk': new_pk})
@@ -102,7 +116,9 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         changed_fields = apply_google_profile_data(user, extra_data)
         if changed_fields:
             user.save(update_fields=changed_fields)
-        artist, is_new = ensure_signup_profile(user)
-        if is_new and artist:
+        artist, status = ensure_signup_profile(user)
+        if artist and status == 'claimed':
+            request.session['claimed_artist_pk'] = artist.pk
+        elif artist and status == 'created':
             request.session['new_artist_pk'] = artist.pk
         return user

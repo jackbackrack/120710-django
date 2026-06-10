@@ -8,12 +8,43 @@
   {% endfor %}
 {% endif %}
 
-<h1>Link your artist profile</h1>
-<p class="text-muted">If you have an existing artist record in our system, enter the email address it was registered under to claim it.</p>
+<h1>Link your existing artist profile</h1>
+<p class="text-muted">
+  Enter the email address your existing artist record is registered under.
+  The system will link that record to your account. The email on the artist record is kept
+  as-is — you can update it from the edit page if you want it to match your login email.
+</p>
 
 <form method="post" style="max-width:480px">
   {% csrf_token %}
   {{ form|crispy }}
   <button class="btn btn-primary" type="submit">Claim profile</button>
 </form>
+
+<hr class="my-4">
+<h5>Not sure which situation applies to you?</h5>
+<dl class="row mt-2" style="max-width:640px">
+  <dt class="col-sm-4">Same email as your record</dt>
+  <dd class="col-sm-8">
+    If you signed up with the same email that's already on your artist record the link was made
+    automatically — you don't need this page.
+  </dd>
+
+  <dt class="col-sm-4">Different email (this page)</dt>
+  <dd class="col-sm-8">
+    If you signed up with a new email that doesn't match your existing record, enter the
+    <em>old</em> email from that record above. Your blank auto-created profile will be replaced
+    and your show history and artworks will be preserved.
+  </dd>
+
+  <dt class="col-sm-4">Brand new artist</dt>
+  <dd class="col-sm-8">
+    If you have no existing record in the system, a new artist profile was created for you
+    when you signed up. Just go back and fill in your details — you don't need this page.
+  </dd>
+</dl>
+<p class="text-muted">
+  Still stuck? Email <a href="mailto:info@120710.art">info@120710.art</a> and a staff member
+  can look up your record or link it for you.
+</p>
 {% endblock content %}

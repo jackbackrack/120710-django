@@ -61,12 +61,24 @@ class ArtistUserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return is_staff_user(self.request.user)
 
 
+def _artist_is_empty(artist):
+    """Return True if the artist profile has no substantive content (auto-created blank record)."""
+    return (
+        not artist.image
+        and not (artist.bio or '').strip()
+        and not (artist.statement or '').strip()
+        and not artist.artworks.exists()
+    )
+
+
 @login_required
 def claim_artist(request):
-    artist = getattr(request.user, 'artists', None)
-    if artist and artist.exists():
+    user = request.user
+    existing_artist = user.artists.first()
+
+    if existing_artist and not _artist_is_empty(existing_artist):
         messages.info(request, "You already have an artist profile linked to your account.")
-        return redirect('gallery:artist_detail', slug=artist.first().slug)
+        return redirect('gallery:artist_detail', slug=existing_artist.slug)
 
     if request.method == 'POST':
         form = ClaimArtistForm(request.POST)
@@ -74,14 +86,18 @@ def claim_artist(request):
             email = form.cleaned_data['email']
             candidate = Artist.objects.filter(email__iexact=email, user__isnull=True).first()
             if candidate:
-                candidate.user = request.user
+                if existing_artist:
+                    existing_artist.delete()
+                candidate.user = user
                 candidate.save(update_fields=['user'])
+                from accounts.signup import _link_invitations
+                _link_invitations(user, candidate)
                 messages.success(request, f'Artist profile "{candidate.name}" has been linked to your account.')
-                return redirect('gallery:artist_detail', slug=candidate.slug)
+                return redirect('gallery:artist_edit', pk=candidate.pk)
             else:
                 form.add_error('email', "No unlinked artist record was found with that email address.")
     else:
-        form = ClaimArtistForm(initial={'email': request.user.email})
+        form = ClaimArtistForm(initial={'email': ''})
 
     return render(request, 'accounts/claim_artist.html', {'form': form})
 

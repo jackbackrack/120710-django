@@ -115,6 +115,19 @@ class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         kwargs['user'] = self.request.user
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        artist = self.object
+        if artist.user == self.request.user:
+            is_empty = (
+                not artist.image
+                and not (artist.bio or '').strip()
+                and not (artist.statement or '').strip()
+                and not artist.artworks.exists()
+            )
+            context['show_claim_hint'] = is_empty
+        return context
+
     def form_valid(self, form):
         return super().form_valid(form)
 

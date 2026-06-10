@@ -5,19 +5,19 @@ HOW_TO_GUIDES = [
         'steps': [
             'Go to the Sign Up page via the Log In link in the header, then choose "Sign up".',
             'Enter your first name, last name, email address, and password — or use the "Continue with Google" option to skip the password. There is no separate username; your email address is how you log in.',
-            'After signing up, an artist profile is automatically created for you using your name and email.',
-            'If you already have an artist profile in the system (e.g. you were added by a staff member before you signed up), and signing up created a duplicate profile, email info@120710.art to have a staff member merge them.',
+            'After signing up, an artist profile is automatically created for you using your name and email. If your email matches an existing artist record you were added under, the link is made for you automatically.',
+            'If you were added under a different email, visit your artist edit page after signing in — you will see a link to claim your existing record. See "Linking your account to an existing artist profile" in the how-to guides for full details.',
         ],
     },
     {
-        'title': 'How to add your artist information',
+        'title': 'How to complete your artist profile',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
-            'Sign in, then go to Artists in the navigation.',
-            'Click New at the top of the Artists page to create or fill in your artist profile.',
-            'If your profile already exists (created when you signed up), find it in the Artists list and click Edit.',
+            'After signing up you are taken directly to your artist profile edit page — fill in your details there.',
+            'If you need to return to your profile later, sign in and click your name in the Artists list, then click Edit.',
             'Fill in your bio, statement, website, Instagram handle, Venmo, and upload a profile photo.',
-            'Your profile will become publicly visible once you are part of a show whose status is Published or Closed, or once a staff member adds you as a curator of a show.',
+            'The email on your artist record is your public contact address (used for invitations and curator communication). It can be different from your login email. Update it on the edit page if needed.',
+            'Your profile becomes publicly visible once you are part of a show whose status is Published or Closed, or once a staff member adds you as a curator of a show.',
         ],
     },
     {
@@ -133,14 +133,14 @@ HOW_TO_GUIDES = [
         ],
     },
     {
-        'title': 'How to link an existing artist profile to a new account',
+        'title': 'Linking your account to an existing artist profile',
         'roles': None,
         'steps': [
-            'If you were added to the system as an artist before you had an account (e.g. a curator or staff member created your profile), sign up using the same email address that is on your artist profile.',
-            'The system will automatically detect the matching email and link your new account to the existing artist profile — no duplicate will be created.',
-            'If you signed up with a different email and a duplicate was created, sign in and go to Accounts → Claim Artist Profile (/accounts/claim-artist/).',
-            'Enter the email address on your existing artist record. If a match is found the profile is linked to your account immediately.',
-            'If you are unsure what email is on your artist record, email info@120710.art and a staff member can look it up or link the profile for you.',
+            'There are three cases — figure out which one applies, then follow the matching steps.',
+            'Case 1 — Same email: You were already in the system and you signed up using the same email address that is on your artist record. The system linked your account automatically. No extra steps needed — just fill in your profile.',
+            'Case 2 — Different email: You were already in the system but you signed up with a different email than the one on your existing artist record. Sign in, then go to your artist edit page — you will see a link to "link it to your account here". Click it, enter the OLD email address that is on your existing record, and submit. Your blank auto-created profile is replaced with your existing record, preserving all artworks and show history. The artist email is left unchanged (it is your public contact address and may intentionally differ from your login email — you can update it from the edit page if needed).',
+            'Case 3 — New to the system: You have no existing record. A new artist profile was created for you automatically when you signed up. Go to your artist profile and fill in your bio, statement, website, Instagram, and upload a profile photo.',
+            'Not sure which case applies? Email info@120710.art — a staff member can look up your record, tell you which email is on it, and link it for you if needed.',
         ],
     },
     {
@@ -197,8 +197,8 @@ ROLE_DOCUMENTATION = {
             'Submit artworks to open call shows (or invitation-only shows where you have been invited) via the show detail page while the deadline is open.',
             'Track your submission statuses and retract submissions from the show detail page while the deadline is open.',
             'Your artworks and profile become publicly visible once you are part of a show whose status is Published or Closed.',
-            'If you already have an artist profile and your account created a duplicate, go to Accounts → Claim Artist Profile and enter the email on your existing record to link it yourself.',
-            'If you cannot claim the profile (wrong email on record), email info@120710.art and a staff member can link it for you.',
+            'If you have an existing artist record that was created before you had an account, check your artist edit page after signing in — a notice will appear if your profile is empty, with a link to claim your existing record by entering the old email.',
+            'If you are unsure which email is on your existing record, email info@120710.art and a staff member can look it up or link it for you.',
         ],
         'forms': [
             {
