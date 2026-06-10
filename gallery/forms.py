@@ -191,6 +191,7 @@ class ShowForm(UserAwareModelForm):
         ).order_by('name')
         if self.instance.pk:
             self.fields['curators'].initial = self.instance.curators.all()
+        self.fields['submission_deadline'].required = True
         if not is_staff_user(self.user) and not is_curator_user(self.user):
             self.fields.pop('status')
 
