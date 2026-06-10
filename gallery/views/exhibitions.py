@@ -109,6 +109,11 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['allowed_transitions'] = [(s, status_choices[s]) for s in allowed]
         late_statuses = {Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED}
         context['can_assign_jurors'] = can_manage_show(user, show) and show.status not in late_statuses
+        from gallery.permissions import _is_gallery_admin
+        print_statuses = {Show.STATUS_PUBLISHED, Show.STATUS_CLOSED}
+        context['can_show_print_controls'] = can_manage_show(user, show) and (
+            user.is_superuser or _is_gallery_admin(user) or show.status in print_statuses
+        )
         return context
 
 
