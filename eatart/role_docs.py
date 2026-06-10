@@ -35,11 +35,10 @@ HOW_TO_GUIDES = [
         'title': 'How to submit artwork to an open call show',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
-            'Make sure you have at least one artwork added to your account before submitting (go to Artworks → New).',
             'Go to Shows in the navigation and find a show with an "Open Call" badge — this means it is currently accepting submissions.',
             'Open the show detail page and click "Submit Artwork".',
             'Select the artwork you want to submit from the dropdown. Each artwork can only be submitted once per show.',
-            'Optionally add an artist statement specific to this submission, then click Submit.',
+            'Click Submit to confirm.',
             'You will receive a confirmation email. Your submission appears on the show detail page as "Submitted".',
             'You can retract your submission while the show is still in Open Call status by clicking Retract next to your artwork on the show detail page.',
             'Once the show moves to In Review, submissions are closed and you cannot retract.',
