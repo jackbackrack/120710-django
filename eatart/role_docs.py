@@ -14,7 +14,7 @@ HOW_TO_GUIDES = [
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'After signing up you are taken directly to your artist profile edit page — fill in your details there.',
-            'If you need to return to your profile later, sign in and click your name in the Artists list, then click Edit.',
+            'If you need to return to your profile later, sign in — you will be taken to your Me page. Click Edit on your artist profile.',
             'Fill in your bio, statement, website, Instagram handle, Venmo, and upload a profile photo.',
             'The email on your artist record is your public contact address (used for invitations and curator communication). It can be different from your login email. Update it on the edit page if needed.',
             'Your profile becomes publicly visible once you are part of a show whose status is Published or Closed, or once a staff member adds you as a curator of a show.',
@@ -34,11 +34,11 @@ HOW_TO_GUIDES = [
         'title': 'How to submit artwork to an open call show',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
-            'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Open Call Shows" and click the Submit button.',
+            'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Shows Accepting Submissions" and click the Submit button.',
             'Select the artwork you want to submit from the dropdown. Each artwork can only be submitted once per show.',
             'Click Submit to confirm.',
-            'You will receive a confirmation email. Your submission appears on the show detail page as "Submitted".',
-            'You can retract your submission while the show is still in Open Call status by clicking Retract next to your artwork on the show detail page.',
+            'You will receive a confirmation email. Your submission appears on your Me page and on the show detail page as "Submitted".',
+            'You can retract your submission while the show is still accepting submissions by clicking Retract next to your artwork on your Me page or the show detail page.',
             'Once the show moves to In Review, submissions are closed and you cannot retract.',
             'You will receive an acceptance or rejection email when the curator publishes the show.',
         ],
@@ -191,7 +191,7 @@ ROLE_DOCUMENTATION = {
         'allowed_actions': [
             'Create and edit your artist profile.',
             'Create and edit your own artworks.',
-            'Submit artworks to open call shows (or invitation-only shows where you have been invited) via the show detail page while the deadline is open.',
+            'Submit artworks to open call shows (or invitation-only shows where you have been invited) via the "Shows Accepting Submissions" section on your Me page.',
             'Track your submission statuses and retract submissions from the show detail page while the deadline is open.',
             'Your artworks and profile become publicly visible once you are part of a show whose status is Published or Closed.',
             'If you have an existing artist record that was created before you had an account, check your artist edit page after signing in — a notice will appear if your profile is empty, with a link to claim your existing record by entering the old email.',
@@ -201,7 +201,7 @@ ROLE_DOCUMENTATION = {
             {
                 'name': 'Artist Form',
                 'where_used': 'Artist create/edit pages',
-                'breadcrumb': 'Artists > New (top of page) or Artist Detail > Edit',
+                'breadcrumb': 'Me page > Edit, or Artists list > Edit',
                 'fields': [
                     {'name': 'first_name', 'input_type': 'text input', 'purpose': 'Given name for your artist profile.'},
                     {'name': 'last_name', 'input_type': 'text input', 'purpose': 'Family name for your artist profile.'},
@@ -218,7 +218,7 @@ ROLE_DOCUMENTATION = {
             {
                 'name': 'Artwork Form',
                 'where_used': 'Artwork create/edit pages',
-                'breadcrumb': 'Artworks > New (top of page) or Artwork Detail > Edit',
+                'breadcrumb': 'Me page > Artworks > New, or Artwork Detail > Edit',
                 'fields': [
                     {'name': 'name', 'input_type': 'text input', 'purpose': 'Title of the artwork.'},
                     {'name': 'end_year', 'input_type': 'numeric input', 'purpose': 'Year the work was completed (or ending year for multi-year works).'},
@@ -240,7 +240,6 @@ ROLE_DOCUMENTATION = {
                 'breadcrumb': 'Home > Shows > Select Show > Submit Artwork',
                 'fields': [
                     {'name': 'artwork', 'input_type': 'dropdown select', 'purpose': 'Choose which of your artworks to submit. Each artwork can only be submitted once per show.'},
-                    {'name': 'statement', 'input_type': 'multi-line text area', 'purpose': 'Optional artist statement specific to this submission.'},
                 ],
             },
         ],
@@ -296,7 +295,7 @@ ROLE_DOCUMENTATION = {
                 'where_used': 'Open call promotion page',
                 'breadcrumb': 'Home > Shows > Select Show > Promote',
                 'fields': [
-                    {'name': '(confirm button)', 'input_type': 'form submit', 'purpose': 'Adds all Selected artworks and their artists to the show and records decisions. Acceptance/rejection emails are sent later when the show status is set to Published.'},
+                    {'name': '(confirm button)', 'input_type': 'form submit', 'purpose': 'Adds all Selected artworks and their artists to the show, sets the status to Published, and sends acceptance/rejection emails to every submitting artist — all in one step.'},
                 ],
             },
             {
@@ -385,7 +384,7 @@ ROLE_DOCUMENTATION = {
             {
                 'name': 'Artwork Form (Staff Controls)',
                 'where_used': 'Artwork create/edit pages',
-                'breadcrumb': 'Artworks > New (top of page) or Artwork Detail > Edit',
+                'breadcrumb': 'Me page > Artworks > New, or Artwork Detail > Edit',
                 'fields': [
                     {'name': 'artists', 'input_type': 'multi-select', 'purpose': 'Associate one or more artists with the work.'},
                     {'name': 'shows', 'input_type': 'multi-select', 'purpose': 'Associate the artwork with one or more shows. Artwork becomes publicly visible once added to a show whose status is Published or Closed.'},
