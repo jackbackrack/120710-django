@@ -116,7 +116,7 @@
   {% endwith %}
   <div id="status-bar">
     <span>{% block block_title %}{% endblock %}</span>
-    {% if my_artist_name %}<span class="status-sep">|</span><span>{{ my_artist_name }}</span>{% endif %}
+    {% if my_artist_name %}<span class="status-sep">|</span> {{ my_artist_name }}{% endif %}
   </div>
   </header>
   {% if messages %}
