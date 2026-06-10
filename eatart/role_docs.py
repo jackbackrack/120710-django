@@ -32,6 +32,15 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to submit artwork to an open call show',
+        'roles': None,
+        'public_only': True,
+        'steps': [
+            'First, create an artist account — see "How to sign up for an account" above.',
+            'Once you are signed in as an artist, return to this help section for detailed submission instructions that will appear here.',
+        ],
+    },
+    {
+        'title': 'How to submit artwork to an open call show',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Shows Accepting Submissions" and click the Submit button.',

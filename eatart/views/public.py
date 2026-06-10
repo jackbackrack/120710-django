@@ -64,7 +64,11 @@ def howto(request):
     role_guides = [ROLE_DOCUMENTATION[key] for key in active_role_keys if key in ROLE_DOCUMENTATION]
 
     user_role = active_role_keys[0] if active_role_keys else None
-    visible_how_tos = [g for g in HOW_TO_GUIDES if g['roles'] is None or (user_role and user_role in g['roles'])]
+    visible_how_tos = [
+        g for g in HOW_TO_GUIDES
+        if (g['roles'] is None and not (g.get('public_only') and user_role))
+        or (user_role and g['roles'] and user_role in g['roles'])
+    ]
 
     context = {
         'how_to_guides': visible_how_tos,
