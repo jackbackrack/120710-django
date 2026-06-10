@@ -21,10 +21,10 @@
     <p class="text-gray-500 text-sm"><strong>Website: </strong><a href="{{ artist.website }}">{{ artist.website }}</a></p>
     {% endif %}
     {% if artist.bio %}
-    <p class="text-gray-500 text-sm"><strong>Bio: </strong>{{ artist.bio }}</p>
+    <p class="text-gray-500 text-sm"><strong>Bio: </strong>{{ artist.bio|safe }}</p>
     {% endif %}
     {% if artist.statement %}
-    <p class="text-gray-500 text-sm"><strong>Statement: </strong>{{ artist.statement }}</p>
+    <p class="text-gray-500 text-sm"><strong>Statement: </strong>{{ artist.statement|safe }}</p>
     {% endif %}
   </div>
   <div class="card__info">
