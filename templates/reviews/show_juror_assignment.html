@@ -3,6 +3,19 @@
 {% block title %}Jurors: {{ show.name }}{% endblock %}
 {% block block_title %}Jurors: {{ show.name }}{% endblock %}
 
+{% block extra_js %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var sel = document.getElementById('id_artist');
+  if (sel) {
+    new TomSelect(sel, { maxOptions: null });
+  }
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="cards">
 <div class="card" id="big_card">
