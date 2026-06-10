@@ -3,8 +3,12 @@
 
 {% block content %}
 <h1>Edit</h1>
-<form action="" method="post">{% csrf_token %}
+<form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
   {{ form|crispy }}
   <button class="btn btn-info ms-2" type="submit">Update</button>
 </form>
 {% endblock content %}
+
+{% block extra_js %}
+{% include 'gallery/_dual_listbox.html' with field_id='id_curators' %}
+{% endblock %}

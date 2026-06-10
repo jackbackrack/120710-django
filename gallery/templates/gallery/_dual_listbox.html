@@ -1,0 +1,86 @@
+<style>
+.dlb-wrap { display: flex; gap: 12px; margin-top: 4px; }
+.dlb-panel { flex: 1; border: 1px solid #ced4da; border-radius: 4px; display: flex; flex-direction: column; }
+.dlb-panel__header { padding: 5px 9px; background: #f0f4f3; border-bottom: 1px solid #ced4da; font-size: 0.8rem; font-weight: 600; color: #555; }
+.dlb-panel__search { width: 100%; padding: 4px 9px; border: none; border-bottom: 1px solid #ced4da; font-size: 0.85rem; outline: none; box-sizing: border-box; }
+.dlb-panel__list { list-style: none; margin: 0; padding: 0; min-height: 140px; max-height: 240px; overflow-y: auto; }
+.dlb-panel__item { padding: 5px 9px; font-size: 0.85rem; cursor: pointer; user-select: none; }
+.dlb-panel__item:hover { background: #e8f4f1; color: #64968c; }
+.dlb-panel__chosen-item::before { content: '✕ '; color: #999; font-size: 0.75rem; }
+.dlb-panel__chosen-item:hover::before { color: #c00; }
+.dlb-panel__empty { padding: 8px 9px; font-size: 0.82rem; color: #aaa; font-style: italic; }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  initDualListbox('{{ field_id }}');
+});
+
+function initDualListbox(selectId) {
+  var select = document.getElementById(selectId);
+  if (!select) return;
+
+  var options = Array.from(select.options).map(function (o) {
+    return { value: o.value, text: o.text.trim(), selected: o.selected };
+  });
+  select.style.display = 'none';
+
+  var chosen = new Set(options.filter(function (o) { return o.selected; }).map(function (o) { return o.value; }));
+
+  var wrap = document.createElement('div');
+  wrap.className = 'dlb-wrap';
+  wrap.innerHTML =
+    '<div class="dlb-panel">' +
+      '<div class="dlb-panel__header">Available — click to add</div>' +
+      '<input class="dlb-panel__search" type="text" placeholder="Search…">' +
+      '<ul class="dlb-panel__list dlb-avail"></ul>' +
+    '</div>' +
+    '<div class="dlb-panel">' +
+      '<div class="dlb-panel__header">Selected — click to remove</div>' +
+      '<ul class="dlb-panel__list dlb-chosen"></ul>' +
+    '</div>';
+  select.insertAdjacentElement('afterend', wrap);
+
+  var availList  = wrap.querySelector('.dlb-avail');
+  var chosenList = wrap.querySelector('.dlb-chosen');
+  var searchInput = wrap.querySelector('.dlb-panel__search');
+
+  function render() {
+    var filter = searchInput.value.toLowerCase();
+
+    availList.innerHTML = '';
+    var avail = options.filter(function (o) {
+      return !chosen.has(o.value) && o.text.toLowerCase().includes(filter);
+    });
+    if (!avail.length) {
+      availList.innerHTML = '<li class="dlb-panel__empty">No matches</li>';
+    }
+    avail.forEach(function (opt) {
+      var li = document.createElement('li');
+      li.className = 'dlb-panel__item';
+      li.textContent = opt.text;
+      li.addEventListener('click', function () { chosen.add(opt.value); sync(); render(); });
+      availList.appendChild(li);
+    });
+
+    chosenList.innerHTML = '';
+    var sel = options.filter(function (o) { return chosen.has(o.value); });
+    if (!sel.length) {
+      chosenList.innerHTML = '<li class="dlb-panel__empty">None selected</li>';
+    }
+    sel.forEach(function (opt) {
+      var li = document.createElement('li');
+      li.className = 'dlb-panel__item dlb-panel__chosen-item';
+      li.textContent = opt.text;
+      li.addEventListener('click', function () { chosen.delete(opt.value); sync(); render(); });
+      chosenList.appendChild(li);
+    });
+  }
+
+  function sync() {
+    Array.from(select.options).forEach(function (o) { o.selected = chosen.has(o.value); });
+  }
+
+  searchInput.addEventListener('input', render);
+  render();
+}
+</script>

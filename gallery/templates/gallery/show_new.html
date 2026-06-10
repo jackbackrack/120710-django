@@ -8,3 +8,7 @@
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>
 {% endblock content %}
+
+{% block extra_js %}
+{% include 'gallery/_dual_listbox.html' with field_id='id_curators' %}
+{% endblock %}
