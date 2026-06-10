@@ -19,7 +19,6 @@
       {% endif %}
       &middot; {{ sub.review_count }} review{{ sub.review_count|pluralize }}
     </p>
-    {% if sub.statement %}<p class="mb-0" style="font-size:0.8em;color:#888">{{ sub.statement|truncatewords:12 }}</p>{% endif %}
   </div>
   <div class="card__info" style="flex-direction:column;align-items:stretch;gap:3px">
     {% if can_manage %}

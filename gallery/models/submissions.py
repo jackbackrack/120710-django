@@ -35,7 +35,6 @@ class ArtworkSubmission(models.Model):
         related_name='artwork_submissions',
     )
     submitted_at = models.DateTimeField(auto_now_add=True)
-    statement = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=SUBMITTED)
     curator_decision = models.CharField(max_length=20, choices=DECISION_CHOICES, default=UNDECIDED)
 

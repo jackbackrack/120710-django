@@ -25,8 +25,7 @@
   <form method="post" id="submit-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="submit">
-    <div class="col-8 mx-auto text-center">{{ form.statement|as_crispy_field }}</div>
-    <p class="mt-3 mb-2 text-center"><strong>Select an artwork to submit:</strong></p>
+<p class="mt-3 mb-2 text-center"><strong>Select an artwork to submit:</strong></p>
     <div class="cards artwork-select-cards" id="artwork-cards">
       {% for artwork in available_artworks %}
       <label class="artwork-select-label" data-pk="{{ artwork.pk }}">

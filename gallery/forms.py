@@ -147,23 +147,13 @@ class QuickArtworkForm(forms.ModelForm):
 class ArtworkSubmissionForm(forms.ModelForm):
     class Meta:
         model = ArtworkSubmission
-        fields = ['artwork', 'statement']
-        widgets = {
-            'statement': forms.Textarea(attrs={
-                'rows': 4,
-                'placeholder': 'Optional artist statement for this submission',
-            }),
-        }
-        labels = {
-            'statement': 'Artist statement (optional)',
-        }
+        fields = ['artwork']
 
     def __init__(self, *args, show=None, artist=None, **kwargs):
         super().__init__(*args, **kwargs)
         already_submitted = ArtworkSubmission.objects.filter(show=show).values_list('artwork_id', flat=True)
         self.fields['artwork'].queryset = artist.artworks.exclude(pk__in=already_submitted).order_by('name')
         self.fields['artwork'].empty_label = 'Select an artwork'
-        self.fields['statement'].required = False
 
 
 class ShowForm(UserAwareModelForm):

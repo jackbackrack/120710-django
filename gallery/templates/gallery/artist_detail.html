@@ -48,7 +48,6 @@
     <div class="card__content">
       <a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a>
       <p><a class="card__link" href="{{ sub.show.get_absolute_url }}">{{ sub.show.name }}</a></p>
-      {% if sub.statement %}<p>{{ sub.statement }}</p>{% endif %}
     </div>
     <div class="card__info">
       <span>{{ sub.get_status_display }}</span>
