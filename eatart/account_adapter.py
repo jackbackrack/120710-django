@@ -22,6 +22,12 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
         _link_invitations(user, artist)
         return result
 
+    def get_login_redirect_url(self, request):
+        artist = request.user.artists.order_by('-created_at').first()
+        if artist:
+            return artist.get_absolute_url()
+        return super().get_login_redirect_url(request)
+
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
