@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+<p>You have received an inquiry about your artwork <strong>{{ artwork.name }}</strong>.</p>
+<p><strong>From:</strong> {{ sender_name }} &lt;{{ sender_email }}&gt;</p>
+<p><strong>Message:</strong></p>
+<blockquote style="border-left:3px solid #ccc;padding-left:1em;margin-left:0;color:#444;">
+  {{ message|linebreaksbr }}
+</blockquote>
+<p>To reply, respond directly to this email or write to <a href="mailto:{{ sender_email }}">{{ sender_email }}</a>.</p>
+<p>View the artwork: <a href="{{ artwork_url }}">{{ artwork.name }}</a></p>
+</body>
+</html>

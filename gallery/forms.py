@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
@@ -6,6 +7,20 @@ from crispy_forms.layout import Layout, Field, Row, Column, HTML
 
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
 from gallery.permissions import is_curator_user, is_staff_user
+
+
+def _captcha_field():
+    if getattr(settings, 'RECAPTCHA_ENABLED', False):
+        from django_recaptcha.fields import ReCaptchaField
+        return ReCaptchaField()
+    return forms.CharField(required=False, widget=forms.HiddenInput)
+
+
+class ArtworkInquiryForm(forms.Form):
+    sender_name = forms.CharField(max_length=150, label='Your name')
+    sender_email = forms.EmailField(label='Your email address')
+    message = forms.CharField(widget=forms.Textarea(attrs={'rows': 5}), label='Message')
+    captcha = _captcha_field()
 
 MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50 MB
 

@@ -1,12 +1,16 @@
 from eatart.schemaorg.mappers import artwork_to_schema
 
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.shortcuts import get_object_or_404, render
+from django.core.mail import EmailMultiAlternatives
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
-from gallery.forms import ArtworkForm
+from gallery.forms import ArtworkForm, ArtworkInquiryForm
 from gallery.models import Artwork, Tag
 from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
@@ -58,6 +62,7 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         shows = list(artwork.shows.all())
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(self.request.user, s)}
         context['can_delete_show'] = {s.id for s in shows if can_delete_show(self.request.user, s)}
+        context['can_inquire'] = artwork.artists.filter(email__isnull=False).exclude(email='').exists()
         return context
 
     def get_queryset(self):
@@ -119,3 +124,54 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def test_func(self):
         return is_artist_user(self.request.user)
+
+
+def artwork_inquire(request, pk):
+    artwork = get_object_or_404(
+        Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct(),
+        pk=pk,
+    )
+    recipient_emails = [a.email for a in artwork.artists.all() if a.email]
+    if not recipient_emails:
+        messages.error(request, 'No contact email is available for this artwork.')
+        return redirect(artwork.get_absolute_url())
+
+    if request.method == 'POST':
+        form = ArtworkInquiryForm(request.POST)
+        if form.is_valid():
+            sender_name = form.cleaned_data['sender_name']
+            sender_email = form.cleaned_data['sender_email']
+            message_text = form.cleaned_data['message']
+            artwork_url = request.build_absolute_uri(artwork.get_absolute_url())
+            html = render_to_string('email/artwork_inquiry.html', {
+                'artwork': artwork,
+                'sender_name': sender_name,
+                'sender_email': sender_email,
+                'message': message_text,
+                'artwork_url': artwork_url,
+            })
+            email = EmailMultiAlternatives(
+                subject=f'Inquiry about "{artwork.name}"',
+                body=(
+                    f'{sender_name} ({sender_email}) sent an inquiry about '
+                    f'"{artwork.name}":\n\n{message_text}\n\n{artwork_url}'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=recipient_emails,
+                reply_to=[f'{sender_name} <{sender_email}>'],
+            )
+            email.attach_alternative(html, 'text/html')
+            email.send()
+            messages.success(request, 'Your inquiry has been sent to the artist.')
+            return redirect(artwork.get_absolute_url())
+    else:
+        initial = {}
+        if request.user.is_authenticated:
+            initial['sender_name'] = request.user.get_full_name() or request.user.email
+            initial['sender_email'] = request.user.email
+        form = ArtworkInquiryForm(initial=initial)
+
+    return render(request, 'gallery/artwork_inquire.html', {
+        'artwork': artwork,
+        'form': form,
+    })

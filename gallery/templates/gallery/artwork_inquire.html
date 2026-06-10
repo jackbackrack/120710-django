@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Inquire — {{ artwork.name }}{% endblock %}
+{% block block_title %}Inquire about {{ artwork.name }}{% endblock %}
+
+{% block content %}
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="cards">
+<div class="card" id="big_card">
+  {% if artwork.image %}
+  <img loading="lazy" src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}" class="card__image">
+  {% endif %}
+  <div class="card__content">
+    <p><strong>{{ artwork.name }}</strong> &mdash; {% for artist in artwork.artists.all %}{{ artist.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  </div>
+</div>
+</div>
+
+<div style="max-width:560px;margin-top:1.5rem;">
+  <p class="text-muted">Your message will be sent directly to the artist. Your email address will be included so they can reply to you.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button class="btn btn-primary" type="submit">Send inquiry</button>
+    <a class="btn btn-link" href="{{ artwork.get_absolute_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -12,6 +12,7 @@ from gallery.views.artworks import (
     ArtworkDetailView,
     ArtworkListView,
     ArtworkUpdateView,
+    artwork_inquire,
     detail,
 )
 from gallery.views.events import (
