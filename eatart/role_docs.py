@@ -24,7 +24,7 @@ HOW_TO_GUIDES = [
         'title': 'How to add artworks',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
-            'Sign in, then go to your Me page. Find the Artworks section and click the New button.',
+            'Sign in — you will be taken to your Me page. Find the Artworks section and click the New button.',
             'Fill in the title, year, medium, dimensions (width × height × depth), and upload an image — image is required for new artworks.',
             'Optionally add price, pricing notes (e.g. NFS, POA), replacement cost, and a description.',
             'Newly added artworks are private until they are included in a show whose status is Published or Closed.',
@@ -34,8 +34,7 @@ HOW_TO_GUIDES = [
         'title': 'How to submit artwork to an open call show',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
-            'Go to Shows in the navigation and find a show with an "Open Call" badge — this means it is currently accepting submissions.',
-            'Open the show detail page and click "Submit Artwork".',
+            'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Open Call Shows" and click the Submit button.',
             'Select the artwork you want to submit from the dropdown. Each artwork can only be submitted once per show.',
             'Click Submit to confirm.',
             'You will receive a confirmation email. Your submission appears on the show detail page as "Submitted".',
