@@ -15,7 +15,7 @@
     <h2>Common Tasks</h2>
     <p class="text-muted">Step-by-step guides for the most common things you might want to do.</p>
     {% for guide in how_to_guides %}
-    <article class="card mb-3">
+    <article class="card mb-3" id="{{ guide.title|slugify }}">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start">
           <h4 class="card-title mb-0">{{ guide.title }}</h4>

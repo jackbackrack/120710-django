@@ -92,6 +92,7 @@
 </div>
 <div class="text-center section-label"><h2>Artworks</h2></div>
 {% if can_submit %}<div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a></div>{% endif %}
+{% if show.is_accepting_submissions and not can_submit %}<p class="text-center text-muted small mt-2"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">Help submitting</a></p>{% endif %}
 <div class="cards">
 {% for entry in artwork_data %}
 {% with artwork=entry.artwork sub=entry.submission %}
