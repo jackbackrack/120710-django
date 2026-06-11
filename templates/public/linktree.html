@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Links{% endblock %}
+{% block block_title %}Links{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column align-items-center gap-3 py-3" style="max-width: 480px; margin: 0 auto;">
+
+  <a href="https://120710.art" class="btn btn-outline-dark w-100 py-3">120710.art</a>
+  <a href="https://reset.art" class="btn btn-outline-dark w-100 py-3">reset.art</a>
+
+  {% for show in current_shows %}
+  <a href="{{ show.get_absolute_url }}" class="btn btn-dark w-100 py-3">{{ show.name }}</a>
+  {% endfor %}
+
+  {% for show in open_call_shows %}
+  <a href="{{ show.get_absolute_url }}" class="btn btn-outline-primary w-100 py-3">Open Call: {{ show.name }}</a>
+  {% endfor %}
+
+  {% for link in custom_links %}
+  <a href="{{ link.url }}" class="btn btn-outline-secondary w-100 py-3">{{ link.name }}</a>
+  {% endfor %}
+
+</div>
+{% endblock %}

@@ -16,6 +16,9 @@
   {% endif %}
   <div class="card__content">
     <h1 class="mb-6 text-3xl">{{ artist.full_name }}</h1>
+    {% if artist.phone %}
+    <p class="text-gray-500 text-sm"><strong>Phone: </strong><a href="tel:{{ artist.phone }}">{{ artist.phone }}</a></p>
+    {% endif %}
     {% if artist.instagram %}
     <p class="text-gray-500 text-sm"><strong>Instagram: </strong><a href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a></p>
     {% endif %}

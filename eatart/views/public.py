@@ -4,7 +4,7 @@ from django.shortcuts import render
 
 from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
-from gallery.models import Show
+from gallery.models import LinkTreeEntry, Show
 from gallery.permissions import can_delete_show, can_manage_show, is_curator_user, is_juror_user, is_staff_user, visible_show_queryset
 
 
@@ -46,6 +46,29 @@ def visit(request):
 
 def about(request):
     return render(request, 'public/about.html')
+
+
+def linktree(request):
+    today = dt.date.today()
+    current_shows = list(
+        Show.objects.filter(
+            status=Show.STATUS_PUBLISHED,
+            start__lte=today,
+            end__gte=today,
+        ).order_by('-start')
+    )
+    open_call_shows = list(
+        Show.objects.filter(
+            status=Show.STATUS_OPEN_CALL,
+            submission_type__in=(Show.SUBMISSION_OPEN, Show.SUBMISSION_INVITED),
+        ).order_by('start')
+    )
+    custom_links = list(LinkTreeEntry.objects.filter(is_active=True))
+    return render(request, 'public/linktree.html', {
+        'current_shows': current_shows,
+        'open_call_shows': open_call_shows,
+        'custom_links': custom_links,
+    })
 
 
 def howto(request):

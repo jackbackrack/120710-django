@@ -67,13 +67,14 @@
           {% endif %}
 
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle{% if u == 'about' or u == 'visit' or u == 'contact' or u == 'subscribe' %} active{% endif %}"
+            <a class="nav-link dropdown-toggle{% if u == 'about' or u == 'visit' or u == 'contact' or u == 'subscribe' or u == 'linktree' %} active{% endif %}"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">About</a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item{% if u == 'about' %} active{% endif %}" href="{% url 'about' %}">Info</a></li>
               <li><a class="dropdown-item{% if u == 'visit' %} active{% endif %}" href="{% url 'visit' %}">Visit</a></li>
               <li><a class="dropdown-item{% if u == 'contact' %} active{% endif %}" href="{% url 'contact' %}">Contact</a></li>
               <li><a class="dropdown-item{% if u == 'subscribe' %} active{% endif %}" href="{% url 'subscribe' %}">Subscribe</a></li>
+              <li><a class="dropdown-item{% if u == 'linktree' %} active{% endif %}" href="{% url 'linktree' %}">Links</a></li>
             </ul>
           </li>
 

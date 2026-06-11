@@ -1,7 +1,7 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 
-from gallery.models import Artist, Artwork, Event, Show, ShowInvitation, Tag
+from gallery.models import Artist, Artwork, Event, LinkTreeEntry, Show, ShowInvitation, Tag
 from reviews.models import ShowJuror
 
 
@@ -34,3 +34,10 @@ admin.site.register(Show, ShowAdmin)
 admin.site.register(ShowInvitation)
 admin.site.register(Event, ImportExportAdmin)
 admin.site.register(Tag, ImportExportAdmin)
+
+
+@admin.register(LinkTreeEntry)
+class LinkTreeEntryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'url', 'order', 'is_active')
+    list_editable = ('order', 'is_active')
+    ordering = ('order', 'name')
