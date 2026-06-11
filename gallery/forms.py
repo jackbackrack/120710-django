@@ -62,6 +62,9 @@ class ArtistForm(UserAwareModelForm):
             'image',
             'user',
         )
+        widgets = {
+            'phone': forms.TextInput(attrs={'type': 'tel', 'placeholder': '+1 (555) 555-5555'}),
+        }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
@@ -71,6 +74,24 @@ class ArtistForm(UserAwareModelForm):
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
+
+    def clean_instagram(self):
+        value = (self.cleaned_data.get('instagram') or '').strip()
+        if value and not value.startswith('@'):
+            value = '@' + value
+        return value or None
+
+    def clean_venmo(self):
+        value = (self.cleaned_data.get('venmo') or '').strip()
+        if value and not value.startswith('@'):
+            value = '@' + value
+        return value or None
+
+    def clean_website(self):
+        value = (self.cleaned_data.get('website') or '').strip()
+        if value and '://' not in value:
+            value = 'https://' + value
+        return value or None
 
 
 class ArtworkForm(UserAwareModelForm):
@@ -243,8 +264,8 @@ class EventForm(UserAwareModelForm):
         )
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
-            'start': forms.TimeInput(attrs={'type': 'time'}),
-            'end': forms.TimeInput(attrs={'type': 'time'}),
+            'start': forms.TimeInput(attrs={'type': 'time', 'step': '900'}),
+            'end': forms.TimeInput(attrs={'type': 'time', 'step': '900'}),
         }
 
     def __init__(self, *args, user=None, **kwargs):

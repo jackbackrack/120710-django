@@ -14,7 +14,7 @@ class Artist(models.Model):
     first_name = models.CharField(max_length=255, blank=True, default='')
     last_name = models.CharField(max_length=255, blank=True, default='')
     email = models.EmailField(max_length=255)
-    phone = models.CharField(max_length=255)
+    phone = models.CharField(max_length=255, blank=True, default='')
     website = models.URLField(max_length=255, blank=True, null=True)
     instagram = models.CharField(verbose_name='Instagram: your handle starting with @', max_length=255, blank=True, null=True)
     venmo = models.CharField(verbose_name='Venmo: your username starting with @', max_length=255, blank=True, null=True)
@@ -47,6 +47,21 @@ class Artist(models.Model):
 
         if self.first_name or self.last_name:
             self.name = ' '.join(part for part in [self.first_name, self.last_name] if part).strip()
+
+        if self.instagram:
+            self.instagram = self.instagram.strip()
+            if not self.instagram.startswith('@'):
+                self.instagram = '@' + self.instagram
+
+        if self.venmo:
+            self.venmo = self.venmo.strip()
+            if not self.venmo.startswith('@'):
+                self.venmo = '@' + self.venmo
+
+        if self.website:
+            self.website = self.website.strip()
+            if self.website and '://' not in self.website:
+                self.website = 'https://' + self.website
 
         self.slug = build_unique_slug(self, self.name)
 
