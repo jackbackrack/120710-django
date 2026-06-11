@@ -167,7 +167,9 @@ def artwork_inquire(request, pk):
     else:
         initial = {}
         if request.user.is_authenticated:
-            initial['sender_name'] = request.user.get_full_name() or request.user.email
+            full_name = request.user.get_full_name()
+            if full_name:
+                initial['sender_name'] = full_name
             initial['sender_email'] = request.user.email
         form = ArtworkInquiryForm(initial=initial)
 

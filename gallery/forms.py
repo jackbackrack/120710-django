@@ -17,8 +17,10 @@ def _captcha_field():
 
 
 class ArtworkInquiryForm(forms.Form):
-    sender_name = forms.CharField(max_length=150, label='Your name')
-    sender_email = forms.EmailField(label='Your email address')
+    sender_name = forms.CharField(max_length=150, label='Your name',
+                                  widget=forms.TextInput(attrs={'placeholder': 'Jane Doe'}))
+    sender_email = forms.EmailField(label='Your email address',
+                                    widget=forms.EmailInput(attrs={'placeholder': 'jane@doe.com'}))
     message = forms.CharField(widget=forms.Textarea(attrs={'rows': 5}), label='Message')
     captcha = _captcha_field()
 
