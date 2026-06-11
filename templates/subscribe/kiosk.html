@@ -49,7 +49,7 @@
       {% csrf_token %}
       {% render_honeypot_field %}
       {% for field in form %}
-        {% if field.name != 'captcha' %}
+        {% if field.name != 'captcha' and field.name != 'address' %}
         <div class="mb-3">
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>
           {{ field }}
