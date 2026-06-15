@@ -4,9 +4,9 @@
 {% block block_title %}{{ artist.full_name }}{% endblock %}
 
 {% block content %}
-{% if can_manage_artist and not artist.image %}
+{% if can_manage_artist and missing_profile_fields %}
 <div class="alert alert-warning text-center mx-3 mt-3">
-  Your artist profile has no photo. <a href="{% url 'gallery:artist_edit' artist.pk %}">Add one now</a> so you can submit work to shows.
+  Your artist profile is missing: {{ missing_profile_fields|join:", " }}. <a href="{% url 'gallery:artist_edit' artist.pk %}">Complete it now</a> so you can submit work to shows.
 </div>
 {% endif %}
 <div class="cards">

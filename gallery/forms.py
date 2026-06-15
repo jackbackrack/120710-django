@@ -57,14 +57,14 @@ class ArtistForm(UserAwareModelForm):
             'first_name',
             'last_name',
             'email',
-            'phone',
             'zipcode',
+            'image',
+            'phone',
             'website',
             'instagram',
             'venmo',
             'bio',
             'statement',
-            'image',
             'user',
         )
         widgets = {
@@ -74,7 +74,6 @@ class ArtistForm(UserAwareModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
-        self.fields['zipcode'].required = True
         if not is_staff_user(self.user):
             self.fields.pop('user')
         else:
@@ -84,7 +83,7 @@ class ArtistForm(UserAwareModelForm):
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()
-        if not re.match(r'^\d{5}(-\d{4})?$', value):
+        if value and not re.match(r'^\d{5}(-\d{4})?$', value):
             raise forms.ValidationError('Enter a valid US zip code (e.g. 94710 or 94710-1234).')
         return value
 

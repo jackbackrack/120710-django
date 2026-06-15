@@ -260,8 +260,20 @@ def artwork_submit(request, slug):
     if not artist:
         return redirect(show)
 
+    missing = []
     if not artist.image:
-        messages.error(request, 'Please complete your artist profile by adding a photo before submitting to a show.')
+        missing.append('photo')
+    if not artist.first_name:
+        missing.append('first name')
+    if not artist.last_name:
+        missing.append('last name')
+    if not artist.zipcode:
+        missing.append('zip code')
+    if missing:
+        messages.error(
+            request,
+            f'Please complete your artist profile before submitting — missing: {", ".join(missing)}.',
+        )
         return redirect(reverse('gallery:artist_edit', kwargs={'pk': artist.pk}))
 
     if show.submission_type == Show.SUBMISSION_INVITED:
