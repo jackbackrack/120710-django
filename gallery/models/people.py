@@ -15,6 +15,7 @@ class Artist(models.Model):
     last_name = models.CharField(max_length=255, blank=True, default='')
     email = models.EmailField(max_length=255)
     phone = models.CharField(max_length=255, blank=True, default='')
+    zipcode = models.CharField(max_length=10, blank=True, default='')
     website = models.URLField(max_length=255, blank=True, null=True)
     instagram = models.CharField(verbose_name='Instagram: your handle starting with @', max_length=255, blank=True, null=True)
     venmo = models.CharField(verbose_name='Venmo: your username starting with @', max_length=255, blank=True, null=True)

@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -56,6 +58,7 @@ class ArtistForm(UserAwareModelForm):
             'last_name',
             'email',
             'phone',
+            'zipcode',
             'website',
             'instagram',
             'venmo',
@@ -66,16 +69,24 @@ class ArtistForm(UserAwareModelForm):
         )
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel', 'placeholder': '+1 (555) 555-5555'}),
+            'zipcode': forms.TextInput(attrs={'placeholder': '94710', 'maxlength': '10'}),
         }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
+        self.fields['zipcode'].required = True
         if not is_staff_user(self.user):
             self.fields.pop('user')
         else:
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
+
+    def clean_zipcode(self):
+        value = (self.cleaned_data.get('zipcode') or '').strip()
+        if not re.match(r'^\d{5}(-\d{4})?$', value):
+            raise forms.ValidationError('Enter a valid US zip code (e.g. 94710 or 94710-1234).')
+        return value
 
     def clean_instagram(self):
         value = (self.cleaned_data.get('instagram') or '').strip()
