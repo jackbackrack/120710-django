@@ -12,6 +12,7 @@ from gallery.views.artworks import (
     ArtworkDetailView,
     ArtworkListView,
     ArtworkUpdateView,
+    artwork_image_delete,
     artwork_inquire,
     detail,
 )

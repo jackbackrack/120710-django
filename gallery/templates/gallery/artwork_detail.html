@@ -55,7 +55,14 @@
   {% if img.image %}
   <div class="card">
     <img loading="lazy" src="{{ img.card_sm.url }}" data-full-src="{{ img.card_md.url }}" class="card__image zoomable">
-    <div class="card__info"></div>
+    {% if can_manage_artwork %}
+    <div class="card__info">
+      <form method="post" action="{% url 'gallery:artwork_image_delete' img.pk %}" style="display:inline" onsubmit="return confirm('Delete this image?')">
+        {% csrf_token %}
+        <button type="submit" class="card__link" style="background:none;border:none;padding:0;cursor:pointer;">Delete</button>
+      </form>
+    </div>
+    {% endif %}
   </div>
   {% endif %}
   {% endfor %}

@@ -2,7 +2,9 @@ from eatart.schemaorg.mappers import artwork_to_schema
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -11,7 +13,7 @@ from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
-from gallery.models import Artwork, Tag
+from gallery.models import Artwork, ArtworkImage, Tag
 from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
@@ -208,3 +210,15 @@ def artwork_inquire(request, pk):
         'artwork': artwork,
         'form': form,
     })
+
+
+@login_required
+def artwork_image_delete(request, pk):
+    img = get_object_or_404(ArtworkImage, pk=pk)
+    if not can_manage_artwork(request.user, img.artwork):
+        raise PermissionDenied
+    if request.method == 'POST':
+        artwork = img.artwork
+        img.delete()
+        return redirect(artwork.get_absolute_url())
+    raise PermissionDenied

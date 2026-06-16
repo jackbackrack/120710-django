@@ -125,15 +125,18 @@ class ArtworkImageForm(forms.ModelForm):
             raise forms.ValidationError('Image file too large — maximum size is 50 MB.')
         return image
 
+    def has_changed(self):
+        if not self.instance.pk:
+            image_value = self.fields['image'].value_from_datadict(
+                self.data, self.files, self.add_prefix('image')
+            )
+            if not image_value:
+                return False
+        return super().has_changed()
+
     def clean_order(self):
         value = self.cleaned_data.get('order')
         return value if value is not None else 0
-
-    def clean(self):
-        cleaned = super().clean()
-        if not self.instance.pk and not cleaned.get('image') and not cleaned.get('DELETE'):
-            raise forms.ValidationError('Please select an image file.')
-        return cleaned
 
 
 ArtworkImageFormSet = forms.inlineformset_factory(
