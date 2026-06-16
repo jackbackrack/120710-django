@@ -5,6 +5,37 @@
 <h1>Edit</h1>
 <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
   {% crispy form %}
+
+  <hr class="my-4">
+  <h5>Supplemental Images</h5>
+  <p class="text-muted small">Extra photos showing detail, angles, or context. Each must be under 50 MB.</p>
+  {{ image_formset.management_form }}
+  <div id="image-formset-container">
+  {% for img_form in image_formset %}
+  <div class="mb-3 border rounded p-2 image-form-row">
+    {% if img_form.instance.pk %}
+      <div class="d-flex align-items-center gap-3">
+        <img loading="lazy" src="{{ img_form.instance.card_sm.url }}" style="width:80px;height:auto;">
+        {{ img_form.id }}
+        <label class="mb-0 form-label me-1">Order</label>{{ img_form.order }}
+        <label class="mb-0 form-check-label ms-3">{{ img_form.DELETE }} Delete</label>
+        {% if img_form.errors %}<div class="text-danger small">{{ img_form.errors }}</div>{% endif %}
+      </div>
+    {% else %}
+      {{ img_form.id }}
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        {{ img_form.image }}
+        <label class="mb-0 form-label">Order</label>{{ img_form.order }}
+      </div>
+      {% if img_form.image.errors %}<div class="text-danger small">{{ img_form.image.errors }}</div>{% endif %}
+    {% endif %}
+  </div>
+  {% endfor %}
+  </div>
+  <div class="mb-3">
+    <button type="button" id="add-image-btn" class="btn btn-outline-secondary btn-sm">+ Add another image</button>
+  </div>
+
   <button class="btn btn-info ms-2" type="submit">Update</button>
 </form>
 {% endblock content %}
@@ -51,6 +82,29 @@
     typeEl.addEventListener('change', updatePriceField);
     updatePriceField();
   }
+
 }());
+</script>
+
+<script>
+document.getElementById('add-image-btn').addEventListener('click', function () {
+  var prefix = '{{ image_formset.prefix }}';
+  var totalInput = document.querySelector('[name="' + prefix + '-TOTAL_FORMS"]');
+  var container = document.getElementById('image-formset-container');
+  if (!totalInput || !container) return;
+  var idx = parseInt(totalInput.value);
+  var p = prefix + '-' + idx;
+  var row = document.createElement('div');
+  row.className = 'mb-3 border rounded p-2 image-form-row';
+  row.innerHTML =
+    '<input type="hidden" name="' + p + '-id">' +
+    '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+    '<input type="file" name="' + p + '-image" id="id_' + p + '-image" accept="image/*">' +
+    '<label class="mb-0 form-label">Order</label>' +
+    '<input type="number" name="' + p + '-order" id="id_' + p + '-order" style="width:4em" min="1">' +
+    '</div>';
+  container.appendChild(row);
+  totalInput.value = idx + 1;
+});
 </script>
 {% endblock %}

@@ -8,6 +8,17 @@ from gallery.models.people import Artist
 from gallery.models.slugs import build_unique_slug
 
 
+class ArtworkImage(models.Model):
+    artwork = models.ForeignKey('Artwork', related_name='supplemental_images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='artwork_images')
+    order = models.IntegerField(default=0)
+    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+
+    class Meta:
+        ordering = ['order', 'pk']
+
+
 class Artwork(models.Model):
     name = models.CharField(max_length=255, help_text='Title of artwork')
     slug = models.SlugField(max_length=255, unique=True, blank=True)

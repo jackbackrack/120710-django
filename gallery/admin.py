@@ -1,7 +1,7 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 
-from gallery.models import Artist, Artwork, Event, LinkTreeEntry, Show, ShowInvitation, Tag
+from gallery.models import Artist, Artwork, ArtworkImage, Event, LinkTreeEntry, Show, ShowInvitation, Tag
 from reviews.models import ShowJuror
 
 
@@ -16,6 +16,12 @@ class ArtworkInline(admin.TabularInline):
     verbose_name_plural = "Artworks"
 
 
+class ArtworkImageInline(admin.TabularInline):
+    model = ArtworkImage
+    extra = 1
+    fields = ['image', 'order']
+
+
 class ShowJurorInline(admin.TabularInline):
     model = ShowJuror
     extra = 0
@@ -23,12 +29,16 @@ class ShowJurorInline(admin.TabularInline):
     readonly_fields = ['assigned_at']
 
 
+class ArtworkAdmin(ImportExportAdmin):
+    inlines = [ArtworkImageInline]
+
+
 class ShowAdmin(ImportExportAdmin):
     filter_horizontal = ['curators', 'tags']
     inlines = [ArtworkInline, ShowJurorInline]
 
 
-admin.site.register(Artwork, ImportExportAdmin)
+admin.site.register(Artwork, ArtworkAdmin)
 admin.site.register(Artist, ImportExportAdmin)
 admin.site.register(Show, ShowAdmin)
 admin.site.register(ShowInvitation)

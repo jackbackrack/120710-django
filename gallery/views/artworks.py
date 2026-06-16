@@ -10,7 +10,7 @@ from django.urls import reverse_lazy
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
-from gallery.forms import ArtworkForm, ArtworkInquiryForm
+from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
 from gallery.models import Artwork, Tag
 from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
@@ -78,6 +78,32 @@ class ArtworkUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if 'image_formset' not in context:
+            context['image_formset'] = ArtworkImageFormSet(instance=self.object)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        image_formset = ArtworkImageFormSet(request.POST, request.FILES, instance=self.object)
+        if form.is_valid() and image_formset.is_valid():
+            response = self.form_valid(form)
+            image_formset.save()
+            self._renumber_supplemental_images()
+            return response
+        return self.render_to_response(
+            self.get_context_data(form=form, image_formset=image_formset)
+        )
+
+    def _renumber_supplemental_images(self):
+        images = list(self.object.supplemental_images.order_by('order', 'pk'))
+        for i, img in enumerate(images, start=1):
+            if img.order != i:
+                img.order = i
+                img.save(update_fields=['order'])
 
     def form_valid(self, form):
         response = super().form_valid(form)

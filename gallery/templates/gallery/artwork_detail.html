@@ -48,6 +48,17 @@
   </div>
 </div>
 </div>
+{% if artwork.supplemental_images.exists %}
+<div class="text-center section-label"><h2>Supplemental Images</h2></div>
+<div class="cards">
+  {% for img in artwork.supplemental_images.all %}
+  <div class="card">
+    <img loading="lazy" src="{{ img.card_sm.url }}" data-full-src="{{ img.card_md.url }}" class="card__image zoomable">
+    <div class="card__info"></div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 <div class="text-center section-label"><h2>Shows</h2></div>
 <div class="cards">
   {% for show in artwork.shows.all %}

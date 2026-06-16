@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Field, Row, Column, HTML
 
-from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, Tag
+from gallery.models import Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show, Tag
 from gallery.permissions import is_curator_user, is_staff_user
 
 
@@ -104,6 +104,34 @@ class ArtistForm(UserAwareModelForm):
         if value and '://' not in value:
             value = 'https://' + value
         return value or None
+
+
+class ArtworkImageForm(forms.ModelForm):
+    class Meta:
+        model = ArtworkImage
+        fields = ['image', 'order']
+        widgets = {
+            'order': forms.NumberInput(attrs={'style': 'width:4em', 'min': '1'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['image'].required = False
+        self.fields['order'].required = False
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image and hasattr(image, 'size') and image.size > MAX_IMAGE_SIZE:
+            raise forms.ValidationError('Image file too large — maximum size is 50 MB.')
+        return image
+
+
+ArtworkImageFormSet = forms.inlineformset_factory(
+    Artwork, ArtworkImage,
+    form=ArtworkImageForm,
+    extra=1,
+    can_delete=True,
+)
 
 
 class ArtworkForm(UserAwareModelForm):
