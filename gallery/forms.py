@@ -127,7 +127,7 @@ class ArtworkImageForm(forms.ModelForm):
 
     def has_changed(self):
         if not self.instance.pk:
-            image_value = self.fields['image'].value_from_datadict(
+            image_value = self.fields['image'].widget.value_from_datadict(
                 self.data, self.files, self.add_prefix('image')
             )
             if not image_value:
