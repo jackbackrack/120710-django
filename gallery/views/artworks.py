@@ -99,6 +99,7 @@ class ArtworkUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         )
 
     def _renumber_supplemental_images(self):
+        self.object.supplemental_images.filter(image='').delete()
         images = list(self.object.supplemental_images.order_by('order', 'pk'))
         for i, img in enumerate(images, start=1):
             if img.order != i:

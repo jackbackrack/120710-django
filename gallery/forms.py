@@ -125,6 +125,12 @@ class ArtworkImageForm(forms.ModelForm):
             raise forms.ValidationError('Image file too large — maximum size is 50 MB.')
         return image
 
+    def clean(self):
+        cleaned = super().clean()
+        if not self.instance.pk and not cleaned.get('image') and not cleaned.get('DELETE'):
+            raise forms.ValidationError('Please select an image file.')
+        return cleaned
+
 
 ArtworkImageFormSet = forms.inlineformset_factory(
     Artwork, ArtworkImage,

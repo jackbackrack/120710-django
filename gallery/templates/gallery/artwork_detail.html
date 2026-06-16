@@ -52,10 +52,12 @@
 <div class="text-center section-label"><h2>Supplemental Images</h2></div>
 <div class="cards">
   {% for img in artwork.supplemental_images.all %}
+  {% if img.image %}
   <div class="card">
     <img loading="lazy" src="{{ img.card_sm.url }}" data-full-src="{{ img.card_md.url }}" class="card__image zoomable">
     <div class="card__info"></div>
   </div>
+  {% endif %}
   {% endfor %}
 </div>
 {% endif %}
