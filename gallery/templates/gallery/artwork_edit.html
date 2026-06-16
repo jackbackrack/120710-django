@@ -87,24 +87,30 @@
 </script>
 
 <script>
-document.getElementById('add-image-btn').addEventListener('click', function () {
+(function () {
   var prefix = '{{ image_formset.prefix }}';
   var totalInput = document.querySelector('[name="' + prefix + '-TOTAL_FORMS"]');
+  var initialInput = document.querySelector('[name="' + prefix + '-INITIAL_FORMS"]');
   var container = document.getElementById('image-formset-container');
-  if (!totalInput || !container) return;
-  var idx = parseInt(totalInput.value);
-  var p = prefix + '-' + idx;
-  var row = document.createElement('div');
-  row.className = 'mb-3 border rounded p-2 image-form-row';
-  row.innerHTML =
-    '<input type="hidden" name="' + p + '-id">' +
-    '<div class="d-flex align-items-center gap-2 flex-wrap">' +
-    '<input type="file" name="' + p + '-image" id="id_' + p + '-image" accept="image/*">' +
-    '<label class="mb-0 form-label">Order</label>' +
-    '<input type="number" name="' + p + '-order" id="id_' + p + '-order" style="width:4em" min="1">' +
-    '</div>';
-  container.appendChild(row);
-  totalInput.value = idx + 1;
-});
+  var nextOrder = (initialInput ? parseInt(initialInput.value) : 0) + 1;
+
+  document.getElementById('add-image-btn').addEventListener('click', function () {
+    if (!totalInput || !container) return;
+    var idx = parseInt(totalInput.value);
+    var p = prefix + '-' + idx;
+    var row = document.createElement('div');
+    row.className = 'mb-3 border rounded p-2 image-form-row';
+    row.innerHTML =
+      '<input type="hidden" name="' + p + '-id">' +
+      '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+      '<input type="file" name="' + p + '-image" id="id_' + p + '-image" accept="image/*">' +
+      '<label class="mb-0 form-label">Order</label>' +
+      '<input type="number" name="' + p + '-order" id="id_' + p + '-order" style="width:4em" min="1" value="' + nextOrder + '">' +
+      '</div>';
+    container.appendChild(row);
+    totalInput.value = idx + 1;
+    nextOrder++;
+  });
+}());
 </script>
 {% endblock %}

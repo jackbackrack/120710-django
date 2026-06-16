@@ -82,7 +82,11 @@ class ArtworkUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if 'image_formset' not in context:
-            context['image_formset'] = ArtworkImageFormSet(instance=self.object)
+            formset = ArtworkImageFormSet(instance=self.object)
+            next_order = self.object.supplemental_images.count() + 1
+            for form in formset.extra_forms:
+                form.initial['order'] = next_order
+            context['image_formset'] = formset
         return context
 
     def post(self, request, *args, **kwargs):
