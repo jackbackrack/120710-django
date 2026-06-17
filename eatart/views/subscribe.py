@@ -4,7 +4,7 @@ from django.shortcuts import redirect, render
 from honeypot.decorators import check_honeypot
 from mailchimp_marketing.api_client import ApiClientError
 
-from eatart.forms.subscribe import SubscribeForm
+from eatart.forms.subscribe import KioskSubscribeForm, SubscribeForm
 from eatart.services.mailchimp import subscribe_to_mailing_list
 
 
@@ -35,7 +35,7 @@ def subscribe(request):
 def subscribe_kiosk(request):
     success = failure = None
     if request.method == 'POST':
-        form = SubscribeForm(request.POST)
+        form = KioskSubscribeForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data['email']
             try:
@@ -47,9 +47,9 @@ def subscribe_kiosk(request):
                 success = f'Thanks! {email} has been subscribed.'
             except ApiClientError:
                 failure = f'Something went wrong — {email} could not be subscribed.'
-            form = SubscribeForm()
+            form = KioskSubscribeForm()
     else:
-        form = SubscribeForm()
+        form = KioskSubscribeForm()
 
     return render(request, 'subscribe/kiosk.html', {
         'form': form,
