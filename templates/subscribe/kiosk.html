@@ -17,6 +17,7 @@
     .result-box.success { background: #d1e7dd; color: #0f5132; border: 2px solid #0f5132; }
     .result-box.failure { background: #f8d7da; color: #842029; border: 2px solid #842029; }
     .countdown { font-size: 1rem; font-weight: normal; color: inherit; }
+    #div_id_address, .honeypot { display: none; }
   </style>
 </head>
 <body>
@@ -41,9 +42,10 @@
     <h1 class="text-center">Join our mailing list</h1>
     <p class="lead text-center">Stay informed about upcoming shows and events at 120710.</p>
 
-    {% load crispy_forms_tags %}
+    {% load crispy_forms_tags honeypot %}
     <form method="post">
       {% csrf_token %}
+      {% render_honeypot_field %}
       {{ form|crispy }}
       <div class="text-center mt-4">
         <button class="btn btn-success btn-submit" type="submit">Sign up</button>
