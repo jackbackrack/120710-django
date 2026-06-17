@@ -20,7 +20,7 @@ urlpatterns = [
     path('howto/', howto, name='howto'),
     path('links/', linktree, name='linktree'),
     path('subscribe/', subscribe, name='subscribe'),
-    path('subscribe/kiosk/', subscribe_kiosk, name='subscribe_kiosk'),
+    path('subscribe/kiosk/<str:token>/', subscribe_kiosk, name='subscribe_kiosk'),
     path('accounts/artist_user_new/', ArtistUserCreateView.as_view()),
     path('accounts/claim-artist/', claim_artist, name='claim_artist'),
     path('accounts/link-artists/', link_artist_to_user, name='link_artist_to_user'),

@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import redirect, render
 
 from honeypot.decorators import check_honeypot
@@ -32,7 +34,10 @@ def subscribe(request):
 
 
 @check_honeypot()
-def subscribe_kiosk(request):
+def subscribe_kiosk(request, token):
+    kiosk_token = settings.KIOSK_TOKEN
+    if not kiosk_token or token != kiosk_token:
+        raise Http404
     success = failure = None
     if request.method == 'POST':
         form = KioskSubscribeForm(request.POST)
