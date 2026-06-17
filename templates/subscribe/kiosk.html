@@ -12,14 +12,11 @@
     .kiosk-wrap { max-width: 600px; margin: 80px auto; padding: 40px; background: #fff; border: 2px solid #333; }
     h1 { font-size: 2rem; margin-bottom: 0.25em; }
     p.lead { font-size: 1.2rem; color: #555; margin-bottom: 1.5em; }
-    label { font-size: 1.1rem; font-weight: 600; }
-    input.form-control { font-size: 1.2rem; padding: 0.6rem 0.9rem; margin-bottom: 1rem; }
     .btn-submit { font-size: 1.3rem; padding: 0.6rem 2.5rem; }
     .result-box { font-size: 1.4rem; font-weight: bold; padding: 1.5rem; border-radius: 6px; margin-bottom: 1.5rem; }
     .result-box.success { background: #d1e7dd; color: #0f5132; border: 2px solid #0f5132; }
     .result-box.failure { background: #f8d7da; color: #842029; border: 2px solid #842029; }
     .countdown { font-size: 1rem; font-weight: normal; color: inherit; }
-    #div_id_address, .honeypot { display: none; }
   </style>
 </head>
 <body>
@@ -44,19 +41,10 @@
     <h1 class="text-center">Join our mailing list</h1>
     <p class="lead text-center">Stay informed about upcoming shows and events at 120710.</p>
 
-    {% load crispy_forms_tags honeypot %}
+    {% load crispy_forms_tags %}
     <form method="post">
       {% csrf_token %}
-      {% render_honeypot_field %}
-      {% for field in form %}
-        {% if field.name != 'captcha' and field.name != 'address' %}
-        <div class="mb-3">
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<p class="text-danger small">{{ field.errors|join:", " }}</p>{% endif %}
-        </div>
-        {% endif %}
-      {% endfor %}
+      {{ form|crispy }}
       <div class="text-center mt-4">
         <button class="btn btn-success btn-submit" type="submit">Sign up</button>
       </div>
