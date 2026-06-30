@@ -8,10 +8,13 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ArtistForm
 from gallery.models import Artist, Tag
+from django.db.models import Max
+
 from gallery.permissions import (
     can_delete_artist,
     can_manage_artist,
     is_artist_user,
+    is_curator_user,
     is_staff_user,
     tag_filter_queryset,
     visible_artist_queryset,
@@ -46,6 +49,23 @@ class ArtistMailChimpView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
     def test_func(self):
         return is_staff_user(self.request.user)
+
+
+class ArtistEmailListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    template_name = 'gallery/artist_email_list.html'
+    context_object_name = 'artists'
+
+    def get_queryset(self):
+        return (
+            Artist.objects
+            .filter(email__isnull=False)
+            .exclude(email='')
+            .annotate(latest_artwork=Max('artworks__created_at'))
+            .order_by('-latest_artwork')
+        )
+
+    def test_func(self):
+        return is_staff_user(self.request.user) or is_curator_user(self.request.user)
 
 
 class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView):
