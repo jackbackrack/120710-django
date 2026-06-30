@@ -67,13 +67,15 @@ def artist_email_list(request):
         .filter(email__isnull=False)
         .exclude(email='')
         .annotate(latest_artwork=Max('artworks__created_at'))
+        .select_related('user')
     )
-    rows = [
-        {'name': a.name, 'email': a.email, 'latest_artwork': a.latest_artwork, 'url': a.get_absolute_url()}
-        for a in artists
-    ]
+    rows = []
+    for a in artists:
+        date = a.latest_artwork or (a.user.date_joined if a.user else None)
+        rows.append({'name': a.name, 'email': a.email, 'date': date,
+                     'date_is_artwork': bool(a.latest_artwork), 'url': a.get_absolute_url()})
 
-    # Users with no artist record who have email addresses
+    # Users with no artist record who have email addresses — use account creation date
     artist_user_ids = Artist.objects.filter(user__isnull=False).values_list('user_id', flat=True)
     orphan_users = (
         User.objects
@@ -82,10 +84,11 @@ def artist_email_list(request):
         .exclude(pk__in=artist_user_ids)
     )
     for u in orphan_users:
-        rows.append({'name': u.get_full_name() or u.email, 'email': u.email, 'latest_artwork': None, 'url': None})
+        rows.append({'name': u.get_full_name() or u.email, 'email': u.email,
+                     'date': u.date_joined, 'date_is_artwork': False, 'url': None})
 
-    # Sort: rows with a date newest first, rows with no date at the bottom
-    rows.sort(key=lambda r: (r['latest_artwork'] is None, -(r['latest_artwork'].timestamp() if r['latest_artwork'] else 0)))
+    # Sort newest first; rows with no date at the bottom
+    rows.sort(key=lambda r: (r['date'] is None, -(r['date'].timestamp() if r['date'] else 0)))
 
     return render(request, 'gallery/artist_email_list.html', {'rows': rows})
 
