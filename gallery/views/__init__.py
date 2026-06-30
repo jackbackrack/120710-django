@@ -31,6 +31,7 @@ from gallery.views.exhibitions import (
     ShowInstagramView,
     ShowListView,
     ShowPlacardsView,
+    ShowRubricView,
     ShowUpdateView,
     redirect_to_latest_show,
     transition_show_status,

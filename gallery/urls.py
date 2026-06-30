@@ -38,6 +38,7 @@ from gallery.views import (
     ShowInstagramView,
     ShowListView,
     ShowPlacardsView,
+    ShowRubricView,
     ShowUpdateView,
     redirect_to_latest_show,
 )
@@ -83,6 +84,8 @@ urlpatterns = [
     path('show/instagram/<int:pk>/', ShowInstagramView.as_view(), name='show_instagram_detail'),
     re_path(r'^show/instagram/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ShowInstagramView.as_view(), name='show_instagram_detail'),
     path('show/<int:pk>/transition/', transition_show_status, name='transition_show_status'),
+    path('show/<int:pk>/rubric/', ShowRubricView.as_view(), name='show_rubric'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/rubric/$', ShowRubricView.as_view(), name='show_rubric'),
     path('show/<int:pk>/edit/', ShowUpdateView.as_view(), name='show_edit'),
     path('show/<int:pk>/delete/', ShowDeleteView.as_view(), name='show_delete'),
     path('show/new/', ShowCreateView.as_view(), name='show_new'),

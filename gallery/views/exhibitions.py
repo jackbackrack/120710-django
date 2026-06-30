@@ -104,6 +104,7 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['pending_submissions'] = pending_submissions
         from reviews.models import ShowJuror
         context['jurors'] = list(ShowJuror.objects.filter(show=show).select_related('user').order_by('user__last_name'))
+        context['rubric_criteria_count'] = show.rubric_criteria.count()
         allowed = show.get_valid_transitions().get(show.status, [])
         status_choices = dict(Show.STATUS_CHOICES)
         context['allowed_transitions'] = [(s, status_choices[s]) for s in allowed]
@@ -159,6 +160,21 @@ class ShowInstagramView(CanonicalSlugRedirectMixin, DetailView):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object')
         context['artworks'] = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).order_by('artists__name', 'name').distinct()
+        return context
+
+
+class ShowRubricView(CanonicalSlugRedirectMixin, DetailView):
+    model = Show
+    template_name = 'gallery/show_rubric.html'
+    canonical_url_name = 'gallery:show_rubric'
+
+    def get_queryset(self):
+        qs = Show.objects.all()
+        return visible_show_queryset(qs, self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['criteria'] = self.object.rubric_criteria.all()
         return context
 
 

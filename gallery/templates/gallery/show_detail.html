@@ -40,6 +40,7 @@
           <p><strong>Invitation Only</strong> &mdash; Accepting submissions</p>
           {% if user.is_authenticated and not has_invitation %}<p class="text-gray-500 text-sm">Submissions to this show are by invitation only.</p>{% endif %}
         {% endif %}
+        {% if rubric_criteria_count > 1 %}<p class="text-gray-500 text-sm"><strong>Rubric:</strong> <a class="card__link" href="{% url 'gallery:show_rubric' show.pk %}">View judging criteria</a></p>{% endif %}
         {% if show.submission_deadline %}
           {% if show.submission_type == 'open' or has_invitation or can_manage_show %}
             <p class="text-gray-500 text-sm"><strong>Submission deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ show.submission_deadline }}</span></p>
