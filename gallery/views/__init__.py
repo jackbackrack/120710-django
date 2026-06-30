@@ -2,10 +2,10 @@ from gallery.views.artists import (
     ArtistCreateView,
     ArtistDeleteView,
     ArtistDetailView,
-    ArtistEmailListView,
     ArtistListView,
     ArtistMailChimpView,
     ArtistUpdateView,
+    artist_email_list,
 )
 from gallery.views.artworks import (
     ArtworkCreateView,

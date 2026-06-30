@@ -1,7 +1,10 @@
 from eatart.schemaorg.mappers import artist_to_schema
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.shortcuts import redirect
+from django.http import Http404
+from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
@@ -51,21 +54,40 @@ class ArtistMailChimpView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return is_staff_user(self.request.user)
 
 
-class ArtistEmailListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    template_name = 'gallery/artist_email_list.html'
-    context_object_name = 'artists'
+@login_required
+def artist_email_list(request):
+    if not (is_staff_user(request.user) or is_curator_user(request.user)):
+        raise Http404
 
-    def get_queryset(self):
-        return (
-            Artist.objects
-            .filter(email__isnull=False)
-            .exclude(email='')
-            .annotate(latest_artwork=Max('artworks__created_at'))
-            .order_by('-latest_artwork')
-        )
+    User = get_user_model()
 
-    def test_func(self):
-        return is_staff_user(self.request.user) or is_curator_user(self.request.user)
+    # Artists with email addresses, annotated with latest artwork upload
+    artists = (
+        Artist.objects
+        .filter(email__isnull=False)
+        .exclude(email='')
+        .annotate(latest_artwork=Max('artworks__created_at'))
+    )
+    rows = [
+        {'name': a.name, 'email': a.email, 'latest_artwork': a.latest_artwork, 'url': a.get_absolute_url()}
+        for a in artists
+    ]
+
+    # Users with no artist record who have email addresses
+    artist_user_ids = Artist.objects.filter(user__isnull=False).values_list('user_id', flat=True)
+    orphan_users = (
+        User.objects
+        .filter(is_active=True)
+        .exclude(email='')
+        .exclude(pk__in=artist_user_ids)
+    )
+    for u in orphan_users:
+        rows.append({'name': u.get_full_name() or u.email, 'email': u.email, 'latest_artwork': None, 'url': None})
+
+    # Sort: rows with a date newest first, rows with no date at the bottom
+    rows.sort(key=lambda r: (r['latest_artwork'] is None, -(r['latest_artwork'].timestamp() if r['latest_artwork'] else 0)))
+
+    return render(request, 'gallery/artist_email_list.html', {'rows': rows})
 
 
 class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView):
