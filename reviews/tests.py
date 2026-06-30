@@ -357,13 +357,13 @@ class RubricCriteriaTests(TestCase):
             'form-MAX_NUM_FORMS': '1000',
             'form-0-name': 'Originality',
             'form-0-description': 'How original is the work?',
-            'form-0-weight': '2.0',
+            'form-0-percentage': '60',
             'form-0-order': '0',
         }, follow=True)
 
         self.assertEqual(response.status_code, 200)
         criterion = RubricCriterion.objects.get(show=self.show, name='Originality')
-        self.assertEqual(criterion.weight, 2.0)
+        self.assertEqual(criterion.percentage, 60.0)
         self.assertEqual(criterion.description, 'How original is the work?')
 
     def test_curator_can_create_multiple_criteria(self):
@@ -375,11 +375,11 @@ class RubricCriteriaTests(TestCase):
             'form-MAX_NUM_FORMS': '1000',
             'form-0-name': 'Originality',
             'form-0-description': '',
-            'form-0-weight': '2.0',
+            'form-0-percentage': '60',
             'form-0-order': '0',
             'form-1-name': 'Technical Quality',
             'form-1-description': '',
-            'form-1-weight': '1.0',
+            'form-1-percentage': '40',
             'form-1-order': '10',
         })
 
@@ -387,7 +387,7 @@ class RubricCriteriaTests(TestCase):
 
     def test_curator_can_delete_criterion(self):
         criterion = RubricCriterion.objects.create(
-            show=self.show, name='To Delete', weight=1.0, order=0
+            show=self.show, name='To Delete', percentage=100.0, order=0
         )
         self.client.force_login(self.manager_user)
         self.client.post(self.rubric_url, {
@@ -398,7 +398,7 @@ class RubricCriteriaTests(TestCase):
             'form-0-id': str(criterion.pk),
             'form-0-name': 'To Delete',
             'form-0-description': '',
-            'form-0-weight': '1.0',
+            'form-0-percentage': '100',
             'form-0-order': '0',
             'form-0-DELETE': 'on',
         })
@@ -408,7 +408,7 @@ class RubricCriteriaTests(TestCase):
     # --- Juror scoring with criteria ---
 
     def test_review_form_shows_criterion_fields_when_rubric_defined(self):
-        RubricCriterion.objects.create(show=self.show, name='Originality', weight=1.0, order=0)
+        RubricCriterion.objects.create(show=self.show, name='Originality', percentage=100.0, order=0)
         self.client.force_login(self.juror_user)
 
         response = self.client.get(reverse(
@@ -421,7 +421,7 @@ class RubricCriteriaTests(TestCase):
 
     def test_juror_can_submit_criterion_scores(self):
         criterion = RubricCriterion.objects.create(
-            show=self.show, name='Originality', weight=1.0, order=0
+            show=self.show, name='Originality', percentage=100.0, order=0
         )
         self.client.force_login(self.juror_user)
 
@@ -442,7 +442,7 @@ class RubricCriteriaTests(TestCase):
 
     def test_juror_can_update_criterion_score(self):
         criterion = RubricCriterion.objects.create(
-            show=self.show, name='Originality', weight=1.0, order=0
+            show=self.show, name='Originality', percentage=100.0, order=0
         )
         review = ArtworkReview.objects.create(
             show=self.show, artwork=self.artwork, juror=self.juror_user, body='first'
@@ -462,7 +462,7 @@ class RubricCriteriaTests(TestCase):
 
     def test_criterion_score_is_required_when_rubric_defined(self):
         criterion = RubricCriterion.objects.create(
-            show=self.show, name='Originality', weight=1.0, order=0
+            show=self.show, name='Originality', percentage=100.0, order=0
         )
         self.client.force_login(self.juror_user)
 
@@ -481,7 +481,7 @@ class RubricCriteriaTests(TestCase):
 
     def test_dashboard_shows_weighted_score_when_criteria_defined(self):
         criterion = RubricCriterion.objects.create(
-            show=self.show, name='Originality', weight=1.0, order=0
+            show=self.show, name='Originality', percentage=100.0, order=0
         )
         review = ArtworkReview.objects.create(
             show=self.show, artwork=self.artwork, juror=self.juror_user
@@ -495,24 +495,24 @@ class RubricCriteriaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Weighted Score')
-        self.assertContains(response, '8.00/10')
+        self.assertContains(response, '8.00/100')
 
-    def test_weighted_score_uses_criterion_weights(self):
-        """Two criteria with weights 2 and 1; scores 6 and 9 → weighted avg = (6*2 + 9*1)/3 = 7.0"""
-        c1 = RubricCriterion.objects.create(show=self.show, name='Concept', weight=2.0, order=0)
-        c2 = RubricCriterion.objects.create(show=self.show, name='Craft', weight=1.0, order=1)
+    def test_weighted_score_uses_criterion_percentages(self):
+        """Two criteria with percentages 60 and 40; scores 60 and 90 → 60*0.6 + 90*0.4 = 72.0"""
+        c1 = RubricCriterion.objects.create(show=self.show, name='Concept', percentage=60.0, order=0)
+        c2 = RubricCriterion.objects.create(show=self.show, name='Craft', percentage=40.0, order=1)
         review = ArtworkReview.objects.create(
             show=self.show, artwork=self.artwork, juror=self.juror_user
         )
-        CriterionScore.objects.create(review=review, criterion=c1, score=6)
-        CriterionScore.objects.create(review=review, criterion=c2, score=9)
+        CriterionScore.objects.create(review=review, criterion=c1, score=60)
+        CriterionScore.objects.create(review=review, criterion=c2, score=90)
 
         self.client.force_login(self.manager_user)
         response = self.client.get(
             reverse('reviews:show_review_dashboard', kwargs={'show_slug': self.show.slug})
         )
 
-        self.assertContains(response, '7.00/10')
+        self.assertContains(response, '72.00/100')
 
     def test_dashboard_shows_avg_rating_when_no_criteria(self):
         ArtworkReview.objects.create(
@@ -531,7 +531,7 @@ class RubricCriteriaTests(TestCase):
 
     def test_curator_can_edit_juror_criterion_score(self):
         criterion = RubricCriterion.objects.create(
-            show=self.show, name='Originality', weight=1.0, order=0
+            show=self.show, name='Originality', percentage=100.0, order=0
         )
         review = ArtworkReview.objects.create(
             show=self.show, artwork=self.artwork, juror=self.juror_user, body='initial'
@@ -557,7 +557,7 @@ class RubricCriteriaTests(TestCase):
 
     def test_dashboard_shows_criterion_columns_in_all_reviews_table(self):
         criterion = RubricCriterion.objects.create(
-            show=self.show, name='Presentation', weight=1.0, order=0
+            show=self.show, name='Presentation', percentage=100.0, order=0
         )
         review = ArtworkReview.objects.create(
             show=self.show, artwork=self.artwork, juror=self.juror_user

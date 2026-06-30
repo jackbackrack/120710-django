@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
 from django.http import Http404
@@ -10,21 +11,20 @@ from reviews.models import ArtworkReview, CriterionScore, RubricCriterion, ShowJ
 
 
 def _compute_weighted_scores(show, criteria):
-    """Return {artwork_id: weighted_score} for artworks in the show."""
-    total_weight = sum(c.weight for c in criteria)
-    if not total_weight:
+    """Return {artwork_id: weighted_score} using percentage/100 as each criterion's factor."""
+    if not criteria:
         return {}
     rows = (
         CriterionScore.objects
         .filter(review__show=show)
-        .values('review__artwork_id', 'criterion_id', 'criterion__weight')
+        .values('review__artwork_id', 'criterion_id', 'criterion__percentage')
         .annotate(avg_score=Avg('score'))
     )
     sums = {}
     for row in rows:
         aid = row['review__artwork_id']
-        sums[aid] = sums.get(aid, 0.0) + row['avg_score'] * row['criterion__weight']
-    return {aid: total / total_weight for aid, total in sums.items()}
+        sums[aid] = sums.get(aid, 0.0) + row['avg_score'] * row['criterion__percentage'] / 100.0
+    return sums
 
 
 @login_required
@@ -253,7 +253,7 @@ def copy_rubric_from_show(request, show_slug):
                     show=show,
                     name=c.name,
                     description=c.description,
-                    weight=c.weight,
+                    percentage=c.percentage,
                     order=c.order,
                 )
     return redirect('reviews:manage_rubric_criteria', show_slug=show.slug)
@@ -276,6 +276,9 @@ def manage_rubric_criteria(request, show_slug):
                 instance.save()
             for obj in formset.deleted_objects:
                 obj.delete()
+            total_pct = sum(c.percentage for c in show.rubric_criteria.all())
+            if show.rubric_criteria.exists() and abs(total_pct - 100) > 0.01:
+                messages.warning(request, f'Percentages sum to {total_pct:g}%, not 100%.')
             return redirect('reviews:manage_rubric_criteria', show_slug=show.slug)
     else:
         formset = RubricCriterionFormSet(queryset=qs)

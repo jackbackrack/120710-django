@@ -36,8 +36,7 @@ class ArtworkReviewForm(forms.ModelForm):
 
         for criterion in self.criteria:
             field_key = f'criterion_{criterion.pk}'
-            weight_label = f'{criterion.weight:g}' if criterion.weight != int(criterion.weight) else str(int(criterion.weight))
-            label = f'{criterion.name} — weight {weight_label}'
+            label = f'{criterion.name} — {criterion.percentage:g}%'
             if criterion.description:
                 label += f' ({criterion.description})'
             self.fields[field_key] = forms.IntegerField(
@@ -70,12 +69,12 @@ class ArtworkReviewForm(forms.ModelForm):
 
 RubricCriterionFormSet = modelformset_factory(
     RubricCriterion,
-    fields=['name', 'description', 'weight', 'order'],
+    fields=['name', 'description', 'percentage', 'order'],
     extra=1,
     can_delete=True,
     widgets={
         'description': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Optional description shown to jurors'}),
-        'weight': forms.NumberInput(attrs={'step': '0.1', 'min': '0.1', 'style': 'width:5em'}),
+        'percentage': forms.NumberInput(attrs={'step': '1', 'min': '0', 'max': '100', 'style': 'width:5em'}),
         'order': forms.NumberInput(attrs={'min': '0', 'style': 'width:4em'}),
     },
 )

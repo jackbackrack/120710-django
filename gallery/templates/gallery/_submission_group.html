@@ -13,9 +13,9 @@
     <p class="mb-0">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
     <p class="mb-0" style="font-size:0.8em;color:#666">
       {% if criteria %}
-        {% if sub.weighted_score %}{{ sub.weighted_score|floatformat:1 }}/10 weighted{% else %}&mdash;{% endif %}
+        {% if sub.weighted_score %}{{ sub.weighted_score|floatformat:2 }}/100 weighted{% else %}&mdash;{% endif %}
       {% else %}
-        {% if sub.avg_rating %}{{ sub.avg_rating|floatformat:1 }}/10{% else %}&mdash;{% endif %}
+        {% if sub.avg_rating %}{{ sub.avg_rating|floatformat:1 }}/100{% else %}&mdash;{% endif %}
       {% endif %}
       &middot; {{ sub.review_count }} review{{ sub.review_count|pluralize }}
     </p>

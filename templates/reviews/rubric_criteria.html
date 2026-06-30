@@ -5,12 +5,13 @@
 
 {% block content %}
 <div class="container mt-3">
+    {% if messages %}{% for m in messages %}<div class="alert alert-warning">{{ m }}</div>{% endfor %}{% endif %}
     <h1 class="mb-2">Rubric Criteria</h1>
     <p class="text-muted">
-      Define weighted scoring criteria for jurors to use when reviewing artworks in this show.
-      Each criterion is scored 1–10 by each juror. The weighted average across all criteria
-      becomes the artwork's composite score.
-      Leave the criteria list empty to use a single overall 1–10 rating instead.
+      Define percentage-weighted scoring criteria for jurors to use when reviewing artworks in this show.
+      Each criterion is scored 0–100 by each juror. Each criterion's average score is multiplied by its
+      percentage ÷ 100 to produce the artwork's composite score. Percentages should sum to 100.
+      Leave the criteria list empty to use a single overall 0–100 rating instead.
     </p>
 
     <form method="post">
@@ -24,7 +25,7 @@
           <tr>
             <th>Name</th>
             <th>Description</th>
-            <th style="width:6em">Weight</th>
+            <th style="width:6em">%</th>
             <th style="width:5em">Order</th>
             <th style="width:4em">Delete</th>
           </tr>
@@ -35,7 +36,7 @@
             {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
             <td>{{ form.name }}</td>
             <td>{{ form.description }}</td>
-            <td>{{ form.weight }}</td>
+            <td>{{ form.percentage }}</td>
             <td>{{ form.order }}</td>
             <td>
               {% if form.instance.pk %}

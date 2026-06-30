@@ -37,11 +37,11 @@ class ShowJuror(models.Model):
 
 
 class RubricCriterion(models.Model):
-    """A weighted scoring criterion defined per show for jury evaluation."""
+    """A percentage-weighted scoring criterion defined per show for jury evaluation."""
     show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='rubric_criteria')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    weight = models.FloatField(default=1.0)
+    percentage = models.FloatField(default=0.0)
     order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
@@ -49,7 +49,7 @@ class RubricCriterion(models.Model):
         ordering = ['order', 'id']
 
     def __str__(self):
-        return f'{self.show.name}: {self.name} (weight={self.weight})'
+        return f'{self.show.name}: {self.name} ({self.percentage}%)'
 
 
 class ArtworkReview(models.Model):
