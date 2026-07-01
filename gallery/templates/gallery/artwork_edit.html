@@ -8,33 +8,27 @@
 
   <hr class="my-4">
   <h5>Supplemental Images</h5>
-  <p class="text-muted small">Extra photos showing detail, angles, or context. Each must be under 50 MB.</p>
+  <p class="text-muted small">Drag to reorder, or focus a card and use ← → arrow keys. Press Delete to remove. Max 50 MB each.</p>
   {{ image_formset.management_form }}
-  <div id="image-formset-container">
+  <div class="cards" id="image-sortable" style="justify-content:flex-start;">
   {% for img_form in image_formset %}
-  <div class="mb-3 border rounded p-2 image-form-row">
-    {% if img_form.instance.pk %}
-      <div class="d-flex align-items-center gap-3">
-        {% if img_form.instance.image %}<img loading="lazy" src="{{ img_form.instance.card_sm.url }}" style="width:80px;height:auto;">{% endif %}
-        {{ img_form.id }}
-        <label class="mb-0 form-label me-1">Order</label>{{ img_form.order }}
-        <label class="mb-0 form-check-label ms-3">{{ img_form.DELETE }} Delete</label>
-        {% if img_form.errors %}<div class="text-danger small">{{ img_form.errors }}</div>{% endif %}
-      </div>
-    {% else %}
+    <div class="card image-card" tabindex="0">
       {{ img_form.id }}
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        {{ img_form.image }}
-        <label class="mb-0 form-label">Order</label>{{ img_form.order }}
+      <input type="number" name="{{ img_form.prefix }}-order" class="order-input" value="{{ forloop.counter }}" style="display:none" min="1">
+      <input type="checkbox" name="{{ img_form.prefix }}-DELETE" class="delete-checkbox" style="display:none">
+      {% if img_form.instance.image %}
+        <img loading="lazy" src="{{ img_form.instance.card_sm.url }}" class="card__image" style="width:100%">
+      {% endif %}
+      <div class="card__info">
+        <button type="button" class="card__link delete-btn" style="background:none;border:none;padding:0;cursor:pointer;">Delete</button>
       </div>
-      {% if img_form.image.errors %}<div class="text-danger small">{{ img_form.image.errors }}</div>{% endif %}
-    {% endif %}
-  </div>
+    </div>
   {% endfor %}
+  <div id="add-image-card" style="display:flex;align-items:center;justify-content:center;width:175px;min-height:80px;cursor:pointer;border:2px dashed #999;background:#f5f5f5;" title="Add image">
+    <span style="font-size:2em;color:#999;">+</span>
   </div>
-  <div class="mb-3">
-    <button type="button" id="add-image-btn" class="btn btn-outline-secondary btn-sm">+ Add another image</button>
   </div>
+  <input type="file" id="image-file-input" accept="image/*" multiple style="display:none">
 
   <button class="btn btn-info ms-2" type="submit">Update</button>
 </form>
@@ -82,35 +76,154 @@
     typeEl.addEventListener('change', updatePriceField);
     updatePriceField();
   }
-
 }());
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>
 (function () {
   var prefix = '{{ image_formset.prefix }}';
   var totalInput = document.querySelector('[name="' + prefix + '-TOTAL_FORMS"]');
-  var initialInput = document.querySelector('[name="' + prefix + '-INITIAL_FORMS"]');
-  var container = document.getElementById('image-formset-container');
-  var nextOrder = (initialInput ? parseInt(initialInput.value) : 0) + 1;
+  var container = document.getElementById('image-sortable');
 
-  document.getElementById('add-image-btn').addEventListener('click', function () {
-    if (!totalInput || !container) return;
-    var idx = parseInt(totalInput.value);
-    var p = prefix + '-' + idx;
-    var row = document.createElement('div');
-    row.className = 'mb-3 border rounded p-2 image-form-row';
-    row.innerHTML =
-      '<input type="hidden" name="' + p + '-id">' +
-      '<div class="d-flex align-items-center gap-2 flex-wrap">' +
-      '<input type="file" name="' + p + '-image" id="id_' + p + '-image" accept="image/*">' +
-      '<label class="mb-0 form-label">Order</label>' +
-      '<input type="number" name="' + p + '-order" id="id_' + p + '-order" style="width:4em" min="1" value="' + nextOrder + '">' +
-      '</div>';
-    container.appendChild(row);
-    totalInput.value = idx + 1;
-    nextOrder++;
+  function updateOrder() {
+    var n = 1;
+    container.querySelectorAll('.image-card').forEach(function (card) {
+      var inp = card.querySelector('.order-input');
+      if (inp) inp.value = card.classList.contains('deleted') ? 0 : n++;
+    });
+  }
+
+  function markDeleted(card) {
+    card.classList.add('deleted');
+    card.style.opacity = '0.35';
+    var cb = card.querySelector('.delete-checkbox');
+    if (cb) cb.checked = true;
+    var btn = card.querySelector('.delete-btn');
+    if (btn) btn.textContent = 'Restore';
+    updateOrder();
+  }
+
+  function markRestored(card) {
+    card.classList.remove('deleted');
+    card.style.opacity = '';
+    var cb = card.querySelector('.delete-checkbox');
+    if (cb) cb.checked = false;
+    var btn = card.querySelector('.delete-btn');
+    if (btn) btn.textContent = 'Delete';
+    updateOrder();
+  }
+
+  function toggleDelete(card) {
+    if (card.classList.contains('deleted')) markRestored(card);
+    else markDeleted(card);
+  }
+
+  Sortable.create(container, {
+    animation: 150,
+    filter: '.deleted, #add-image-card',
+    onEnd: updateOrder,
   });
+
+  container.addEventListener('mousedown', function (e) {
+    var card = e.target.closest('.image-card');
+    if (card) card.focus();
+  });
+
+  container.addEventListener('click', function (e) {
+    var btn = e.target.closest('.delete-btn');
+    if (btn) toggleDelete(btn.closest('.image-card'));
+  });
+
+  container.addEventListener('keydown', function (e) {
+    var card = e.target.closest('.image-card');
+    if (!card) return;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      var prev = card.previousElementSibling;
+      while (prev && prev.classList.contains('deleted')) prev = prev.previousElementSibling;
+      if (prev) { container.insertBefore(card, prev); card.focus(); updateOrder(); }
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      var next = card.nextElementSibling;
+      while (next && next.classList.contains('deleted')) next = next.nextElementSibling;
+      if (next) { container.insertBefore(next, card); card.focus(); updateOrder(); }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      toggleDelete(card);
+    }
+  });
+
+  var fileInput = document.getElementById('image-file-input');
+  document.getElementById('add-image-card').addEventListener('click', function () {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change', function () {
+    var addCard = document.getElementById('add-image-card');
+    Array.from(fileInput.files).forEach(function (file) {
+      var idx = parseInt(totalInput.value);
+      var p = prefix + '-' + idx;
+      totalInput.value = idx + 1;
+
+      var card = document.createElement('div');
+      card.className = 'card image-card';
+      card.tabIndex = 0;
+
+      var idInput = document.createElement('input');
+      idInput.type = 'hidden';
+      idInput.name = p + '-id';
+      card.appendChild(idInput);
+
+      var orderInput = document.createElement('input');
+      orderInput.type = 'number';
+      orderInput.name = p + '-order';
+      orderInput.className = 'order-input';
+      orderInput.style.display = 'none';
+      orderInput.min = '1';
+      card.appendChild(orderInput);
+
+      var delCheck = document.createElement('input');
+      delCheck.type = 'checkbox';
+      delCheck.name = p + '-DELETE';
+      delCheck.className = 'delete-checkbox';
+      delCheck.style.display = 'none';
+      card.appendChild(delCheck);
+
+      var fi = document.createElement('input');
+      fi.type = 'file';
+      fi.name = p + '-image';
+      fi.style.display = 'none';
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      fi.files = dt.files;
+      card.appendChild(fi);
+
+      var img = document.createElement('img');
+      img.className = 'card__image';
+      img.style.width = '100%';
+      var reader = new FileReader();
+      reader.onload = function (ev) { img.src = ev.target.result; };
+      reader.readAsDataURL(file);
+      card.appendChild(img);
+
+      var info = document.createElement('div');
+      info.className = 'card__info';
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'card__link delete-btn';
+      delBtn.style.cssText = 'background:none;border:none;padding:0;cursor:pointer;';
+      delBtn.textContent = 'Delete';
+      info.appendChild(delBtn);
+      card.appendChild(info);
+
+      container.insertBefore(card, addCard);
+      updateOrder();
+    });
+    fileInput.value = '';
+  });
+
+  updateOrder();
 }());
 </script>
 {% endblock %}

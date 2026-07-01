@@ -13,8 +13,10 @@ from gallery.views.artworks import (
     ArtworkDetailView,
     ArtworkListView,
     ArtworkUpdateView,
+    artwork_add_image,
     artwork_image_delete,
     artwork_inquire,
+    artwork_reorder_images,
     detail,
 )
 from gallery.views.events import (

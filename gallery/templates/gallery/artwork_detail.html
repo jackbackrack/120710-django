@@ -48,13 +48,13 @@
   </div>
 </div>
 </div>
-{% if artwork.supplemental_images.exists %}
+{% if artwork.supplemental_images.exists or can_manage_artwork %}
 <div class="text-center section-label"><h2>Supplemental Images</h2></div>
-<div class="cards">
+<div class="cards" id="supplemental-sortable" {% if can_manage_artwork %}data-reorder-url="{% url 'gallery:artwork_reorder_images' artwork.pk %}"{% endif %}>
   {% for img in artwork.supplemental_images.all %}
   {% if img.image %}
-  <div class="card">
-    <img loading="lazy" src="{{ img.card_sm.url }}" data-full-src="{{ img.card_md.url }}" class="card__image zoomable">
+  <div class="card" data-img-pk="{{ img.pk }}">
+    <img loading="lazy" src="{{ img.card_sm.url }}" data-full-src="{{ img.card_md.url }}" class="card__image zoomable" style="width:100%">
     {% if can_manage_artwork %}
     <div class="card__info">
       <form method="post" action="{% url 'gallery:artwork_image_delete' img.pk %}" style="display:inline" onsubmit="return confirm('Delete this image?')">
@@ -66,7 +66,18 @@
   </div>
   {% endif %}
   {% endfor %}
+  {% if can_manage_artwork %}
+  <div class="card" id="add-image-card" style="display:flex;align-items:center;justify-content:center;min-height:80px;cursor:pointer;border:2px dashed #999;background:#f5f5f5;" title="Add image">
+    <span style="font-size:2em;color:#999;">+</span>
+  </div>
+  {% endif %}
 </div>
+{% if can_manage_artwork %}
+<form id="add-image-form" method="post" enctype="multipart/form-data" action="{% url 'gallery:artwork_add_image' artwork.pk %}" style="display:none">
+  {% csrf_token %}
+  <input type="file" name="image" id="add-image-input" accept="image/*">
+</form>
+{% endif %}
 {% endif %}
 <div class="text-center section-label"><h2>Shows</h2></div>
 <div class="cards">
@@ -89,4 +100,45 @@
     </div>
   {% endfor %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if can_manage_artwork %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script>
+(function () {
+  var grid = document.getElementById('supplemental-sortable');
+  if (!grid || !grid.dataset.reorderUrl) return;
+  var reorderUrl = grid.dataset.reorderUrl;
+  var csrfToken = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+  function saveOrder() {
+    var ids = Array.from(grid.querySelectorAll('[data-img-pk]')).map(function (el) {
+      return parseInt(el.dataset.imgPk, 10);
+    });
+    fetch(reorderUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ image_ids: ids }),
+    });
+  }
+
+  Sortable.create(grid, {
+    animation: 150,
+    filter: '#add-image-card',
+    onEnd: saveOrder,
+  });
+
+  var addCard = document.getElementById('add-image-card');
+  var addInput = document.getElementById('add-image-input');
+  var addForm = document.getElementById('add-image-form');
+  if (addCard && addInput && addForm) {
+    addCard.addEventListener('click', function () { addInput.click(); });
+    addInput.addEventListener('change', function () {
+      if (addInput.files.length) addForm.submit();
+    });
+  }
+}());
+</script>
+{% endif %}
 {% endblock %}

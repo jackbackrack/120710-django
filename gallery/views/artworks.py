@@ -6,11 +6,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMultiAlternatives
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
+
+from django.db.models import Max
 
 from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
 from gallery.models import Artwork, ArtworkImage, Tag
@@ -84,11 +87,7 @@ class ArtworkUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if 'image_formset' not in context:
-            formset = ArtworkImageFormSet(instance=self.object)
-            next_order = self.object.supplemental_images.count() + 1
-            for form in formset.extra_forms:
-                form.initial['order'] = next_order
-            context['image_formset'] = formset
+            context['image_formset'] = ArtworkImageFormSet(instance=self.object)
         return context
 
     def post(self, request, *args, **kwargs):
@@ -210,6 +209,39 @@ def artwork_inquire(request, pk):
         'artwork': artwork,
         'form': form,
     })
+
+
+@login_required
+def artwork_add_image(request, pk):
+    artwork = get_object_or_404(Artwork, pk=pk)
+    if not can_manage_artwork(request.user, artwork):
+        raise PermissionDenied
+    if request.method == 'POST':
+        image = request.FILES.get('image')
+        if image:
+            if image.size > 50 * 1024 * 1024:
+                messages.error(request, 'Image file too large — maximum size is 50 MB.')
+            else:
+                next_order = (artwork.supplemental_images.aggregate(Max('order'))['order__max'] or 0) + 1
+                ArtworkImage.objects.create(artwork=artwork, image=image, order=next_order)
+    return redirect(artwork.get_absolute_url())
+
+
+@login_required
+def artwork_reorder_images(request, pk):
+    import json
+    artwork = get_object_or_404(Artwork, pk=pk)
+    if not can_manage_artwork(request.user, artwork):
+        raise PermissionDenied
+    if request.method != 'POST':
+        raise PermissionDenied
+    try:
+        image_ids = json.loads(request.body)['image_ids']
+    except (KeyError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'bad request'}, status=400)
+    for order, img_id in enumerate(image_ids, start=1):
+        ArtworkImage.objects.filter(pk=img_id, artwork=artwork).update(order=order)
+    return JsonResponse({'ok': True})
 
 
 @login_required

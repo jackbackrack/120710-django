@@ -142,7 +142,7 @@ class ArtworkImageForm(forms.ModelForm):
 ArtworkImageFormSet = forms.inlineformset_factory(
     Artwork, ArtworkImage,
     form=ArtworkImageForm,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 
