@@ -75,7 +75,7 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
             user.is_authenticated and (is_staff_user(user) or is_curator_user(user))
         )
         context['collected_by'] = artwork.collected_by.order_by('name')
-        context['all_artists'] = Artist.objects.exclude(artworks=artwork).order_by('name')
+        context['all_artists'] = Artist.objects.exclude(artworks=artwork).exclude(collection=artwork).order_by('name')
         return context
 
     def get_queryset(self):
