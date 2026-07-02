@@ -22,7 +22,7 @@
     <div class="alert alert-info py-2 mt-2 text-center">
       <strong>Rubric:</strong>
       {% for criterion in criteria %}
-      {{ criterion.name }} (weight {{ criterion.weight|floatformat:"-1" }}){% if not forloop.last %}, {% endif %}
+      {{ criterion.name }} ({{ criterion.percentage|floatformat:"-1" }}%){% if not forloop.last %}, {% endif %}
       {% endfor %}
       — scores shown as weighted composite out of 100.
     </div>

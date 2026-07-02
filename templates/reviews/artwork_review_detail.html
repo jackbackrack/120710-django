@@ -31,7 +31,7 @@
         <th>Juror</th>
         {% if criteria %}
         {% for criterion in criteria %}
-        <th>{{ criterion.name }}<br><small class="text-muted">w={{ criterion.weight|floatformat:"-1" }}</small></th>
+        <th>{{ criterion.name }}<br><small class="text-muted">{{ criterion.percentage|floatformat:"-1" }}%</small></th>
         {% endfor %}
         {% endif %}
         {% if not criteria %}<th>Overall</th>{% endif %}
