@@ -4,23 +4,7 @@
 {% block block_title %}Reviews: {{ artwork.name }}{% endblock %}
 
 {% block content %}
-<div class="cards">
-<div class="card" id="big_card">
-  {% if artwork.image %}
-  <img loading="lazy" src="{{ artwork.card_md.url }}" data-full-src="{{ artwork.detail_lg.url }}" class="card__image zoomable" style="width:100%">
-  {% endif %}
-  <div class="card__content">
-    <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to {{ show.name }} reviews</a></p>
-
-    <h1 class="mb-6 text-3xl">{{ artwork.name }}</h1>
-    {% for artist in artwork.artists.all %}
-    <h3><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a></h3>
-    {% endfor %}
-    {% if artwork.medium %}<p>{{ artwork.medium }}</p>{% endif %}
-    {% if artwork.formatted_dimensions %}<p>{{ artwork.formatted_dimensions }}</p>{% endif %}
-  </div>
-</div>
-</div>
+{% include 'gallery/_artwork_display.html' with blind_artist=show.blind_review %}
 
 <div class="container-fluid mt-4">
   <h2>Reviews ({{ reviews.count }})</h2>

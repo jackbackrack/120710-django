@@ -4,39 +4,19 @@
 {% block block_title %}Review: {{ artwork.name }}{% endblock %}
 
 {% block content %}
-<div class="cards">
-<div class="card" id="big_card">
-  <div class="card__content">
-    <p><a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">&larr; Back to {{ show.name }} reviews</a></p>
+{% include 'gallery/_artwork_display.html' with blind_artist=show.blind_review %}
 
-    {% if artwork.image %}
-    <img loading="lazy" src="{{ artwork.card_md.url }}" data-full-src="{{ artwork.detail_lg.url }}" class="card__image zoomable" style="width:100%">
-    {% endif %}
-
-    <h1 class="mb-6 text-3xl">{{ artwork.name }}</h1>
-    {% for artist in artwork.artists.all %}
-    <h3><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a></h3>
+<div class="col-10 col-md-6 mx-auto mt-4">
+  <h2>{% if existing_review %}Update your review{% else %}Submit your review{% endif %}</h2>
+  <form method="post">
+    {% csrf_token %}
+    {% load crispy_forms_tags %}
+    {% for field in form %}
+    {{ field|as_crispy_field }}
     {% endfor %}
-    {% if artwork.medium %}<p>{{ artwork.medium }}</p>{% endif %}
-    {% if artwork.formatted_dimensions %}<p>{{ artwork.formatted_dimensions }}</p>{% endif %}
-    {% if artwork.description %}<p>{{ artwork.description|safe }}</p>{% endif %}
-
-    <hr>
-    <h2 class="mt-4">{% if existing_review %}Update your review{% else %}Submit your review{% endif %}</h2>
-
-    <form method="post">
-      {% csrf_token %}
-      {% load crispy_forms_tags %}
-
-      {% for field in form %}
-      {{ field|as_crispy_field }}
-      {% endfor %}
-
-      <button type="submit" class="btn btn-primary">
-        {% if existing_review %}Update review{% else %}Submit review{% endif %}
-      </button>
-    </form>
-  </div>
-</div>
+    <button type="submit" class="btn btn-primary">
+      {% if existing_review %}Update review{% else %}Submit review{% endif %}
+    </button>
+  </form>
 </div>
 {% endblock %}

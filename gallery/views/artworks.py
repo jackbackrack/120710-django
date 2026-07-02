@@ -68,6 +68,7 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(self.request.user, s)}
         context['can_delete_show'] = {s.id for s in shows if can_delete_show(self.request.user, s)}
         context['can_inquire'] = artwork.artists.filter(email__isnull=False).exclude(email='').exists()
+        context['blind_artist'] = self.request.GET.get('blind') == '1'
         return context
 
     def get_queryset(self):

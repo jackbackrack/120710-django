@@ -69,7 +69,7 @@
       <tbody>
         {% for artwork in artworks %}
         <tr>
-          <td><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></td>
+          <td><a class="card__link" href="{{ artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">{{ artwork.name }}</a></td>
           <td>
             {% if criteria %}
               {% if artwork.weighted_score %}
@@ -124,9 +124,12 @@
     <div class="cards">
       {% for artwork in pending_artworks %}
       <div class="card">
-        {% if artwork.image %}<a style="display:contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>{% endif %}
+        {% if artwork.image %}<a style="display:contents" href="{{ artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>{% endif %}
         <div class="card__content">
-          <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
+          <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">{{ artwork.name }}</a></h3>
+          {% if not show.blind_review %}
+          <p class="text-sm">{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+          {% endif %}
         </div>
         <div class="card__info">
           <a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=artwork.slug %}">Review</a>
@@ -159,7 +162,7 @@
       <tbody>
         {% for review in all_reviews %}
         <tr>
-          <td><a class="card__link" href="{{ review.artwork.get_absolute_url }}">{{ review.artwork.name }}</a></td>
+          <td><a class="card__link" href="{{ review.artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">{{ review.artwork.name }}</a></td>
           <td>{{ review.juror.artists.first.full_name|default:review.juror.get_full_name|default:review.juror.username }}</td>
           {% if criteria %}
           {% for criterion in criteria %}
@@ -227,11 +230,13 @@
       {% for artwork in pending_artworks %}
       <div class="card">
         {% if artwork.image %}
-        <a style="display:contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>
-        {% endif %}
+        <a style="display:contents" href="{{ artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>
+{% endif %}
         <div class="card__content">
-          <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a></h3>
+          <h3 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">{{ artwork.name }}</a></h3>
+          {% if not show.blind_review %}
           <p class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+          {% endif %}
           {% if artwork.medium %}<p class="text-sm">{{ artwork.medium }}</p>{% endif %}
         </div>
         <div class="card__info">

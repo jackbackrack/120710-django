@@ -4,13 +4,15 @@
 {% for sub in group %}
 <div class="card" style="width:200px;max-width:200px;{% if row_class == 'table-success' %}border-color:#198754{% elif row_class == 'table-danger' %}border-color:#dc3545{% endif %}">
   {% if sub.artwork.image %}
-  <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}">
+  <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">
     <img loading="lazy" src="{{ sub.artwork.card_sm.url }}" data-full-src="{{ sub.artwork.detail_lg.url }}" class="card__image zoomable">
   </a>
   {% endif %}
   <div class="card__content">
-    <p class="mb-0"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}">{{ sub.artwork.name }}</a></p>
+    <p class="mb-0"><a class="card__link" href="{{ sub.artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">{{ sub.artwork.name }}</a></p>
+    {% if not show.blind_review %}
     <p class="mb-0">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
     <p class="mb-0" style="font-size:0.8em;color:#666">
       {% if criteria %}
         {% if sub.weighted_score %}{{ sub.weighted_score|floatformat:2 }}/100 weighted{% else %}&mdash;{% endif %}

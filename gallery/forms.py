@@ -268,6 +268,7 @@ class ShowForm(UserAwareModelForm):
             'description',
             'image',
             'status',
+            'blind_review',
             'submission_type',
             'submission_deadline',
             'review_deadline',
@@ -294,6 +295,7 @@ class ShowForm(UserAwareModelForm):
         self.fields['submission_deadline'].required = True
         if not is_staff_user(self.user) and not is_curator_user(self.user):
             self.fields.pop('status')
+            self.fields.pop('blind_review')
 
     def save(self, commit=True):
         show = super().save(commit=commit)

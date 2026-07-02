@@ -13,17 +13,21 @@
   {% if invited_submitted %}
   <div class="mt-2">
     <span class="text-success"><strong>Submitted ({{ invited_submitted|length }}):</strong></span>
+    {% if not show.blind_review %}
     {% for inv in invited_submitted %}
       <span class="ms-2">{% if inv.artist %}<a class="card__link" href="{{ inv.artist.get_absolute_url }}">{{ inv.artist.name }}</a>{% else %}{{ inv.email }}{% endif %}</span>{% if not forloop.last %},{% endif %}
     {% endfor %}
+    {% endif %}
   </div>
   {% endif %}
   {% if invited_not_submitted %}
   <div class="mt-1">
     <span class="text-danger"><strong>Not yet submitted ({{ invited_not_submitted|length }}):</strong></span>
+    {% if not show.blind_review %}
     {% for inv in invited_not_submitted %}
       <span class="ms-2">{% if inv.artist %}<a class="card__link" href="{{ inv.artist.get_absolute_url }}">{{ inv.artist.name }}</a>{% else %}{{ inv.email }}{% endif %}</span>{% if not forloop.last %},{% endif %}
     {% endfor %}
+    {% endif %}
   </div>
   {% if can_manage %}
   <form method="post" action="{% url 'gallery:send_submission_reminders' show.slug %}" class="mt-2">
