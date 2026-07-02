@@ -34,6 +34,17 @@ class EventDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVie
     schema_mapper = event_to_schema
     template_name = 'gallery/event_detail.html'
 
+    def get_queryset(self):
+        return (
+            Event.objects
+            .select_related('show')
+            .prefetch_related(
+                'show__curators',
+                'show__artworks__artists',
+                'show__artworks__shows',
+            )
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['can_manage_event'] = can_manage_event(self.request.user, self.object)

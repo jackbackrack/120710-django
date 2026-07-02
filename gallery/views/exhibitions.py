@@ -48,7 +48,11 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
     template_name = 'gallery/show_detail.html'
 
     def get_queryset(self):
-        qs = Show.objects.all()
+        qs = Show.objects.prefetch_related(
+            'curators',
+            'artworks__artists',
+            'artworks__shows',
+        )
         return visible_show_queryset(qs, self.request.user)
 
     def get_context_data(self, **kwargs):
