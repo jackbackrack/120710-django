@@ -134,6 +134,7 @@
       <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>
       <p class="text-gray-500 text-sm">{% for a in artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
     </div>
+    <div class="card__info"></div>
   </div>
   {% endfor %}
 </div>
