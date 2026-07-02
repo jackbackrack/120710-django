@@ -124,6 +124,16 @@ body {
     margin-right: 8px;
 }
 
+/* Score radio buttons — display horizontally */
+.score-radios .form-check {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 1.2em;
+}
+.score-radios .form-check-input {
+    margin-top: 0;
+}
+
 .card__link {
     color: #64968c;
     text-decoration: none;

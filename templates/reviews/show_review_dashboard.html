@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load review_tags %}
 
 {% block title %}Reviews: {{ show.name }}{% endblock %}
 {% block block_title %}Reviews: {{ show.name }}{% endblock %}
@@ -110,8 +111,8 @@
         {% for review in my_reviews %}
         <tr>
           <td>{{ review.artwork.name }}</td>
-          {% if criteria %}{% for criterion in criteria %}<td>{% for cs in review.criterion_scores.all %}{% if cs.criterion_id == criterion.pk %}{{ cs.score }}{% endif %}{% endfor %}</td>{% endfor %}{% endif %}
-          {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/100{% else %}&mdash;{% endif %}</td>{% endif %}
+          {% if criteria %}{% for criterion in criteria %}<td>{% for cs in review.criterion_scores.all %}{% if cs.criterion_id == criterion.pk %}{{ cs.score|score_label }}{% endif %}{% endfor %}</td>{% endfor %}{% endif %}
+          {% if not criteria %}<td>{% if review.rating %}{{ review.rating|score_label }}{% else %}&mdash;{% endif %}</td>{% endif %}
           <td>{{ review.body|default:"&mdash;" }}</td>
           <td><a class="card__link" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=review.artwork.slug %}">Edit</a></td>
         </tr>
@@ -168,12 +169,12 @@
           {% for criterion in criteria %}
           <td>
             {% for cs in review.criterion_scores.all %}
-              {% if cs.criterion_id == criterion.pk %}{{ cs.score }}{% endif %}
+              {% if cs.criterion_id == criterion.pk %}{{ cs.score|score_label }}{% endif %}
             {% endfor %}
           </td>
           {% endfor %}
           {% endif %}
-          {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/100{% else %}&mdash;{% endif %}</td>{% endif %}
+          {% if not criteria %}<td>{% if review.rating %}{{ review.rating|score_label }}{% else %}&mdash;{% endif %}</td>{% endif %}
           <td>{{ review.body|default:"&mdash;" }}</td>
           <td>{{ review.updated_at|date:"N j, Y" }}</td>
         </tr>
@@ -210,7 +211,7 @@
           {% for criterion in criteria %}
           <td>
             {% for cs in review.criterion_scores.all %}
-              {% if cs.criterion_id == criterion.pk %}{{ cs.score }}{% endif %}
+              {% if cs.criterion_id == criterion.pk %}{{ cs.score|score_label }}{% endif %}
             {% endfor %}
           </td>
           {% endfor %}

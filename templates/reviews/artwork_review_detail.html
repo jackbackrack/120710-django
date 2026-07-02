@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load review_tags %}
 
 {% block title %}Reviews: {{ artwork.name }} — {{ show.name }}{% endblock %}
 {% block block_title %}Reviews: {{ artwork.name }}{% endblock %}
@@ -32,12 +33,12 @@
         {% for criterion in criteria %}
         <td>
           {% for cs in review.criterion_scores.all %}
-            {% if cs.criterion_id == criterion.pk %}{{ cs.score }}/100{% endif %}
+            {% if cs.criterion_id == criterion.pk %}{{ cs.score|score_label }}{% endif %}
           {% endfor %}
         </td>
         {% endfor %}
         {% endif %}
-        {% if not criteria %}<td>{% if review.rating %}{{ review.rating }}/100{% else %}&mdash;{% endif %}</td>{% endif %}
+        {% if not criteria %}<td>{% if review.rating %}{{ review.rating|score_label }}{% else %}&mdash;{% endif %}</td>{% endif %}
         <td>{{ review.body|default:"&mdash;" }}</td>
         <td>{{ review.updated_at|date:"N j, Y" }}</td>
         <td><a class="card__link" href="{% url 'reviews:curator_edit_review' show_slug=show.slug artwork_slug=artwork.slug review_id=review.id %}">Edit</a></td>

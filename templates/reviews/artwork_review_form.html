@@ -12,7 +12,11 @@
     {% csrf_token %}
     {% load crispy_forms_tags %}
     {% for field in form %}
+    {% if field.field.widget.input_type == 'radio' %}
+    <div class="score-radios">{{ field|as_crispy_field }}</div>
+    {% else %}
     {{ field|as_crispy_field }}
+    {% endif %}
     {% endfor %}
     <button type="submit" class="btn btn-primary">
       {% if existing_review %}Update review{% else %}Submit review{% endif %}

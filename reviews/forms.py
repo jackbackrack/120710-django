@@ -4,15 +4,27 @@ from django.forms import modelformset_factory
 from gallery.models import Artist
 from reviews.models import ArtworkReview, CriterionScore, RubricCriterion
 
+SCORE_CHOICES = [
+    (10, 'Weak'),
+    (30, 'Developing'),
+    (50, 'Solid'),
+    (70, 'Strong'),
+    (90, 'Exceptional'),
+]
+
+
+def _score_field(label, required=True):
+    return forms.TypedChoiceField(
+        choices=SCORE_CHOICES,
+        coerce=int,
+        required=required,
+        label=label,
+        widget=forms.RadioSelect,
+    )
+
 
 class ArtworkReviewForm(forms.ModelForm):
-    rating = forms.IntegerField(
-        min_value=0,
-        max_value=100,
-        required=False,
-        label='Overall rating (0–100)',
-        widget=forms.NumberInput(attrs={'min': '0', 'max': '100', 'style': 'width:6em'}),
-    )
+    rating = _score_field('Overall rating', required=False)
 
     class Meta:
         model = ArtworkReview
@@ -39,13 +51,7 @@ class ArtworkReviewForm(forms.ModelForm):
             label = f'{criterion.name} — {criterion.percentage:g}%'
             if criterion.description:
                 label += f' ({criterion.description})'
-            self.fields[field_key] = forms.IntegerField(
-                min_value=0,
-                max_value=100,
-                label=label + ' (0–100)',
-                required=True,
-                widget=forms.NumberInput(attrs={'min': '0', 'max': '100', 'style': 'width:6em'}),
-            )
+            self.fields[field_key] = _score_field(label)
             if criterion.pk in existing_scores:
                 self.initial[field_key] = existing_scores[criterion.pk]
 
