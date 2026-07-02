@@ -113,7 +113,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         return self.render_to_response(context)
 
     def get_context_data(self, **kwargs):
-        from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, visible_show_queryset
+        from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, is_curator_user, visible_show_queryset
         from gallery.models.submissions import ArtworkSubmission
         from gallery.models import Show
         context = super().get_context_data(**kwargs)
@@ -122,6 +122,10 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         context['artworks'] = artworks
         context['can_manage_artist'] = can_manage_artist(self.request.user, artist)
         context['can_delete_artist'] = can_delete_artist(self.request.user, artist)
+        context['can_see_contact'] = (
+            can_manage_artist(self.request.user, artist) or
+            is_curator_user(self.request.user)
+        )
         context['can_manage_artwork'] = {a.id for a in artworks if can_manage_artwork(self.request.user, a)}
         context['can_delete_artwork'] = {a.id for a in artworks if can_delete_artwork(self.request.user, a)}
         user = self.request.user
