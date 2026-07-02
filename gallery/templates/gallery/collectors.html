@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Collectors{% endblock %}
+{% block block_title %}Collectors{% endblock %}
+
+{% block content %}
+<div class="cards">
+{% for artist in artists %}
+<div class="card">
+  {% if artist.image %}
+  <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" class="card__image"></a>
+  {% endif %}
+  <div class="card__content">
+    <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>
+    <p class="text-gray-500 text-sm">{{ artist.collection.count }} work{{ artist.collection.count|pluralize }}</p>
+  </div>
+  <div class="card__info"></div>
+</div>
+{% empty %}
+<p class="text-muted text-center w-100">No collectors yet.</p>
+{% endfor %}
+</div>
+{% endblock %}

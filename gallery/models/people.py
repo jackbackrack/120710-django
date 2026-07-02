@@ -26,6 +26,7 @@ class Artist(models.Model):
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
     tags = models.ManyToManyField('gallery.Tag', related_name='artists', blank=True)
+    collection = models.ManyToManyField('gallery.Artwork', related_name='collected_by', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

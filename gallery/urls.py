@@ -3,6 +3,11 @@ from django.urls import path, re_path
 from gallery.views.placards import placard_html, placard_json
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views import (
+    artwork_autocomplete,
+    artist_autocomplete,
+    artwork_add_to_collection,
+    artwork_remove_from_collection,
+    CollectorsListView,
     ArtistCreateView,
     ArtistDeleteView,
     ArtistDetailView,
@@ -62,8 +67,13 @@ urlpatterns = [
     path('submission/<int:pk>/retract/', retract_submission, name='retract_submission'),
     path('submission/<int:pk>/status/', update_submission_status, name='update_submission_status'),
     path('artists/', ArtistListView.as_view(), name='artist_list'),
+    path('artists/collectors/', CollectorsListView.as_view(), name='collectors_list'),
     path('artists/mailchimp', ArtistMailChimpView.as_view(), name='artist_mailchimp_list'),
     path('artists/emails', artist_email_list, name='artist_email_list'),
+    path('artwork/<int:pk>/add-to-collection/', artwork_add_to_collection, name='artwork_add_to_collection'),
+    path('artwork/<int:pk>/remove-from-collection/', artwork_remove_from_collection, name='artwork_remove_from_collection'),
+    path('autocomplete/artwork/', artwork_autocomplete, name='artwork_autocomplete'),
+    path('autocomplete/artist/', artist_autocomplete, name='artist_autocomplete'),
     path('artist/<int:pk>/', ArtistDetailView.as_view(), name='artist_detail'),
     path('artist/<int:pk>/edit/', ArtistUpdateView.as_view(), name='artist_edit'),
     path('artist/<int:pk>/delete/', ArtistDeleteView.as_view(), name='artist_delete'),

@@ -174,6 +174,8 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
             all_shows = shows + curated_shows
             context['can_manage_show'] = {s.id for s in all_shows if can_manage_show(user, s)}
             context['can_delete_show'] = {s.id for s in all_shows if can_delete_show(user, s)}
+        collection = artist.collection.prefetch_related('artists').order_by('name')
+        context['collection'] = collection
         return context
 
 

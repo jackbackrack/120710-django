@@ -29,6 +29,15 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if can_manage_collection %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+  $('.select2-add-collector').select2({ placeholder: 'Add to artist\'s collection…', allowClear: true, width: '200px' });
+});
+</script>
+{% endif %}
 {% if can_manage_artwork %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>

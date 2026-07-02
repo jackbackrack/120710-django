@@ -122,4 +122,20 @@
   {% endfor %}
 </div>
 {% endif %}
+{% if collection %}
+<div class="text-center section-label"><h2>Collection</h2></div>
+<div class="cards">
+  {% for artwork in collection %}
+  <div class="card">
+    {% if artwork.image %}
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>
+      <p class="text-gray-500 text-sm">{% for a in artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

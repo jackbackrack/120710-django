@@ -17,7 +17,7 @@ from django.db.models import Max
 
 from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
 from gallery.models import Artwork, ArtworkImage, Tag
-from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_curator_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -60,6 +60,7 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
 
     def get_context_data(self, **kwargs):
         from gallery.permissions import can_delete_show, can_manage_show
+        from gallery.models import Artist
         context = super().get_context_data(**kwargs)
         artwork = self.object
         context['can_manage_artwork'] = can_manage_artwork(self.request.user, artwork)
@@ -69,6 +70,12 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         context['can_delete_show'] = {s.id for s in shows if can_delete_show(self.request.user, s)}
         context['can_inquire'] = artwork.artists.filter(email__isnull=False).exclude(email='').exists()
         context['blind_artist'] = self.request.GET.get('blind') == '1'
+        user = self.request.user
+        context['can_manage_collection'] = (
+            user.is_authenticated and (is_staff_user(user) or is_curator_user(user))
+        )
+        context['collected_by'] = artwork.collected_by.order_by('name')
+        context['all_artists'] = Artist.objects.order_by('name')
         return context
 
     def get_queryset(self):
