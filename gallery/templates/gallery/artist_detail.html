@@ -87,8 +87,9 @@
   {% endfor %}
 </div>
 {% endif %}
+{% if artworks or can_manage_artist %}
 <div class="text-center section-label"><h2>Artworks</h2></div>
-{% if user.is_authenticated %}
+{% if can_manage_artist %}
 <div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_new' %}">New</a></div>
 {% endif %}
 <div class="cards">
@@ -114,6 +115,7 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
 {% if shows %}
 <div class="text-center section-label"><h2>Shows</h2></div>
 <div class="cards">

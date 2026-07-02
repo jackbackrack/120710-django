@@ -28,13 +28,9 @@
     </p>
     {% endif %}
     {% if not blind_artist and can_manage_collection %}
-    <p class="text-gray-500 text-sm"><strong>In collection of: </strong>
-      {% for a in collected_by %}
-      <a class="card__link" href="{{ a.get_absolute_url }}">{{ a }}</a>{% if not forloop.last %}, {% endif %}
-      {% empty %}
-      <em>none</em>
-      {% endfor %}
-    </p>
+    {% if collected_by %}
+    <div class="text-gray-500 text-sm" style="margin-top:0.5em"><strong>In collection of: </strong>{% for a in collected_by %}<a class="card__link" href="{{ a.get_absolute_url }}">{{ a }}</a> <form method="post" action="{% url 'gallery:artwork_remove_from_collection' artwork.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="artist_pk" value="{{ a.pk }}"><button type="submit" class="card__link" style="background:none;border:none;padding:0;" onclick="return confirm('Remove from {{ a }}\'s collection?')">[remove]</button></form>{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    {% else %}
     <form method="post" action="{% url 'gallery:artwork_add_to_collection' artwork.pk %}" class="d-inline-flex align-items-center gap-2 mb-2">
       {% csrf_token %}
       <select name="artist_pk" class="select2-add-collector form-select form-select-sm" style="width:200px" data-placeholder="Add to artist's collection…" required>
@@ -43,15 +39,9 @@
         <option value="{{ a.pk }}">{{ a }}</option>
         {% endfor %}
       </select>
-      <button type="submit" class="btn btn-sm btn-outline-secondary">Add</button>
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Add to collection</button>
     </form>
-    {% for a in collected_by %}
-    <form method="post" action="{% url 'gallery:artwork_remove_from_collection' artwork.pk %}" class="d-inline">
-      {% csrf_token %}
-      <input type="hidden" name="artist_pk" value="{{ a.pk }}">
-      <button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove from {{ a }}\'s collection?')">Remove from {{ a }}</button>
-    </form>
-    {% endfor %}
+    {% endif %}
     {% endif %}
     <div class="pb-3"></div>
   </div>

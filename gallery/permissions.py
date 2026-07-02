@@ -149,10 +149,13 @@ def visible_artist_queryset(user):
     if is_curator_user(user):
         q = (Q(artworks__shows__in=_curator_show_ids(user))
              | Q(artworks__shows__in=_published_show_ids())
-             | Q(curated_shows__isnull=False))
+             | Q(curated_shows__isnull=False)
+             | Q(collection__isnull=False))
         q |= Q(user=user)
         return q
-    public = Q(artworks__shows__in=_published_show_ids()) | Q(curated_shows__isnull=False)
+    public = (Q(artworks__shows__in=_published_show_ids())
+              | Q(curated_shows__isnull=False)
+              | Q(collection__isnull=False))
     if user.is_authenticated:
         public |= Q(user=user)
     return public
