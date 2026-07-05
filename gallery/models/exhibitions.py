@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFit
+from imagekit.processors import ResizeToFit, Transpose
 
 from gallery.models.people import Artist
 from gallery.models.slugs import build_unique_slug
@@ -47,9 +47,10 @@ class Show(models.Model):
     location = models.TextField(blank=True, null=True, verbose_name='Location (address or site description)')
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
-    card_sm = ImageSpecField(source='image', processors=[ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
-    card_md = ImageSpecField(source='image', processors=[ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
-    detail_lg = ImageSpecField(source='image', processors=[ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
+    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+    detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
+    slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
     curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
     submission_type = models.CharField(
         max_length=16, choices=SUBMISSION_TYPE_CHOICES, default=SUBMISSION_OPEN,

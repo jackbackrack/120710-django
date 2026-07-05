@@ -62,12 +62,12 @@
 </div>
 </div>
 {% if artwork.supplemental_images.exists or can_manage_artwork %}
-<div class="text-center section-label"><h2>Supplemental Images</h2></div>
+<div class="text-center section-label"><h2>Supplemental Images <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 <div class="cards" id="supplemental-sortable" {% if can_manage_artwork %}data-reorder-url="{% url 'gallery:artwork_reorder_images' artwork.pk %}"{% endif %}>
   {% for img in artwork.supplemental_images.all %}
   {% if img.image %}
-  <div class="card" {% if can_manage_artwork %}data-img-pk="{{ img.pk }}"{% endif %}>
-    <img loading="lazy" src="{{ img.card_sm.url }}" data-full-src="{{ img.card_md.url }}" class="card__image zoomable" style="width:100%">
+  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="Image {{ forloop.counter }}" {% if can_manage_artwork %}data-img-pk="{{ img.pk }}"{% endif %}>
+    <img loading="lazy" src="{{ img.card_sm.url }}" data-sl-img="{{ img.slideshow.url }}" data-full-src="{{ img.card_md.url }}" class="card__image zoomable" style="width:100%">
     {% if can_manage_artwork %}
     <div class="card__info">
       <form method="post" action="{% url 'gallery:artwork_image_delete' img.pk %}" style="display:inline" onsubmit="return confirm('Delete this image?')">

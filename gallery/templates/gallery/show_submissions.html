@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Submissions — {{ show.name }}{% endblock %}
-{% block block_title %}Submissions — {{ show.name }}{% endblock %}
+{% block block_title %}Submissions — {{ show.name }} <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>{% endblock %}
 {% block search_action %}{% url 'gallery:show_submissions' show.slug %}{% endblock %}
 
 {% block content %}

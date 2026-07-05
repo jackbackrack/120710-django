@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}{% if query %}Search "{{ query }}"{% else %}Search{% endif %}{% endblock %}
-{% block block_title %}{% if query %}Search "{{ query }}"{% else %}Search{% endif %}{% endblock %}
+{% block block_title %}Search{% if query %} "{{ query }}" <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>{% endif %}{% endblock %}
 
 {% block content %}
 {% if not query %}
@@ -12,7 +12,6 @@
 
 {% if priority == 'artist' %}
   {% if artist_list %}
-  <div class="text-center section-label"><h2>Artists</h2></div>
   <div class="cards">{% for artist in artist_list %}{% include 'gallery/_artist_card.html' %}{% endfor %}</div>
   {% else %}
   <p class="text-center text-gray-500">No artist results for &ldquo;{{ query }}&rdquo;.</p>
@@ -20,7 +19,6 @@
 
 {% elif priority == 'artwork' %}
   {% if artwork_list %}
-  <div class="text-center section-label"><h2>Artworks</h2></div>
   <div class="cards">{% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}</div>
   {% else %}
   <p class="text-center text-gray-500">No artwork results for &ldquo;{{ query }}&rdquo;.</p>
@@ -28,7 +26,6 @@
 
 {% elif priority == 'show' %}
   {% if show_list %}
-  <div class="text-center section-label"><h2>Shows</h2></div>
   <div class="cards">{% for show in show_list %}{% include 'gallery/_show_card.html' %}{% endfor %}</div>
   {% else %}
   <p class="text-center text-gray-500">No show results for &ldquo;{{ query }}&rdquo;.</p>

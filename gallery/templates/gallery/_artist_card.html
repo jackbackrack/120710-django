@@ -1,6 +1,6 @@
-<div class="card">
+<div class="card" data-sl-title="{{ artist.full_name }}" data-sl-url="{{ artist.get_absolute_url }}">
   {% if artist.image %}
-  <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" class="card__image"></a>
+  <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
   {% endif %}
   <div class="card__content">
     <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>

@@ -5,6 +5,7 @@
 {% if is_staff_user %}
   <a class="card__link new-button" href="{% url 'gallery:show_new' %}">New</a>
 {% endif %}
+<button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>
 {% endblock block_title %}
 
 {% block content %}

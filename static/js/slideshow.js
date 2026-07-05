@@ -1,0 +1,357 @@
+/* Slideshow overlay — vanilla JS, no dependencies */
+(function () {
+  'use strict';
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  var items = [];       // [{img, thumb, title, sub, url}]
+  var current = 0;
+  var activeSlot = 'a'; // which <img> tag is currently visible
+  var infoVisible = true;
+  var autoHideTimer = null;
+
+  // DOM references (set after buildOverlay)
+  var overlay, imgA, imgB, titleEl, subEl, topbar, footer,
+      progressFill, counterEl, thumbsEl, helpEl, openLink;
+
+  // ── Build overlay DOM (once) ───────────────────────────────────────────────
+  function buildOverlay() {
+    overlay = document.createElement('div');
+    overlay.id = 'slideshow-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Slideshow');
+    overlay.innerHTML =
+      '<div id="ss-topbar">' +
+        '<div id="ss-info">' +
+          '<span id="ss-title"></span>' +
+          '<span id="ss-sub"></span>' +
+        '</div>' +
+        '<a id="ss-open-link" href="#" target="_blank" title="Open detail page" rel="noopener">&#x2197;</a>' +
+        '<button class="ss-topbtn" id="ss-info-btn" title="Toggle info (I)">&#x2139;</button>' +
+        '<button class="ss-topbtn" id="ss-close-btn" title="Close (Esc)">&#x2715;</button>' +
+      '</div>' +
+      '<button id="ss-prev" aria-label="Previous">&#8249;</button>' +
+      '<div id="ss-stage">' +
+        '<img id="ss-img-a" alt="">' +
+        '<img id="ss-img-b" alt="" class="ss-hidden-img">' +
+      '</div>' +
+      '<button id="ss-next" aria-label="Next">&#8250;</button>' +
+      '<div id="ss-footer">' +
+        '<div id="ss-progress-row">' +
+          '<div id="ss-progress-bar"><div id="ss-progress-fill"></div></div>' +
+          '<span id="ss-counter"></span>' +
+          '<button class="ss-topbtn" id="ss-help-btn" title="Help (?)">?</button>' +
+        '</div>' +
+        '<div id="ss-thumbs"></div>' +
+      '</div>' +
+      '<div id="ss-help" style="display:none">' +
+        '<div id="ss-help-inner">' +
+          '<h3>Slideshow Controls</h3>' +
+          '<table>' +
+            '<tr><td>&#8592; &#8594;</td><td>Navigate</td></tr>' +
+            '<tr><td>Space</td><td>Next</td></tr>' +
+            '<tr><td>Enter / D</td><td>Open detail page</td></tr>' +
+            '<tr><td>Esc</td><td>Close</td></tr>' +
+            '<tr><td>I</td><td>Toggle info</td></tr>' +
+            '<tr><td>?</td><td>This help</td></tr>' +
+          '</table>' +
+          '<button id="ss-help-close">Close</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    imgA         = overlay.querySelector('#ss-img-a');
+    imgB         = overlay.querySelector('#ss-img-b');
+    titleEl      = overlay.querySelector('#ss-title');
+    subEl        = overlay.querySelector('#ss-sub');
+    topbar       = overlay.querySelector('#ss-topbar');
+    footer       = overlay.querySelector('#ss-footer');
+    progressFill = overlay.querySelector('#ss-progress-fill');
+    counterEl    = overlay.querySelector('#ss-counter');
+    thumbsEl     = overlay.querySelector('#ss-thumbs');
+    helpEl       = overlay.querySelector('#ss-help');
+    openLink     = overlay.querySelector('#ss-open-link');
+
+    overlay.querySelector('#ss-close-btn').addEventListener('click', close);
+    overlay.querySelector('#ss-prev').addEventListener('click', prev);
+    overlay.querySelector('#ss-next').addEventListener('click', next);
+    overlay.querySelector('#ss-info-btn').addEventListener('click', toggleInfo);
+    overlay.querySelector('#ss-help-btn').addEventListener('click', showHelp);
+    overlay.querySelector('#ss-help-close').addEventListener('click', hideHelp);
+    helpEl.addEventListener('click', function (e) {
+      if (e.target === helpEl) hideHelp();
+    });
+
+    // Touch swipe — horizontal drag navigates, tap toggles info
+    var touchStartX = 0, touchStartY = 0, didSwipe = false;
+    overlay.addEventListener('touchstart', function (e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      didSwipe = false;
+    }, { passive: true });
+    overlay.addEventListener('touchmove', function (e) {
+      var dx = Math.abs(e.touches[0].clientX - touchStartX);
+      var dy = Math.abs(e.touches[0].clientY - touchStartY);
+      if (dx > dy && dx > 12) didSwipe = true;
+    }, { passive: true });
+    overlay.addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - touchStartX;
+      if (didSwipe && Math.abs(dx) > 50) {
+        if (dx < 0) next(); else prev();
+      } else if (!didSwipe) {
+        var isControl = e.target.closest(
+          '#ss-topbar, #ss-footer, #ss-prev, #ss-next, #ss-help'
+        );
+        if (!isControl) toggleInfo();
+      }
+    });
+
+    // Mouse movement → show chrome, then auto-hide after 2.5s
+    overlay.addEventListener('mousemove', resetAutoHide);
+  }
+
+  // ── Auto-hide chrome ───────────────────────────────────────────────────────
+  function resetAutoHide() {
+    if (!infoVisible) return;
+    topbar.classList.remove('ss-hidden');
+    footer.classList.remove('ss-hidden');
+    clearTimeout(autoHideTimer);
+    autoHideTimer = setTimeout(function () {
+      topbar.classList.add('ss-hidden');
+      footer.classList.add('ss-hidden');
+    }, 2500);
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  function goTo(idx) {
+    if (!items.length) return;
+    idx = ((idx % items.length) + items.length) % items.length;
+    current = idx;
+    var item = items[current];
+
+    // Crossfade: load new image into the inactive slot, then swap visibility
+    var incoming = activeSlot === 'a' ? imgB : imgA;
+    var outgoing  = activeSlot === 'a' ? imgA : imgB;
+    incoming.src = item.img;
+    incoming.alt = item.title;
+    incoming.classList.remove('ss-hidden-img');
+    outgoing.classList.add('ss-hidden-img');
+    activeSlot = activeSlot === 'a' ? 'b' : 'a';
+
+    titleEl.textContent = item.title;
+    subEl.textContent   = item.sub || '';
+    if (item.url) {
+      openLink.href = item.url;
+      openLink.style.display = '';
+    } else {
+      openLink.style.display = 'none';
+    }
+
+    var pct = items.length > 1 ? (current / (items.length - 1)) * 100 : 100;
+    progressFill.style.width = pct + '%';
+    counterEl.textContent = (current + 1) + ' / ' + items.length;
+
+    updateThumbs();
+    preloadAdjacent();
+    resetAutoHide();
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+
+  // ── Thumbnails ─────────────────────────────────────────────────────────────
+  function buildThumbs() {
+    thumbsEl.innerHTML = '';
+    items.forEach(function (item, i) {
+      var img = document.createElement('img');
+      img.className = 'ss-thumb';
+      img.src = item.thumb;
+      img.alt = '';
+      img.title = item.title;
+      img.addEventListener('click', (function (idx) {
+        return function () { goTo(idx); };
+      })(i));
+      thumbsEl.appendChild(img);
+    });
+  }
+
+  function updateThumbs() {
+    var thumbs = thumbsEl.querySelectorAll('.ss-thumb');
+    thumbs.forEach(function (t, i) {
+      t.classList.toggle('ss-thumb-active', i === current);
+    });
+    var active = thumbs[current];
+    if (active) {
+      active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  // ── Preload adjacent images ────────────────────────────────────────────────
+  function preloadAdjacent() {
+    if (!items.length) return;
+    [current + 1, current - 1].forEach(function (idx) {
+      idx = ((idx % items.length) + items.length) % items.length;
+      (new Image()).src = items[idx].img;
+    });
+  }
+
+  // ── Info toggle ────────────────────────────────────────────────────────────
+  function toggleInfo() {
+    infoVisible = !infoVisible;
+    if (infoVisible) {
+      topbar.classList.remove('ss-hidden');
+      footer.classList.remove('ss-hidden');
+      resetAutoHide();
+    } else {
+      clearTimeout(autoHideTimer);
+      topbar.classList.add('ss-hidden');
+      footer.classList.add('ss-hidden');
+    }
+  }
+
+  // ── Help panel ─────────────────────────────────────────────────────────────
+  function showHelp() { helpEl.style.display = 'flex'; }
+  function hideHelp() { helpEl.style.display = 'none'; }
+
+  // ── Open / Close ───────────────────────────────────────────────────────────
+  function open(slideItems, startIndex) {
+    if (!slideItems || !slideItems.length) return;
+    items = slideItems;
+    current = 0;
+    infoVisible = true;
+    buildThumbs();
+
+    // Reset both image slots
+    imgA.src = '';
+    imgB.src = '';
+    imgA.classList.remove('ss-hidden-img');
+    imgB.classList.add('ss-hidden-img');
+    activeSlot = 'a';
+
+    overlay.classList.add('ss-open');
+    document.body.style.overflow = 'hidden';
+    topbar.classList.remove('ss-hidden');
+    footer.classList.remove('ss-hidden');
+    goTo(startIndex || 0);
+  }
+
+  function close() {
+    overlay.classList.remove('ss-open');
+    document.body.style.overflow = '';
+    clearTimeout(autoHideTimer);
+    helpEl.style.display = 'none';
+    imgA.src = '';
+    imgB.src = '';
+  }
+
+  // ── Keyboard ───────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', function (e) {
+    // `S` shortcut when slideshow is closed
+    if (!overlay || !overlay.classList.contains('ss-open')) {
+      var tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 's' || e.key === 'S') {
+        var allItems = [];
+        document.querySelectorAll('.cards').forEach(function (c) {
+          allItems = allItems.concat(collectItems(c));
+        });
+        if (allItems.length) open(allItems, 0);
+      }
+      return;
+    }
+
+    // Controls while slideshow is open
+    switch (e.key) {
+      case 'ArrowRight':
+      case ' ':
+        e.preventDefault();
+        next();
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        prev();
+        break;
+      case 'Escape':
+        if (helpEl.style.display !== 'none') hideHelp();
+        else close();
+        break;
+      case 'Enter':
+      case 'd':
+      case 'D':
+        if (items[current] && items[current].url) {
+          close();
+          window.location.href = items[current].url;
+        }
+        break;
+      case 'i':
+      case 'I':
+        toggleInfo();
+        break;
+      case '?':
+        showHelp();
+        break;
+    }
+  });
+
+  // ── Collect slideable items from a .cards container ────────────────────────
+  // Reads data-sl-* attributes off .card divs and img.card__image elements.
+  function collectItems(container) {
+    var result = [];
+    container.querySelectorAll('.card').forEach(function (card) {
+      var img = card.querySelector('img.card__image');
+      if (!img) return;
+      result.push({
+        img:   img.dataset.slImg    || img.src,
+        thumb: img.src,
+        title: card.dataset.slTitle || '',
+        sub:   card.dataset.slSub   || '',
+        url:   card.dataset.slUrl   || '',
+      });
+    });
+    return result;
+  }
+
+  // ── Wire pre-placed [data-ss-first-cards] buttons (in status bar / block_title)
+  // Collects items from ALL .cards containers on the page into one slideshow.
+  function wireStatusBarButtons() {
+    document.querySelectorAll('[data-ss-first-cards]').forEach(function (btn) {
+      var allItems = [];
+      document.querySelectorAll('.cards').forEach(function (c) {
+        allItems = allItems.concat(collectItems(c));
+      });
+      if (allItems.length < 2) { btn.style.display = 'none'; return; }
+      btn.addEventListener('click', function () { open(allItems, 0); });
+    });
+  }
+
+  // ── Wire template-placed [data-ss-section] buttons in section-label h2s ────
+  // Each button is inside a .section-label div; finds the next .cards sibling.
+  function wireSectionButtons() {
+    document.querySelectorAll('[data-ss-section]').forEach(function (btn) {
+      var label = btn.closest('.section-label');
+      if (!label) { btn.style.display = 'none'; return; }
+      var sib = label.nextElementSibling;
+      while (sib) {
+        if (sib.classList.contains('cards')) {
+          var si = collectItems(sib);
+          if (si.length < 1) { btn.style.display = 'none'; return; }
+          btn.addEventListener('click', (function (items) {
+            return function () { open(items, 0); };
+          })(si));
+          return;
+        }
+        if (sib.classList.contains('section-label')) break; // reached next section
+        sib = sib.nextElementSibling;
+      }
+      btn.style.display = 'none';
+    });
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    buildOverlay();
+    wireStatusBarButtons();
+    wireSectionButtons();
+  });
+
+})();

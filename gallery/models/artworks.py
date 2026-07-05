@@ -14,6 +14,7 @@ class ArtworkImage(models.Model):
     order = models.IntegerField(default=0)
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
+    slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
 
     class Meta:
         ordering = ['order', 'pk']
@@ -42,6 +43,7 @@ class Artwork(models.Model):
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
+    slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
     PRICING_FOR_SALE = 'for_sale'
     PRICING_ON_REQUEST = 'on_request'
     PRICING_BEST_OFFER = 'best_offer'

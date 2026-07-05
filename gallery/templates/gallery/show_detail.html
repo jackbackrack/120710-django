@@ -90,15 +90,15 @@
   </div>
 </div>
 </div>
-<div class="text-center section-label"><h2>Artworks</h2></div>
+<div class="text-center section-label"><h2>Artworks <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 {% if can_submit %}<div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a></div>{% endif %}
 {% if show.is_accepting_submissions and not can_submit %}<p class="text-center text-muted small mt-2"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">Help submitting</a></p>{% endif %}
 <div class="cards">
 {% for entry in artwork_data %}
 {% with artwork=entry.artwork sub=entry.submission %}
-  <div class="card">
+  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-url="{{ artwork.get_absolute_url }}">
     {% if artwork.image %}
-    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
       <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h2>
@@ -147,13 +147,13 @@
   </div>
 {% endfor %}
 </div>
-<div class="text-center section-label"><h2>Artists</h2></div>
+<div class="text-center section-label"><h2>Artists <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 <div class="cards">
   <!-- todo: remove dups and sort -->
   {% for artist in artists %}
-  <div class="card">
+  <div class="card" data-sl-title="{{ artist.name }}" data-sl-url="{{ artist.get_absolute_url }}">
     {% if artist.image %}
-    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
     <div class="card__info">
