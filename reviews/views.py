@@ -1,7 +1,9 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from gallery.models import Artwork, Show
@@ -297,3 +299,95 @@ def manage_rubric_criteria(request, show_slug):
         'other_shows': other_shows,
     }
     return render(request, 'reviews/rubric_criteria.html', context)
+
+
+@login_required
+def review_data(request, show_slug):
+    """JSON endpoint: all artworks for a show with this juror's current scores."""
+    show = get_object_or_404(Show, slug=show_slug)
+    if not is_juror_for_show(request.user, show) and not can_manage_show(request.user, show):
+        raise Http404
+
+    artworks = list(
+        Artwork.objects.filter(submissions__show=show)
+        .prefetch_related('artists')
+        .order_by('name')
+    )
+    criteria = list(show.rubric_criteria.all())
+
+    my_reviews = {
+        r.artwork_id: r
+        for r in ArtworkReview.objects.filter(show=show, juror=request.user)
+        .prefetch_related('criterion_scores')
+    }
+
+    artwork_data = []
+    for artwork in artworks:
+        review = my_reviews.get(artwork.pk)
+        scores = {}
+        if review:
+            for cs in review.criterion_scores.all():
+                scores[cs.criterion_id] = cs.score
+        artwork_data.append({
+            'slug': artwork.slug,
+            'name': artwork.name,
+            'artists': [] if show.blind_review else [a.full_name for a in artwork.artists.all()],
+            'img': artwork.slideshow.url if artwork.image else '',
+            'thumb': artwork.card_sm.url if artwork.image else '',
+            'detail_url': artwork.get_absolute_url() + ('?blind=1' if show.blind_review else ''),
+            'scores': scores,
+            'rating': review.rating if review else None,
+            'body': review.body if review else '',
+            'reviewed': bool(review),
+        })
+
+    return JsonResponse({
+        'show_slug': show.slug,
+        'blind_review': show.blind_review,
+        'criteria': [
+            {'id': c.pk, 'name': c.name, 'description': c.description, 'percentage': c.percentage}
+            for c in criteria
+        ],
+        'artworks': artwork_data,
+    })
+
+
+@login_required
+def save_score(request, show_slug):
+    """JSON endpoint: save one criterion score, overall rating, or body for one artwork."""
+    if request.method != 'POST':
+        raise Http404
+    show = get_object_or_404(Show, slug=show_slug)
+    if not is_juror_for_show(request.user, show):
+        raise Http404
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, Exception):
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
+
+    artwork_slug = data.get('artwork_slug', '')
+    artwork = get_object_or_404(Artwork, slug=artwork_slug, submissions__show=show)
+
+    review, _ = ArtworkReview.objects.get_or_create(
+        show=show, artwork=artwork, juror=request.user,
+        defaults={'rating': None, 'body': ''},
+    )
+
+    if 'criterion_id' in data and 'score' in data:
+        criterion = get_object_or_404(RubricCriterion, pk=data['criterion_id'], show=show)
+        CriterionScore.objects.update_or_create(
+            review=review,
+            criterion=criterion,
+            defaults={'score': int(data['score'])},
+        )
+
+    if 'rating' in data and data['rating'] is not None:
+        review.rating = int(data['rating'])
+        review.save(update_fields=['rating', 'updated_at'])
+
+    if 'body' in data:
+        review.body = data['body']
+        review.save(update_fields=['body', 'updated_at'])
+
+    return JsonResponse({'ok': True})

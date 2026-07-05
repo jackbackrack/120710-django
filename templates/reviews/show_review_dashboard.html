@@ -2,7 +2,9 @@
 {% load review_tags %}
 
 {% block title %}Reviews: {{ show.name }}{% endblock %}
-{% block block_title %}Reviews: {{ show.name }}{% endblock %}
+{% block block_title %}Reviews: {{ show.name }}
+{% if not is_curator or is_also_juror %}<button class="ss-status-btn rs-launch-btn" data-review-data-url="{% url 'reviews:review_data' show_slug=show.slug %}" data-save-score-url="{% url 'reviews:save_score' show_slug=show.slug %}" type="button">Review Slideshow</button>{% endif %}
+{% endblock %}
 {% block search_action %}{% url 'reviews:show_review_dashboard' show_slug=show.slug %}{% endblock %}
 
 {% block content %}
@@ -121,7 +123,7 @@
     </table>
     {% endif %}
     {% if pending_artworks %}
-    <div class="text-center section-label"><h3>Pending ({{ pending_artworks.count }})</h3></div>
+    <div class="text-center section-label"><h3>Pending ({{ pending_artworks.count }}) <button class="ss-status-btn rs-launch-btn" data-review-data-url="{% url 'reviews:review_data' show_slug=show.slug %}" data-save-score-url="{% url 'reviews:save_score' show_slug=show.slug %}" type="button">Review Slideshow</button></h3></div>
     <div class="cards">
       {% for artwork in pending_artworks %}
       <div class="card">
@@ -225,7 +227,7 @@
     </table>
     {% endif %}
 
-    <div class="text-center section-label"><h2>Pending Review ({{ pending_artworks.count }})</h2></div>
+    <div class="text-center section-label"><h2>Pending Review ({{ pending_artworks.count }}) <button class="ss-status-btn rs-launch-btn" data-review-data-url="{% url 'reviews:review_data' show_slug=show.slug %}" data-save-score-url="{% url 'reviews:save_score' show_slug=show.slug %}" type="button">Review Slideshow</button></h2></div>
     {% if pending_artworks %}
     <div class="cards">
       {% for artwork in pending_artworks %}

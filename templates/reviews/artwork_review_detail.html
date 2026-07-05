@@ -2,7 +2,7 @@
 {% load review_tags %}
 
 {% block title %}Reviews: {{ artwork.name }} — {{ show.name }}{% endblock %}
-{% block block_title %}Reviews: {{ artwork.name }}{% endblock %}
+{% block block_title %}Reviews: {{ artwork.name }} <button class="ss-status-btn rs-launch-btn" data-review-data-url="{% url 'reviews:review_data' show_slug=show.slug %}" data-save-score-url="{% url 'reviews:save_score' show_slug=show.slug %}" type="button">Review Slideshow</button>{% endblock %}
 
 {% block content %}
 {% include 'gallery/_artwork_display.html' with blind_artist=show.blind_review %}

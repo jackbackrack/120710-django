@@ -1,0 +1,262 @@
+/* ── Review Slideshow Overlay ─────────────────────────────────────────── */
+#review-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  background: #111;
+  display: none;
+  flex-direction: column;
+  font-family: inherit;
+  color: #eee;
+}
+#review-overlay.rs-open { display: flex; }
+
+/* ── Topbar ─────────────────────────────────────────────────────────────── */
+#rs-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+  gap: 12px;
+}
+#rs-counter-area {
+  display: flex;
+  gap: 16px;
+  font-size: 0.82em;
+  color: #aaa;
+  white-space: nowrap;
+}
+#rs-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+#rs-auto-label {
+  font-size: 0.8em;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+#rs-open-link { color: #64968c; text-decoration: none; font-size: 1.1em; }
+#rs-open-link:hover { color: #80b8ac; }
+.rs-topbtn {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1em;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.rs-topbtn:hover { color: #fff; background: #333; }
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+#rs-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Prev / Next ────────────────────────────────────────────────────────── */
+#rs-prev, #rs-next {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 3rem;
+  cursor: pointer;
+  padding: 0 6px;
+  flex-shrink: 0;
+  align-self: center;
+  line-height: 1;
+  transition: color 0.15s;
+}
+#rs-prev:hover, #rs-next:hover { color: #fff; }
+
+/* ── Left: image ────────────────────────────────────────────────────────── */
+#rs-left {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  background: #000;
+}
+#rs-img-a, #rs-img-b {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: opacity 0.3s;
+}
+.rs-hidden-img { opacity: 0; pointer-events: none; }
+
+/* ── Right: review panel ────────────────────────────────────────────────── */
+#rs-right {
+  width: 370px;
+  min-width: 300px;
+  background: #1a1a1a;
+  border-left: 1px solid #2e2e2e;
+  overflow-y: auto;
+  padding: 14px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+#rs-artwork-info { padding-bottom: 8px; border-bottom: 1px solid #2e2e2e; }
+#rs-artwork-title { font-size: 0.95em; font-weight: 600; color: #fff; line-height: 1.3; }
+#rs-artwork-artists { font-size: 0.8em; color: #888; margin-top: 2px; }
+
+/* ── Criteria ───────────────────────────────────────────────────────────── */
+.rs-criterion {
+  border-left: 3px solid transparent;
+  padding: 0 0 8px 8px;
+  border-bottom: 1px solid #252525;
+  transition: border-left-color 0.15s;
+}
+.rs-criterion.rs-focused { border-left-color: #64968c; }
+.rs-criterion-name {
+  font-size: 0.8em;
+  color: #bbb;
+  margin-bottom: 5px;
+}
+.rs-pct { color: #555; }
+.rs-score-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+}
+.rs-score-btn {
+  padding: 3px 5px;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  background: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.75em;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.rs-score-btn:hover { border-color: #64968c; color: #64968c; }
+.rs-score-btn.rs-selected { background: #64968c; border-color: #64968c; color: #fff; }
+
+/* ── Notes ──────────────────────────────────────────────────────────────── */
+#rs-notes-area label {
+  display: block;
+  font-size: 0.76em;
+  color: #666;
+  margin-bottom: 4px;
+}
+#rs-body-input {
+  width: 100%;
+  background: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  color: #ddd;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.8em;
+  resize: vertical;
+  box-sizing: border-box;
+}
+#rs-body-input:focus { border-color: #64968c; outline: none; }
+
+/* ── Save flash ─────────────────────────────────────────────────────────── */
+#rs-save-flash {
+  font-size: 0.78em;
+  color: #64968c;
+  height: 1.2em;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#rs-save-flash.rs-flash-show { opacity: 1; }
+
+.rs-loading, .rs-error { color: #888; font-size: 0.85em; padding: 8px 0; }
+.rs-error { color: #f66; }
+
+/* ── Footer: thumbnails ─────────────────────────────────────────────────── */
+#rs-footer {
+  flex-shrink: 0;
+  background: #161616;
+  border-top: 1px solid #2a2a2a;
+  padding: 3px 8px;
+}
+#rs-thumbs {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 3px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+.rs-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 2px solid #3a3a3a;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: #2a2a2a;
+  transition: border-color 0.15s;
+}
+.rs-thumb.rs-thumb-partial  { border-color: #d4a017; }
+.rs-thumb.rs-thumb-done     { border-color: #198754; }
+.rs-thumb.rs-thumb-current  { border-color: #64968c; outline: 2px solid #64968c; }
+
+/* ── Help panel ─────────────────────────────────────────────────────────── */
+#rs-help {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+#rs-help-inner {
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 20px 24px;
+  min-width: 230px;
+  color: #eee;
+}
+#rs-help-inner h3 { margin: 0 0 12px; font-size: 1em; }
+#rs-help-inner table { border-collapse: collapse; width: 100%; }
+#rs-help-inner td { padding: 4px 12px 4px 0; font-size: 0.85em; }
+#rs-help-inner td:first-child { font-family: monospace; color: #64968c; white-space: nowrap; }
+#rs-help-close {
+  margin-top: 14px;
+  background: #64968c;
+  border: none;
+  color: #fff;
+  padding: 5px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+#rs-help-close:hover { background: #4f7b73; }
+
+/* ── Mobile: stack vertically ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  #rs-body { flex-direction: column; }
+  #rs-right {
+    width: 100%;
+    min-width: 0;
+    border-left: none;
+    border-top: 1px solid #2e2e2e;
+    max-height: 46vh;
+  }
+  #rs-left { min-height: 28vh; }
+  #rs-prev, #rs-next { display: none; }
+}
