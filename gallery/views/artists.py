@@ -118,7 +118,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         from gallery.models import Show
         context = super().get_context_data(**kwargs)
         artist = self.object
-        artworks = artist.artworks.filter(visible_artwork_queryset(self.request.user)).prefetch_related('shows').distinct()
+        artworks = artist.artworks.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists', 'shows', 'shows__curators').distinct()
         context['artworks'] = artworks
         context['can_manage_artist'] = can_manage_artist(self.request.user, artist)
         context['can_delete_artist'] = can_delete_artist(self.request.user, artist)

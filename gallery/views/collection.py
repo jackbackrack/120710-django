@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import ListView
@@ -8,7 +9,6 @@ from gallery.models import Artist, Artwork
 from gallery.permissions import (
     is_curator_user,
     is_staff_user,
-    visible_artwork_queryset,
 )
 
 
@@ -46,9 +46,7 @@ def artist_autocomplete(request):
 def artwork_add_to_collection(request, pk):
     if not _can_manage_collection(request.user):
         raise PermissionDenied
-    artwork = get_object_or_404(
-        Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct(), pk=pk
-    )
+    artwork = get_object_or_404(Artwork, pk=pk)
     artist_pk = request.POST.get('artist_pk') or ''
     if not artist_pk.strip():
         from django.contrib import messages
@@ -79,12 +77,7 @@ class CollectorsListView(ListView):
         return (
             Artist.objects
             .filter(collection__isnull=False)
+            .annotate(collection_count=Count('collection'))
+            .order_by('-collection_count')
             .distinct()
         )
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        artists = list(context['artists'])
-        artists.sort(key=lambda a: -a.collection.count())
-        context['artists'] = artists
-        return context

@@ -58,7 +58,7 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object')
-        artworks = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').annotate(first_artist_name=Min('artists__name')).order_by('first_artist_name', 'name').distinct()
+        artworks = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists', 'shows', 'shows__curators').annotate(first_artist_name=Min('artists__name')).order_by('first_artist_name', 'name').distinct()
         artists = Artist.objects.filter(artworks__in=artworks).distinct().order_by('name')
         context['artists'] = artists
         context['can_manage_artist_ids'] = {a.id for a in artists if can_manage_artist(self.request.user, a)}

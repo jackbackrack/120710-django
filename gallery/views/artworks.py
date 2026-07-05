@@ -33,7 +33,7 @@ class ArtworkListView(ListView):
     paginate_by = 100
 
     def get_queryset(self):
-        queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists', 'shows').distinct()
+        queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists', 'shows', 'shows__curators').distinct()
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
@@ -79,7 +79,7 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         return context
 
     def get_queryset(self):
-        return Artwork.objects.filter(visible_artwork_queryset(self.request.user)).distinct()
+        return Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('shows__curators').distinct()
 
 
 class ArtworkUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):

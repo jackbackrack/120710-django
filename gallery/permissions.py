@@ -64,10 +64,13 @@ def can_manage_artwork(user, artwork):
         return False
     if user.is_superuser or _is_gallery_admin(user):
         return True
-    if artwork.created_by_id == user.id or artwork.artists.filter(user=user).exists():
+    if artwork.created_by_id == user.id or any(a.user_id == user.id for a in artwork.artists.all()):
         return True
     if is_curator_user(user):
-        return artwork.shows.filter(curators__user=user).exists()
+        return any(
+            any(c.user_id == user.id for c in s.curators.all())
+            for s in artwork.shows.all()
+        )
     return False
 
 
@@ -76,10 +79,10 @@ def can_delete_artwork(user, artwork):
         return False
     if user.is_superuser:
         return True
-    if artwork.created_by_id != user.id and not artwork.artists.filter(user=user).exists():
+    if artwork.created_by_id != user.id and not any(a.user_id == user.id for a in artwork.artists.all()):
         return False
     published_statuses = {'published', 'closed'}
-    return not artwork.shows.filter(status__in=published_statuses).exists()
+    return not any(s.status in published_statuses for s in artwork.shows.all())
 
 
 def can_manage_show(user, show):
