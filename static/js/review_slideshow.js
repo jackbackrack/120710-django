@@ -21,7 +21,8 @@
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
   var overlay, imgA, imgB, titleEl, artistsEl, criteriaEl,
-      bodyInput, flashEl, counterEl, reviewedCountEl, thumbsEl, autoAdvanceEl;
+      bodyInput, flashEl, counterEl, reviewedCountEl, thumbsEl,
+      autoAdvanceEl, skipWeakEl;
 
   // ── Build overlay DOM (once) ──────────────────────────────────────────────
   function buildOverlay() {
@@ -37,6 +38,9 @@
         '<div id="rs-right-controls">' +
           '<label id="rs-auto-label" title="Auto-advance to next after all criteria scored">' +
             '<input type="checkbox" id="rs-auto-advance" checked> Auto' +
+          '</label>' +
+          '<label id="rs-skip-label" title="Skip artworks with any Weak score">' +
+            '<input type="checkbox" id="rs-skip-weak"> Skip weak' +
           '</label>' +
           '<a id="rs-open-link" href="#" target="_blank" rel="noopener" title="Open detail page (D)">&#x2197;</a>' +
           '<button class="rs-topbtn" id="rs-help-btn" title="Keyboard shortcuts (?)">?</button>' +
@@ -91,6 +95,7 @@
     reviewedCountEl  = overlay.querySelector('#rs-reviewed-count');
     thumbsEl         = overlay.querySelector('#rs-thumbs');
     autoAdvanceEl    = overlay.querySelector('#rs-auto-advance');
+    skipWeakEl       = overlay.querySelector('#rs-skip-weak');
 
     overlay.querySelector('#rs-close-btn').addEventListener('click', close);
     overlay.querySelector('#rs-prev').addEventListener('click', prev);
@@ -193,8 +198,27 @@
     preloadAdjacent();
   }
 
-  function next() { goTo(current + 1); }
-  function prev() { goTo(current - 1); }
+  function next() {
+    if (skipWeakEl && skipWeakEl.checked && artworks.length > 1) {
+      var idx = current;
+      for (var i = 0; i < artworks.length - 1; i++) {
+        idx = (idx + 1) % artworks.length;
+        if (!hasAnyWeak(artworks[idx])) { goTo(idx); return; }
+      }
+    }
+    goTo(current + 1);
+  }
+
+  function prev() {
+    if (skipWeakEl && skipWeakEl.checked && artworks.length > 1) {
+      var idx = current;
+      for (var i = 0; i < artworks.length - 1; i++) {
+        idx = ((idx - 1) + artworks.length) % artworks.length;
+        if (!hasAnyWeak(artworks[idx])) { goTo(idx); return; }
+      }
+    }
+    goTo(current - 1);
+  }
 
   // ── Scoring logic ─────────────────────────────────────────────────────────
   function isFullyScored(aw) {
@@ -203,6 +227,14 @@
       if (aw.scores[criteria[i].id] == null) return false;
     }
     return true;
+  }
+
+  function hasAnyWeak(aw) {
+    if (criteria.length === 0) return aw.rating === 10;
+    for (var i = 0; i < criteria.length; i++) {
+      if (aw.scores[criteria[i].id] === 10) return true;
+    }
+    return false;
   }
 
   function findFirstUnscoredFor(aw) {
@@ -221,11 +253,12 @@
   }
 
   function findNextUnscored() {
+    var skipWeak = skipWeakEl && skipWeakEl.checked;
     for (var i = current + 1; i < artworks.length; i++) {
-      if (!isFullyScored(artworks[i])) return i;
+      if (!isFullyScored(artworks[i]) && !(skipWeak && hasAnyWeak(artworks[i]))) return i;
     }
     for (var i = 0; i < current; i++) {
-      if (!isFullyScored(artworks[i])) return i;
+      if (!isFullyScored(artworks[i]) && !(skipWeak && hasAnyWeak(artworks[i]))) return i;
     }
     return -1;
   }
@@ -299,7 +332,8 @@
     else { payload.criterion_id = critId; payload.score = score; }
     saveToServer(payload);
 
-    if (autoAdvanceEl.checked && isFullyScored(aw)) {
+    var shouldAdvance = isFullyScored(aw) || (skipWeakEl.checked && score === 10);
+    if (autoAdvanceEl.checked && shouldAdvance) {
       var nextIdx = findNextUnscored();
       if (nextIdx >= 0) {
         setTimeout(function () { goTo(nextIdx); }, 700);
@@ -351,9 +385,11 @@
     var thumbs = thumbsEl.querySelectorAll('.rs-thumb');
     thumbs.forEach(function (t, i) {
       var aw = artworks[i];
+      var weak = aw && hasAnyWeak(aw);
       t.classList.toggle('rs-thumb-current',  i === current);
-      t.classList.toggle('rs-thumb-done',     aw && isFullyScored(aw));
-      t.classList.toggle('rs-thumb-partial',  aw && aw.reviewed && !isFullyScored(aw));
+      t.classList.toggle('rs-thumb-weak',     !!weak);
+      t.classList.toggle('rs-thumb-done',     aw && !weak && isFullyScored(aw));
+      t.classList.toggle('rs-thumb-partial',  aw && !weak && aw.reviewed && !isFullyScored(aw));
     });
     var active = thumbs[current];
     if (active) active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
