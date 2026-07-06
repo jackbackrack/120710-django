@@ -29,4 +29,105 @@ $(document).ready(function() {
   });
 });
 </script>
+<script>
+(function () {
+  function hint(input) {
+    var fb = input.parentNode.querySelector('.ae-hint');
+    if (!fb) {
+      fb = document.createElement('div');
+      fb.className = 'ae-hint form-text mt-1';
+      fb.style.fontSize = '0.82em';
+      input.insertAdjacentElement('afterend', fb);
+    }
+    return fb;
+  }
+
+  function ok(input, fb, msg) {
+    input.classList.remove('is-invalid');
+    input.classList.add('is-valid');
+    fb.style.color = '#198754';
+    fb.textContent = msg;
+  }
+
+  function bad(input, fb, msg) {
+    input.classList.remove('is-valid');
+    input.classList.add('is-invalid');
+    fb.style.color = '#dc3545';
+    fb.textContent = msg;
+  }
+
+  function neutral(input, fb) {
+    input.classList.remove('is-valid', 'is-invalid');
+    fb.textContent = '';
+  }
+
+  // ── Validators — return true if valid ─────────────────────────────────────
+  function validateEmail(el, fb) {
+    var v = el.value.trim();
+    if (!v) { bad(el, fb, 'Email is required'); return false; }
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { ok(el, fb, '✓'); return true; }
+    bad(el, fb, 'Enter a valid email address'); return false;
+  }
+
+  function validateZip(el, fb) {
+    var v = el.value.trim();
+    if (!v) { neutral(el, fb); return true; }  // optional
+    if (/^\d{5}(-\d{4})?$/.test(v)) { ok(el, fb, '✓'); return true; }
+    bad(el, fb, 'Must be 5 digits (94710) or 9 digits (94710-1234)'); return false;
+  }
+
+  function validateWebsite(el, fb) {
+    var v = el.value.trim();
+    if (!v) { neutral(el, fb); return true; }  // optional
+    var url = v.includes('://') ? v : 'https://' + v;
+    try {
+      var p = new URL(url);
+      if (p.hostname.includes('.')) { ok(el, fb, 'Will save as: ' + url); return true; }
+    } catch (e) {}
+    bad(el, fb, 'Enter a valid URL, e.g. mysite.com'); return false;
+  }
+
+  function validateHandle(el, fb) {
+    var v = el.value.trim();
+    if (!v) { neutral(el, fb); return true; }  // optional
+    ok(el, fb, 'Will save as: ' + (v.startsWith('@') ? v : '@' + v)); return true;
+  }
+
+  // ── Wire up fields ────────────────────────────────────────────────────────
+  var fields = [
+    { id: 'id_email',     fn: validateEmail },
+    { id: 'id_zipcode',   fn: validateZip },
+    { id: 'id_website',   fn: validateWebsite },
+    { id: 'id_instagram', fn: validateHandle },
+    { id: 'id_venmo',     fn: validateHandle },
+  ];
+
+  fields.forEach(function (f) {
+    var el = document.getElementById(f.id);
+    if (!el) return;
+    var fb = hint(el);
+    el.addEventListener('input', function () { f.fn(el, fb); });
+    f._el = el;
+    f._fb = fb;
+  });
+
+  // ── Submit: validate all, block + scroll to first error ───────────────────
+  var form = document.querySelector('form[method="post"]');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      var firstBad = null;
+      fields.forEach(function (f) {
+        if (!f._el) return;
+        var valid = f.fn(f._el, f._fb);
+        if (!valid && !firstBad) firstBad = f._el;
+      });
+      if (firstBad) {
+        e.preventDefault();
+        firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstBad.focus();
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

@@ -10,6 +10,8 @@
 {% endblock content %}
 
 {% block extra_js %}
+{% load static %}
+<script src="{% static 'js/artwork_form_validate.js' %}"></script>
 <script>
 (function () {
   var dims = ['id_width_inches', 'id_height_inches', 'id_depth_inches'];
