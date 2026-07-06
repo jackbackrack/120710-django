@@ -122,6 +122,11 @@ def _curator_show_ids(user):
     return Show.objects.filter(curators__user=user).values('pk')
 
 
+def _juror_show_ids(user):
+    from reviews.models import ShowJuror
+    return ShowJuror.objects.filter(user=user).values('show_id')
+
+
 def visible_show_queryset(qs, user):
     from gallery.models import Show
     if is_staff_user(user):
@@ -143,6 +148,8 @@ def visible_artwork_queryset(user):
     public = Q(shows__in=_published_show_ids())
     if user.is_authenticated:
         public |= Q(created_by=user) | Q(artists__user=user)
+        if is_juror_user(user):
+            public |= Q(submissions__show__in=_juror_show_ids(user))
     return public
 
 
