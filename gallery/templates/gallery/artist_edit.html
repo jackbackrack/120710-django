@@ -76,6 +76,27 @@ $(document).ready(function() {
     bad(el, fb, 'Must be 5 digits (94710) or 9 digits (94710-1234)'); return false;
   }
 
+  function validatePhone(el, fb) {
+    var v = el.value.trim();
+    if (!v) { neutral(el, fb); return true; }  // optional
+    var international = v.startsWith('+');
+    var digits = v.replace(/\D/g, '');
+    if (international) {
+      // E.164-ish: + followed by 7–15 digits
+      if (digits.length >= 7 && digits.length <= 15) {
+        ok(el, fb, '✓'); return true;
+      }
+      bad(el, fb, 'International numbers: start with + and country code, e.g. +44 7911 123456'); return false;
+    }
+    // US: 10 digits (or 11 starting with 1)
+    if (digits.length === 11 && digits[0] === '1') digits = digits.slice(1);
+    if (digits.length === 10) {
+      var pretty = '+1 (' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6);
+      ok(el, fb, 'Will save as: ' + pretty); return true;
+    }
+    bad(el, fb, 'Enter a 10-digit US number or international number starting with +'); return false;
+  }
+
   function validateWebsite(el, fb) {
     var v = el.value.trim();
     if (!v) { neutral(el, fb); return true; }  // optional
@@ -96,6 +117,7 @@ $(document).ready(function() {
   // ── Wire up fields ────────────────────────────────────────────────────────
   var fields = [
     { id: 'id_email',     fn: validateEmail },
+    { id: 'id_phone',     fn: validatePhone },
     { id: 'id_zipcode',   fn: validateZip },
     { id: 'id_website',   fn: validateWebsite },
     { id: 'id_instagram', fn: validateHandle },
