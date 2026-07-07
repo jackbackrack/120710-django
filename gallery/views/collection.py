@@ -9,7 +9,7 @@ from django.views.generic import ListView
 
 from gallery.models import Artist, Artwork
 from gallery.models.collection import CollectionPiece, SavedArtwork
-from gallery.permissions import can_manage_artwork, is_staff_user, visible_artwork_queryset
+from gallery.permissions import can_manage_artwork, is_curator_user, is_staff_user, visible_artwork_queryset
 
 
 def artwork_autocomplete(request):
@@ -99,7 +99,7 @@ def confirm_collection_piece(request, pk):
         raise PermissionDenied
     piece = get_object_or_404(CollectionPiece, pk=pk)
     artist = Artist.objects.filter(user=request.user, artworks=piece.artwork).first()
-    if not artist and not is_staff_user(request.user):
+    if not artist and not is_curator_user(request.user):
         raise PermissionDenied
     action = request.POST.get('action')
     if action == 'confirm':

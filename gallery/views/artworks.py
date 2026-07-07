@@ -85,7 +85,10 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         )
         context['can_confirm_piece'] = (
             user.is_authenticated
-            and Artist.objects.filter(user=user, artworks=artwork).exists()
+            and (
+                Artist.objects.filter(user=user, artworks=artwork).exists()
+                or is_curator_user(user)
+            )
         )
         return context
 
