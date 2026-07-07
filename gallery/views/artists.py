@@ -174,8 +174,33 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
             all_shows = shows + curated_shows
             context['can_manage_show'] = {s.id for s in all_shows if can_manage_show(user, s)}
             context['can_delete_show'] = {s.id for s in all_shows if can_delete_show(user, s)}
-        collection = artist.collection.prefetch_related('artists').order_by('name')
-        context['collection'] = collection
+        from gallery.models.collection import CollectionPiece, SavedArtwork
+        confirmed_pieces = (
+            CollectionPiece.objects
+            .filter(collector=artist.user, status=CollectionPiece.STATUS_CONFIRMED)
+            .select_related('artwork')
+            .prefetch_related('artwork__artists')
+            .order_by('display_order', '-created_at')
+            if artist.user else CollectionPiece.objects.none()
+        )
+        context['collection'] = confirmed_pieces
+        if user.is_authenticated and artist.user == user:
+            context['pending_confirmations'] = (
+                CollectionPiece.objects
+                .filter(
+                    artwork__artists=artist,
+                    status=CollectionPiece.STATUS_PENDING,
+                )
+                .select_related('collector', 'artwork')
+                .order_by('-created_at')
+            )
+            context['saved_artworks'] = (
+                SavedArtwork.objects
+                .filter(user=user)
+                .select_related('artwork')
+                .prefetch_related('artwork__artists')
+                .order_by('-created_at')
+            )
         return context
 
 

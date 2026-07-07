@@ -43,7 +43,9 @@ from gallery.views.collection import (
     artwork_autocomplete,
     artist_autocomplete,
     artwork_add_to_collection,
-    artwork_remove_from_collection,
+    remove_collection_piece,
+    confirm_collection_piece,
+    toggle_save,
     CollectorsListView,
 )
 from gallery.views.open_call import artwork_submit, invite_artists, show_submissions, promote_artworks, update_submission_status, renumber_artworks, retract_submission, send_submission_reminders
@@ -53,7 +55,9 @@ __all__ = [
     'artwork_autocomplete',
     'artist_autocomplete',
     'artwork_add_to_collection',
-    'artwork_remove_from_collection',
+    'remove_collection_piece',
+    'confirm_collection_piece',
+    'toggle_save',
     'CollectorsListView',
     'detail',
     'ArtistListView',

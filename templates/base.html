@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="{% static 'css/slideshow.css' %}">
 <link rel="stylesheet" href="{% static 'css/review_slideshow.css' %}">
 <link rel="stylesheet" href="{% static 'css/curation_slideshow.css' %}">
+<link rel="stylesheet" href="{% static 'css/save_artwork.css' %}">
 <!-- favicon link moved to top of <head> -->
 {% endblock %}
     {% if structured_data_json %}
@@ -229,6 +230,7 @@
   <script src="{% static 'js/slideshow.js' %}"></script>
   <script src="{% static 'js/review_slideshow.js' %}"></script>
   <script src="{% static 'js/curation_slideshow.js' %}"></script>
+  <script src="{% static 'js/save_artwork.js' %}"></script>
 
   <!-- Walkthrough floating widget -->
   <div id="wt-widget" style="display:none;position:fixed;bottom:1.5rem;right:1.5rem;z-index:1090;width:22rem;max-width:calc(100vw - 2rem);background:#fff;border:2px solid #0d6efd;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,0.18);padding:1rem 1.1rem 0.85rem">

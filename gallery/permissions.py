@@ -160,12 +160,12 @@ def visible_artist_queryset(user):
         q = (Q(artworks__shows__in=_curator_show_ids(user))
              | Q(artworks__shows__in=_published_show_ids())
              | Q(curated_shows__isnull=False)
-             | Q(collection__isnull=False))
+             | Q(user__collection_pieces__status='confirmed'))
         q |= Q(user=user)
         return q
     public = (Q(artworks__shows__in=_published_show_ids())
               | Q(curated_shows__isnull=False)
-              | Q(collection__isnull=False))
+              | Q(user__collection_pieces__status='confirmed'))
     if user.is_authenticated:
         public |= Q(user=user)
     return public

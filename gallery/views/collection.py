@@ -1,28 +1,21 @@
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.views.generic import ListView
 
 from gallery.models import Artist, Artwork
-from gallery.permissions import (
-    is_curator_user,
-    is_staff_user,
-)
-
-
-def _can_manage_collection(user):
-    return user.is_authenticated and (is_staff_user(user) or is_curator_user(user))
+from gallery.models.collection import CollectionPiece, SavedArtwork
+from gallery.permissions import can_manage_artwork, is_staff_user, visible_artwork_queryset
 
 
 def artwork_autocomplete(request):
-    """JSON search: artworks by other artists, for Select2 in artist edit form."""
-    artist_pk = request.GET.get('artist_pk')
+    """JSON search: artworks by name, for Select2."""
     q = request.GET.get('q', '').strip()
     qs = Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct()
-    if artist_pk:
-        qs = qs.exclude(artists__pk=artist_pk)
     if q:
         qs = qs.filter(name__icontains=q)
     results = [
@@ -33,7 +26,7 @@ def artwork_autocomplete(request):
 
 
 def artist_autocomplete(request):
-    """JSON search: artists, for Select2 on artwork detail 'add to collection'."""
+    """JSON search: artists by name."""
     q = request.GET.get('q', '').strip()
     qs = Artist.objects.all()
     if q:
@@ -43,41 +36,96 @@ def artist_autocomplete(request):
 
 
 @login_required
+def toggle_save(request, pk):
+    """AJAX POST: toggle SavedArtwork for the current user."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    artwork = get_object_or_404(
+        Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct(), pk=pk
+    )
+    obj, created = SavedArtwork.objects.get_or_create(user=request.user, artwork=artwork)
+    if not created:
+        obj.delete()
+        return JsonResponse({'saved': False})
+    return JsonResponse({'saved': True})
+
+
+@login_required
 def artwork_add_to_collection(request, pk):
-    if not _can_manage_collection(request.user):
-        raise PermissionDenied
-    artwork = get_object_or_404(Artwork, pk=pk)
-    artist_pk = request.POST.get('artist_pk') or ''
-    if not artist_pk.strip():
-        from django.contrib import messages
-        messages.error(request, 'Please select an artist before adding to a collection.')
-        return redirect(artwork.get_absolute_url())
-    artist = get_object_or_404(Artist, pk=artist_pk)
-    artist.collection.add(artwork)
+    """Any logged-in user can claim ownership of an artwork (status=pending)."""
+    if request.method != 'POST':
+        return redirect('gallery:artwork_detail', pk=pk)
+    artwork = get_object_or_404(
+        Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct(), pk=pk
+    )
+    piece, created = CollectionPiece.objects.get_or_create(
+        collector=request.user,
+        artwork=artwork,
+        defaults={
+            'purchase_date': request.POST.get('purchase_date') or None,
+            'purchase_price': request.POST.get('purchase_price') or None,
+            'notes': request.POST.get('notes', ''),
+            'status': CollectionPiece.STATUS_PENDING,
+        },
+    )
+    if not created:
+        if request.POST.get('purchase_date'):
+            piece.purchase_date = request.POST.get('purchase_date')
+        if request.POST.get('purchase_price'):
+            piece.purchase_price = request.POST.get('purchase_price')
+        if request.POST.get('notes'):
+            piece.notes = request.POST.get('notes', '')
+        piece.save()
     return redirect(artwork.get_absolute_url())
 
 
 @login_required
-def artwork_remove_from_collection(request, pk):
-    if not _can_manage_collection(request.user):
+def remove_collection_piece(request, pk):
+    """Collector removes their own collection claim; staff can remove any."""
+    if request.method != 'POST':
         raise PermissionDenied
-    artwork = get_object_or_404(Artwork, pk=pk)
-    artist_pk = request.POST.get('artist_pk')
-    artist = get_object_or_404(Artist, pk=artist_pk)
-    artist.collection.remove(artwork)
+    piece = get_object_or_404(CollectionPiece, pk=pk)
+    if piece.collector != request.user and not is_staff_user(request.user):
+        raise PermissionDenied
+    artwork = piece.artwork
+    piece.delete()
     return redirect(artwork.get_absolute_url())
 
 
+@login_required
+def confirm_collection_piece(request, pk):
+    """Artist confirms or declines a collector's ownership claim."""
+    if request.method != 'POST':
+        raise PermissionDenied
+    piece = get_object_or_404(CollectionPiece, pk=pk)
+    artist = Artist.objects.filter(user=request.user, artworks=piece.artwork).first()
+    if not artist and not is_staff_user(request.user):
+        raise PermissionDenied
+    action = request.POST.get('action')
+    if action == 'confirm':
+        piece.status = CollectionPiece.STATUS_CONFIRMED
+        piece.confirmed_by = artist
+        piece.confirmed_at = timezone.now()
+        piece.save()
+    elif action == 'decline':
+        piece.status = CollectionPiece.STATUS_DECLINED
+        piece.confirmed_by = artist
+        piece.confirmed_at = timezone.now()
+        piece.save()
+    return redirect(piece.artwork.get_absolute_url())
+
+
 class CollectorsListView(ListView):
-    model = Artist
     template_name = 'gallery/collectors.html'
-    context_object_name = 'artists'
+    context_object_name = 'collector_rows'
 
     def get_queryset(self):
+        User = get_user_model()
+        confirmed_filter = Q(collection_pieces__status=CollectionPiece.STATUS_CONFIRMED)
         return (
-            Artist.objects
-            .filter(collection__isnull=False)
-            .annotate(collection_count=Count('collection'))
-            .order_by('-collection_count')
+            User.objects
+            .filter(confirmed_filter)
+            .annotate(confirmed_count=Count('collection_pieces', filter=confirmed_filter))
+            .order_by('-confirmed_count')
             .distinct()
         )

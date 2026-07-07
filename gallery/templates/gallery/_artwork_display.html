@@ -27,22 +27,44 @@
       {{ artwork.description }}
     </p>
     {% endif %}
-    {% if not blind_artist and can_manage_collection %}
-    {% if collected_by %}
-    <div class="text-gray-500 text-sm" style="margin-top:0.5em"><strong>In collection of: </strong>{% for a in collected_by %}<a class="card__link" href="{{ a.get_absolute_url }}">{{ a }}</a> <form method="post" enctype="application/x-www-form-urlencoded" action="{% url 'gallery:artwork_remove_from_collection' artwork.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="artist_pk" value="{{ a.pk }}"><button type="submit" class="card__link" style="background:none;border:none;padding:0;" onclick="return confirm('Remove from {{ a }}\'s collection?')">[remove]</button></form>{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    {% if user.is_authenticated %}
+    <div style="margin-top:0.75em">
+      {% if user_collection_piece %}
+        {% if user_collection_piece.status == 'confirmed' %}
+        <span class="badge bg-success">In your collection (confirmed)</span>
+        {% elif user_collection_piece.status == 'pending' %}
+        <span class="badge bg-warning text-dark">In your collection (awaiting artist confirmation)</span>
+        {% elif user_collection_piece.status == 'declined' %}
+        <span class="badge bg-danger">Ownership claim declined</span>
+        {% endif %}
+        <form method="post" action="{% url 'gallery:remove_collection_piece' user_collection_piece.pk %}" style="display:inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-link text-danger p-0 ms-2" onclick="return confirm('Remove this from your collection?')">Remove</button>
+        </form>
+      {% else %}
+      <form method="post" action="{% url 'gallery:artwork_add_to_collection' artwork.pk %}" class="d-flex flex-column gap-1" style="max-width:320px">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Add to my collection</button>
+      </form>
+      {% endif %}
+    </div>
     {% endif %}
-    {% if all_artists %}
-    <form method="post" enctype="application/x-www-form-urlencoded" action="{% url 'gallery:artwork_add_to_collection' artwork.pk %}" class="d-inline-flex align-items-center gap-2 mb-2" style="margin-top:0.5em">
-      {% csrf_token %}
-      <select name="artist_pk" class="select2-add-collector form-select form-select-sm" style="width:200px" data-placeholder="Add to artist's collection…" required>
-        <option value=""></option>
-        {% for a in all_artists %}
-        <option value="{{ a.pk }}">{{ a }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="btn btn-sm btn-outline-secondary">Add to collection</button>
-    </form>
-    {% endif %}
+    {% if not blind_artist and collection_pieces %}
+    <div class="text-gray-500 text-sm" style="margin-top:0.5em">
+      <strong>In collection of: </strong>
+      {% for piece in collection_pieces %}
+        <a class="card__link" href="{% url 'gallery:artist_detail' pk=piece.collector.artists.first.pk %}">{{ piece.collector.get_full_name|default:piece.collector.username }}</a>
+        {% if piece.status == 'confirmed' %}<span class="badge bg-success ms-1" style="font-size:0.65em">confirmed</span>{% else %}<span class="badge bg-secondary ms-1" style="font-size:0.65em">pending</span>{% endif %}
+        {% if can_confirm_piece and piece.status == 'pending' %}
+        <form method="post" action="{% url 'gallery:confirm_collection_piece' piece.pk %}" style="display:inline">
+          {% csrf_token %}
+          <button name="action" value="confirm" type="submit" class="btn btn-xs btn-link text-success p-0 ms-1">Confirm</button>
+          <button name="action" value="decline" type="submit" class="btn btn-xs btn-link text-danger p-0">Decline</button>
+        </form>
+        {% endif %}
+        {% if not forloop.last %}, {% endif %}
+      {% endfor %}
+    </div>
     {% endif %}
     <div class="pb-3"></div>
   </div>

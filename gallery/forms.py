@@ -65,16 +65,11 @@ class ArtistForm(UserAwareModelForm):
             'venmo',
             'bio',
             'statement',
-            'collection',
             'user',
         )
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel', 'placeholder': '+1 (555) 555-5555'}),
             'zipcode': forms.TextInput(attrs={'placeholder': '94710', 'maxlength': '10'}),
-            'collection': forms.SelectMultiple(attrs={
-                'class': 'select2-collection',
-                'data-placeholder': 'Search for artworks…',
-            }),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -85,18 +80,6 @@ class ArtistForm(UserAwareModelForm):
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
-        self.fields['collection'].required = False
-        self.fields['collection'].label = 'Collection (artworks acquired from other artists)'
-        if self.instance and self.instance.pk:
-            self.fields['collection'].queryset = (
-                Artwork.objects
-                .exclude(artists=self.instance)
-                .filter(shows__isnull=False)
-                .distinct()
-                .order_by('name')
-            )
-        else:
-            self.fields['collection'].queryset = Artwork.objects.none()
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()

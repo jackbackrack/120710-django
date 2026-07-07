@@ -1,4 +1,11 @@
-<div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork.get_absolute_url }}">
+<div class="card" style="position:relative" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork.get_absolute_url }}">
+  {% if user.is_authenticated %}
+  <button class="save-artwork-btn{% if artwork.id in saved_artwork_ids %} saved{% endif %}"
+    data-save-url="{% url 'gallery:toggle_save' artwork.pk %}"
+    data-artwork-id="{{ artwork.pk }}"
+    title="{% if artwork.id in saved_artwork_ids %}Unsave{% else %}Save{% endif %}"
+    aria-pressed="{% if artwork.id in saved_artwork_ids %}true{% else %}false{% endif %}">&#9829;</button>
+  {% endif %}
   {% if artwork.image %}
   <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
   {% endif %}

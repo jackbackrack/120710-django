@@ -124,17 +124,64 @@
   {% endfor %}
 </div>
 {% endif %}
+{% if pending_confirmations %}
+<div class="text-center section-label"><h2>Pending Collection Confirmations</h2></div>
+<div class="cards">
+  {% for piece in pending_confirmations %}
+  <div class="card">
+    {% if piece.artwork.image %}
+    <a style="display:contents" href="{{ piece.artwork.get_absolute_url }}"><img loading="lazy" src="{{ piece.artwork.card_sm.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <a class="card__link" href="{{ piece.artwork.get_absolute_url }}">{{ piece.artwork.name }}</a>
+      <p class="text-gray-500 text-sm">{{ piece.collector.get_full_name|default:piece.collector.username }} claims to own this</p>
+    </div>
+    <div class="card__info">
+      <form method="post" action="{% url 'gallery:confirm_collection_piece' piece.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button name="action" value="confirm" type="submit" class="card__link" style="color:#198754">Confirm</button>
+      </form>
+      <form method="post" action="{% url 'gallery:confirm_collection_piece' piece.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button name="action" value="decline" type="submit" class="card__link" style="color:#c0392b">Decline</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% if saved_artworks %}
+<div class="text-center section-label"><h2>Saved <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
+<div class="cards">
+  {% for saved in saved_artworks %}
+  <div class="card" style="position:relative" data-sl-title="{{ saved.artwork.name }}" data-sl-sub="{% for a in saved.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ saved.artwork.end_year|default:'' }}" data-sl-medium="{{ saved.artwork.medium|default:'' }}" data-sl-dims="{{ saved.artwork.placard_dimensions }}" data-sl-url="{{ saved.artwork.get_absolute_url }}">
+    <button class="save-artwork-btn saved"
+      data-save-url="{% url 'gallery:toggle_save' saved.artwork.pk %}"
+      data-artwork-id="{{ saved.artwork.pk }}"
+      title="Unsave" aria-pressed="true">&#9829;</button>
+    {% if saved.artwork.image %}
+    <a style="display:contents" href="{{ saved.artwork.get_absolute_url }}"><img loading="lazy" src="{{ saved.artwork.card_sm.url }}" data-sl-img="{{ saved.artwork.slideshow.url }}" class="card__image"></a>
+    {% endif %}
+    <div class="card__content">
+      <a class="card__link" href="{{ saved.artwork.get_absolute_url }}">{{ saved.artwork.name }}</a>
+      <p class="text-gray-500 text-sm">{% for a in saved.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    </div>
+    <div class="card__info"></div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% if collection %}
 <div class="text-center section-label"><h2>Collection <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 <div class="cards">
-  {% for artwork in collection %}
-  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for a in artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork.get_absolute_url }}">
-    {% if artwork.image %}
-    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
+  {% for piece in collection %}
+  <div class="card" data-sl-title="{{ piece.artwork.name }}" data-sl-sub="{% for a in piece.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ piece.artwork.end_year|default:'' }}" data-sl-medium="{{ piece.artwork.medium|default:'' }}" data-sl-dims="{{ piece.artwork.placard_dimensions }}" data-sl-url="{{ piece.artwork.get_absolute_url }}">
+    {% if piece.artwork.image %}
+    <a style="display:contents" href="{{ piece.artwork.get_absolute_url }}"><img loading="lazy" src="{{ piece.artwork.card_sm.url }}" data-sl-img="{{ piece.artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
-      <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>
-      <p class="text-gray-500 text-sm">{% for a in artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      <a class="card__link" href="{{ piece.artwork.get_absolute_url }}">{{ piece.artwork.name }}</a>
+      <p class="text-gray-500 text-sm">{% for a in piece.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
     </div>
     <div class="card__info"></div>
   </div>

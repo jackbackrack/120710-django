@@ -1,21 +1,27 @@
 {% extends 'base.html' %}
 
 {% block title %}Collectors{% endblock %}
-{% block block_title %}Collectors <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>{% endblock %}
+{% block block_title %}Collectors{% endblock %}
 
 {% block content %}
 <div class="cards">
-{% for artist in artists %}
-<div class="card" data-sl-title="{{ artist.full_name }}" data-sl-sub="{{ artist.collection_count }} work{{ artist.collection_count|pluralize }}" data-sl-url="{{ artist.get_absolute_url }}">
-  {% if artist.image %}
+{% for collector in collector_rows %}
+{% with artist=collector.artists.first %}
+<div class="card" data-sl-title="{{ collector.get_full_name|default:collector.username }}" data-sl-sub="{{ collector.confirmed_count }} work{{ collector.confirmed_count|pluralize }}" {% if artist %}data-sl-url="{{ artist.get_absolute_url }}"{% endif %}>
+  {% if artist and artist.image %}
   <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
   {% endif %}
   <div class="card__content">
-    <a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>
-    <p class="text-gray-500 text-sm">{{ artist.collection_count }} work{{ artist.collection_count|pluralize }}</p>
+    {% if artist %}
+    <a class="card__link" href="{{ artist.get_absolute_url }}">{{ collector.get_full_name|default:collector.username }}</a>
+    {% else %}
+    <span>{{ collector.get_full_name|default:collector.username }}</span>
+    {% endif %}
+    <p class="text-gray-500 text-sm">{{ collector.confirmed_count }} work{{ collector.confirmed_count|pluralize }}</p>
   </div>
   <div class="card__info"></div>
 </div>
+{% endwith %}
 {% empty %}
 <p class="text-muted text-center w-100">No collectors yet.</p>
 {% endfor %}

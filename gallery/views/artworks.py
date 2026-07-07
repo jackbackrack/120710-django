@@ -71,11 +71,22 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         context['can_inquire'] = artwork.artists.filter(email__isnull=False).exclude(email='').exists()
         context['blind_artist'] = self.request.GET.get('blind') == '1'
         user = self.request.user
-        context['can_manage_collection'] = (
-            user.is_authenticated and (is_staff_user(user) or is_curator_user(user))
+        from gallery.models.collection import CollectionPiece
+        context['collection_pieces'] = (
+            artwork.collection_pieces
+            .filter(status__in=[CollectionPiece.STATUS_CONFIRMED, CollectionPiece.STATUS_PENDING])
+            .select_related('collector')
+            .prefetch_related('collector__artists')
+            .order_by('status', '-created_at')
         )
-        context['collected_by'] = artwork.collected_by.order_by('name')
-        context['all_artists'] = Artist.objects.exclude(artworks=artwork).exclude(collection=artwork).order_by('name')
+        context['user_collection_piece'] = (
+            artwork.collection_pieces.filter(collector=user).first()
+            if user.is_authenticated else None
+        )
+        context['can_confirm_piece'] = (
+            user.is_authenticated
+            and Artist.objects.filter(user=user, artworks=artwork).exists()
+        )
         return context
 
     def get_queryset(self):
