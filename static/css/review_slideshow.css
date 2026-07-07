@@ -116,6 +116,12 @@
 #rs-artwork-info { padding-bottom: 8px; border-bottom: 1px solid #2e2e2e; }
 #rs-artwork-title { font-size: 0.95em; font-weight: 600; color: #fff; line-height: 1.3; }
 #rs-artwork-artists { font-size: 0.8em; color: #888; margin-top: 2px; }
+#rs-artwork-year,
+#rs-artwork-medium,
+#rs-artwork-dims { font-size: 0.78em; color: #666; margin-top: 2px; line-height: 1.5; font-style: italic; }
+#rs-artwork-year:empty,
+#rs-artwork-medium:empty,
+#rs-artwork-dims:empty { display: none; }
 
 /* ── Criteria ───────────────────────────────────────────────────────────── */
 .rs-criterion {

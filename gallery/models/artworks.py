@@ -72,6 +72,25 @@ class Artwork(models.Model):
         ordering = ['-created_at']
 
     @property
+    def placard_dimensions(self):
+        """W × H (× D) in — formatted dimension string."""
+        def fmt(v):
+            f = float(v)
+            return str(int(f)) if f == int(f) else str(round(f, 2))
+        dims = [fmt(v) for v in (self.width_inches, self.height_inches, self.depth_inches) if v]
+        return (' × '.join(dims) + ' in') if len(dims) >= 2 else ''
+
+    @property
+    def placard_meta(self):
+        """Year • Medium • dimensions — single-line for contexts that need it."""
+        parts = [p for p in (
+            str(self.end_year) if self.end_year else '',
+            self.medium.strip() if self.medium else '',
+            self.placard_dimensions,
+        ) if p]
+        return ' • '.join(parts)
+
+    @property
     def formatted_price(self):
         if self.pricing_type == self.PRICING_NFS:
             return 'Not For Sale'

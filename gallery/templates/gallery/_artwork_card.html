@@ -1,4 +1,4 @@
-<div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-url="{{ artwork.get_absolute_url }}">
+<div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork.get_absolute_url }}">
   {% if artwork.image %}
   <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
   {% endif %}

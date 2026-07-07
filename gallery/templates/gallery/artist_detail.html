@@ -52,7 +52,7 @@
 <div class="text-center section-label"><h2>My Submissions <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 <div class="cards">
   {% for sub in my_submissions %}
-  <div class="card" data-sl-title="{{ sub.artwork.name }}" data-sl-sub="{{ sub.show.name }}" data-sl-url="{{ sub.artwork.get_absolute_url }}">
+  <div class="card" data-sl-title="{{ sub.artwork.name }}" data-sl-sub="{{ sub.show.name }}" data-sl-year="{{ sub.artwork.end_year|default:'' }}" data-sl-medium="{{ sub.artwork.medium|default:'' }}" data-sl-dims="{{ sub.artwork.placard_dimensions }}" data-sl-url="{{ sub.artwork.get_absolute_url }}">
     {% if sub.artwork.image %}
     <a style="display: contents" href="{{ sub.artwork.get_absolute_url }}"><img loading="lazy" src="{{ sub.artwork.card_sm.url }}" data-sl-img="{{ sub.artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}
@@ -94,7 +94,7 @@
 {% endif %}
 <div class="cards">
   {% for artwork in artworks %}
-  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-url="{{ artwork.get_absolute_url }}">
+  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork.get_absolute_url }}">
     {% if artwork.image %}
     <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}
@@ -128,7 +128,7 @@
 <div class="text-center section-label"><h2>Collection <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 <div class="cards">
   {% for artwork in collection %}
-  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for a in artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-url="{{ artwork.get_absolute_url }}">
+  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for a in artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork.get_absolute_url }}">
     {% if artwork.image %}
     <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}

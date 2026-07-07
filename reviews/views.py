@@ -335,6 +335,9 @@ def review_data(request, show_slug):
             'img': artwork.slideshow.url if artwork.image else '',
             'thumb': artwork.card_sm.url if artwork.image else '',
             'detail_url': artwork.get_absolute_url() + ('?blind=1' if show.blind_review else ''),
+            'year': str(artwork.end_year) if artwork.end_year else '',
+            'medium': artwork.medium or '',
+            'dimensions': artwork.placard_dimensions,
             'scores': scores,
             'rating': review.rating if review else None,
             'body': review.body if review else '',
@@ -390,4 +393,135 @@ def save_score(request, show_slug):
         review.body = data['body']
         review.save(update_fields=['body', 'updated_at'])
 
+    return JsonResponse({'ok': True})
+
+
+# ── Curation slideshow ─────────────────────────────────────────────────────
+
+@login_required
+def curation_data(request, show_slug):
+    """JSON endpoint: all submissions with artwork info and juror scores for curator sorting."""
+    show = get_object_or_404(Show, slug=show_slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+
+    from gallery.models.submissions import ArtworkSubmission
+    criteria = list(show.rubric_criteria.all())
+
+    submissions = list(
+        ArtworkSubmission.objects
+        .filter(show=show)
+        .select_related('artwork')
+        .prefetch_related('artwork__artists')
+        .order_by('submitted_at')
+    )
+
+    all_reviews = list(
+        ArtworkReview.objects
+        .filter(show=show)
+        .select_related('juror')
+        .prefetch_related('criterion_scores', 'juror__artists')
+        .order_by('juror__last_name', 'juror__first_name')
+    )
+
+    reviews_by_artwork = {}
+    for review in all_reviews:
+        reviews_by_artwork.setdefault(review.artwork_id, []).append(review)
+
+    def juror_display(user):
+        if user is None:
+            return '(deleted)'
+        artist = user.artists.first()
+        return artist.full_name if artist else (user.get_full_name() or user.username)
+
+    def fmt_dim(val):
+        if val is None:
+            return ''
+        f = float(val)
+        return str(int(f)) if f == int(f) else str(round(f, 2))
+
+    def artwork_dimensions(aw):
+        parts = [fmt_dim(v) for v in (aw.width_inches, aw.height_inches, aw.depth_inches) if v]
+        return (' × '.join(parts) + ' in') if len(parts) >= 2 else ''
+
+    def weighted_for_scores(scores_dict):
+        if not criteria:
+            return None
+        total = sum(scores_dict[c.pk] * c.percentage / 100.0 for c in criteria if c.pk in scores_dict)
+        scored = sum(c.percentage for c in criteria if c.pk in scores_dict)
+        return round(total, 1) if scored > 0 else None
+
+    artwork_list = []
+    for sub in submissions:
+        aw = sub.artwork
+        reviews = reviews_by_artwork.get(aw.pk, [])
+
+        juror_scores = []
+        all_weighted = []
+        for review in reviews:
+            scores_dict = {cs.criterion_id: cs.score for cs in review.criterion_scores.all()}
+            w = weighted_for_scores(scores_dict) if criteria else review.rating
+            if w is not None:
+                all_weighted.append(w)
+            juror_scores.append({
+                'name': juror_display(review.juror),
+                'criteria': scores_dict,
+                'rating': review.rating,
+                'weighted': w,
+            })
+
+        overall = round(sum(all_weighted) / len(all_weighted), 1) if all_weighted else None
+
+        artwork_list.append({
+            'submission_id': sub.pk,
+            'slug': aw.slug,
+            'name': aw.name,
+            'artists': [] if show.blind_review else [a.full_name for a in aw.artists.all()],
+            'year': str(aw.end_year) if aw.end_year else '',
+            'medium': aw.medium or '',
+            'dimensions': artwork_dimensions(aw),
+            'img': aw.slideshow.url if aw.image else '',
+            'thumb': aw.card_sm.url if aw.image else '',
+            'detail_url': aw.get_absolute_url() + ('?blind=1' if show.blind_review else ''),
+            'decision': sub.curator_decision,
+            'weighted_score': overall,
+            'juror_scores': juror_scores,
+        })
+
+    artwork_list.sort(
+        key=lambda x: x['weighted_score'] if x['weighted_score'] is not None else -1,
+        reverse=True,
+    )
+
+    return JsonResponse({
+        'show_slug': show.slug,
+        'blind_review': show.blind_review,
+        'criteria': [{'id': c.pk, 'name': c.name, 'percentage': c.percentage} for c in criteria],
+        'artworks': artwork_list,
+    })
+
+
+@login_required
+def save_decision(request, show_slug):
+    """JSON endpoint: save curator_decision on a submission."""
+    if request.method != 'POST':
+        raise Http404
+    show = get_object_or_404(Show, slug=show_slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, Exception):
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
+
+    from gallery.models.submissions import ArtworkSubmission
+    valid = {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}
+    decision = data.get('decision', ArtworkSubmission.UNDECIDED)
+    if decision not in valid:
+        return JsonResponse({'ok': False, 'error': 'Invalid decision'}, status=400)
+
+    sub = get_object_or_404(ArtworkSubmission, pk=data.get('submission_id'), show=show)
+    sub.curator_decision = decision
+    sub.save(update_fields=['curator_decision'])
     return JsonResponse({'ok': True})

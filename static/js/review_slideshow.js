@@ -20,7 +20,7 @@
   var focusedCritIdx = 0;
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
-  var overlay, imgA, imgB, titleEl, artistsEl, criteriaEl,
+  var overlay, imgA, imgB, titleEl, artistsEl, yearEl, mediumEl, dimsEl, criteriaEl,
       bodyInput, flashEl, counterEl, reviewedCountEl, thumbsEl,
       autoAdvanceEl, skipWeakEl;
 
@@ -57,6 +57,9 @@
           '<div id="rs-artwork-info">' +
             '<div id="rs-artwork-title"></div>' +
             '<div id="rs-artwork-artists"></div>' +
+            '<div id="rs-artwork-year"></div>' +
+            '<div id="rs-artwork-medium"></div>' +
+            '<div id="rs-artwork-dims"></div>' +
           '</div>' +
           '<div id="rs-criteria"></div>' +
           '<div id="rs-notes-area">' +
@@ -88,6 +91,9 @@
     imgB             = overlay.querySelector('#rs-img-b');
     titleEl          = overlay.querySelector('#rs-artwork-title');
     artistsEl        = overlay.querySelector('#rs-artwork-artists');
+    yearEl           = overlay.querySelector('#rs-artwork-year');
+    mediumEl         = overlay.querySelector('#rs-artwork-medium');
+    dimsEl           = overlay.querySelector('#rs-artwork-dims');
     criteriaEl       = overlay.querySelector('#rs-criteria');
     bodyInput        = overlay.querySelector('#rs-body-input');
     flashEl          = overlay.querySelector('#rs-save-flash');
@@ -140,6 +146,7 @@
     criteriaEl.innerHTML = '<p class="rs-loading">Loading…</p>';
     titleEl.textContent = '';
     artistsEl.textContent = '';
+    artistsEl.style.display = '';
     thumbsEl.innerHTML = '';
 
     fetch(reviewDataUrl)
@@ -187,6 +194,10 @@
 
     titleEl.textContent    = aw.name;
     artistsEl.textContent  = aw.artists.join(', ');
+    artistsEl.style.display = aw.artists.length ? '' : 'none';
+    yearEl.textContent     = aw.year   || '';
+    mediumEl.textContent   = aw.medium || '';
+    dimsEl.textContent     = aw.dimensions || '';
     bodyInput.value        = aw.body || '';
     overlay.querySelector('#rs-open-link').href = aw.detail_url || '#';
     counterEl.textContent  = (current + 1) + ' / ' + artworks.length;

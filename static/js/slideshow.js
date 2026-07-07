@@ -3,14 +3,14 @@
   'use strict';
 
   // ── State ─────────────────────────────────────────────────────────────────
-  var items = [];       // [{img, thumb, title, sub, url}]
+  var items = [];       // [{img, thumb, title, sub, meta, url}]
   var current = 0;
   var activeSlot = 'a'; // which <img> tag is currently visible
   var infoVisible = true;
   var autoHideTimer = null;
 
   // DOM references (set after buildOverlay)
-  var overlay, imgA, imgB, titleEl, subEl, topbar, footer,
+  var overlay, imgA, imgB, titleEl, subEl, yearEl, mediumEl, dimsEl, topbar, footer,
       progressFill, counterEl, thumbsEl, helpEl, openLink;
 
   // ── Build overlay DOM (once) ───────────────────────────────────────────────
@@ -25,6 +25,9 @@
         '<div id="ss-info">' +
           '<span id="ss-title"></span>' +
           '<span id="ss-sub"></span>' +
+          '<span id="ss-year"></span>' +
+          '<span id="ss-medium"></span>' +
+          '<span id="ss-dims"></span>' +
         '</div>' +
         '<a id="ss-open-link" href="#" target="_blank" title="Open detail page" rel="noopener">&#x2197;</a>' +
         '<button class="ss-topbtn" id="ss-info-btn" title="Toggle info (I)">&#x2139;</button>' +
@@ -64,6 +67,9 @@
     imgB         = overlay.querySelector('#ss-img-b');
     titleEl      = overlay.querySelector('#ss-title');
     subEl        = overlay.querySelector('#ss-sub');
+    yearEl       = overlay.querySelector('#ss-year');
+    mediumEl     = overlay.querySelector('#ss-medium');
+    dimsEl       = overlay.querySelector('#ss-dims');
     topbar       = overlay.querySelector('#ss-topbar');
     footer       = overlay.querySelector('#ss-footer');
     progressFill = overlay.querySelector('#ss-progress-fill');
@@ -138,8 +144,11 @@
     outgoing.classList.add('ss-hidden-img');
     activeSlot = activeSlot === 'a' ? 'b' : 'a';
 
-    titleEl.textContent = item.title;
-    subEl.textContent   = item.sub || '';
+    titleEl.textContent  = item.title;
+    subEl.textContent    = item.sub    || '';
+    yearEl.textContent   = item.year   || '';
+    mediumEl.textContent = item.medium || '';
+    dimsEl.textContent   = item.dims   || '';
     if (item.url) {
       openLink.href = item.url;
       openLink.style.display = '';
@@ -301,11 +310,14 @@
       var img = card.querySelector('img.card__image');
       if (!img) return;
       result.push({
-        img:   img.dataset.slImg    || img.src,
-        thumb: img.src,
-        title: card.dataset.slTitle || '',
-        sub:   card.dataset.slSub   || '',
-        url:   card.dataset.slUrl   || '',
+        img:    img.dataset.slImg    || img.src,
+        thumb:  img.src,
+        title:  card.dataset.slTitle  || '',
+        sub:    card.dataset.slSub    || '',
+        year:   card.dataset.slYear   || '',
+        medium: card.dataset.slMedium || '',
+        dims:   card.dataset.slDims   || '',
+        url:    card.dataset.slUrl    || '',
       });
     });
     return result;
