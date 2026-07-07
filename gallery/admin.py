@@ -2,6 +2,7 @@ from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 
 from gallery.models import Artist, Artwork, ArtworkImage, Event, LinkTreeEntry, Show, ShowInvitation, Tag
+from gallery.models.collection import CollectionPiece, SavedArtwork
 from reviews.models import ShowJuror
 
 
@@ -44,6 +45,27 @@ admin.site.register(Show, ShowAdmin)
 admin.site.register(ShowInvitation)
 admin.site.register(Event, ImportExportAdmin)
 admin.site.register(Tag, ImportExportAdmin)
+
+
+@admin.register(CollectionPiece)
+class CollectionPieceAdmin(admin.ModelAdmin):
+    list_display = ['artwork', 'collector', 'status', 'confirmed_by', 'purchase_date', 'created_at']
+    list_filter = ['status']
+    search_fields = [
+        'artwork__name',
+        'collector__username', 'collector__first_name', 'collector__last_name',
+    ]
+    raw_id_fields = ['collector', 'artwork', 'confirmed_by']
+    readonly_fields = ['created_at', 'confirmed_at']
+    list_editable = ['status']
+
+
+@admin.register(SavedArtwork)
+class SavedArtworkAdmin(admin.ModelAdmin):
+    list_display = ['artwork', 'user', 'created_at']
+    search_fields = ['artwork__name', 'user__username', 'user__first_name', 'user__last_name']
+    raw_id_fields = ['user', 'artwork']
+    readonly_fields = ['created_at']
 
 
 @admin.register(LinkTreeEntry)

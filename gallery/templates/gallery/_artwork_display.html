@@ -50,6 +50,13 @@
       {% endif %}
     </div>
     {% endif %}
+    {% if user.is_staff or user.is_superuser %}
+    <div class="text-gray-500 text-sm" style="margin-top:0.5em">
+      <a class="card__link" href="/admin/gallery/collectionpiece/add/?artwork={{ artwork.pk }}">Record ownership for someone</a>
+      &nbsp;·&nbsp;
+      <a class="card__link" href="/admin/gallery/collectionpiece/?artwork__id__exact={{ artwork.pk }}">Manage all ownership records</a>
+    </div>
+    {% endif %}
     {% if not blind_artist and collection_pieces %}
     <div class="text-gray-500 text-sm" style="margin-top:0.5em">
       <strong>In collection of: </strong>
