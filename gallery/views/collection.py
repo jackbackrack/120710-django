@@ -1,5 +1,6 @@
 import json
 
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -115,6 +116,72 @@ def confirm_collection_piece(request, pk):
         piece.confirmed_at = timezone.now()
         piece.save()
     return redirect(piece.artwork.get_absolute_url())
+
+
+def user_autocomplete(request):
+    """JSON search: users by name or email. Staff only."""
+    if not is_staff_user(request.user):
+        return JsonResponse({'results': []}, status=403)
+    User = get_user_model()
+    q = request.GET.get('q', '').strip()
+    qs = User.objects.filter(is_active=True)
+    if q:
+        qs = qs.filter(
+            Q(first_name__icontains=q) | Q(last_name__icontains=q) |
+            Q(email__icontains=q) | Q(username__icontains=q)
+        )
+    results = [
+        {'id': u.pk, 'text': u.get_full_name() or u.username, 'email': u.email}
+        for u in qs.order_by('last_name', 'first_name')[:20]
+    ]
+    return JsonResponse({'results': results})
+
+
+@login_required
+def staff_record_ownership(request, pk):
+    """Staff-only: create or update a CollectionPiece for any user."""
+    if not is_staff_user(request.user):
+        raise PermissionDenied
+    if request.method != 'POST':
+        raise PermissionDenied
+    artwork = get_object_or_404(Artwork, pk=pk)
+    User = get_user_model()
+    collector_id = request.POST.get('collector_id')
+    if not collector_id:
+        messages.error(request, 'Please select a collector.')
+        return redirect(artwork.get_absolute_url())
+    collector = get_object_or_404(User, pk=collector_id)
+    status = request.POST.get('status', CollectionPiece.STATUS_CONFIRMED)
+    if status not in dict(CollectionPiece.STATUS_CHOICES):
+        status = CollectionPiece.STATUS_CONFIRMED
+    confirmed_by = request.user.artists.order_by('-created_at').first() if status == CollectionPiece.STATUS_CONFIRMED else None
+    confirmed_at = timezone.now() if status == CollectionPiece.STATUS_CONFIRMED else None
+    piece, created = CollectionPiece.objects.get_or_create(
+        collector=collector,
+        artwork=artwork,
+        defaults={
+            'status': status,
+            'purchase_date': request.POST.get('purchase_date') or None,
+            'purchase_price': request.POST.get('purchase_price') or None,
+            'notes': request.POST.get('notes', ''),
+            'confirmed_by': confirmed_by,
+            'confirmed_at': confirmed_at,
+        },
+    )
+    if not created:
+        piece.status = status
+        piece.confirmed_by = confirmed_by
+        piece.confirmed_at = confirmed_at
+        if request.POST.get('purchase_date'):
+            piece.purchase_date = request.POST.get('purchase_date')
+        if request.POST.get('purchase_price'):
+            piece.purchase_price = request.POST.get('purchase_price')
+        if request.POST.get('notes'):
+            piece.notes = request.POST.get('notes', '')
+        piece.save()
+    name = collector.get_full_name() or collector.username
+    messages.success(request, f'Ownership {"recorded" if created else "updated"} for {name}.')
+    return redirect(artwork.get_absolute_url())
 
 
 @login_required

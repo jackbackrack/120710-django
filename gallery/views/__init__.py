@@ -42,11 +42,13 @@ from gallery.views.exhibitions import (
 from gallery.views.collection import (
     artwork_autocomplete,
     artist_autocomplete,
+    user_autocomplete,
     artwork_add_to_collection,
     remove_collection_piece,
     confirm_collection_piece,
     reorder_collection_pieces,
     reorder_saved_artworks,
+    staff_record_ownership,
     toggle_save,
     CollectorsListView,
 )
@@ -61,6 +63,8 @@ __all__ = [
     'confirm_collection_piece',
     'reorder_collection_pieces',
     'reorder_saved_artworks',
+    'staff_record_ownership',
+    'user_autocomplete',
     'toggle_save',
     'CollectorsListView',
     'detail',
