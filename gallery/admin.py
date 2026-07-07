@@ -49,7 +49,7 @@ admin.site.register(Tag, ImportExportAdmin)
 
 @admin.register(CollectionPiece)
 class CollectionPieceAdmin(admin.ModelAdmin):
-    list_display = ['artwork', 'collector', 'status', 'confirmed_by', 'purchase_date', 'created_at']
+    list_display = ['artwork', 'collector', 'status', 'confirmed_by', 'purchase_date', 'purchase_price', 'commission_amount', 'created_at']
     list_filter = ['status']
     search_fields = [
         'artwork__name',

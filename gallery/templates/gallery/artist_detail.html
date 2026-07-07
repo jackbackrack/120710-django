@@ -172,10 +172,10 @@
 {% endif %}
 {% if collection %}
 <div class="text-center section-label"><h2>Collection <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
-{% if user.is_authenticated and artist.user == user %}
+{% if user.is_authenticated and artist.user and (artist.user == user or user.is_staff or user.is_superuser) %}
 <p class="text-center text-muted" style="font-size:0.8rem;margin-top:-0.5rem">Drag cards to reorder</p>
 {% endif %}
-<div class="cards" id="collection-sortable"{% if user.is_authenticated and artist.user == user %} data-reorder-url="{% url 'gallery:reorder_collection_pieces' %}"{% endif %}>
+<div class="cards" id="collection-sortable"{% if user.is_authenticated and artist.user and (artist.user == user or user.is_staff or user.is_superuser) %} data-reorder-url="{% url 'gallery:reorder_collection_pieces' %}" data-collector-id="{{ artist.user.pk }}"{% endif %}>
   {% for piece in collection %}
   <div class="card" data-piece-pk="{{ piece.pk }}" data-sl-title="{{ piece.artwork.name }}" data-sl-sub="{% for a in piece.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ piece.artwork.end_year|default:'' }}" data-sl-medium="{{ piece.artwork.medium|default:'' }}" data-sl-dims="{{ piece.artwork.placard_dimensions }}" data-sl-url="{{ piece.artwork.get_absolute_url }}">
     {% if piece.artwork.image %}
@@ -203,16 +203,19 @@
     var grid = document.getElementById(gridId);
     if (!grid || !grid.dataset.reorderUrl) return;
     var url = grid.dataset.reorderUrl;
+    var collectorId = grid.dataset.collectorId || null;
     Sortable.create(grid, {
       animation: 150,
       onEnd: function () {
         var ids = Array.from(grid.querySelectorAll('[' + pkAttr + ']')).map(function (el) {
           return parseInt(el.getAttribute(pkAttr), 10);
         });
+        var body = { ids: ids };
+        if (collectorId) body.collector_id = collectorId;
         fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-          body: JSON.stringify({ ids: ids }),
+          body: JSON.stringify(body),
         });
       },
     });

@@ -30,6 +30,7 @@ class CollectionPiece(models.Model):
     artwork = models.ForeignKey('gallery.Artwork', related_name='collection_pieces', on_delete=models.CASCADE)
     purchase_date = models.DateField(blank=True, null=True)
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     confirmed_by = models.ForeignKey(

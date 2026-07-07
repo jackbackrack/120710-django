@@ -163,6 +163,7 @@ def staff_record_ownership(request, pk):
             'status': status,
             'purchase_date': request.POST.get('purchase_date') or None,
             'purchase_price': request.POST.get('purchase_price') or None,
+            'commission_amount': request.POST.get('commission_amount') or 0,
             'notes': request.POST.get('notes', ''),
             'confirmed_by': confirmed_by,
             'confirmed_at': confirmed_at,
@@ -176,6 +177,8 @@ def staff_record_ownership(request, pk):
             piece.purchase_date = request.POST.get('purchase_date')
         if request.POST.get('purchase_price'):
             piece.purchase_price = request.POST.get('purchase_price')
+        if request.POST.get('commission_amount') is not None:
+            piece.commission_amount = request.POST.get('commission_amount') or 0
         if request.POST.get('notes'):
             piece.notes = request.POST.get('notes', '')
         piece.save()
@@ -198,9 +201,15 @@ def reorder_saved_artworks(request):
 def reorder_collection_pieces(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False}, status=405)
-    ids = json.loads(request.body).get('ids', [])
+    data = json.loads(request.body)
+    ids = data.get('ids', [])
+    collector_id = data.get('collector_id')
+    if collector_id and is_staff_user(request.user):
+        collector = get_object_or_404(get_user_model(), pk=collector_id)
+    else:
+        collector = request.user
     for order, pk in enumerate(ids, start=1):
-        CollectionPiece.objects.filter(pk=pk, collector=request.user).update(display_order=order)
+        CollectionPiece.objects.filter(pk=pk, collector=collector).update(display_order=order)
     return JsonResponse({'ok': True})
 
 
