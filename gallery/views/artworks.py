@@ -180,6 +180,41 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return is_artist_user(self.request.user)
 
 
+def artwork_slideshow_items(request):
+    """Return all visible artworks as JSON for the slideshow, bypassing pagination."""
+    from django.urls import reverse
+    from gallery.models.collection import SavedArtwork
+    queryset = Artwork.objects.filter(visible_artwork_queryset(request.user)).prefetch_related('artists').distinct()
+    tag = request.GET.get('tag')
+    if tag:
+        queryset = tag_filter_queryset(queryset, tag).distinct()
+    queryset = queryset.exclude(image='').filter(image__isnull=False)
+
+    saved_ids = set()
+    if request.user.is_authenticated:
+        saved_ids = set(SavedArtwork.objects.filter(user=request.user).values_list('artwork_id', flat=True))
+
+    items = []
+    for a in queryset:
+        try:
+            items.append({
+                'img': a.slideshow.url,
+                'thumb': a.card_sm.url,
+                'title': a.name,
+                'sub': ', '.join(str(ar) for ar in a.artists.all()),
+                'year': str(a.end_year) if a.end_year else '',
+                'medium': a.medium or '',
+                'dims': a.placard_dimensions,
+                'url': a.get_absolute_url(),
+                'saveUrl': reverse('gallery:toggle_save', args=[a.pk]) if request.user.is_authenticated else '',
+                'artworkId': str(a.pk),
+                'saved': a.pk in saved_ids,
+            })
+        except Exception:
+            pass
+    return JsonResponse({'items': items})
+
+
 def artwork_inquire(request, pk):
     artwork = get_object_or_404(
         Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct(),

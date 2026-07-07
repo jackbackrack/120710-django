@@ -4,7 +4,9 @@ from gallery.views.placards import placard_html, placard_json
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views import (
     artwork_autocomplete,
+    artwork_slideshow_items,
     artist_autocomplete,
+    artist_slideshow_items,
     artwork_add_to_collection,
     remove_collection_piece,
     confirm_collection_piece,
@@ -73,6 +75,8 @@ urlpatterns = [
     path('submission/<int:pk>/retract/', retract_submission, name='retract_submission'),
     path('submission/<int:pk>/status/', update_submission_status, name='update_submission_status'),
     path('artists/', ArtistListView.as_view(), name='artist_list'),
+    path('artists/slideshow-items/', artist_slideshow_items, name='artist_slideshow_items'),
+    path('artworks/slideshow-items/', artwork_slideshow_items, name='artwork_slideshow_items'),
     path('collectors/', CollectorsListView.as_view(), name='collectors_list'),
     path('artists/mailchimp', ArtistMailChimpView.as_view(), name='artist_mailchimp_list'),
     path('artists/emails', artist_email_list, name='artist_email_list'),

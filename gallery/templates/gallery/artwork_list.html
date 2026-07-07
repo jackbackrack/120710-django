@@ -5,7 +5,7 @@
 {% if user.is_authenticated %}
   <a class="card__link new-button" href="{% url 'gallery:artwork_new' %}">New</a>
 {% endif %}
-<button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>
+<button class="ss-status-btn" data-ss-first-cards data-ss-json-url="{% url 'gallery:artwork_slideshow_items' %}{% if active_tag %}?tag={{ active_tag }}{% endif %}" type="button">Slideshow</button>
 {% endblock %}
 {% block content %}
 <div class="cards">

@@ -281,11 +281,18 @@
       var tag = document.activeElement && document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.key === 's' || e.key === 'S') {
-        var allItems = [];
-        document.querySelectorAll('.cards').forEach(function (c) {
-          allItems = allItems.concat(collectItems(c));
-        });
-        if (allItems.length) open(allItems, 0);
+        var jsonBtn = document.querySelector('[data-ss-first-cards][data-ss-json-url]');
+        if (jsonBtn) {
+          fetch(jsonBtn.dataset.ssJsonUrl)
+            .then(function (r) { return r.json(); })
+            .then(function (data) { if (data.items && data.items.length) open(data.items, 0); });
+        } else {
+          var allItems = [];
+          document.querySelectorAll('.cards').forEach(function (c) {
+            allItems = allItems.concat(collectItems(c));
+          });
+          if (allItems.length) open(allItems, 0);
+        }
       }
       return;
     }
@@ -348,15 +355,31 @@
   }
 
   // ── Wire pre-placed [data-ss-first-cards] buttons (in status bar / block_title)
-  // Collects items from ALL .cards containers on the page into one slideshow.
+  // If data-ss-json-url is set, fetches all items from JSON (bypasses pagination).
+  // Otherwise collects items from all .cards containers in the DOM.
   function wireStatusBarButtons() {
     document.querySelectorAll('[data-ss-first-cards]').forEach(function (btn) {
-      var allItems = [];
-      document.querySelectorAll('.cards').forEach(function (c) {
-        allItems = allItems.concat(collectItems(c));
-      });
-      if (allItems.length < 2) { btn.style.display = 'none'; return; }
-      btn.addEventListener('click', function () { open(allItems, 0); });
+      var jsonUrl = btn.dataset.ssJsonUrl;
+      if (jsonUrl) {
+        // Use DOM count only for hide/show decision; actual items come from JSON.
+        var domItems = [];
+        document.querySelectorAll('.cards').forEach(function (c) {
+          domItems = domItems.concat(collectItems(c));
+        });
+        if (!domItems.length) { btn.style.display = 'none'; return; }
+        btn.addEventListener('click', function () {
+          fetch(jsonUrl)
+            .then(function (r) { return r.json(); })
+            .then(function (data) { if (data.items && data.items.length) open(data.items, 0); });
+        });
+      } else {
+        var allItems = [];
+        document.querySelectorAll('.cards').forEach(function (c) {
+          allItems = allItems.concat(collectItems(c));
+        });
+        if (allItems.length < 2) { btn.style.display = 'none'; return; }
+        btn.addEventListener('click', function () { open(allItems, 0); });
+      }
     });
   }
 
