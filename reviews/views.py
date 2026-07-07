@@ -12,6 +12,20 @@ from reviews.forms import ArtworkReviewForm, RubricCriterionFormSet, ShowJurorAs
 from reviews.models import ArtworkReview, CriterionScore, RubricCriterion, ShowJuror
 
 
+def _attach_computed_weighted(reviews, criteria):
+    """Attach .computed_weighted (partial weighted sum 0-100) to each ArtworkReview object."""
+    if not criteria:
+        return
+    criteria_by_id = {c.pk: c for c in criteria}
+    for review in reviews:
+        total = sum(
+            cs.score * criteria_by_id[cs.criterion_id].percentage / 100.0
+            for cs in review.criterion_scores.all()
+            if cs.criterion_id in criteria_by_id
+        )
+        review.computed_weighted = round(total, 1) if total > 0 else None
+
+
 def _compute_weighted_scores(show, criteria):
     """Return {artwork_id: weighted_score} using percentage/100 as each criterion's factor."""
     if not criteria:
@@ -91,25 +105,27 @@ def show_review_dashboard(request, show_slug):
             'is_also_juror': False,
         }
         if is_juror_for_show(request.user, show):
-            my_reviews = (
+            my_reviews = list(
                 ArtworkReview.objects
                 .filter(show=show, juror=request.user)
                 .select_related('artwork')
                 .prefetch_related('criterion_scores__criterion')
             )
-            reviewed_ids = set(my_reviews.values_list('artwork_id', flat=True))
+            _attach_computed_weighted(my_reviews, criteria)
+            reviewed_ids = {r.artwork_id for r in my_reviews}
             pending = Artwork.objects.filter(submissions__show=show).exclude(pk__in=reviewed_ids).order_by('name')
             context['is_also_juror'] = True
             context['my_reviews'] = my_reviews
             context['pending_artworks'] = pending
     else:
-        my_reviews = (
+        my_reviews = list(
             ArtworkReview.objects
             .filter(show=show, juror=request.user)
             .select_related('artwork')
             .prefetch_related('criterion_scores__criterion')
         )
-        reviewed_ids = set(my_reviews.values_list('artwork_id', flat=True))
+        _attach_computed_weighted(my_reviews, criteria)
+        reviewed_ids = {r.artwork_id for r in my_reviews}
         pending_artworks = artworks.exclude(pk__in=reviewed_ids)
         context = {
             'show': show,
