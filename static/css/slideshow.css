@@ -313,6 +313,20 @@
   color: #fff;
 }
 
+/* Save/pin button in slideshow topbar */
+#ss-save-btn {
+  color: rgba(255,255,255,0.75);
+  font-size: 1rem;
+}
+#ss-save-btn:hover {
+  color: #ff9800;
+  opacity: 1;
+}
+#ss-save-btn.saved {
+  color: #ff9800;
+  opacity: 1;
+}
+
 /* Slideshow button — matches the "New" link style */
 button.ss-status-btn {
   background: none;

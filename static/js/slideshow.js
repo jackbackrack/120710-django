@@ -11,7 +11,7 @@
 
   // DOM references (set after buildOverlay)
   var overlay, imgA, imgB, titleEl, subEl, yearEl, mediumEl, dimsEl, topbar, footer,
-      progressFill, counterEl, thumbsEl, helpEl, openLink;
+      progressFill, counterEl, thumbsEl, helpEl, openLink, saveBtnEl;
 
   // ── Build overlay DOM (once) ───────────────────────────────────────────────
   function buildOverlay() {
@@ -30,6 +30,7 @@
           '<span id="ss-dims"></span>' +
         '</div>' +
         '<a id="ss-open-link" href="#" target="_blank" title="Open detail page" rel="noopener">&#x2197;</a>' +
+        '<button class="save-artwork-btn ss-topbtn" id="ss-save-btn" title="Pin" style="display:none">&#128204;</button>' +
         '<button class="ss-topbtn" id="ss-info-btn" title="Toggle info (I)">&#x2139;</button>' +
         '<button class="ss-topbtn" id="ss-close-btn" title="Close (Esc)">&#x2715;</button>' +
       '</div>' +
@@ -77,6 +78,7 @@
     thumbsEl     = overlay.querySelector('#ss-thumbs');
     helpEl       = overlay.querySelector('#ss-help');
     openLink     = overlay.querySelector('#ss-open-link');
+    saveBtnEl    = overlay.querySelector('#ss-save-btn');
 
     overlay.querySelector('#ss-close-btn').addEventListener('click', close);
     overlay.querySelector('#ss-prev').addEventListener('click', prev);
@@ -128,6 +130,15 @@
     }, 2500);
   }
 
+  // ── Save state helpers ─────────────────────────────────────────────────────
+  function getSavedState(item) {
+    if (!item.artworkId) return item.saved;
+    var cardBtn = document.querySelector(
+      '.save-artwork-btn:not(#ss-save-btn)[data-artwork-id="' + item.artworkId + '"]'
+    );
+    return cardBtn ? cardBtn.classList.contains('saved') : item.saved;
+  }
+
   // ── Navigation ─────────────────────────────────────────────────────────────
   function goTo(idx) {
     if (!items.length) return;
@@ -154,6 +165,16 @@
       openLink.style.display = '';
     } else {
       openLink.style.display = 'none';
+    }
+    if (item.saveUrl) {
+      var isSaved = getSavedState(item);
+      saveBtnEl.dataset.saveUrl = item.saveUrl;
+      saveBtnEl.dataset.artworkId = item.artworkId;
+      saveBtnEl.classList.toggle('saved', isSaved);
+      saveBtnEl.title = isSaved ? 'Unpin' : 'Pin';
+      saveBtnEl.style.display = '';
+    } else {
+      saveBtnEl.style.display = 'none';
     }
 
     var pct = items.length > 1 ? (current / (items.length - 1)) * 100 : 100;
@@ -310,14 +331,17 @@
       var img = card.querySelector('img.card__image');
       if (!img) return;
       result.push({
-        img:    img.dataset.slImg    || img.src,
-        thumb:  img.src,
-        title:  card.dataset.slTitle  || '',
-        sub:    card.dataset.slSub    || '',
-        year:   card.dataset.slYear   || '',
-        medium: card.dataset.slMedium || '',
-        dims:   card.dataset.slDims   || '',
-        url:    card.dataset.slUrl    || '',
+        img:       img.dataset.slImg       || img.src,
+        thumb:     img.src,
+        title:     card.dataset.slTitle    || '',
+        sub:       card.dataset.slSub      || '',
+        year:      card.dataset.slYear     || '',
+        medium:    card.dataset.slMedium   || '',
+        dims:      card.dataset.slDims     || '',
+        url:       card.dataset.slUrl      || '',
+        saveUrl:   card.dataset.slSaveUrl  || '',
+        artworkId: card.dataset.slArtworkId || '',
+        saved:     !!card.dataset.slSaved,
       });
     });
     return result;

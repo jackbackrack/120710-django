@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -113,6 +115,26 @@ def confirm_collection_piece(request, pk):
         piece.confirmed_at = timezone.now()
         piece.save()
     return redirect(piece.artwork.get_absolute_url())
+
+
+@login_required
+def reorder_saved_artworks(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    ids = json.loads(request.body).get('ids', [])
+    for order, pk in enumerate(ids, start=1):
+        SavedArtwork.objects.filter(pk=pk, user=request.user).update(display_order=order)
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def reorder_collection_pieces(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    ids = json.loads(request.body).get('ids', [])
+    for order, pk in enumerate(ids, start=1):
+        CollectionPiece.objects.filter(pk=pk, collector=request.user).update(display_order=order)
+    return JsonResponse({'ok': True})
 
 
 class CollectorsListView(ListView):

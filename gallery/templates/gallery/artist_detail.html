@@ -151,14 +151,11 @@
 </div>
 {% endif %}
 {% if saved_artworks %}
-<div class="text-center section-label"><h2>Saved <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
-<div class="cards">
+<div class="text-center section-label"><h2>Pinned <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
+<p class="text-center text-muted" style="font-size:0.8rem;margin-top:-0.5rem">Drag cards to reorder</p>
+<div class="cards" id="pinned-sortable" data-reorder-url="{% url 'gallery:reorder_saved_artworks' %}">
   {% for saved in saved_artworks %}
-  <div class="card" style="position:relative" data-sl-title="{{ saved.artwork.name }}" data-sl-sub="{% for a in saved.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ saved.artwork.end_year|default:'' }}" data-sl-medium="{{ saved.artwork.medium|default:'' }}" data-sl-dims="{{ saved.artwork.placard_dimensions }}" data-sl-url="{{ saved.artwork.get_absolute_url }}">
-    <button class="save-artwork-btn saved"
-      data-save-url="{% url 'gallery:toggle_save' saved.artwork.pk %}"
-      data-artwork-id="{{ saved.artwork.pk }}"
-      title="Unsave" aria-pressed="true">&#9829;</button>
+  <div class="card" style="position:relative" data-saved-pk="{{ saved.pk }}" data-sl-title="{{ saved.artwork.name }}" data-sl-sub="{% for a in saved.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ saved.artwork.end_year|default:'' }}" data-sl-medium="{{ saved.artwork.medium|default:'' }}" data-sl-dims="{{ saved.artwork.placard_dimensions }}" data-sl-url="{{ saved.artwork.get_absolute_url }}" data-sl-save-url="{% url 'gallery:toggle_save' saved.artwork.pk %}" data-sl-artwork-id="{{ saved.artwork.pk }}" data-sl-saved="1">
     {% if saved.artwork.image %}
     <a style="display:contents" href="{{ saved.artwork.get_absolute_url }}"><img loading="lazy" src="{{ saved.artwork.card_sm.url }}" data-sl-img="{{ saved.artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}
@@ -166,16 +163,24 @@
       <a class="card__link" href="{{ saved.artwork.get_absolute_url }}">{{ saved.artwork.name }}</a>
       <p class="text-gray-500 text-sm">{% for a in saved.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
     </div>
-    <div class="card__info"></div>
+    <div class="card__info">
+      <button class="save-artwork-btn saved"
+        data-save-url="{% url 'gallery:toggle_save' saved.artwork.pk %}"
+        data-artwork-id="{{ saved.artwork.pk }}"
+        title="Unpin" aria-pressed="true">&#128204; <span class="save-label">Pinned</span></button>
+    </div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
 {% if collection %}
 <div class="text-center section-label"><h2>Collection <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
-<div class="cards">
+{% if user.is_authenticated and artist.user == user %}
+<p class="text-center text-muted" style="font-size:0.8rem;margin-top:-0.5rem">Drag cards to reorder</p>
+{% endif %}
+<div class="cards" id="collection-sortable"{% if user.is_authenticated and artist.user == user %} data-reorder-url="{% url 'gallery:reorder_collection_pieces' %}"{% endif %}>
   {% for piece in collection %}
-  <div class="card" data-sl-title="{{ piece.artwork.name }}" data-sl-sub="{% for a in piece.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ piece.artwork.end_year|default:'' }}" data-sl-medium="{{ piece.artwork.medium|default:'' }}" data-sl-dims="{{ piece.artwork.placard_dimensions }}" data-sl-url="{{ piece.artwork.get_absolute_url }}">
+  <div class="card" data-piece-pk="{{ piece.pk }}" data-sl-title="{{ piece.artwork.name }}" data-sl-sub="{% for a in piece.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ piece.artwork.end_year|default:'' }}" data-sl-medium="{{ piece.artwork.medium|default:'' }}" data-sl-dims="{{ piece.artwork.placard_dimensions }}" data-sl-url="{{ piece.artwork.get_absolute_url }}">
     {% if piece.artwork.image %}
     <a style="display:contents" href="{{ piece.artwork.get_absolute_url }}"><img loading="lazy" src="{{ piece.artwork.card_sm.url }}" data-sl-img="{{ piece.artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}
@@ -187,5 +192,38 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if user.is_authenticated and artist.user == user %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script>
+(function () {
+  var csrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+  function initSortable(gridId, pkAttr) {
+    var grid = document.getElementById(gridId);
+    if (!grid || !grid.dataset.reorderUrl) return;
+    var url = grid.dataset.reorderUrl;
+    Sortable.create(grid, {
+      animation: 150,
+      onEnd: function () {
+        var ids = Array.from(grid.querySelectorAll('[' + pkAttr + ']')).map(function (el) {
+          return parseInt(el.getAttribute(pkAttr), 10);
+        });
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          body: JSON.stringify({ ids: ids }),
+        });
+      },
+    });
+  }
+
+  initSortable('pinned-sortable', 'data-saved-pk');
+  initSortable('collection-sortable', 'data-piece-pk');
+}());
+</script>
 {% endif %}
 {% endblock %}

@@ -44,7 +44,8 @@
       {% else %}
       <form method="post" action="{% url 'gallery:artwork_add_to_collection' artwork.pk %}" class="d-flex flex-column gap-1" style="max-width:320px">
         {% csrf_token %}
-        <button type="submit" class="btn btn-sm btn-outline-secondary">Add to my collection</button>
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Record ownership</button>
+        <small class="text-muted">For artworks you have purchased, received as a gift, or otherwise own.</small>
       </form>
       {% endif %}
     </div>

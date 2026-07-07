@@ -189,6 +189,31 @@ HOW_TO_GUIDES = [
         ],
     },
     {
+        'title': 'How to pin artworks',
+        'roles': None,
+        'steps': [
+            'Sign in. Browse any show or the Artworks gallery.',
+            'On any artwork card, click the 📌 Pin button in the card footer. The button turns orange and shows "Pinned" to confirm it has been saved.',
+            'You can also pin or unpin from within a slideshow — a 📌 button appears in the top bar next to the open-detail link.',
+            'Pinned artworks appear on your artist profile page under "Pinned". The section is only visible to you.',
+            'To arrange your pinboard, drag and drop the cards into any order — the order saves automatically.',
+            'To unpin, click the orange 📌 Pinned button again on the card or artwork detail page.',
+        ],
+    },
+    {
+        'title': 'How to record artwork ownership',
+        'roles': None,
+        'steps': [
+            'Sign in. Navigate to the artwork detail page for a piece you own — purchased, received as a gift, or otherwise acquired.',
+            'Click "Record ownership". This creates a pending ownership claim and notifies the artwork\'s artist.',
+            'The artwork\'s artist sees your claim under "Pending Collection Confirmations" on their profile page and clicks Confirm or Decline. Curators and staff can also confirm claims.',
+            'While pending, a yellow "awaiting artist confirmation" badge appears on the artwork detail page.',
+            'Once confirmed, a green badge appears and the piece is listed in your Collection on your public artist profile.',
+            'From your profile, drag and drop collection cards to arrange them in any order — the order saves automatically.',
+            'To remove a piece from your collection at any time, click Remove on the artwork detail page.',
+        ],
+    },
+    {
         'title': 'How to buy a piece of artwork',
         'roles': None,
         'steps': [

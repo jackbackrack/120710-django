@@ -9,8 +9,10 @@
   function updateButtons(artworkId, saved) {
     document.querySelectorAll('.save-artwork-btn[data-artwork-id="' + artworkId + '"]').forEach(function (btn) {
       btn.classList.toggle('saved', saved);
-      btn.title = saved ? 'Unsave' : 'Save';
+      btn.title = saved ? 'Unpin' : 'Pin';
       btn.setAttribute('aria-pressed', saved ? 'true' : 'false');
+      var label = btn.querySelector('.save-label');
+      if (label) label.textContent = saved ? 'Pinned' : 'Pin';
     });
   }
 

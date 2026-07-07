@@ -1,41 +1,19 @@
 .save-artwork-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(255, 255, 255, 0.85);
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-  color: #aaa;
-  transition: color 0.15s, background 0.15s;
-  z-index: 2;
-  padding: 0;
-}
-.save-artwork-btn:hover {
-  background: #fff;
-  color: #c0392b;
-}
-.save-artwork-btn.saved {
-  color: #c0392b;
-}
-.save-artwork-btn-inline {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
-  color: #aaa;
-  padding: 0 4px;
-  vertical-align: middle;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: #64968c;
+  padding: 0;
+  line-height: 1.2;
   transition: color 0.15s;
+  text-decoration: none;
 }
-.save-artwork-btn-inline:hover,
-.save-artwork-btn-inline.saved {
-  color: #c0392b;
+.save-artwork-btn:hover {
+  color: #d35400;
+  text-decoration: underline;
+}
+.save-artwork-btn.saved {
+  color: #d35400;
 }

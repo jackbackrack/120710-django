@@ -3,17 +3,16 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
-def migrate_collection_to_pieces(apps, schema_editor):
+def migrate_collection_to_pinned(apps, schema_editor):
     Artist = apps.get_model('gallery', 'Artist')
-    CollectionPiece = apps.get_model('gallery', 'CollectionPiece')
+    SavedArtwork = apps.get_model('gallery', 'SavedArtwork')
     for artist in Artist.objects.filter(collection__isnull=False).prefetch_related('collection').distinct():
         if not artist.user_id:
             continue
         for artwork in artist.collection.all():
-            CollectionPiece.objects.get_or_create(
-                collector_id=artist.user_id,
+            SavedArtwork.objects.get_or_create(
+                user_id=artist.user_id,
                 artwork=artwork,
-                defaults={'status': 'pending'},
             )
 
 
@@ -58,7 +57,7 @@ class Migration(migrations.Migration):
                 'unique_together': {('collector', 'artwork')},
             },
         ),
-        migrations.RunPython(migrate_collection_to_pieces, migrations.RunPython.noop),
+        migrations.RunPython(migrate_collection_to_pinned, migrations.RunPython.noop),
         migrations.RemoveField(
             model_name='artist',
             name='collection',

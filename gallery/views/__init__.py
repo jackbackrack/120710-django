@@ -45,6 +45,8 @@ from gallery.views.collection import (
     artwork_add_to_collection,
     remove_collection_piece,
     confirm_collection_piece,
+    reorder_collection_pieces,
+    reorder_saved_artworks,
     toggle_save,
     CollectorsListView,
 )
@@ -57,6 +59,8 @@ __all__ = [
     'artwork_add_to_collection',
     'remove_collection_piece',
     'confirm_collection_piece',
+    'reorder_collection_pieces',
+    'reorder_saved_artworks',
     'toggle_save',
     'CollectorsListView',
     'detail',

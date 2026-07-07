@@ -199,7 +199,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                 .filter(user=user)
                 .select_related('artwork')
                 .prefetch_related('artwork__artists')
-                .order_by('-created_at')
+                .order_by('display_order', '-created_at')
             )
         return context
 
