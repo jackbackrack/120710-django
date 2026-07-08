@@ -85,7 +85,7 @@ HOW_TO_GUIDES = [
             'When your selections are final, change the show status to Published on the show detail page. This redirects to the Publish Show confirmation page.',
             'Review the diff and click "Confirm & Publish Show". This adds all Selected artworks to the show, sets the status to Published, and sends acceptance/rejection emails to every submitting artist.',
             'Change the show status to Closed when the show run ends.',
-            'Optionally add events (openings, talks) from the Events section.',
+            'Optionally add events (openings, talks) using the New Event link on the show detail page.',
         ],
     },
     {

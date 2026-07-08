@@ -86,5 +86,17 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         kwargs['user'] = self.request.user
         return kwargs
 
+    def get_initial(self):
+        initial = super().get_initial()
+        show_pk = self.request.GET.get('show')
+        if show_pk:
+            from gallery.models import Show
+            try:
+                initial['show'] = Show.objects.get(pk=show_pk)
+            except Show.DoesNotExist:
+                pass
+        return initial
+
     def test_func(self):
-        return is_staff_user(self.request.user)
+        from gallery.permissions import is_curator_user
+        return is_curator_user(self.request.user)
