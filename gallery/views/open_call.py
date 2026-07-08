@@ -260,21 +260,26 @@ def artwork_submit(request, slug):
     if not artist:
         return redirect(show)
 
-    missing = []
+    missing_fields = []
     if not artist.image:
-        missing.append('photo')
+        missing_fields.append('image')
     if not artist.first_name:
-        missing.append('first name')
+        missing_fields.append('first_name')
     if not artist.last_name:
-        missing.append('last name')
+        missing_fields.append('last_name')
     if not artist.zipcode:
-        missing.append('zip code')
-    if missing:
+        missing_fields.append('zipcode')
+    if missing_fields:
+        labels = {'image': 'profile photo', 'first_name': 'first name',
+                  'last_name': 'last name', 'zipcode': 'zip code'}
+        missing_display = ', '.join(labels[f] for f in missing_fields)
         messages.error(
             request,
-            f'Please complete your artist profile before submitting — missing: {", ".join(missing)}.',
+            f'Please complete your artist profile before submitting — missing: {missing_display}.',
         )
-        return redirect(reverse('gallery:artist_edit', kwargs={'pk': artist.pk}))
+        from urllib.parse import urlencode
+        qs = urlencode({'highlight': ','.join(missing_fields)})
+        return redirect(f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}")
 
     if show.submission_type == Show.SUBMISSION_INVITED:
         if not show.invitations.filter(email__iexact=request.user.email).exists():

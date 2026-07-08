@@ -103,6 +103,24 @@
     ok(el, fb, 'Will save as: ' + (v.startsWith('@') ? v : '@' + v)); return true;
   }
 
+  // ── Highlight fields flagged missing by the submission redirect ──────────
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var highlight = params.get('highlight');
+    if (!highlight) return;
+    var first = null;
+    highlight.split(',').forEach(function (name) {
+      var el = document.getElementById('id_' + name);
+      if (!el) return;
+      el.classList.add('is-invalid');
+      if (!first) first = el;
+    });
+    if (first) {
+      first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      first.focus();
+    }
+  })();
+
   // ── Wire up fields ────────────────────────────────────────────────────────
   var fields = [
     { id: 'id_email',     fn: validateEmail },
