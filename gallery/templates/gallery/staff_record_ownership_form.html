@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Log Sale — {{ artwork.name }}{% endblock %}
+{% block block_title %}Log Sale — <a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a>{% endblock %}
+
+{% block content %}
+<div class="col-10 mx-auto mt-3">
+
+  {% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mt-2">{{ message }}</div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post" action="{% url 'gallery:staff_record_ownership' artwork.pk %}" id="staff-ownership-form">
+    {% csrf_token %}
+    <input type="hidden" name="collector_id" id="sof-collector-id">
+    <div class="mb-3" style="position:relative">
+      <label class="form-label fw-semibold">Collector</label>
+      <input type="text" id="sof-search" placeholder="Search by name or email…"
+             autocomplete="off" class="form-control" style="max-width:400px">
+      <div id="sof-results" style="display:none;position:absolute;top:100%;left:0;width:400px;background:#fff;border:1px solid #ccc;border-radius:4px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 2px 8px rgba(0,0,0,0.12)"></div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-end mb-3">
+      <div>
+        <label class="form-label form-label-sm mb-1">Status</label>
+        <select name="status" class="form-select form-select-sm" style="width:auto">
+          <option value="confirmed" selected>Confirmed</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label form-label-sm mb-1">Purchase date</label>
+        <input type="date" name="purchase_date" class="form-control form-control-sm" style="width:auto">
+      </div>
+      <div>
+        <label class="form-label form-label-sm mb-1">Sale price</label>
+        <input type="number" name="purchase_price" class="form-control form-control-sm" style="width:110px" min="0" step="1">
+      </div>
+      <div>
+        <label class="form-label form-label-sm mb-1">Commission</label>
+        <input type="number" name="commission_amount" class="form-control form-control-sm" style="width:110px" min="0" step="1">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label form-label-sm mb-1">Notes</label>
+      <input type="text" name="notes" class="form-control form-control-sm" style="max-width:400px" placeholder="Optional">
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <button type="submit" id="sof-submit" class="btn btn-sm btn-primary" disabled>Log sale</button>
+      <a class="card__link" href="/admin/gallery/collectionpiece/?artwork__id__exact={{ artwork.pk }}" style="font-size:0.85em">View all records ↗</a>
+    </div>
+  </form>
+
+  {% if existing %}
+  <div class="text-center section-label mt-4"><h2>Existing records ({{ existing|length }})</h2></div>
+  <table class="table table-sm table-borderless">
+    <thead class="border-bottom">
+      <tr>
+        <th>Collector</th>
+        <th>Status</th>
+        <th>Date</th>
+        <th>Price</th>
+        <th>Commission</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for piece in existing %}
+      <tr class="border-bottom">
+        <td class="py-2">{{ piece.collector.get_full_name|default:piece.collector.username }}</td>
+        <td class="py-2">{{ piece.get_status_display }}</td>
+        <td class="py-2 text-muted">{{ piece.purchase_date|default:"—" }}</td>
+        <td class="py-2 text-muted">{% if piece.purchase_price %}${{ piece.purchase_price }}{% else %}—{% endif %}</td>
+        <td class="py-2 text-muted">{% if piece.commission_amount %}${{ piece.commission_amount }}{% else %}—{% endif %}</td>
+        <td class="py-2 text-muted">{{ piece.notes|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+</div>
+
+<script>
+(function () {
+  var search = document.getElementById('sof-search');
+  var idInput = document.getElementById('sof-collector-id');
+  var dropdown = document.getElementById('sof-results');
+  var submit = document.getElementById('sof-submit');
+  var timer;
+  var autocompleteUrl = '{% url "gallery:user_autocomplete" %}';
+
+  search.addEventListener('input', function () {
+    clearTimeout(timer);
+    idInput.value = '';
+    submit.disabled = true;
+    var q = search.value.trim();
+    if (q.length < 2) { dropdown.style.display = 'none'; return; }
+    timer = setTimeout(function () {
+      fetch(autocompleteUrl + '?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          dropdown.innerHTML = '';
+          if (!data.results.length) {
+            dropdown.innerHTML = '<div style="padding:0.45em 0.75em;color:#888;font-size:0.85rem">No users found</div>';
+          } else {
+            data.results.forEach(function (u) {
+              var item = document.createElement('div');
+              item.style.cssText = 'padding:0.4em 0.75em;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f0f0f0';
+              item.textContent = u.text + (u.email ? '  —  ' + u.email : '');
+              item.addEventListener('mouseenter', function () { item.style.background = '#f5f5f5'; });
+              item.addEventListener('mouseleave', function () { item.style.background = ''; });
+              item.addEventListener('click', function () {
+                idInput.value = u.id;
+                search.value = u.text + (u.email ? '  —  ' + u.email : '');
+                dropdown.style.display = 'none';
+                submit.disabled = false;
+              });
+              dropdown.appendChild(item);
+            });
+          }
+          dropdown.style.display = 'block';
+        });
+    }, 250);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!dropdown.contains(e.target) && e.target !== search) dropdown.style.display = 'none';
+  });
+}());
+</script>
+{% endblock %}

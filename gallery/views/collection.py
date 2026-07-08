@@ -142,9 +142,14 @@ def staff_record_ownership(request, pk):
     """Staff-only: create or update a CollectionPiece for any user."""
     if not is_staff_user(request.user):
         raise PermissionDenied
-    if request.method != 'POST':
-        raise PermissionDenied
     artwork = get_object_or_404(Artwork, pk=pk)
+    if request.method == 'GET':
+        from django.shortcuts import render as _render
+        existing = CollectionPiece.objects.filter(artwork=artwork).select_related('collector').order_by('status', '-created_at')
+        return _render(request, 'gallery/staff_record_ownership_form.html', {
+            'artwork': artwork,
+            'existing': existing,
+        })
     User = get_user_model()
     collector_id = request.POST.get('collector_id')
     if not collector_id:
