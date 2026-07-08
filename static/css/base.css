@@ -157,6 +157,10 @@ body {
     padding: 10px
 }
 
+.asteriskField {
+    color: #dc3545;
+}
+
 .footlet {
     /* height: 200px;
     width: 200px; */
