@@ -461,7 +461,7 @@ class AuthorizationWorkflowTests(MediaImageMixin, TestCase):
             'name': self.private_artwork.name,
             'end_year': self.private_artwork.end_year,
             'start_year': '',
-            'medium': self.private_artwork.medium or '',
+            'medium': self.private_artwork.medium or 'oil on canvas',
             'width_inches': '10',
             'height_inches': '12',
             'depth_inches': '',
@@ -471,6 +471,11 @@ class AuthorizationWorkflowTests(MediaImageMixin, TestCase):
             'is_sold': '',
             'description': self.private_artwork.description or '',
             'installation': self.private_artwork.installation or '',
+            # Required management form for supplemental images formset
+            'supplemental_images-TOTAL_FORMS': '0',
+            'supplemental_images-INITIAL_FORMS': '0',
+            'supplemental_images-MIN_NUM_FORMS': '0',
+            'supplemental_images-MAX_NUM_FORMS': '1000',
         })
 
         self.private_artwork.refresh_from_db()
@@ -1852,6 +1857,7 @@ class ArtworkCreateAutoAssignTests(TestCase):
             {
                 'name': 'New Piece',
                 'end_year': 2026,
+                'medium': 'oil on canvas',
                 'width_inches': '10',
                 'height_inches': '12',
                 'image': self._minimal_image(),

@@ -195,8 +195,21 @@ class ArtworkForm(UserAwareModelForm):
 
         self.fields['width_inches'].required = True
         self.fields['height_inches'].required = True
+        self.fields['medium'].required = True
         if not (self.instance and self.instance.pk):
             self.fields['image'].required = True
+
+        self.fields['name'].label = 'Title'
+        self.fields['name'].help_text = 'Title of the artwork.'
+        self.fields['end_year'].label = 'Year completed'
+        self.fields['end_year'].help_text = 'Year the work was finished.'
+        self.fields['start_year'].label = 'Start year'
+        self.fields['start_year'].help_text = 'Only fill in if the work spans multiple years.'
+        self.fields['medium'].label = 'Medium'
+        self.fields['medium'].help_text = 'Materials used, e.g. oil on canvas, bronze, digital print.'
+        self.fields['width_inches'].label = 'Width (in)'
+        self.fields['height_inches'].label = 'Height (in)'
+        self.fields['depth_inches'].label = 'Depth (in, optional)'
 
         for f in ('width_inches', 'height_inches', 'depth_inches'):
             self.fields[f].widget.attrs.update({'class': 'dim-input', 'step': 'any', 'min': '0'})

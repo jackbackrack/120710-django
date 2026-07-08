@@ -67,6 +67,12 @@
     ok(el, fb); return true;
   }
 
+  function validateMedium(el, fb) {
+    var v = el.value.trim();
+    if (!v) { bad(el, fb, 'Medium is required'); return false; }
+    ok(el, fb); return true;
+  }
+
   function validateDimRequired(el, fb) {
     var v = el.value.trim();
     if (!v) { bad(el, fb, 'Required'); return false; }
@@ -110,6 +116,7 @@
     { id: 'id_name',             fn: validateName },
     { id: 'id_end_year',         fn: validateEndYear },
     { id: 'id_start_year',       fn: validateStartYear },
+    { id: 'id_medium',           fn: validateMedium },
     { id: 'id_width_inches',     fn: validateDimRequired },
     { id: 'id_height_inches',    fn: validateDimRequired },
     { id: 'id_depth_inches',     fn: validateDimOptional },
