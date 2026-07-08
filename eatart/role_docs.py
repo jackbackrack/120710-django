@@ -35,10 +35,9 @@ HOW_TO_GUIDES = [
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Shows Accepting Submissions" and click the Submit button.',
-            'Select the artwork you want to submit from the dropdown. Each artwork can only be submitted once per show.',
-            'Click Submit to confirm.',
+            'Select the artwork card you want to submit (click it to highlight it), then click Submit. Each artwork can only be submitted once per show.',
             'You will receive a confirmation email. Your submission appears on your Me page and on the show detail page as "Submitted".',
-            'You can retract your submission while the show is still accepting submissions by clicking Retract next to your artwork on your Me page or the show detail page.',
+            'You can remove your submission while the show is still accepting submissions by clicking Retract next to your artwork on your Me page or the show detail page. Retracting permanently removes the submission — you can resubmit a different artwork while the show is still open.',
             'Once the show moves to In Review, submissions are closed and you cannot retract.',
             'You will receive an acceptance or rejection email when the curator publishes the show.',
         ],
@@ -180,12 +179,16 @@ HOW_TO_GUIDES = [
         ],
     },
     {
-        'title': 'How to submit artwork to an open call show',
+        'title': 'How to submit artwork to an open call show (new to the site)',
         'roles': None,
         'public_only': True,
         'steps': [
-            'First, create an artist account — see "How to sign up for an account" above.',
-            'Once you are signed in as an artist, return to this help section for detailed submission instructions that will appear here.',
+            'Step 1 — Create an account: open the Account menu in the navigation and choose Sign Up. Enter your name, email, and password (or continue with Google).',
+            'Step 2 — Complete your artist profile: after signing up you land on your artist profile edit page. Fill in your first name, last name, and zip code. Then upload a profile photo — this must be a photo of YOU (the artist), not a photo of your artwork. Your profile photo appears on your public artist page.',
+            'Step 3 — Add your artwork: scroll down to the Artworks section on your Me page and click New. Fill in the title, year, medium, and dimensions, and upload an image of the artwork itself. Save.',
+            'Step 4 — Submit: go to the show detail page. You will see a Submit button under "Shows Accepting Submissions" on your Me page, or directly on the show page. Click it, select the artwork card you just added, and click Submit.',
+            'You will receive a confirmation email. Your submission appears on your Me page and on the show detail page.',
+            'To remove a submission, click Retract next to your artwork. This permanently deletes that submission — you can resubmit a different artwork while the show is still open.',
         ],
     },
     {

@@ -823,6 +823,7 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
             last_name='Kahlo',
             email='artist@example.com',
             phone='',
+            zipcode='94103',
             image=self.TEST_ARTIST_IMAGE,
         )
 
@@ -920,6 +921,23 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
         )
         # Already-submitted artwork should not appear in the form choices
         self.assertNotContains(response, self.artwork.name)
+
+    def test_duplicate_post_is_handled_gracefully_not_500(self):
+        # Simulates a race condition or JS-bypass: the first POST succeeds,
+        # the second POST arrives with the same artwork before the page reloads.
+        # The DB unique_together constraint would fire; the view must catch it.
+        self.client.force_login(self.artist_user)
+        submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        # First submission goes through normally.
+        self.client.post(submit_url, {'artwork': self.artwork.pk})
+        self.assertTrue(ArtworkSubmission.objects.filter(show=self.show, artwork=self.artwork).exists())
+        # Second POST with the same artwork must NOT raise a 500.
+        response = self.client.post(submit_url, {'artwork': self.artwork.pk}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        # Still only one submission in the database.
+        self.assertEqual(
+            ArtworkSubmission.objects.filter(show=self.show, artwork=self.artwork).count(), 1
+        )
 
     def test_submission_blocked_when_status_is_in_review(self):
         self.show.status = Show.STATUS_IN_REVIEW

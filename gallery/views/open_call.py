@@ -307,10 +307,15 @@ def artwork_submit(request, slug):
             quick_form = QuickArtworkForm()
             form = ArtworkSubmissionForm(request.POST, show=show, artist=artist)
             if form.is_valid():
+                from django.db import IntegrityError
                 submission = form.save(commit=False)
                 submission.show = show
                 submission.submitted_by = request.user
-                submission.save()
+                try:
+                    submission.save()
+                except IntegrityError:
+                    messages.error(request, 'That artwork has already been submitted to this show.')
+                    return redirect(show)
                 messages.success(request, f'"{submission.artwork.name}" has been submitted to {show.name}.')
                 _send_submission_confirmation(submission, request)
                 return redirect(show)
