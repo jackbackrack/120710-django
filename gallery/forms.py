@@ -80,19 +80,18 @@ class ArtistForm(UserAwareModelForm):
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
-        from django.utils.html import format_html
-        _star = format_html(' <span class="text-danger" title="Required to submit artwork to shows">*</span>')
-        _req = ' — required before you can submit artwork to a show.'
-        self.fields['first_name'].label = format_html('First name{}', _star)
-        self.fields['first_name'].help_text = 'Your public first name' + _req
-        self.fields['last_name'].label = format_html('Last name{}', _star)
-        self.fields['last_name'].help_text = 'Your public last name' + _req
-        self.fields['zipcode'].label = format_html('Zip code{}', _star)
-        self.fields['zipcode'].help_text = 'US zip code (e.g. 94710)' + _req
-        self.fields['image'].label = format_html('Profile photo{}', _star)
+        for f in ('first_name', 'last_name', 'zipcode', 'image'):
+            self.fields[f].required = True
+        self.fields['first_name'].label = 'First name'
+        self.fields['first_name'].help_text = 'Your public first name.'
+        self.fields['last_name'].label = 'Last name'
+        self.fields['last_name'].help_text = 'Your public last name.'
+        self.fields['zipcode'].label = 'Zip code'
+        self.fields['zipcode'].help_text = 'US zip code (e.g. 94710). Required to submit artwork to shows.'
+        self.fields['image'].label = 'Profile photo'
         self.fields['image'].help_text = (
             'A photo of you (the artist), not your artwork. '
-            'Appears on your public profile' + _req
+            'Appears on your public profile. Required to submit artwork to shows.'
         )
 
     def clean_zipcode(self):

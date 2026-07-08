@@ -60,7 +60,7 @@
 
   function validateZip(el, fb) {
     var v = el.value.trim();
-    if (!v) { neutral(el, fb); return true; }  // optional
+    if (!v) { bad(el, fb, 'Zip code is required'); return false; }
     if (/^\d{5}(-\d{4})?$/.test(v)) { ok(el, fb, '✓'); return true; }
     bad(el, fb, 'Must be 5 digits (94710) or 9 digits (94710-1234)'); return false;
   }
