@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Artists — {{ site.name }}{% endblock %}
+{% block block_title %}{{ site.name }}{% endblock %}
+{% block content %}
+<div class="container mt-3">
+  <p><a class="card__link" href="{{ site.get_absolute_url }}">← {{ site.name }}</a></p>
+  <h2>Artists at {{ site.name }}</h2>
+</div>
+{% if artists %}
+<div class="cards">
+  {% for artist in artists %}
+    {% include 'gallery/_artist_card.html' %}
+  {% endfor %}
+</div>
+{% else %}
+<p class="container mt-2">No artists have shown work at this site yet.</p>
+{% endif %}
+{% endblock %}

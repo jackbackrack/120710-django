@@ -44,7 +44,6 @@ class Show(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     show_type = models.CharField(max_length=32, choices=SHOW_TYPE_CHOICES, default=SHOW_TYPE_GALLERY)
-    location = models.TextField(blank=True, null=True, verbose_name='Location (address or site description)')
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
@@ -52,6 +51,7 @@ class Show(models.Model):
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
     slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
     curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
+    sites = models.ManyToManyField('gallery.Site', blank=True, related_name='shows')
     submission_type = models.CharField(
         max_length=16, choices=SUBMISSION_TYPE_CHOICES, default=SUBMISSION_OPEN,
         verbose_name='Submission type',

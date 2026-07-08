@@ -57,6 +57,10 @@
           </li>
 
           <li class="nav-item">
+            <a class="nav-link{% if 'site' in u %} active{% endif %}" href="{% url 'gallery:site_list' %}">Sites</a>
+          </li>
+
+          <li class="nav-item">
             <a class="nav-link{% if 'artist' in u and request.path != my_artist_url %} active{% endif %}" href="{% url 'gallery:artist_list' %}">Artists</a>
           </li>
 

@@ -105,7 +105,7 @@
   {% if show.image %}<img loading="lazy" src="{{ show.image.url }}" alt="{{ show.name }}" style="max-width:400px;display:block;margin-bottom:12px;border:2px solid #333;">{% endif %}
   <h1>{{ show.name }}</h1>
   {% if show.show_type == 'public_art' %}<p class="meta"><strong>Public Art Site</strong></p>{% endif %}
-  {% if show.location %}<p class="meta"><strong>Location:</strong> {{ show.location }}</p>{% endif %}
+  {% with sc=show.sites.all %}{% if sc %}<p class="meta"><strong>{% if sc|length == 1 %}Site{% else %}Sites{% endif %}:</strong> {% for s in sc %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}{% endwith %}
   <p class="meta">{{ show.date_range }}</p>
   <p class="meta"><strong>Curated by:</strong>
     {% if show.curator_artist %}{{ show.curator_artist.name }}{% else %}Unassigned{% endif %}

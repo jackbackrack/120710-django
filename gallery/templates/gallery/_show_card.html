@@ -16,7 +16,7 @@
         <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
       {% endfor %}
       {% if show.curators.all %}<br>{% endif %}
-      {% if show.location %}<br><small>{{ show.location }}</small>{% endif %}
+      {% with sc=show.sites.all %}{% if sc %}<br><small>{% for s in sc %}<a class="card__link" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</small>{% endif %}{% endwith %}
       {{ show.date_range }}
       {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline and show.submission_type == 'open' %}
       <br><strong>Deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ show.submission_deadline }}</span>
