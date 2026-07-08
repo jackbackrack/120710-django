@@ -969,6 +969,40 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
         # No artist profile → redirect away
         self.assertEqual(response.status_code, 302)
 
+    def test_incomplete_profile_redirects_to_artist_edit_with_highlight_params(self):
+        # Artist missing photo and zipcode → redirect to edit page with ?highlight=
+        incomplete_user = User.objects.create_user(
+            username='incomplete@example.com', email='incomplete@example.com', password='pw'
+        )
+        Artist.objects.create(
+            user=incomplete_user,
+            first_name='Ada',
+            last_name='Lovelace',
+            email='incomplete@example.com',
+            # No image, no zipcode
+        )
+        self.client.force_login(incomplete_user)
+        response = self.client.get(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 302)
+        location = response.headers['Location']
+        self.assertIn('artist', location)
+        self.assertIn('highlight=', location)
+        self.assertIn('image', location)
+        self.assertIn('zipcode', location)
+        # first_name and last_name are present so should NOT be in highlight
+        self.assertNotIn('first_name', location)
+        self.assertNotIn('last_name', location)
+
+    def test_complete_profile_is_not_redirected(self):
+        # Artist with all required fields filled in should reach the submit page
+        self.client.force_login(self.artist_user)
+        response = self.client.get(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+
     # --- Submissions review (curator view) ---
 
     def test_curator_can_view_show_submissions(self):
