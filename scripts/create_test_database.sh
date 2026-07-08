@@ -8,6 +8,7 @@ DIR="$(dirname "$0")"
 ARTIST="python $DIR/create_test_artist.py"
 ARTWORK="python $DIR/create_test_artwork.py"
 SHOW="python $DIR/create_test_show.py"
+SITE="python $DIR/create_test_site.py"
 
 SUPERUSER_EMAIL="admin@example.com"
 SUPERUSER_PASSWORD="b8"
@@ -33,6 +34,15 @@ user = User.objects.get(email='$SUPERUSER_EMAIL')
 EmailAddress.objects.get_or_create(user=user, email='$SUPERUSER_EMAIL', defaults={'primary': True, 'verified': True})
 "
 echo "Created superuser: $SUPERUSER_EMAIL / $SUPERUSER_PASSWORD"
+
+echo "=== Creating sites ==="
+
+$SITE --name "120710" \
+      --address "1207 10th Street, Berkeley CA 94710" \
+      --email "info@120710.art" \
+      --instagram "@120710.art" \
+      --website "https://www.120710.art" \
+      --status published
 
 echo "=== Creating artists ==="
 
@@ -76,12 +86,14 @@ $SHOW --name "Working Craft" \
       --submission-deadline 2026-06-15 \
       --curator oliver@hawk.com \
       --image media/show_images/234tgrwith_logo_copy.jpg \
+      --site 120710 \
       --invited
 
 $SHOW --name "Feel-Full" \
       --start 2026-08-01 --end 2026-08-25 \
       --submission-deadline 2026-07-15 \
       --image media/show_images/far-away-is-now-updated.jpg \
-      --curator jonathan@bachrach.com
+      --curator jonathan@bachrach.com \
+      --site 120710
 
 echo "=== Done ==="
