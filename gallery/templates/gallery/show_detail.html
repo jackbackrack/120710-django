@@ -126,7 +126,7 @@
       <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
       {% endif %}
       {% if sub and can_submit %}
-      <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract this submission?')">Retract</button></form>
+      <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this submission from the show? This permanently deletes the submission — you can resubmit while the show is still accepting work.')">Retract</button></form>
       {% endif %}
     </div>
   </div>
@@ -144,7 +144,7 @@
     </div>
     <div class="card__info">
       {% if can_submit %}
-      <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Retract this submission?')">Retract</button></form>
+      <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this submission from the show? This permanently deletes the submission — you can resubmit while the show is still accepting work.')">Retract</button></form>
       {% endif %}
     </div>
   </div>

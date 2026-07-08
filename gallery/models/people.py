@@ -21,7 +21,11 @@ class Artist(models.Model):
     venmo = models.CharField(verbose_name='Venmo: your username starting with @', max_length=255, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
-    image = models.ImageField(upload_to='artist_images', blank=True, null=True)
+    image = models.ImageField(
+        upload_to='artist_images', blank=True, null=True,
+        verbose_name='Profile photo',
+        help_text='A photo of you (the artist), not your artwork. This appears on your public profile.',
+    )
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
