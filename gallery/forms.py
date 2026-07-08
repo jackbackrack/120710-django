@@ -165,6 +165,7 @@ class ArtworkForm(UserAwareModelForm):
             'replacement_cost',
             'is_sold',
             'description',
+            'url',
             'installation',
         )
 
@@ -212,6 +213,7 @@ class ArtworkForm(UserAwareModelForm):
             'replacement_cost',
             'is_sold',
             'description',
+            'url',
             'installation',
         )
 

@@ -27,6 +27,9 @@
       {{ artwork.description }}
     </p>
     {% endif %}
+    {% if artwork.url %}
+    <p class="text-gray-500 text-sm"><strong>Link:</strong> <a class="card__link" href="{{ artwork.url }}" target="_blank" rel="noopener">{{ artwork.url }}</a></p>
+    {% endif %}
     {% if user.is_authenticated %}
     <div style="margin-top:0.75em">
       {% if user_collection_piece %}
