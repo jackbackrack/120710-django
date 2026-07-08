@@ -72,7 +72,7 @@ EmailAddress.objects.create(user=user, email=email, primary=True, verified=True)
 if make_artist:
     from accounts.signup import ensure_signup_profile
     from django.core.files import File
-    artist = ensure_signup_profile(user)
+    artist, _ = ensure_signup_profile(user)
     if artist and (first_name or last_name):
         if first_name:
             artist.first_name = first_name
