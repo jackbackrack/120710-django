@@ -6,7 +6,6 @@ from gallery.views.artists import (
     ArtistMailChimpView,
     ArtistUpdateView,
     artist_email_list,
-    artist_slideshow_items,
 )
 from gallery.views.artworks import (
     ArtworkCreateView,
@@ -18,7 +17,6 @@ from gallery.views.artworks import (
     artwork_image_delete,
     artwork_inquire,
     artwork_reorder_images,
-    artwork_slideshow_items,
     detail,
 )
 from gallery.views.events import (
@@ -70,8 +68,6 @@ __all__ = [
     'toggle_save',
     'CollectorsListView',
     'detail',
-    'artist_slideshow_items',
-    'artwork_slideshow_items',
     'ArtistListView',
     'ArtistMailChimpView',
     'ArtistDetailView',

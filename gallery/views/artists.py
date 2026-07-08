@@ -29,7 +29,7 @@ from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 class ArtistListView(ListView):
     model = Artist
     template_name = 'gallery/artist_list.html'
-    paginate_by = 100
+    paginate_by = 5000
 
     def get_queryset(self):
         queryset = Artist.objects.filter(visible_artist_queryset(self.request.user)).prefetch_related('tags')
@@ -91,36 +91,6 @@ def artist_email_list(request):
     rows.sort(key=lambda r: (r['date'] is None, -(r['date'].timestamp() if r['date'] else 0)))
 
     return render(request, 'gallery/artist_email_list.html', {'rows': rows})
-
-
-def artist_slideshow_items(request):
-    """Return all visible artists with photos as JSON for the slideshow, bypassing pagination."""
-    queryset = Artist.objects.filter(visible_artist_queryset(request.user)).distinct()
-    tag = request.GET.get('tag')
-    if tag:
-        queryset = tag_filter_queryset(queryset, tag).distinct()
-    queryset = queryset.exclude(image='').filter(image__isnull=False)
-
-    items = []
-    for a in queryset:
-        try:
-            items.append({
-                'img': a.slideshow.url,
-                'thumb': a.card_sm.url,
-                'title': a.full_name,
-                'sub': '',
-                'year': '',
-                'medium': '',
-                'dims': '',
-                'url': a.get_absolute_url(),
-                'saveUrl': '',
-                'artworkId': '',
-                'saved': False,
-            })
-        except Exception:
-            pass
-    from django.http import JsonResponse
-    return JsonResponse({'items': items})
 
 
 class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView):
