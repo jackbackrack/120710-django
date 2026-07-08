@@ -46,7 +46,7 @@
     <div class="text-danger mt-2 text-center">{{ form.artwork.errors }}</div>
     {% endif %}
     <div class="text-center mt-3">
-      <button type="submit" class="btn btn-primary" id="submit-btn" onclick="this.disabled=true;this.form.submit();">Submit</button>
+      <button type="submit" class="btn btn-primary" id="submit-btn">Submit</button>
       <a class="card__link ms-3" href="{{ show.get_absolute_url }}">Cancel</a>
     </div>
   </form>
@@ -114,6 +114,13 @@
 </style>
 <script>
 (function () {
+  var submitForm = document.getElementById('submit-form');
+  if (submitForm) {
+    submitForm.addEventListener('submit', function () {
+      document.getElementById('submit-btn').disabled = true;
+    });
+  }
+
   var toggleBtn = document.getElementById('toggle-quick-form');
   var cancelBtn = document.getElementById('cancel-quick-form');
   var panel = document.getElementById('quick-artwork-form');
