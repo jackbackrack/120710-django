@@ -24,7 +24,6 @@ class Artist(models.Model):
     image = models.ImageField(
         upload_to='artist_images', blank=True, null=True,
         verbose_name='Profile photo',
-        help_text='A photo of you (the artist), not your artwork. This appears on your public profile.',
     )
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})

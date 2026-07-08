@@ -69,7 +69,7 @@ class ArtistForm(UserAwareModelForm):
         )
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel', 'placeholder': '+1 (555) 555-5555'}),
-            'zipcode': forms.TextInput(attrs={'placeholder': '94710', 'maxlength': '10'}),
+            'zipcode': forms.TextInput(attrs={'placeholder': 'e.g. 94710', 'maxlength': '10'}),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -80,6 +80,14 @@ class ArtistForm(UserAwareModelForm):
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
+        _req = ' — required before you can submit artwork to a show.'
+        self.fields['first_name'].help_text = 'Your public first name' + _req
+        self.fields['last_name'].help_text = 'Your public last name' + _req
+        self.fields['zipcode'].help_text = 'US zip code (e.g. 94710)' + _req
+        self.fields['image'].help_text = (
+            'A photo of you (the artist), not your artwork. '
+            'Appears on your public profile' + _req
+        )
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()
