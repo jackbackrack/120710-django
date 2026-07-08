@@ -57,9 +57,6 @@
     <h3 class="mb-6"> <a class="card__link" href="{{ event.get_absolute_url }}"> {{ event.name }}</a>:
     {{ event.date }}: {{ event.time_range }}</h3>
     {% endfor %}
-    {% if can_manage_show %}
-    <a class="card__link new-button" href="{% url 'gallery:event_new' %}?show={{ show.pk }}">New Event</a>
-    {% endif %}
   </div>
   <div class="card__info" style="flex-wrap:wrap">
   {% if can_manage_show %}
@@ -67,6 +64,9 @@
   {% endif %}
   {% if can_delete_show %}
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
+  {% endif %}
+  {% if can_manage_show %}
+    <a class="card__link new-button" href="{% url 'gallery:event_new' %}?show={{ show.pk }}">New Event</a>
   {% endif %}
   {% if show.submission_type == 'invited' and can_manage_show %}
     <a class="card__link" href="{% url 'gallery:invite_artists' show.slug %}">Invite Artists</a>
