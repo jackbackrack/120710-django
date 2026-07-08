@@ -205,12 +205,12 @@ HOW_TO_GUIDES = [
         'roles': None,
         'steps': [
             'Sign in. Navigate to the artwork detail page for a piece you own — purchased, received as a gift, or otherwise acquired.',
-            'Click "Record ownership". This creates a pending ownership claim and notifies the artwork\'s artist.',
+            'Click "Claim" in the button bar at the bottom of the artwork card. This creates a pending ownership claim and notifies the artwork\'s artist.',
             'The artwork\'s artist sees your claim under "Pending Collection Confirmations" on their profile page and clicks Confirm or Decline. Curators and staff can also confirm claims.',
             'While pending, a yellow "awaiting artist confirmation" badge appears on the artwork detail page.',
             'Once confirmed, a green badge appears and the piece is listed in your Collection on your public artist profile.',
             'From your profile, drag and drop collection cards to arrange them in any order — the order saves automatically.',
-            'To remove a piece from your collection at any time, click Remove on the artwork detail page.',
+            'To remove a piece from your collection at any time, click "Unclaim" in the button bar on the artwork detail page.',
         ],
     },
     {
@@ -493,6 +493,7 @@ ROLE_DOCUMENTATION = {
             'Assign jurors to any show from the show\'s Reviews page.',
             'View and edit juror reviews across all shows.',
             'Link unlinked artist records to user accounts from /accounts/link-artists/.',
+            'Log a sale for any artwork using the "Log sale" link in the button bar on the artwork detail page — records the collector, status, sale price, commission, and purchase date.',
             'Edit and Delete links are shown only for records you can manage.',
         ],
         'forms': [
@@ -504,6 +505,19 @@ ROLE_DOCUMENTATION = {
                     {'name': 'artists', 'input_type': 'multi-select', 'purpose': 'Associate one or more artists with the work.'},
                     {'name': 'shows', 'input_type': 'multi-select', 'purpose': 'Associate the artwork with one or more shows. Artwork becomes publicly visible once added to a show whose status is Published or Closed.'},
                     {'name': 'tags', 'input_type': 'multi-select', 'purpose': 'Internal or public categorization tags.'},
+                ],
+            },
+            {
+                'name': 'Log Sale Form',
+                'where_used': 'Artwork detail page → Log sale (staff only)',
+                'breadcrumb': 'Artwork Detail > Log sale',
+                'fields': [
+                    {'name': 'Collector', 'input_type': 'autocomplete search', 'purpose': 'Search for the buyer by name or email. Must be an existing user account.'},
+                    {'name': 'Status', 'input_type': 'dropdown select', 'purpose': 'Confirmed (default) or Pending. Confirmed immediately records the sale; Pending notifies the collector for them to confirm.'},
+                    {'name': 'Purchase date', 'input_type': 'date input', 'purpose': 'Date the sale took place.'},
+                    {'name': 'Sale price', 'input_type': 'numeric input', 'purpose': 'Amount the collector paid for the work.'},
+                    {'name': 'Commission', 'input_type': 'numeric input', 'purpose': 'Gallery commission amount retained from the sale price.'},
+                    {'name': 'Notes', 'input_type': 'text input', 'purpose': 'Optional internal notes about the transaction.'},
                 ],
             },
             {
