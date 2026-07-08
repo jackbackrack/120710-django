@@ -1,80 +1,74 @@
 {% extends 'base.html' %}
 
 {% block title %}Invite Artists — {{ show.name }}{% endblock %}
-{% block block_title %}Invite Artists — {{ show.name }}{% endblock %}
+{% block block_title %}Invite Artists — <a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a>{% endblock %}
 
 {% block content %}
-<div class="cards">
-<div class="card" id="big_card">
-  <div class="card__content">
-    <h1 class="mb-6 text-3xl">Invite Artists</h1>
-    <p class="text-gray-500 text-sm mb-6"><strong>Show:</strong> <a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></p>
+<div class="col-10 mx-auto mt-3">
 
-    {% if messages %}
-    <ul class="messages mb-4">
-      {% for message in messages %}
-      <li class="{{ message.tags }}">{{ message }}</li>
+  {% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mt-3">{{ message }}</div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post" class="mb-4">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label for="emails" class="form-label fw-semibold">
+        Email addresses <span class="text-muted fw-normal">— one per line, or comma/semicolon separated</span>
+      </label>
+      <textarea name="emails" id="emails" rows="8"
+                placeholder="artist1@example.com&#10;artist2@example.com&#10;artist3@example.com"
+                class="form-control font-monospace"
+                style="font-size:0.85rem">{{ current_emails }}</textarea>
+      <p class="text-muted small mt-1">
+        Emails added here will be sent an invitation. Emails removed will have their invitation deleted (unless the artist has already submitted).
+      </p>
+    </div>
+    <button type="submit" class="btn btn-sm btn-primary">Save &amp; Send Invitations</button>
+  </form>
+
+  <div class="text-center section-label"><h2>Invitations sent ({{ invitations|length }})</h2></div>
+
+  {% if invitations %}
+  <table class="table table-sm table-borderless">
+    <thead class="border-bottom">
+      <tr>
+        <th>Email</th>
+        <th>Artist</th>
+        <th>Sent</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inv in invitations %}
+      <tr class="border-bottom">
+        <td class="py-2">{{ inv.email }}</td>
+        <td class="py-2">
+          {% if inv.artist %}
+            <a class="card__link" href="{{ inv.artist.get_absolute_url }}">{{ inv.artist.name }}</a>
+          {% else %}
+            <span class="text-muted">No account yet</span>
+          {% endif %}
+        </td>
+        <td class="py-2 text-muted">{{ inv.sent_at|date:"M d, Y" }}</td>
+        <td class="py-2">
+          <form method="post" style="display:inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="invitation_pk" value="{{ inv.pk }}">
+            <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
+                    onclick="return confirm('Remove invitation for {{ inv.email }}?')">Remove</button>
+          </form>
+        </td>
+      </tr>
       {% endfor %}
-    </ul>
-    {% endif %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted text-center">No invitations sent yet.</p>
+  {% endif %}
 
-    <form method="post" class="mb-6">
-      {% csrf_token %}
-      <div class="mb-3">
-        <label for="emails" class="block text-sm font-medium mb-1">
-          Email addresses — one per line, or comma/semicolon separated
-        </label>
-        <textarea name="emails" id="emails" rows="8"
-                  placeholder="artist1@example.com&#10;artist2@example.com&#10;artist3@example.com"
-                  class="form-control font-monospace"
-                  style="font-size:0.85rem">{{ current_emails }}</textarea>
-        <p class="text-gray-500 text-sm mt-1">
-          Emails added here will be sent an invitation. Emails removed from this list will have their invitation deleted (unless they have already submitted).
-        </p>
-      </div>
-      <button type="submit" class="btn btn-sm btn-primary">Save &amp; Send Invitations</button>
-    </form>
-
-    <h2 class="text-xl mb-3">Invitations sent ({{ invitations|length }})</h2>
-    {% if invitations %}
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="text-left py-1 pr-4">Email</th>
-          <th class="text-left py-1 pr-4">Artist</th>
-          <th class="text-left py-1 pr-4">Sent</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for inv in invitations %}
-        <tr class="border-b">
-          <td class="py-1 pr-4">{{ inv.email }}</td>
-          <td class="py-1 pr-4">
-            {% if inv.artist %}
-              <a class="card__link" href="{{ inv.artist.get_absolute_url }}">{{ inv.artist.name }}</a>
-            {% else %}
-              <span class="text-gray-400">No account yet</span>
-            {% endif %}
-          </td>
-          <td class="py-1 pr-4 text-gray-500">{{ inv.sent_at|date:"M d, Y" }}</td>
-          <td class="py-1">
-            <form method="post" style="display:inline">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="delete">
-              <input type="hidden" name="invitation_pk" value="{{ inv.pk }}">
-              <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
-                      onclick="return confirm('Remove invitation for {{ inv.email }}?')">Remove</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="text-gray-500 text-sm">No invitations sent yet.</p>
-    {% endif %}
-  </div>
-</div>
 </div>
 {% endblock %}
