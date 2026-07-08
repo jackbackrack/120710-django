@@ -272,7 +272,7 @@ BASE_USE_S3 = os.getenv('USE_S3') == 'True'
 
 if LOCAL_DEV and not FORCE_S3_LOCAL:
     USE_S3_STATIC = os.getenv('USE_S3_STATIC_LOCAL', 'False') == 'True'
-    USE_S3_MEDIA = os.getenv('USE_S3_MEDIA_LOCAL', 'True') == 'True'
+    USE_S3_MEDIA = os.getenv('USE_S3_MEDIA_LOCAL', 'False') == 'True'
 else:
     USE_S3_STATIC = BASE_USE_S3
     USE_S3_MEDIA = BASE_USE_S3

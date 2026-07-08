@@ -52,20 +52,40 @@
       <div class="collapse navbar-collapse" id="navbarMain">
         <ul class="navbar-nav me-auto mb-2 mb-md-0">
 
-          <li class="nav-item">
-            <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{% url 'gallery:show_list' %}">Shows</a>
+          {% if current_site %}
+          <li class="nav-item d-flex align-items-center me-1">
+            <span class="nav-link px-1 text-muted" style="font-size:0.85em">&#128205;</span>
+            <a class="nav-link fw-semibold px-1{% if u == 'site_detail' %} active{% endif %}" href="{{ current_site.get_absolute_url }}">{{ current_site.name }}</a>
+            <a class="nav-link px-1 text-muted" href="{% url 'gallery:site_list' %}" title="Exit site scope">&times;</a>
           </li>
-
+          {% else %}
           <li class="nav-item">
             <a class="nav-link{% if 'site' in u %} active{% endif %}" href="{% url 'gallery:site_list' %}">Sites</a>
           </li>
+          {% endif %}
 
           <li class="nav-item">
-            <a class="nav-link{% if 'artist' in u and request.path != my_artist_url %} active{% endif %}" href="{% url 'gallery:artist_list' %}">Artists</a>
+            {% if current_site %}
+            <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{{ current_site.get_absolute_url }}">Shows</a>
+            {% else %}
+            <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{% url 'gallery:show_list' %}">Shows</a>
+            {% endif %}
           </li>
 
           <li class="nav-item">
+            {% if current_site %}
+            <a class="nav-link{% if 'artist' in u and request.path != my_artist_url %} active{% endif %}" href="{% url 'gallery:site_artist_list' current_site.slug %}">Artists</a>
+            {% else %}
+            <a class="nav-link{% if 'artist' in u and request.path != my_artist_url %} active{% endif %}" href="{% url 'gallery:artist_list' %}">Artists</a>
+            {% endif %}
+          </li>
+
+          <li class="nav-item">
+            {% if current_site %}
+            <a class="nav-link{% if 'artwork' in u %} active{% endif %}" href="{% url 'gallery:site_artwork_list' current_site.slug %}">Artworks</a>
+            {% else %}
             <a class="nav-link{% if 'artwork' in u %} active{% endif %}" href="{% url 'gallery:artwork_list' %}">Artworks</a>
+            {% endif %}
           </li>
 
           {% if my_artist_url %}
