@@ -6,7 +6,7 @@ from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from gallery.models import Artist, Artwork, ArtworkSubmission, Show
+from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber
 from reviews.models import ArtworkReview, CriterionScore, RubricCriterion, ShowJuror
 
 
@@ -907,3 +907,340 @@ class OpenCallJuryWorkflowTests(TestCase):
         self.assertIn(self.artist1_user.email, all_recipients)
         self.assertIn(self.artist2_user.email, all_recipients)
         self.assertIn(self.artist3_user.email, all_recipients)
+
+    # =========================================================================
+    # Weighted score computation
+    # =========================================================================
+
+    def test_weighted_score_computed_correctly(self):
+        """Two jurors × two criteria: weighted avg = sum(avg_per_crit * pct/100)."""
+        # juror1: orig=80, exec=60 → weighted = 80*0.6 + 60*0.4 = 72
+        # juror2: orig=60, exec=40 → weighted = 60*0.6 + 40*0.4 = 52
+        # average weighted across jurors: avg_orig=(80+60)/2=70, avg_exec=(60+40)/2=50
+        # final = 70*0.6 + 50*0.4 = 42 + 20 = 62.0
+        self._score_artwork(self.juror1, self.artwork1, orig_score=80, exec_score=60)
+        self._score_artwork(self.juror2, self.artwork1, orig_score=60, exec_score=40)
+
+        self.client.force_login(self.curator_user)
+        data = self.client.get(self.curation_data_url).json()
+        a1_entry = next(a for a in data['artworks'] if a['slug'] == self.artwork1.slug)
+        self.assertEqual(a1_entry['weighted_score'], 62.0)
+
+    def test_single_juror_weighted_score(self):
+        """Single juror: weighted score = score * pct/100 (no averaging needed)."""
+        # orig=100, exec=50 → 100*0.6 + 50*0.4 = 60 + 20 = 80.0
+        self._score_artwork(self.juror1, self.artwork1, orig_score=100, exec_score=50)
+
+        self.client.force_login(self.curator_user)
+        data = self.client.get(self.curation_data_url).json()
+        a1_entry = next(a for a in data['artworks'] if a['slug'] == self.artwork1.slug)
+        self.assertEqual(a1_entry['weighted_score'], 80.0)
+
+    def test_unscored_artwork_has_null_weighted_score(self):
+        """An artwork with no scores returns weighted_score=null in curation_data."""
+        self.client.force_login(self.curator_user)
+        data = self.client.get(self.curation_data_url).json()
+        a1_entry = next(a for a in data['artworks'] if a['slug'] == self.artwork1.slug)
+        self.assertIsNone(a1_entry['weighted_score'])
+
+    def test_curation_data_sorted_by_weighted_score_descending(self):
+        """Artwork with higher weighted score appears first in curation_data response."""
+        # artwork1: high scores; artwork2: low scores
+        self._score_artwork(self.juror1, self.artwork1, orig_score=90, exec_score=90)
+        self._score_artwork(self.juror1, self.artwork2, orig_score=20, exec_score=20)
+
+        self.client.force_login(self.curator_user)
+        data = self.client.get(self.curation_data_url).json()
+        scored = [a for a in data['artworks'] if a['weighted_score'] is not None]
+        scores = [a['weighted_score'] for a in scored]
+        self.assertEqual(scores, sorted(scores, reverse=True))
+        self.assertEqual(scored[0]['slug'], self.artwork1.slug)
+
+    def test_curation_data_juror_scores_structure(self):
+        """Each juror entry in juror_scores contains their per-criterion scores."""
+        self._score_artwork(self.juror1, self.artwork1, orig_score=75, exec_score=65)
+
+        self.client.force_login(self.curator_user)
+        data = self.client.get(self.curation_data_url).json()
+        a1 = next(a for a in data['artworks'] if a['slug'] == self.artwork1.slug)
+        self.assertEqual(len(a1['juror_scores']), 1)
+        j_entry = a1['juror_scores'][0]
+        self.assertIn('criteria', j_entry)
+        self.assertIn('weighted', j_entry)
+        crit_scores = j_entry['criteria']
+        self.assertEqual(crit_scores[str(self.criterion_orig.pk)], 75)
+        self.assertEqual(crit_scores[str(self.criterion_exec.pk)], 65)
+        self.assertAlmostEqual(j_entry['weighted'], 75 * 0.6 + 65 * 0.4, places=1)
+
+    # =========================================================================
+    # Email content
+    # =========================================================================
+
+    def _promote_all_decided(self, sub1_decision, sub2_decision, sub3_decision,
+                             from_status=Show.STATUS_DRAFT):
+        """Helper: set decisions and promote from the given status."""
+        for sub, dec in [(self.sub1, sub1_decision), (self.sub2, sub2_decision),
+                         (self.sub3, sub3_decision)]:
+            sub.curator_decision = dec
+            sub.save(update_fields=['curator_decision'])
+        self.show.status = from_status
+        self.show.save(update_fields=['status'])
+        mail.outbox.clear()
+        self.client.force_login(self.curator_user)
+        self.client.post(self.promote_url)
+
+    def test_acceptance_email_subject_contains_show_name(self):
+        self._promote_all_decided(
+            ArtworkSubmission.CURATOR_SELECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+        )
+        accepted_msgs = [m for m in mail.outbox if self.artist1_user.email in m.recipients()]
+        self.assertTrue(accepted_msgs, 'No email sent to accepted artist')
+        self.assertIn(self.show.name, accepted_msgs[0].subject)
+
+    def test_rejection_email_subject_contains_show_name(self):
+        self._promote_all_decided(
+            ArtworkSubmission.CURATOR_REJECTED,
+            ArtworkSubmission.CURATOR_SELECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+        )
+        rejected_msgs = [m for m in mail.outbox if self.artist1_user.email in m.recipients()]
+        self.assertTrue(rejected_msgs, 'No email sent to rejected artist')
+        self.assertIn(self.show.name, rejected_msgs[0].subject)
+
+    def test_accepted_artist_not_rejected_artist_gets_acceptance_email(self):
+        """Accepted artist receives the 'selected' subject; rejected artist does not."""
+        self._promote_all_decided(
+            ArtworkSubmission.CURATOR_SELECTED,   # artist1 → accepted
+            ArtworkSubmission.CURATOR_REJECTED,   # artist2 → rejected
+            ArtworkSubmission.CURATOR_REJECTED,
+        )
+        msgs_by_recipient = {m.recipients()[0]: m for m in mail.outbox if m.recipients()}
+        accept_subj = f'Your work has been selected for {self.show.name}'
+        reject_subj = f'Update on your submission to {self.show.name}'
+        self.assertEqual(msgs_by_recipient[self.artist1_user.email].subject, accept_subj)
+        self.assertEqual(msgs_by_recipient[self.artist2_user.email].subject, reject_subj)
+
+    def test_juror_does_not_receive_acceptance_rejection_emails(self):
+        """Jurors are not emailed when artworks are accepted/rejected."""
+        self._promote_all_decided(
+            ArtworkSubmission.CURATOR_SELECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+        )
+        all_recipients = {addr for m in mail.outbox for addr in m.recipients()}
+        self.assertNotIn(self.juror1.email, all_recipients)
+        self.assertNotIn(self.juror2.email, all_recipients)
+
+    def test_juror_email_subject_contains_show_name(self):
+        """Email sent to jurors on IN_REVIEW transition contains the show name."""
+        self.client.force_login(self.curator_user)
+        self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_IN_REVIEW},
+        )
+        juror_msgs = [m for m in mail.outbox if self.juror1.email in m.recipients()]
+        self.assertTrue(juror_msgs)
+        self.assertIn(self.show.name, juror_msgs[0].subject)
+
+    # =========================================================================
+    # Promote edge cases
+    # =========================================================================
+
+    def test_promote_blocked_when_any_submission_undecided(self):
+        """If any submission is still undecided the promote POST does nothing."""
+        self.sub1.curator_decision = ArtworkSubmission.CURATOR_SELECTED
+        self.sub1.save(update_fields=['curator_decision'])
+        self.sub2.curator_decision = ArtworkSubmission.CURATOR_REJECTED
+        self.sub2.save(update_fields=['curator_decision'])
+        # sub3 stays UNDECIDED
+
+        self.client.force_login(self.curator_user)
+        self.client.post(self.promote_url)
+
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork1.pk).exists())
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_OPEN_CALL)
+
+    def test_promote_from_open_call_does_not_publish(self):
+        """Promoting from OPEN_CALL adds artworks but keeps the show unpublished."""
+        for sub, dec in [
+            (self.sub1, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub2, ArtworkSubmission.CURATOR_REJECTED),
+            (self.sub3, ArtworkSubmission.CURATOR_REJECTED),
+        ]:
+            sub.curator_decision = dec
+            sub.save(update_fields=['curator_decision'])
+        # show is STATUS_OPEN_CALL (default from setUp)
+        mail.outbox.clear()
+        self.client.force_login(self.curator_user)
+        self.client.post(self.promote_url)
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_OPEN_CALL)
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork1.pk).exists())
+        # No acceptance/rejection emails sent (only from DRAFT→PUBLISHED)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_promote_twice_does_not_duplicate_artwork_numbers(self):
+        """Re-promoting an already-added artwork does not create a duplicate number."""
+        for sub, dec in [
+            (self.sub1, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub2, ArtworkSubmission.CURATOR_REJECTED),
+            (self.sub3, ArtworkSubmission.CURATOR_REJECTED),
+        ]:
+            sub.curator_decision = dec
+            sub.save(update_fields=['curator_decision'])
+
+        self.client.force_login(self.curator_user)
+        self.client.post(self.promote_url)
+        self.client.post(self.promote_url)  # second promote
+
+        count = ShowArtworkNumber.objects.filter(show=self.show, artwork=self.artwork1).count()
+        self.assertEqual(count, 1)
+
+    def test_artwork_numbers_assigned_on_promote(self):
+        """Selected artworks receive sequential ShowArtworkNumber entries."""
+        for sub, dec in [
+            (self.sub1, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub2, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub3, ArtworkSubmission.CURATOR_REJECTED),
+        ]:
+            sub.curator_decision = dec
+            sub.save(update_fields=['curator_decision'])
+
+        self.client.force_login(self.curator_user)
+        self.client.post(self.promote_url)
+
+        nums = ShowArtworkNumber.objects.filter(show=self.show).order_by('number')
+        self.assertEqual(nums.count(), 2)
+        artwork_ids = {n.artwork_id for n in nums}
+        self.assertIn(self.artwork1.pk, artwork_ids)
+        self.assertIn(self.artwork2.pk, artwork_ids)
+
+    def test_submission_status_set_to_accepted_after_promote(self):
+        """ArtworkSubmission.status is ACCEPTED for selected subs after promote."""
+        for sub, dec in [
+            (self.sub1, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub2, ArtworkSubmission.CURATOR_REJECTED),
+            (self.sub3, ArtworkSubmission.CURATOR_REJECTED),
+        ]:
+            sub.curator_decision = dec
+            sub.save(update_fields=['curator_decision'])
+
+        self.client.force_login(self.curator_user)
+        self.client.post(self.promote_url)
+
+        self.sub1.refresh_from_db()
+        self.sub2.refresh_from_db()
+        self.assertEqual(self.sub1.status, ArtworkSubmission.ACCEPTED)
+        self.assertEqual(self.sub2.status, ArtworkSubmission.REJECTED)
+
+    # =========================================================================
+    # Public visibility after publishing
+    # =========================================================================
+
+    def test_published_show_artworks_visible_to_anonymous(self):
+        """After promote from DRAFT the show is published and artworks are accessible."""
+        self._promote_all_decided(
+            ArtworkSubmission.CURATOR_SELECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+        )
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_PUBLISHED)
+
+        self.client.logout()
+        response = self.client.get(
+            reverse('gallery:show_detail', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.artwork1.name)
+
+    def test_rejected_artwork_not_in_published_show(self):
+        """Rejected artwork does not appear on the public show detail page."""
+        self._promote_all_decided(
+            ArtworkSubmission.CURATOR_SELECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+        )
+        self.client.logout()
+        response = self.client.get(
+            reverse('gallery:show_detail', kwargs={'slug': self.show.slug})
+        )
+        # artwork2 was rejected — it must not be in show.artworks
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork2.pk).exists())
+
+    def test_draft_show_not_visible_to_anonymous(self):
+        """A show in DRAFT status is not accessible to the public (returns 404)."""
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+
+        self.client.logout()
+        response = self.client.get(
+            reverse('gallery:show_detail', kwargs={'slug': self.show.slug})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # =========================================================================
+    # Permission checks
+    # =========================================================================
+
+    def test_juror_cannot_get_promote_page(self):
+        """A juror has no access to the promote_artworks page."""
+        self.client.force_login(self.juror1)
+        response = self.client.get(self.promote_url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_juror_cannot_post_to_promote(self):
+        """A juror cannot POST to promote_artworks."""
+        for sub, dec in [
+            (self.sub1, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub2, ArtworkSubmission.CURATOR_REJECTED),
+            (self.sub3, ArtworkSubmission.CURATOR_REJECTED),
+        ]:
+            sub.curator_decision = dec
+            sub.save(update_fields=['curator_decision'])
+
+        self.client.force_login(self.juror1)
+        self.client.post(self.promote_url)
+        self.assertFalse(self.show.artworks.exists())
+
+    def test_unauthenticated_cannot_post_to_save_score(self):
+        """Unauthenticated request to save_score gets redirected to login."""
+        self.client.logout()
+        response = self.client.post(
+            self.save_score_url,
+            data=json.dumps({'artwork_slug': self.artwork1.slug,
+                             'criterion_id': self.criterion_orig.pk, 'score': 80}),
+            content_type='application/json',
+        )
+        self.assertIn(response.status_code, (302, 403))
+
+    def test_unauthenticated_cannot_access_curation_data(self):
+        """Unauthenticated request to curation_data gets redirected to login."""
+        self.client.logout()
+        response = self.client.get(self.curation_data_url)
+        self.assertIn(response.status_code, (302, 403))
+
+    def test_submitting_artist_cannot_access_curation_data(self):
+        """A regular artist who submitted cannot access the curation_data endpoint."""
+        self.client.force_login(self.artist1_user)
+        response = self.client.get(self.curation_data_url)
+        self.assertEqual(response.status_code, 404)
+
+    # =========================================================================
+    # Blind review
+    # =========================================================================
+
+    def test_blind_review_hides_artist_names_in_curation_data(self):
+        """With blind_review enabled the artists list in curation_data is empty."""
+        self.show.blind_review = True
+        self.show.save(update_fields=['blind_review'])
+
+        self.client.force_login(self.curator_user)
+        data = self.client.get(self.curation_data_url).json()
+        for artwork in data['artworks']:
+            self.assertEqual(artwork['artists'], [],
+                             f'Expected empty artists for {artwork["name"]} in blind review')
