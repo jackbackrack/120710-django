@@ -4,8 +4,8 @@
 {% block content %}
 <div class="container mt-3">
   <p><a class="card__link" href="{{ site.get_absolute_url }}">← {{ site.name }}</a></p>
-  <h2>Artists at {{ site.name }}</h2>
 </div>
+<div class="text-center section-label"><h2>Artists at {{ site.name }}</h2></div>
 {% if artists %}
 <div class="cards">
   {% for artist in artists %}
