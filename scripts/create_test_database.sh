@@ -150,20 +150,20 @@ exec_, _ = RubricCriterion.objects.get_or_create(
 )
 print('Created rubric: Originality (60%) + Technical Execution (40%)')
 
-# Scores: juror1 and juror2 each review all four submissions with varied scores
-# so the curation dashboard shows realistic weighted averages and ranking
+# Scores use the five button values: 10=poor, 30=below avg, 50=avg, 70=good, 90=excellent
+# Jurors disagree on Rock Worship to show interesting curation tension
 juror_scores = {
     juror1: [
-        (85, 78),   # Oliver    — strong
-        (72, 65),   # Drawing   — good
-        (90, 88),   # Quilt     — best
-        (60, 55),   # Rock Worship — weakest for this juror
+        (70, 70),   # Oliver       — good across the board
+        (50, 30),   # Drawing      — average originality, below-avg execution
+        (90, 70),   # Quilt        — excellent originality, good execution
+        (30, 50),   # Rock Worship — below-avg originality, average execution
     ],
     juror2: [
-        (78, 82),   # Oliver
-        (68, 70),   # Drawing
-        (80, 75),   # Quilt
-        (88, 92),   # Rock Worship — juror2 rates this highest
+        (70, 90),   # Oliver       — good originality, excellent execution
+        (50, 70),   # Drawing      — average originality, good execution
+        (70, 90),   # Quilt        — good originality, excellent execution
+        (90, 70),   # Rock Worship — juror2 rates this best: excellent originality
     ],
 }
 
