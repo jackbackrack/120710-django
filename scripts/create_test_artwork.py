@@ -95,7 +95,6 @@ if show_slug:
         show=show, artwork=artwork,
         defaults={'submitted_by': artist.user},
     )
-    show.artworks.add(artwork)
     print(f'Created artwork "{artwork.name}" (pk={artwork.pk}) for artist {artist.name}, submitted to "{show.name}".')
 else:
     print(f'Created artwork "{artwork.name}" (pk={artwork.pk}) for artist {artist.name}.')
