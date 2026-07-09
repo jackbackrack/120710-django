@@ -2,11 +2,11 @@
 {% block title %}Sites{% endblock %}
 {% block block_title %}Sites{% endblock %}
 {% block content %}
-<div class="container mt-3">
-  {% if user.is_staff %}
-  <p><a class="btn btn-success btn-sm" href="{% url 'gallery:site_new' %}">New Site</a></p>
-  {% endif %}
+{% if user.is_staff %}
+<div class="text-center mt-3">
+  <a class="btn btn-success btn-sm" href="{% url 'gallery:site_new' %}">New Site</a>
 </div>
+{% endif %}
 {% if sites %}
 <div class="cards">
   {% for site in sites %}
