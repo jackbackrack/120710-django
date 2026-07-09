@@ -149,6 +149,10 @@ MAILCHIMP_AUDIENCE_ID = os.environ.get("MAILCHIMP_AUDIENCE_ID")
 
 SITE_ID = 1
 
+# Slug of the site that is active by default when no site is in the URL.
+# Set to None to disable the default site and show the global view.
+GALLERY_DEFAULT_SITE_SLUG = '120710'
+
 # Behind Railway/proxies, trust forwarded proto so callback URLs are generated as HTTPS.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True

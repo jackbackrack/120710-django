@@ -59,7 +59,7 @@
       <div class="collapse navbar-collapse" id="navbarMain">
         <ul class="navbar-nav me-auto mb-2 mb-md-0">
 
-          {% if not current_site %}
+          {% if not current_site or is_staff_user %}
           <li class="nav-item">
             <a class="nav-link{% if 'site' in u %} active{% endif %}" href="{% url 'gallery:site_list' %}">Sites</a>
           </li>
