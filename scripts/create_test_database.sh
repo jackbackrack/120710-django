@@ -69,19 +69,23 @@ echo "=== Creating artworks ==="
 
 $ARTWORK --email oliver@hawk.com --name "Oliver" \
          --year 2024 --width 12 --height 16 \
-         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg
+         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg \
+         --show working-craft
 
 $ARTWORK --email dave@carter.com --name "Drawing" \
          --year 2024 --width 12 --height 16 \
-         --image media/piece_images/IMG_2448_-_David_Carter.jpeg
+         --image media/piece_images/IMG_2448_-_David_Carter.jpeg \
+         --show working-craft
 
 $ARTWORK --email laura@rokas.com --name "Quilt" \
          --year 2025 --width 18 --height 24 \
-         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
+         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg \
+         --show feel-full
 
 $ARTWORK --email miguel@novelo.com --name "Rock Worship" \
          --year 2025 --width 18 --height 24 \
-         --image media/piece_images/miguel-rock_small.jpg
+         --image media/piece_images/miguel-rock_small.jpg \
+         --show feel-full
 
 echo "=== Creating shows ==="
 
@@ -91,6 +95,7 @@ $SHOW --name "Working Craft" \
       --curator oliver@hawk.com \
       --image media/show_images/234tgrwith_logo_copy.jpg \
       --site 120710 \
+      --status published \
       --invited
 
 $SHOW --name "Feel-Full" \
@@ -98,6 +103,7 @@ $SHOW --name "Feel-Full" \
       --submission-deadline 2026-07-15 \
       --image media/show_images/far-away-is-now-updated.jpg \
       --curator jonathan@bachrach.com \
-      --site 120710
+      --site 120710 \
+      --status published
 
 echo "=== Done ==="
