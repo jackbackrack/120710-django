@@ -59,7 +59,7 @@
     <p class="text-center text-muted">No jurors assigned to this show yet.</p>
     {% endif %}
 
-    <div class="text-center section-label"><h2>Artworks ({{ artworks|length }}) <button class="ss-status-btn cs-launch-btn" data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}" data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}" type="button">Curation Slideshow</button> <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions grid</a></h2></div>
+    <div class="text-center section-label"><h2>Artworks ({{ artworks|length }}) <button class="ss-status-btn cs-launch-btn" data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}" data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}" type="button">Curation Slideshow</button> <button class="ss-status-btn" onclick="window.location='{% url 'gallery:show_submissions' show.slug %}'" type="button">Submissions Grid</button></h2></div>
     <table class="table table-sm mx-auto" style="width:auto">
       <thead>
         <tr>
