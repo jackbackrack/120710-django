@@ -105,6 +105,7 @@ for slug in show_slugs:
         artwork=artwork,
         defaults={'submitted_by': artist.user, 'status': ArtworkSubmission.ACCEPTED},
     )
+    show.artworks.add(artwork)
     print(f'  Submitted to show "{show.name}" (accepted).')
 
 print(f'Created artwork "{artwork.name}" (pk={artwork.pk}) for artist {artist.name}.')
