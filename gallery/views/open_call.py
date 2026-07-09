@@ -31,13 +31,19 @@ def _send_selection_email(submission, accepted):
         'show': submission.show,
         'artwork': submission.artwork,
     })
-    cc_email = getattr(settings, 'GALLERY_SELECTION_CC_EMAIL', None)
+    cc_emails = []
+    gallery_cc = getattr(settings, 'GALLERY_SELECTION_CC_EMAIL', None)
+    if gallery_cc:
+        cc_emails.append(gallery_cc)
+    for curator in submission.show.curators.exclude(email='').exclude(email__isnull=True):
+        if curator.email not in cc_emails:
+            cc_emails.append(curator.email)
     msg = EmailMultiAlternatives(
         subject=subject,
         body=subject,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[email],
-        cc=[cc_email] if cc_email else [],
+        cc=cc_emails,
     )
     msg.attach_alternative(html, 'text/html')
     try:
