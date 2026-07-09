@@ -62,6 +62,7 @@ from gallery.views import (
     SiteCreateView,
     SiteUpdateView,
     SiteDeleteView,
+    geocode_address,
 )
 
 app_name = 'gallery'
@@ -127,6 +128,7 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ShowDetailView.as_view(), name='show_detail'),
     path('sites/', SiteListView.as_view(), name='site_list'),
     path('site/new/', SiteCreateView.as_view(), name='site_new'),
+    path('site/geocode/', geocode_address, name='geocode_address'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', SiteDetailView.as_view(), name='site_detail'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/edit/$', SiteUpdateView.as_view(), name='site_edit'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/delete/$', SiteDeleteView.as_view(), name='site_delete'),

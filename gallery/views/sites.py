@@ -1,10 +1,49 @@
+import json
+import urllib.parse
+import urllib.request
+
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 
 from gallery.models import Site, Show, Artist, Artwork
 from gallery.forms import SiteForm
 from gallery.permissions import is_staff_user
+
+
+@require_POST
+def geocode_address(request):
+    parts = [
+        request.POST.get('street', ''),
+        request.POST.get('city', ''),
+        request.POST.get('state', ''),
+        request.POST.get('postal_code', ''),
+        request.POST.get('country', ''),
+    ]
+    address = ', '.join(p for p in parts if p.strip())
+    if not address:
+        return JsonResponse({'error': 'No address provided.'}, status=400)
+
+    params = urllib.parse.urlencode({'q': address, 'format': 'json', 'limit': 1})
+    url = f'https://nominatim.openstreetmap.org/search?{params}'
+    req = urllib.request.Request(url, headers={'User-Agent': '120710.art gallery site locator'})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+    except Exception as e:
+        return JsonResponse({'error': f'Geocoding request failed: {e}'}, status=502)
+
+    if not data:
+        return JsonResponse({'error': 'Address not found — try adding more detail.'}, status=404)
+
+    result = data[0]
+    return JsonResponse({
+        'latitude': result['lat'],
+        'longitude': result['lon'],
+        'display_name': result['display_name'],
+    })
 
 
 class SiteListView(ListView):

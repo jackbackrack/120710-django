@@ -62,6 +62,7 @@ from gallery.views.sites import (
     SiteCreateView,
     SiteUpdateView,
     SiteDeleteView,
+    geocode_address,
 )
 
 __all__ = [
@@ -118,4 +119,5 @@ __all__ = [
     'SiteCreateView',
     'SiteUpdateView',
     'SiteDeleteView',
+    'geocode_address',
 ]
