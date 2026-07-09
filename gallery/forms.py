@@ -277,7 +277,11 @@ class SiteForm(UserAwareModelForm):
         model = Site
         fields = (
             'name',
-            'address',
+            'street',
+            'city',
+            'state',
+            'postal_code',
+            'country',
             'email',
             'phone',
             'instagram',
@@ -289,7 +293,6 @@ class SiteForm(UserAwareModelForm):
             'longitude',
         )
         widgets = {
-            'address': forms.Textarea(attrs={'rows': 3}),
             'description': forms.Textarea(attrs={'rows': 4}),
         }
 

@@ -9,7 +9,7 @@
   {% endif %}
   <div class="card__content">
     <h1 class="mb-6 text-3xl">{{ site.name }}</h1>
-    {% if site.address %}<p class="text-gray-500 text-sm"><strong>Address:</strong> {{ site.address }}</p>{% endif %}
+    {% if site.formatted_address %}<p class="text-gray-500 text-sm"><strong>Address:</strong><br><span style="white-space:pre-line">{{ site.formatted_address }}</span></p>{% endif %}
     {% if site.phone %}<p class="text-gray-500 text-sm"><strong>Phone:</strong> <a class="card__link" href="tel:{{ site.phone }}">{{ site.phone }}</a></p>{% endif %}
     {% if site.email %}<p class="text-gray-500 text-sm"><strong>Email:</strong> <a class="card__link" href="mailto:{{ site.email }}">{{ site.email }}</a></p>{% endif %}
     {% if site.instagram %}<p class="text-gray-500 text-sm"><strong>Instagram:</strong> <a class="card__link" href="https://instagram.com/{{ site.instagram|cut:'@' }}" target="_blank" rel="noopener">{{ site.instagram }}</a></p>{% endif %}

@@ -21,7 +21,7 @@
         <a class="card__link" href="{{ site.get_absolute_url }}">{{ site.name }}</a>
         {% if site.status == 'draft' %}<span class="badge bg-secondary ms-1" style="font-size:0.65em">Draft</span>{% endif %}
       </h3>
-      {% if site.address %}<p class="text-sm mb-0" style="font-size:0.8em;color:#666">{{ site.address|truncatewords:8 }}</p>{% endif %}
+      {% if site.city or site.state %}<p class="text-sm mb-0" style="font-size:0.8em;color:#666">{{ site.city }}{% if site.city and site.state %}, {% endif %}{{ site.state }}</p>{% endif %}
     </div>
   </div>
   {% endfor %}

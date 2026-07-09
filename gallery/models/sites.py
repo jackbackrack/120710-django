@@ -17,7 +17,11 @@ class Site(models.Model):
 
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
-    address = models.TextField(blank=True)
+    street = models.CharField(max_length=255, blank=True, verbose_name='Street address')
+    city = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=100, blank=True, verbose_name='State / Province / Region')
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=100, blank=True, default='USA')
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=30, blank=True)
     instagram = models.CharField(max_length=100, blank=True, null=True)
@@ -34,6 +38,14 @@ class Site(models.Model):
 
     class Meta:
         ordering = ['name']
+
+    @property
+    def formatted_address(self):
+        city_line = ', '.join(filter(None, [self.city, self.state]))
+        if self.postal_code:
+            city_line = f'{city_line} {self.postal_code}' if city_line else self.postal_code
+        lines = [l for l in [self.street, city_line, self.country] if l]
+        return '\n'.join(lines)
 
     def save(self, *args, **kwargs):
         self.slug = build_unique_slug(self, self.name)

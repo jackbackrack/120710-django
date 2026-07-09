@@ -38,7 +38,11 @@ echo "Created superuser: $SUPERUSER_EMAIL / $SUPERUSER_PASSWORD"
 echo "=== Creating sites ==="
 
 $SITE --name "120710" \
-      --address "1207 10th Street, Berkeley CA 94710" \
+      --street "1207 10th Street" \
+      --city "Berkeley" \
+      --state "CA" \
+      --postal-code "94710" \
+      --country "USA" \
       --email "info@120710.art" \
       --instagram "@120710.art" \
       --website "https://www.120710.art" \

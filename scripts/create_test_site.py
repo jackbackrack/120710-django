@@ -9,7 +9,11 @@ Usage:
                                [--image IMAGE_PATH] [--status STATUS]
 
   --name NAME           Site name (required).
-  --address ADDRESS     Physical address.
+  --street STREET       Street address.
+  --city CITY           City.
+  --state STATE         State / province / region.
+  --postal-code CODE    Postal / zip code.
+  --country COUNTRY     Country (default: USA).
   --email EMAIL         Contact email.
   --phone PHONE         Phone number.
   --instagram HANDLE    Instagram handle (with or without @).
@@ -49,7 +53,11 @@ def _pop_flag_value(args, flag):
 args = sys.argv[1:]
 
 name        = _pop_flag_value(args, '--name')
-address     = _pop_flag_value(args, '--address') or ''
+street      = _pop_flag_value(args, '--street') or ''
+city        = _pop_flag_value(args, '--city') or ''
+state       = _pop_flag_value(args, '--state') or ''
+postal_code = _pop_flag_value(args, '--postal-code') or ''
+country     = _pop_flag_value(args, '--country') or 'USA'
 email       = _pop_flag_value(args, '--email') or ''
 phone       = _pop_flag_value(args, '--phone') or ''
 instagram   = _pop_flag_value(args, '--instagram') or ''
@@ -70,7 +78,11 @@ if status not in valid_statuses:
 
 site = Site(
     name=name,
-    address=address,
+    street=street,
+    city=city,
+    state=state,
+    postal_code=postal_code,
+    country=country,
     email=email,
     phone=phone,
     instagram=instagram,

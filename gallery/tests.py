@@ -2121,7 +2121,11 @@ class SiteFeatureTests(TestCase):
 
         self.published_site = Site.objects.create(
             name='Main Gallery',
-            address='1207 Tenth St, Berkeley CA',
+            street='1207 Tenth St',
+            city='Berkeley',
+            state='CA',
+            postal_code='94710',
+            country='USA',
             status=Site.STATUS_PUBLISHED,
         )
         self.draft_site = Site.objects.create(
@@ -2259,7 +2263,11 @@ class SiteFeatureTests(TestCase):
         self.client.force_login(self.staff_user)
         response = self.client.post(reverse('gallery:site_new'), {
             'name': 'New Test Site',
-            'address': '123 Main St',
+            'street': '123 Main St',
+            'city': 'Berkeley',
+            'state': 'CA',
+            'postal_code': '94710',
+            'country': 'USA',
             'email': '',
             'phone': '',
             'instagram': '',
