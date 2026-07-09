@@ -65,6 +65,25 @@ $ARTIST --email laura@rokas.com --password b8 --artist \
 $ARTIST --email dave@carter.com --password b8 --artist \
         --first Dave --last Carter --image media/artist_images/dave-carter.jpg
 
+echo "=== Creating shows ==="
+
+$SHOW --name "Working Craft" \
+      --start 2026-07-01 --end 2026-07-25 \
+      --submission-deadline 2026-06-15 \
+      --curator oliver@hawk.com \
+      --image media/show_images/234tgrwith_logo_copy.jpg \
+      --site 120710 \
+      --status published \
+      --invited
+
+$SHOW --name "Feel-Full" \
+      --start 2026-08-01 --end 2026-08-25 \
+      --submission-deadline 2026-07-15 \
+      --image media/show_images/far-away-is-now-updated.jpg \
+      --curator jonathan@bachrach.com \
+      --site 120710 \
+      --status published
+
 echo "=== Creating artworks ==="
 
 $ARTWORK --email oliver@hawk.com --name "Oliver" \
@@ -86,24 +105,5 @@ $ARTWORK --email miguel@novelo.com --name "Rock Worship" \
          --year 2025 --width 18 --height 24 \
          --image media/piece_images/miguel-rock_small.jpg \
          --show feel-full
-
-echo "=== Creating shows ==="
-
-$SHOW --name "Working Craft" \
-      --start 2026-07-01 --end 2026-07-25 \
-      --submission-deadline 2026-06-15 \
-      --curator oliver@hawk.com \
-      --image media/show_images/234tgrwith_logo_copy.jpg \
-      --site 120710 \
-      --status published \
-      --invited
-
-$SHOW --name "Feel-Full" \
-      --start 2026-08-01 --end 2026-08-25 \
-      --submission-deadline 2026-07-15 \
-      --image media/show_images/far-away-is-now-updated.jpg \
-      --curator jonathan@bachrach.com \
-      --site 120710 \
-      --status published
 
 echo "=== Done ==="
