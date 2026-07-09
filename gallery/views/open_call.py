@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail
 from django.db.models import Avg, Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -31,14 +31,19 @@ def _send_selection_email(submission, accepted):
         'show': submission.show,
         'artwork': submission.artwork,
     })
-    send_mail(
+    cc_email = getattr(settings, 'GALLERY_SELECTION_CC_EMAIL', None)
+    msg = EmailMultiAlternatives(
         subject=subject,
-        message=subject,
+        body=subject,
         from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        html_message=html,
-        fail_silently=True,
+        to=[email],
+        cc=[cc_email] if cc_email else [],
     )
+    msg.attach_alternative(html, 'text/html')
+    try:
+        msg.send()
+    except Exception:
+        pass
 
 
 

@@ -1033,6 +1033,18 @@ class OpenCallJuryWorkflowTests(TestCase):
         self.assertNotIn(self.juror1.email, all_recipients)
         self.assertNotIn(self.juror2.email, all_recipients)
 
+    @override_settings(GALLERY_SELECTION_CC_EMAIL='gallery@example.com')
+    def test_selection_emails_cc_gallery_address(self):
+        """Each acceptance/rejection email is CC'd to the configured gallery address."""
+        self._promote_all_decided(
+            ArtworkSubmission.CURATOR_SELECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+            ArtworkSubmission.CURATOR_REJECTED,
+        )
+        for msg in mail.outbox:
+            self.assertIn('gallery@example.com', msg.cc,
+                          f'CC missing on email to {msg.to}')
+
     def test_juror_email_subject_contains_show_name(self):
         """Email sent to jurors on IN_REVIEW transition contains the show name."""
         self.client.force_login(self.curator_user)

@@ -104,6 +104,8 @@ ACCOUNT_UNIQUE_EMAIL = True
 # ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = False
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 DEFAULT_FROM_EMAIL = 'info@120710.art'
+# Gallery address CC'd on every artist acceptance/rejection email.
+GALLERY_SELECTION_CC_EMAIL = 'info@120710.art'
 
 ACCOUNT_ADAPTER = 'eatart.account_adapter.NoNewUsersAccountAdapter'
 ACCOUNT_FORMS = {
