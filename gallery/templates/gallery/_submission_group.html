@@ -1,5 +1,14 @@
 {% if group %}
-<div class="text-center section-label"><h3>{{ label }} ({{ group|length }}) <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h3></div>
+<div class="text-center section-label"><h3>{{ label }} ({{ group|length }})
+  {% if can_manage and label == "Undecided" %}
+  <button class="ss-status-btn cs-launch-btn"
+    data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}?decision=undecided"
+    data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}"
+    type="button">Curation Slideshow</button>
+  {% else %}
+  <button class="ss-status-btn" data-ss-section type="button">Slideshow</button>
+  {% endif %}
+</h3></div>
 <div class="cards">
 {% for sub in group %}
 <div class="card" data-sl-title="{{ sub.artwork.name }}" data-sl-sub="{% if not show.blind_review %}{% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}" data-sl-year="{{ sub.artwork.end_year|default:'' }}" data-sl-medium="{{ sub.artwork.medium|default:'' }}" data-sl-dims="{{ sub.artwork.placard_dimensions }}" data-sl-url="{{ sub.artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}" style="width:200px;max-width:200px;{% if row_class == 'table-success' %}border-color:#198754{% elif row_class == 'table-danger' %}border-color:#dc3545{% endif %}">

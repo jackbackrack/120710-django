@@ -810,6 +810,21 @@ class OpenCallJuryWorkflowTests(TestCase):
         self.assertIn(self.sub2.pk, submission_ids)
         self.assertIn(self.sub3.pk, submission_ids)
 
+    def test_curation_data_decision_filter(self):
+        """?decision=undecided returns only undecided submissions."""
+        self.sub1.curator_decision = ArtworkSubmission.CURATOR_SELECTED
+        self.sub1.save(update_fields=['curator_decision'])
+        self.sub2.curator_decision = ArtworkSubmission.CURATOR_REJECTED
+        self.sub2.save(update_fields=['curator_decision'])
+        # sub3 stays UNDECIDED
+
+        self.client.force_login(self.curator_user)
+        data = self.client.get(self.curation_data_url + '?decision=undecided').json()
+        submission_ids = {a['submission_id'] for a in data['artworks']}
+        self.assertNotIn(self.sub1.pk, submission_ids)
+        self.assertNotIn(self.sub2.pk, submission_ids)
+        self.assertIn(self.sub3.pk, submission_ids)
+
     # --- Multi-juror scoring ---
 
     def test_two_jurors_scores_stored_independently(self):

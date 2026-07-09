@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 
 {% block title %}Submissions — {{ show.name }}{% endblock %}
-{% block block_title %}Submissions — {{ show.name }} <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>{% endblock %}
+{% block block_title %}Submissions — {{ show.name }}
+{% if can_manage %}<button class="ss-status-btn cs-launch-btn" data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}" data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}" type="button">Curation Slideshow</button>{% else %}<button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>{% endif %}
+{% endblock %}
 {% block search_action %}{% url 'gallery:show_submissions' show.slug %}{% endblock %}
 
 {% block content %}
@@ -39,6 +41,12 @@
   </form>
   {% endif %}
   {% endif %}
+</div>
+{% endif %}
+
+{% if can_manage %}
+<div class="text-center mb-2">
+  <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Review dashboard</a>
 </div>
 {% endif %}
 

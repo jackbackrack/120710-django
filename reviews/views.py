@@ -424,13 +424,19 @@ def curation_data(request, show_slug):
     from gallery.models.submissions import ArtworkSubmission
     criteria = list(show.rubric_criteria.all())
 
-    submissions = list(
+    subs_qs = (
         ArtworkSubmission.objects
         .filter(show=show)
         .select_related('artwork')
         .prefetch_related('artwork__artists')
         .order_by('submitted_at')
     )
+    decision_filter = request.GET.get('decision')
+    if decision_filter in (ArtworkSubmission.UNDECIDED,
+                           ArtworkSubmission.CURATOR_SELECTED,
+                           ArtworkSubmission.CURATOR_REJECTED):
+        subs_qs = subs_qs.filter(curator_decision=decision_filter)
+    submissions = list(subs_qs)
 
     all_reviews = list(
         ArtworkReview.objects
