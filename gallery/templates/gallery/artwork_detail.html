@@ -3,16 +3,18 @@
 {% block title %}{{ artwork.name }}{% endblock %}
 {% block block_title %}{{ artwork.name }}{% endblock %}
 
+{% load site_tags %}
 {% block content %}
 {% include 'gallery/_artwork_display.html' %}
 <div class="text-center section-label"><h2>Shows</h2></div>
 <div class="cards">
   {% for show in artwork.shows.all %}
+    {% surl show as show_url %}
     <div class="card">
      {% if show.image %}
-     <a style="display: contents" href="{{ show.get_absolute_url }}"><img loading="lazy" src="{{ show.card_sm.url }}" class="card__image"></a>
+     <a style="display: contents" href="{{ show_url }}"><img loading="lazy" src="{{ show.card_sm.url }}" class="card__image"></a>
      {% endif %}
-     <div class="card__content"><a class="card__link" href="{{ show.get_absolute_url }}">{{ show.name }}</a></div>
+     <div class="card__content"><a class="card__link" href="{{ show_url }}">{{ show.name }}</a></div>
      <div class="card__info">
        {% if show.id in can_manage_show %}
        <a class="card__link" href="{{ show.get_placards_url }}">Placards</a>
