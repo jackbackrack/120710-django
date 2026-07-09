@@ -31,9 +31,15 @@
   <nav class="navbar navbar-expand-md bg-white border-bottom" id="site-nav">
     <div class="container-fluid">
 
-      <a class="navbar-brand p-0" href="{% url 'index' %}">
-        <img loading="lazy" width="40" src="{% static 'img/120710-box-logo-03.png' %}" alt="120710">
+      {% if current_site and current_site.icon %}
+      <a class="navbar-brand p-0" href="{{ current_site.get_absolute_url }}">
+        <img loading="lazy" src="{{ current_site.icon_sm.url }}" style="height:40px;width:auto" alt="{{ current_site.name }}">
       </a>
+      {% else %}
+      <a class="navbar-brand p-0" href="{% url 'index' %}">
+        <img loading="lazy" width="40" src="{% static 'img/reset-art-power-on-circular.png' %}" alt="Reset Art">
+      </a>
+      {% endif %}
 
       <!-- Always visible on mobile: search + Reset Art logo -->
       <form class="d-flex d-md-none ms-auto me-2 align-items-center gap-1" action="{% url 'gallery:search_results' %}" method="get">
@@ -53,17 +59,7 @@
       <div class="collapse navbar-collapse" id="navbarMain">
         <ul class="navbar-nav me-auto mb-2 mb-md-0">
 
-          {% if current_site %}
-          <li class="nav-item d-flex align-items-center me-1">
-            {% if current_site.icon %}
-            <a class="nav-link px-1{% if u == 'site_detail' %} active{% endif %}" href="{{ current_site.get_absolute_url }}"><img src="{{ current_site.icon_sm.url }}" style="height:20px;width:auto;vertical-align:middle" alt="{{ current_site.name }}"></a>
-            {% else %}
-            <span class="nav-link px-1 text-muted" style="font-size:0.85em">&#128205;</span>
-            {% endif %}
-            <a class="nav-link fw-semibold px-1{% if u == 'site_detail' %} active{% endif %}" href="{{ current_site.get_absolute_url }}">{{ current_site.name }}</a>
-            <a class="nav-link px-1 text-muted" href="{% url 'gallery:site_list' %}" title="Exit site scope">&times;</a>
-          </li>
-          {% else %}
+          {% if not current_site %}
           <li class="nav-item">
             <a class="nav-link{% if 'site' in u %} active{% endif %}" href="{% url 'gallery:site_list' %}">Sites</a>
           </li>
