@@ -1,8 +1,8 @@
 {% if group %}
 <div class="text-center section-label"><h3>{{ label }} ({{ group|length }})
-  {% if can_manage and label == "Undecided" %}
+  {% if can_manage %}
   <button class="ss-status-btn cs-launch-btn"
-    data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}?decision=undecided"
+    data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}?decision={{ decision }}"
     data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}"
     type="button">Curation Slideshow</button>
   {% else %}
