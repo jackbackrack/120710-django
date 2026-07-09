@@ -288,6 +288,7 @@ class SiteForm(UserAwareModelForm):
             'website',
             'description',
             'image',
+            'icon',
             'status',
             'latitude',
             'longitude',

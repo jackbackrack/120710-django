@@ -54,7 +54,11 @@
 
           {% if current_site %}
           <li class="nav-item d-flex align-items-center me-1">
+            {% if current_site.icon %}
+            <a class="nav-link px-1{% if u == 'site_detail' %} active{% endif %}" href="{{ current_site.get_absolute_url }}"><img src="{{ current_site.icon_sm.url }}" style="height:20px;width:auto;vertical-align:middle" alt="{{ current_site.name }}"></a>
+            {% else %}
             <span class="nav-link px-1 text-muted" style="font-size:0.85em">&#128205;</span>
+            {% endif %}
             <a class="nav-link fw-semibold px-1{% if u == 'site_detail' %} active{% endif %}" href="{{ current_site.get_absolute_url }}">{{ current_site.name }}</a>
             <a class="nav-link px-1 text-muted" href="{% url 'gallery:site_list' %}" title="Exit site scope">&times;</a>
           </li>

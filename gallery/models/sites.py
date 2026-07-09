@@ -31,6 +31,8 @@ class Site(models.Model):
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
+    icon = models.ImageField(upload_to='site_icons', blank=True, null=True, help_text='Small logo or icon for the site (shown in nav and cards).')
+    icon_sm = ImageSpecField(source='icon', processors=[Transpose(), ResizeToFit(width=32, height=32)], format='PNG', options={'quality': 90})
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
