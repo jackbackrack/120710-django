@@ -132,7 +132,6 @@ urlpatterns = [
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/delete/$', SiteDeleteView.as_view(), name='site_delete'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artists/$', SiteArtistListView.as_view(), name='site_artist_list'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artworks/$', SiteArtworkListView.as_view(), name='site_artwork_list'),
-    re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ShowDetailView.as_view(), name='site_show_detail'),
     path('events/', EventListView.as_view(), name='event_list'),
     path('event/<int:pk>/', EventDetailView.as_view(), name='event_detail'),
     path('event/<int:pk>/edit/', EventUpdateView.as_view(), name='event_edit'),
