@@ -57,6 +57,16 @@ class SiteListView(ListView):
             qs = qs.filter(status=Site.STATUS_PUBLISHED)
         return qs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        mapped = [
+            {'name': s.name, 'url': s.get_absolute_url(), 'lat': float(s.latitude), 'lng': float(s.longitude)}
+            for s in context['sites']
+            if s.latitude is not None and s.longitude is not None
+        ]
+        context['sites_json'] = json.dumps(mapped)
+        return context
+
 
 class SiteDetailView(DetailView):
     model = Site

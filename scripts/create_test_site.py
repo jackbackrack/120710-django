@@ -7,6 +7,7 @@ Usage:
                                [--phone PHONE] [--instagram HANDLE]
                                [--website URL] [--description TEXT]
                                [--image IMAGE_PATH] [--status STATUS]
+                               [--lat LATITUDE] [--lng LONGITUDE]
 
   --name NAME           Site name (required).
   --street STREET       Street address.
@@ -19,8 +20,11 @@ Usage:
   --instagram HANDLE    Instagram handle (with or without @).
   --website URL         Website URL.
   --description TEXT    Description text.
-  --image IMAGE_PATH    Path to site image.
+  --image IMAGE_PATH    Path to site hero image.
+  --icon ICON_PATH      Path to site icon (small logo for nav/cards).
   --status STATUS       published or draft (default: published).
+  --lat LATITUDE        Latitude for map pin (decimal degrees).
+  --lng LONGITUDE       Longitude for map pin (decimal degrees).
 
 Example:
     python create_test_site.py --name "120710" --address "1207 10th St, Berkeley CA" \\
@@ -64,7 +68,10 @@ instagram   = _pop_flag_value(args, '--instagram') or ''
 website     = _pop_flag_value(args, '--website') or ''
 description = _pop_flag_value(args, '--description') or ''
 image_path  = _pop_flag_value(args, '--image')
+icon_path   = _pop_flag_value(args, '--icon')
 status      = _pop_flag_value(args, '--status') or Site.STATUS_PUBLISHED
+lat         = _pop_flag_value(args, '--lat')
+lng         = _pop_flag_value(args, '--lng')
 
 if not name:
     print('--name is required')
@@ -89,6 +96,8 @@ site = Site(
     website=website,
     description=description,
     status=status,
+    latitude=float(lat) if lat else None,
+    longitude=float(lng) if lng else None,
 )
 
 if image_path:
@@ -98,6 +107,14 @@ if image_path:
         sys.exit(1)
     with open(image_path, 'rb') as f:
         site.image.save(os.path.basename(image_path), File(f), save=False)
+
+if icon_path:
+    icon_path = os.path.expanduser(icon_path)
+    if not os.path.exists(icon_path):
+        print(f'Icon file not found: {icon_path}')
+        sys.exit(1)
+    with open(icon_path, 'rb') as f:
+        site.icon.save(os.path.basename(icon_path), File(f), save=False)
 
 site.save()
 

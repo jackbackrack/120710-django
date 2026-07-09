@@ -46,6 +46,10 @@ $SITE --name "120710" \
       --email "info@120710.art" \
       --instagram "@120710.art" \
       --website "https://www.120710.art" \
+      --lat 37.881570 \
+      --lng -122.297147 \
+      --image media/site_images/120710.jpg \
+      --icon media/site_icons/120710.png \
       --status published
 
 echo "=== Creating artists ==="

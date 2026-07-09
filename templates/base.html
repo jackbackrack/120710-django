@@ -23,6 +23,7 @@
     {% if structured_data_json %}
     <script type="application/ld+json">{{ structured_data_json|safe }}</script>
     {% endif %}
+    {% block extra_head %}{% endblock %}
   </head>
   <body>
   <header>
