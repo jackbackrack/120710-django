@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Populate the database with test artists, artworks, and shows.
+# Populate the database with test artists, artworks, shows, and jury data.
 # Run from the project root: bash scripts/create_test_database.sh
 set -e
 
@@ -51,22 +51,30 @@ $ARTIST --email laura@rokas.com --password b8 --artist \
 $ARTIST --email dave@carter.com --password b8 --artist \
         --first Dave --last Carter --image media/artist_images/dave-carter.jpg
 
+# Dedicated juror account for testing the jury workflow
+$ARTIST --email juror@example.com --password b8 --artist \
+        --first Test --last Juror
+
 echo "=== Creating artworks ==="
 
 $ARTWORK --email oliver@hawk.com --name "Oliver" \
          --year 2024 --width 12 --height 16 \
+         --medium "Oil on canvas" \
          --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg
 
 $ARTWORK --email dave@carter.com --name "Drawing" \
          --year 2024 --width 12 --height 16 \
+         --medium "Graphite on paper" \
          --image media/piece_images/IMG_2448_-_David_Carter.jpeg
 
 $ARTWORK --email laura@rokas.com --name "Quilt" \
          --year 2025 --width 18 --height 24 \
+         --medium "Textile" \
          --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
 
 $ARTWORK --email miguel@novelo.com --name "Rock Worship" \
          --year 2025 --width 18 --height 24 \
+         --medium "Mixed media" \
          --image media/piece_images/miguel-rock_small.jpg
 
 echo "=== Creating shows ==="
@@ -84,4 +92,84 @@ $SHOW --name "Feel-Full" \
       --image media/show_images/far-away-is-now-updated.jpg \
       --curator jonathan@bachrach.com
 
+echo "=== Submitting artworks to Feel-Full ==="
+
+# Re-create artworks with --show flag to submit them
+$ARTWORK --email oliver@hawk.com --name "Oliver (Feel-Full)" \
+         --year 2024 --width 12 --height 16 \
+         --medium "Oil on canvas" \
+         --show feel-full \
+         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg
+
+$ARTWORK --email dave@carter.com --name "Drawing (Feel-Full)" \
+         --year 2024 --width 12 --height 16 \
+         --medium "Graphite on paper" \
+         --show feel-full \
+         --image media/piece_images/IMG_2448_-_David_Carter.jpeg
+
+$ARTWORK --email laura@rokas.com --name "Quilt (Feel-Full)" \
+         --year 2025 --width 18 --height 24 \
+         --medium "Textile" \
+         --show feel-full \
+         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
+
+$ARTWORK --email miguel@novelo.com --name "Rock Worship (Feel-Full)" \
+         --year 2025 --width 18 --height 24 \
+         --medium "Mixed media" \
+         --show feel-full \
+         --image media/piece_images/miguel-rock_small.jpg
+
+echo "=== Setting up jury for Feel-Full ==="
+
+python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from gallery.models import Show
+from reviews.models import ShowJuror, RubricCriterion, ArtworkReview, CriterionScore
+from gallery.models import ArtworkSubmission
+
+User = get_user_model()
+
+show = Show.objects.get(slug='feel-full')
+juror_user = User.objects.get(email='juror@example.com')
+curator_user = User.objects.get(email='jonathan@bachrach.com')
+
+# Assign juror
+ShowJuror.objects.get_or_create(show=show, user=juror_user, defaults={'assigned_by': curator_user})
+print('Assigned juror@example.com as juror on Feel-Full')
+
+# Create rubric with two criteria
+orig, _ = RubricCriterion.objects.get_or_create(
+    show=show, name='Originality', defaults={'percentage': 60.0, 'order': 0}
+)
+exec_, _ = RubricCriterion.objects.get_or_create(
+    show=show, name='Technical Execution', defaults={'percentage': 40.0, 'order': 1}
+)
+print('Created rubric: Originality (60%) + Technical Execution (40%)')
+
+# Score two of the four submissions so the dashboard shows partial review state
+submissions = list(ArtworkSubmission.objects.filter(show=show).order_by('submitted_at')[:2])
+for sub in submissions:
+    review, _ = ArtworkReview.objects.get_or_create(
+        show=show, artwork=sub.artwork, juror=juror_user,
+        defaults={'rating': None, 'body': ''}
+    )
+    CriterionScore.objects.get_or_create(review=review, criterion=orig, defaults={'score': 70})
+    CriterionScore.objects.get_or_create(review=review, criterion=exec_, defaults={'score': 80})
+    print(f'Scored \"{sub.artwork.name}\"')
+
+# Advance show to In Review so jury scoring is immediately active
+show.status = Show.STATUS_IN_REVIEW
+show.save(update_fields=['status'])
+print('Set Feel-Full status to In Review')
+"
+
 echo "=== Done ==="
+echo ""
+echo "Test accounts (all password: b8):"
+echo "  admin@example.com    — superuser"
+echo "  jonathan@bachrach.com — curator of Feel-Full (in_review, 4 submissions, 2 scored)"
+echo "  juror@example.com    — juror on Feel-Full (score the 2 remaining artworks)"
+echo "  oliver@hawk.com      — submitting artist"
+echo "  miguel@novelo.com    — submitting artist"
+echo "  laura@rokas.com      — submitting artist"
+echo "  dave@carter.com      — submitting artist"

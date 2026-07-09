@@ -1,6 +1,8 @@
 import datetime
+import json
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -571,3 +573,337 @@ class RubricCriteriaTests(TestCase):
 
         self.assertContains(response, 'Presentation')
         self.assertContains(response, '7')
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+)
+class OpenCallJuryWorkflowTests(TestCase):
+    """End-to-end tests for the open call jury → curation → publish workflow."""
+
+    def setUp(self):
+        # Curator
+        self.curator_user = User.objects.create_user(
+            username='curator@example.com', email='curator@example.com', password='pw',
+        )
+        self.curator_artist = Artist.objects.create(
+            user=self.curator_user, name='Curator Person',
+            first_name='Curator', last_name='Person', email='curator@example.com', phone='',
+        )
+
+        # Two jurors
+        self.juror1 = User.objects.create_user(
+            username='juror1@example.com', email='juror1@example.com', password='pw',
+        )
+        self.juror2 = User.objects.create_user(
+            username='juror2@example.com', email='juror2@example.com', password='pw',
+        )
+
+        # Three submitting artists
+        self.artist1_user = User.objects.create_user(
+            username='artist1@example.com', email='artist1@example.com', password='pw',
+        )
+        self.artist1 = Artist.objects.create(
+            user=self.artist1_user, name='Artist One',
+            first_name='Artist', last_name='One', email='artist1@example.com', phone='',
+        )
+        self.artist2_user = User.objects.create_user(
+            username='artist2@example.com', email='artist2@example.com', password='pw',
+        )
+        self.artist2 = Artist.objects.create(
+            user=self.artist2_user, name='Artist Two',
+            first_name='Artist', last_name='Two', email='artist2@example.com', phone='',
+        )
+        self.artist3_user = User.objects.create_user(
+            username='artist3@example.com', email='artist3@example.com', password='pw',
+        )
+        self.artist3 = Artist.objects.create(
+            user=self.artist3_user, name='Artist Three',
+            first_name='Artist', last_name='Three', email='artist3@example.com', phone='',
+        )
+
+        # Show in Open Call state
+        self.show = Show.objects.create(
+            name='Jury Test Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=30),
+            status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_OPEN,
+            submission_deadline=datetime.date.today() + datetime.timedelta(days=7),
+        )
+        self.show.curators.add(self.curator_artist)
+
+        # Assign both jurors
+        ShowJuror.objects.create(show=self.show, user=self.juror1, assigned_by=self.curator_user)
+        ShowJuror.objects.create(show=self.show, user=self.juror2, assigned_by=self.curator_user)
+
+        # Rubric: two criteria (60/40 split)
+        self.criterion_orig = RubricCriterion.objects.create(
+            show=self.show, name='Originality', percentage=60.0, order=0,
+        )
+        self.criterion_exec = RubricCriterion.objects.create(
+            show=self.show, name='Execution', percentage=40.0, order=1,
+        )
+
+        # Artworks
+        self.artwork1 = Artwork.objects.create(
+            name='Piece One', end_year=2026, created_by=self.artist1_user,
+        )
+        self.artwork1.artists.add(self.artist1)
+        self.artwork2 = Artwork.objects.create(
+            name='Piece Two', end_year=2026, created_by=self.artist2_user,
+        )
+        self.artwork2.artists.add(self.artist2)
+        self.artwork3 = Artwork.objects.create(
+            name='Piece Three', end_year=2026, created_by=self.artist3_user,
+        )
+        self.artwork3.artists.add(self.artist3)
+
+        # Submissions
+        self.sub1 = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork1, submitted_by=self.artist1_user,
+        )
+        self.sub2 = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork2, submitted_by=self.artist2_user,
+        )
+        self.sub3 = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork3, submitted_by=self.artist3_user,
+        )
+
+        # URL helpers
+        self.save_score_url = reverse('reviews:save_score', kwargs={'show_slug': self.show.slug})
+        self.save_decision_url = reverse('reviews:save_decision', kwargs={'show_slug': self.show.slug})
+        self.curation_data_url = reverse('reviews:curation_data', kwargs={'show_slug': self.show.slug})
+        self.promote_url = reverse('gallery:promote_artworks', kwargs={'slug': self.show.slug})
+
+    def _score_artwork(self, user, artwork, orig_score, exec_score):
+        """Post both criterion scores for one artwork as the given juror."""
+        self.client.force_login(user)
+        self.client.post(
+            self.save_score_url,
+            data=json.dumps({
+                'artwork_slug': artwork.slug,
+                'criterion_id': self.criterion_orig.pk,
+                'score': orig_score,
+            }),
+            content_type='application/json',
+        )
+        self.client.post(
+            self.save_score_url,
+            data=json.dumps({
+                'artwork_slug': artwork.slug,
+                'criterion_id': self.criterion_exec.pk,
+                'score': exec_score,
+            }),
+            content_type='application/json',
+        )
+
+    # --- save_score API ---
+
+    def test_save_score_creates_review_and_criterion_score(self):
+        self.client.force_login(self.juror1)
+        response = self.client.post(
+            self.save_score_url,
+            data=json.dumps({
+                'artwork_slug': self.artwork1.slug,
+                'criterion_id': self.criterion_orig.pk,
+                'score': 80,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(response.content, {'ok': True})
+        review = ArtworkReview.objects.get(show=self.show, artwork=self.artwork1, juror=self.juror1)
+        score = CriterionScore.objects.get(review=review, criterion=self.criterion_orig)
+        self.assertEqual(score.score, 80)
+
+    def test_save_score_updates_existing_score(self):
+        self._score_artwork(self.juror1, self.artwork1, orig_score=60, exec_score=70)
+        self.client.force_login(self.juror1)
+        self.client.post(
+            self.save_score_url,
+            data=json.dumps({
+                'artwork_slug': self.artwork1.slug,
+                'criterion_id': self.criterion_orig.pk,
+                'score': 90,
+            }),
+            content_type='application/json',
+        )
+        review = ArtworkReview.objects.get(show=self.show, artwork=self.artwork1, juror=self.juror1)
+        score = CriterionScore.objects.get(review=review, criterion=self.criterion_orig)
+        self.assertEqual(score.score, 90)
+        self.assertEqual(
+            ArtworkReview.objects.filter(show=self.show, artwork=self.artwork1, juror=self.juror1).count(),
+            1,
+        )
+
+    def test_unassigned_user_cannot_save_score(self):
+        outsider = User.objects.create_user(
+            username='outsider@x.com', email='outsider@x.com', password='pw',
+        )
+        self.client.force_login(outsider)
+        response = self.client.post(
+            self.save_score_url,
+            data=json.dumps({
+                'artwork_slug': self.artwork1.slug,
+                'criterion_id': self.criterion_orig.pk,
+                'score': 80,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(ArtworkReview.objects.filter(show=self.show, artwork=self.artwork1).exists())
+
+    # --- save_decision API ---
+
+    def test_save_decision_marks_submission_selected(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.post(
+            self.save_decision_url,
+            data=json.dumps({
+                'submission_id': self.sub1.pk,
+                'decision': ArtworkSubmission.CURATOR_SELECTED,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.sub1.refresh_from_db()
+        self.assertEqual(self.sub1.curator_decision, ArtworkSubmission.CURATOR_SELECTED)
+
+    def test_save_decision_marks_submission_rejected(self):
+        self.client.force_login(self.curator_user)
+        self.client.post(
+            self.save_decision_url,
+            data=json.dumps({
+                'submission_id': self.sub2.pk,
+                'decision': ArtworkSubmission.CURATOR_REJECTED,
+            }),
+            content_type='application/json',
+        )
+        self.sub2.refresh_from_db()
+        self.assertEqual(self.sub2.curator_decision, ArtworkSubmission.CURATOR_REJECTED)
+
+    def test_non_curator_cannot_save_decision(self):
+        self.client.force_login(self.juror1)
+        response = self.client.post(
+            self.save_decision_url,
+            data=json.dumps({
+                'submission_id': self.sub1.pk,
+                'decision': ArtworkSubmission.CURATOR_SELECTED,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # --- curation_data API ---
+
+    def test_curation_data_returns_all_submissions(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.get(self.curation_data_url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        submission_ids = {a['submission_id'] for a in data['artworks']}
+        self.assertIn(self.sub1.pk, submission_ids)
+        self.assertIn(self.sub2.pk, submission_ids)
+        self.assertIn(self.sub3.pk, submission_ids)
+
+    # --- Multi-juror scoring ---
+
+    def test_two_jurors_scores_stored_independently(self):
+        self._score_artwork(self.juror1, self.artwork1, orig_score=80, exec_score=70)
+        self._score_artwork(self.juror2, self.artwork1, orig_score=60, exec_score=50)
+        reviews = ArtworkReview.objects.filter(show=self.show, artwork=self.artwork1)
+        self.assertEqual(reviews.count(), 2)
+        j1_review = reviews.get(juror=self.juror1)
+        j2_review = reviews.get(juror=self.juror2)
+        self.assertEqual(
+            j1_review.criterion_scores.get(criterion=self.criterion_orig).score, 80,
+        )
+        self.assertEqual(
+            j2_review.criterion_scores.get(criterion=self.criterion_orig).score, 60,
+        )
+
+    # --- promote ---
+
+    def test_promote_adds_selected_not_rejected_not_undecided(self):
+        self.sub1.curator_decision = ArtworkSubmission.CURATOR_SELECTED
+        self.sub1.save(update_fields=['curator_decision'])
+        self.sub2.curator_decision = ArtworkSubmission.CURATOR_REJECTED
+        self.sub2.save(update_fields=['curator_decision'])
+        # sub3 also rejected — promote blocks if any submission is still undecided
+        self.sub3.curator_decision = ArtworkSubmission.CURATOR_REJECTED
+        self.sub3.save(update_fields=['curator_decision'])
+
+        self.client.force_login(self.curator_user)
+        self.client.post(self.promote_url)
+
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork1.pk).exists())
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork2.pk).exists())
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork3.pk).exists())
+
+    # --- status transition emails ---
+
+    def test_in_review_transition_emails_both_jurors(self):
+        self.client.force_login(self.curator_user)
+        self.client.post(
+            reverse('gallery:transition_show_status', kwargs={'pk': self.show.pk}),
+            {'status': Show.STATUS_IN_REVIEW},
+        )
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_IN_REVIEW)
+        recipients = {addr for msg in mail.outbox for addr in msg.recipients()}
+        self.assertIn(self.juror1.email, recipients)
+        self.assertIn(self.juror2.email, recipients)
+
+    # --- Full end-to-end flow ---
+
+    def test_full_jury_and_curation_workflow(self):
+        """Score → decide → promote from DRAFT → publish → correct emails."""
+        # Both jurors score all three artworks
+        self._score_artwork(self.juror1, self.artwork1, orig_score=90, exec_score=80)
+        self._score_artwork(self.juror1, self.artwork2, orig_score=50, exec_score=40)
+        self._score_artwork(self.juror1, self.artwork3, orig_score=30, exec_score=20)
+        self._score_artwork(self.juror2, self.artwork1, orig_score=70, exec_score=60)
+        self._score_artwork(self.juror2, self.artwork2, orig_score=60, exec_score=50)
+        self._score_artwork(self.juror2, self.artwork3, orig_score=20, exec_score=10)
+
+        self.assertEqual(ArtworkReview.objects.filter(show=self.show).count(), 6)
+        self.assertEqual(CriterionScore.objects.filter(review__show=self.show).count(), 12)
+
+        # Curator makes decisions
+        self.client.force_login(self.curator_user)
+        for sub, decision in [
+            (self.sub1, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub2, ArtworkSubmission.CURATOR_SELECTED),
+            (self.sub3, ArtworkSubmission.CURATOR_REJECTED),
+        ]:
+            self.client.post(
+                self.save_decision_url,
+                data=json.dumps({'submission_id': sub.pk, 'decision': decision}),
+                content_type='application/json',
+            )
+
+        # Promote from DRAFT → publishes and sends emails
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        mail.outbox.clear()
+
+        self.client.post(self.promote_url)
+
+        self.show.refresh_from_db()
+        self.assertEqual(self.show.status, Show.STATUS_PUBLISHED)
+
+        # Selected artworks in show, rejected not
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork1.pk).exists())
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork2.pk).exists())
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork3.pk).exists())
+
+        # One email per submitting artist (accept or reject)
+        self.assertEqual(len(mail.outbox), 3)
+        all_recipients = {addr for msg in mail.outbox for addr in msg.recipients()}
+        self.assertIn(self.artist1_user.email, all_recipients)
+        self.assertIn(self.artist2_user.email, all_recipients)
+        self.assertIn(self.artist3_user.email, all_recipients)
