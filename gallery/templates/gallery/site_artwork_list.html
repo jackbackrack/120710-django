@@ -2,9 +2,6 @@
 {% block title %}Artworks — {{ site.name }}{% endblock %}
 {% block block_title %}{{ site.name }}{% endblock %}
 {% block content %}
-<div class="container mt-3">
-  <p><a class="card__link" href="{{ site.get_absolute_url }}">← {{ site.name }}</a></p>
-</div>
 <div class="text-center section-label"><h2>Artworks at {{ site.name }}</h2></div>
 {% if artworks %}
 <div class="cards">
