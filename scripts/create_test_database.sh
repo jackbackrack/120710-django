@@ -51,9 +51,12 @@ $ARTIST --email laura@rokas.com --password b8 --artist \
 $ARTIST --email dave@carter.com --password b8 --artist \
         --first Dave --last Carter --image media/artist_images/dave-carter.jpg
 
-# Dedicated juror account for testing the jury workflow
-$ARTIST --email juror@example.com --password b8 --artist \
-        --first Test --last Juror
+# Dedicated juror accounts for testing the jury workflow
+$ARTIST --email juror1@example.com --password b8 --artist \
+        --first Alice --last Juror
+
+$ARTIST --email juror2@example.com --password b8 --artist \
+        --first Bob --last Juror
 
 echo "=== Creating artworks ==="
 
@@ -123,19 +126,20 @@ echo "=== Setting up jury for Feel-Full ==="
 
 python manage.py shell -c "
 from django.contrib.auth import get_user_model
-from gallery.models import Show
+from gallery.models import Show, ArtworkSubmission
 from reviews.models import ShowJuror, RubricCriterion, ArtworkReview, CriterionScore
-from gallery.models import ArtworkSubmission
 
 User = get_user_model()
 
 show = Show.objects.get(slug='feel-full')
-juror_user = User.objects.get(email='juror@example.com')
+juror1 = User.objects.get(email='juror1@example.com')
+juror2 = User.objects.get(email='juror2@example.com')
 curator_user = User.objects.get(email='jonathan@bachrach.com')
 
-# Assign juror
-ShowJuror.objects.get_or_create(show=show, user=juror_user, defaults={'assigned_by': curator_user})
-print('Assigned juror@example.com as juror on Feel-Full')
+# Assign both jurors
+ShowJuror.objects.get_or_create(show=show, user=juror1, defaults={'assigned_by': curator_user})
+ShowJuror.objects.get_or_create(show=show, user=juror2, defaults={'assigned_by': curator_user})
+print('Assigned juror1@example.com and juror2@example.com as jurors on Feel-Full')
 
 # Create rubric with two criteria
 orig, _ = RubricCriterion.objects.get_or_create(
@@ -146,30 +150,59 @@ exec_, _ = RubricCriterion.objects.get_or_create(
 )
 print('Created rubric: Originality (60%) + Technical Execution (40%)')
 
-# Score two of the four submissions so the dashboard shows partial review state
-submissions = list(ArtworkSubmission.objects.filter(show=show).order_by('submitted_at')[:2])
-for sub in submissions:
-    review, _ = ArtworkReview.objects.get_or_create(
-        show=show, artwork=sub.artwork, juror=juror_user,
-        defaults={'rating': None, 'body': ''}
-    )
-    CriterionScore.objects.get_or_create(review=review, criterion=orig, defaults={'score': 70})
-    CriterionScore.objects.get_or_create(review=review, criterion=exec_, defaults={'score': 80})
-    print(f'Scored \"{sub.artwork.name}\"')
+# Scores: juror1 and juror2 each review all four submissions with varied scores
+# so the curation dashboard shows realistic weighted averages and ranking
+juror_scores = {
+    juror1: [
+        (85, 78),   # Oliver    — strong
+        (72, 65),   # Drawing   — good
+        (90, 88),   # Quilt     — best
+        (60, 55),   # Rock Worship — weakest for this juror
+    ],
+    juror2: [
+        (78, 82),   # Oliver
+        (68, 70),   # Drawing
+        (80, 75),   # Quilt
+        (88, 92),   # Rock Worship — juror2 rates this highest
+    ],
+}
+
+submissions = list(ArtworkSubmission.objects.filter(show=show).order_by('submitted_at'))
+for juror, scores in juror_scores.items():
+    for sub, (o_score, e_score) in zip(submissions, scores):
+        review, _ = ArtworkReview.objects.get_or_create(
+            show=show, artwork=sub.artwork, juror=juror,
+            defaults={'rating': None, 'body': ''}
+        )
+        CriterionScore.objects.get_or_create(review=review, criterion=orig, defaults={'score': o_score})
+        CriterionScore.objects.get_or_create(review=review, criterion=exec_, defaults={'score': e_score})
+    print(f'All 4 artworks scored by {juror.email}')
 
 # Advance show to In Review so jury scoring is immediately active
 show.status = Show.STATUS_IN_REVIEW
 show.save(update_fields=['status'])
 print('Set Feel-Full status to In Review')
+print()
+print('Weighted scores (Originality 60% + Execution 40%):')
+for sub in submissions:
+    reviews = ArtworkReview.objects.filter(show=show, artwork=sub.artwork).prefetch_related('criterion_scores')
+    totals = []
+    for r in reviews:
+        scores_map = {cs.criterion_id: cs.score for cs in r.criterion_scores.all()}
+        w = scores_map.get(orig.pk, 0) * 0.6 + scores_map.get(exec_.pk, 0) * 0.4
+        totals.append(w)
+    avg = sum(totals) / len(totals) if totals else 0
+    print(f'  {sub.artwork.name}: {avg:.1f}')
 "
 
 echo "=== Done ==="
 echo ""
 echo "Test accounts (all password: b8):"
-echo "  admin@example.com    — superuser"
-echo "  jonathan@bachrach.com — curator of Feel-Full (in_review, 4 submissions, 2 scored)"
-echo "  juror@example.com    — juror on Feel-Full (score the 2 remaining artworks)"
-echo "  oliver@hawk.com      — submitting artist"
-echo "  miguel@novelo.com    — submitting artist"
-echo "  laura@rokas.com      — submitting artist"
-echo "  dave@carter.com      — submitting artist"
+echo "  admin@example.com      — superuser"
+echo "  jonathan@bachrach.com  — curator of Feel-Full (in_review, 4 submissions, all scored)"
+echo "  juror1@example.com     — juror on Feel-Full (Alice Juror, all artworks scored)"
+echo "  juror2@example.com     — juror on Feel-Full (Bob Juror, all artworks scored)"
+echo "  oliver@hawk.com        — submitting artist (Oliver Feel-Full)"
+echo "  dave@carter.com        — submitting artist (Drawing Feel-Full)"
+echo "  laura@rokas.com        — submitting artist (Quilt Feel-Full)"
+echo "  miguel@novelo.com      — submitting artist (Rock Worship Feel-Full)"
