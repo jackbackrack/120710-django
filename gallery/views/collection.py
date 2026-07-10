@@ -223,12 +223,31 @@ class CollectorsListView(ListView):
     context_object_name = 'collector_rows'
 
     def get_queryset(self):
+        # Required by ListView; actual data built in get_context_data.
+        return []
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         User = get_user_model()
+
         confirmed_filter = Q(collection_pieces__status=CollectionPiece.STATUS_CONFIRMED)
-        return (
+        owners = list(
             User.objects
             .filter(confirmed_filter)
             .annotate(confirmed_count=Count('collection_pieces', filter=confirmed_filter))
             .order_by('-confirmed_count')
             .distinct()
         )
+
+        pinned_filter = Q(saved_artworks__isnull=False)
+        pinners = list(
+            User.objects
+            .filter(pinned_filter)
+            .annotate(pinned_count=Count('saved_artworks', distinct=True))
+            .order_by('-pinned_count')
+            .distinct()
+        )
+
+        context['owners'] = owners
+        context['pinners'] = pinners
+        return context

@@ -4,8 +4,11 @@
 {% block block_title %}Collectors{% endblock %}
 
 {% block content %}
+
+{% if owners %}
+<div class="text-center section-label"><h2>Owners</h2></div>
 <div class="cards">
-{% for collector in collector_rows %}
+{% for collector in owners %}
 {% with artist=collector.artists.first %}
 <div class="card" data-sl-title="{{ collector.get_full_name|default:collector.username }}" data-sl-sub="{{ collector.confirmed_count }} work{{ collector.confirmed_count|pluralize }}" {% if artist %}data-sl-url="{{ artist.get_absolute_url }}"{% endif %}>
   {% if artist and artist.image %}
@@ -22,8 +25,36 @@
   <div class="card__info"></div>
 </div>
 {% endwith %}
-{% empty %}
-<p class="text-muted text-center w-100">No collectors yet.</p>
 {% endfor %}
 </div>
+{% endif %}
+
+{% if pinners %}
+<div class="text-center section-label"><h2>Pinned</h2></div>
+<div class="cards">
+{% for collector in pinners %}
+{% with artist=collector.artists.first %}
+<div class="card" data-sl-title="{{ collector.get_full_name|default:collector.username }}" data-sl-sub="{{ collector.pinned_count }} pinned" {% if artist %}data-sl-url="{{ artist.get_absolute_url }}"{% endif %}>
+  {% if artist and artist.image %}
+  <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
+  {% endif %}
+  <div class="card__content">
+    {% if artist %}
+    <a class="card__link" href="{{ artist.get_absolute_url }}">{{ collector.get_full_name|default:collector.username }}</a>
+    {% else %}
+    <span>{{ collector.get_full_name|default:collector.username }}</span>
+    {% endif %}
+    <p class="text-gray-500 text-sm">{{ collector.pinned_count }} pinned</p>
+  </div>
+  <div class="card__info"></div>
+</div>
+{% endwith %}
+{% endfor %}
+</div>
+{% endif %}
+
+{% if not owners and not pinners %}
+<p class="text-muted text-center w-100">No collectors yet.</p>
+{% endif %}
+
 {% endblock %}
