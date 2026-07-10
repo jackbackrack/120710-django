@@ -1,3 +1,5 @@
+import datetime
+
 from django.db.models import Q
 
 
@@ -56,7 +58,7 @@ def can_delete_artist(user, artist):
         return True
     if artist.user_id != user.id:
         return False
-    return not artist.artworks.filter(shows__isnull=False).exists()
+    return not artist.artworks.filter(shows__start__lte=datetime.date.today()).exists()
 
 
 def can_manage_artwork(user, artwork):
@@ -77,12 +79,12 @@ def can_manage_artwork(user, artwork):
 def can_delete_artwork(user, artwork):
     if not user.is_authenticated:
         return False
-    if user.is_superuser:
+    if user.is_superuser or _is_gallery_admin(user):
         return True
     if artwork.created_by_id != user.id and not any(a.user_id == user.id for a in artwork.artists.all()):
         return False
-    published_statuses = {'published', 'closed'}
-    return not any(s.status in published_statuses for s in artwork.shows.all())
+    today = datetime.date.today()
+    return not any(s.start <= today for s in artwork.shows.all())
 
 
 def can_manage_show(user, show):

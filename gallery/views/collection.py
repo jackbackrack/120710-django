@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -242,7 +242,13 @@ class CollectorsListView(ListView):
         pinned_filter = Q(saved_artworks__isnull=False)
         pinners_qs = User.objects.filter(pinned_filter)
         if not is_staff_user(self.request.user):
-            pinners_qs = pinners_qs.filter(artists__isnull=False)
+            from gallery.models import Artist
+            pinners_qs = pinners_qs.filter(
+                Exists(Artist.objects.filter(
+                    user=OuterRef('pk'),
+                    artworks__shows__isnull=False,
+                ))
+            )
         pinners = list(
             pinners_qs
             .annotate(pinned_count=Count('saved_artworks', distinct=True))
