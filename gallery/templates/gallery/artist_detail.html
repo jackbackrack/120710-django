@@ -149,8 +149,10 @@
 {% endif %}
 {% if saved_artworks %}
 <div class="text-center section-label"><h2>Pinned <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
+{% if user.is_authenticated and artist.user == user %}
 <p class="text-center text-muted" style="font-size:0.8rem;margin-top:-0.5rem">Drag cards to reorder</p>
-<div class="cards" id="pinned-sortable" data-reorder-url="{% url 'gallery:reorder_saved_artworks' %}">
+{% endif %}
+<div class="cards" id="pinned-sortable"{% if user.is_authenticated and artist.user == user %} data-reorder-url="{% url 'gallery:reorder_saved_artworks' %}"{% endif %}>
   {% for saved in saved_artworks %}
   <div class="card" style="position:relative" data-saved-pk="{{ saved.pk }}" data-sl-title="{{ saved.artwork.name }}" data-sl-sub="{% for a in saved.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ saved.artwork.end_year|default:'' }}" data-sl-medium="{{ saved.artwork.medium|default:'' }}" data-sl-dims="{{ saved.artwork.placard_dimensions }}" data-sl-url="{{ saved.artwork.get_absolute_url }}" data-sl-save-url="{% url 'gallery:toggle_save' saved.artwork.pk %}" data-sl-artwork-id="{{ saved.artwork.pk }}" data-sl-saved="1">
     {% if saved.artwork.image %}
@@ -161,10 +163,12 @@
       <p class="text-gray-500 text-sm">{% for a in saved.artwork.artists.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
     </div>
     <div class="card__info">
+      {% if user.is_authenticated and artist.user == user %}
       <button class="save-artwork-btn saved"
         data-save-url="{% url 'gallery:toggle_save' saved.artwork.pk %}"
         data-artwork-id="{{ saved.artwork.pk }}"
         title="Unpin" aria-pressed="true">&#128204; <span class="save-label">Pinned</span></button>
+      {% endif %}
     </div>
   </div>
   {% endfor %}

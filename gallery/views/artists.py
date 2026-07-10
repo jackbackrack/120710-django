@@ -194,13 +194,21 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                 .select_related('collector', 'artwork')
                 .order_by('-created_at')
             )
-            context['saved_artworks'] = (
+        # Always show the artist's pinned artworks; for non-owners filter by visibility.
+        if artist.user:
+            from gallery.models import Artwork
+            saved_qs = (
                 SavedArtwork.objects
-                .filter(user=user)
+                .filter(user=artist.user)
                 .select_related('artwork')
                 .prefetch_related('artwork__artists')
                 .order_by('display_order', '-created_at')
             )
+            if not (user.is_authenticated and artist.user == user):
+                saved_qs = saved_qs.filter(
+                    artwork__in=Artwork.objects.filter(visible_artwork_queryset(user)).distinct()
+                )
+            context['saved_artworks'] = saved_qs
         return context
 
 

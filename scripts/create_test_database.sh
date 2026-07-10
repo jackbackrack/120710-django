@@ -58,29 +58,54 @@ $ARTIST --email juror1@example.com --password b8 --artist \
 $ARTIST --email juror2@example.com --password b8 --artist \
         --first Bob --last Juror
 
-echo "=== Creating artworks ==="
+echo "=== Creating past show (Autumn Open 2025, closed) ==="
+
+$SHOW --name "Autumn Open 2025" \
+      --start 2025-09-01 --end 2025-11-30 \
+      --submission-deadline 2025-08-15 \
+      --status closed \
+      --curator oliver@hawk.com \
+      --image media/show_images/234tgrwith_logo_copy.jpg
+
+echo "=== Creating artworks (submitted to Autumn Open 2025) ==="
 
 $ARTWORK --email oliver@hawk.com --name "Oliver" \
          --year 2024 --width 12 --height 16 \
          --medium "Oil on canvas" \
+         --show autumn-open-2025 \
          --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg
 
 $ARTWORK --email dave@carter.com --name "Drawing" \
          --year 2024 --width 12 --height 16 \
          --medium "Graphite on paper" \
+         --show autumn-open-2025 \
          --image media/piece_images/IMG_2448_-_David_Carter.jpeg
 
 $ARTWORK --email laura@rokas.com --name "Quilt" \
          --year 2025 --width 18 --height 24 \
          --medium "Textile" \
+         --show autumn-open-2025 \
          --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
 
 $ARTWORK --email miguel@novelo.com --name "Rock Worship" \
          --year 2025 --width 18 --height 24 \
          --medium "Mixed media" \
+         --show autumn-open-2025 \
          --image media/piece_images/miguel-rock_small.jpg
 
-echo "=== Creating shows ==="
+echo "=== Promoting all artworks into Autumn Open 2025 ==="
+
+python manage.py shell -c "
+from gallery.models import Show, ArtworkSubmission
+show = Show.objects.get(slug='autumn-open-2025')
+for sub in ArtworkSubmission.objects.filter(show=show):
+    sub.curator_decision = ArtworkSubmission.CURATOR_SELECTED
+    sub.save()
+    show.artworks.add(sub.artwork)
+    print(f'Promoted: {sub.artwork.name}')
+"
+
+echo "=== Creating active shows ==="
 
 $SHOW --name "Working Craft" \
       --start 2026-07-01 --end 2026-07-25 \
@@ -97,7 +122,7 @@ $SHOW --name "Feel-Full" \
 
 echo "=== Submitting artworks to Feel-Full ==="
 
-# Re-create artworks with --show flag to submit them
+# Separate copies submitted to the open call — distinct from the Autumn Open artworks
 $ARTWORK --email oliver@hawk.com --name "Oliver (Feel-Full)" \
          --year 2024 --width 12 --height 16 \
          --medium "Oil on canvas" \
@@ -211,12 +236,10 @@ miguel  = User.objects.get(email='miguel@novelo.com')
 juror1  = User.objects.get(email='juror1@example.com')
 juror2  = User.objects.get(email='juror2@example.com')
 
-artworks = list(Artwork.objects.order_by('name'))
-
 def artwork(name):
-    return Artwork.objects.filter(name__icontains=name).first()
+    return Artwork.objects.filter(name=name).first()
 
-# Confirmed purchases (owners)
+# Confirmed purchases (owners) — referencing the Autumn Open 2025 artworks by exact name
 # oliver bought 3 works, dave bought 2, laura bought 1
 purchases = [
     (oliver, 'Drawing',       '2025-03-10', 800),
@@ -236,18 +259,16 @@ for collector, name, date, price in purchases:
         )
         print(f'{collector.email} owns \"{aw.name}\"')
 
-# Pinned / saved artworks
-# juror1 pinned 4, juror2 pinned 2, miguel pinned 3
+# Pinned / saved artworks — all from Autumn Open 2025, so publicly visible
+# Use the actual show artists (in published show) as pinners, not jurors
+# miguel pinned 3, oliver pinned 2, laura pinned 1
 pins = [
-    (juror1, 'Oliver'),
-    (juror1, 'Quilt'),
-    (juror1, 'Drawing'),
-    (juror1, 'Rock Worship'),
-    (juror2, 'Quilt'),
-    (juror2, 'Oliver'),
-    (miguel, 'Drawing'),
+    (miguel, 'Oliver'),
     (miguel, 'Quilt'),
-    (miguel, 'Rock Worship'),
+    (miguel, 'Drawing'),
+    (oliver, 'Drawing'),
+    (oliver, 'Rock Worship'),
+    (laura,  'Oliver'),
 ]
 for user, name in pins:
     aw = artwork(name)
@@ -260,10 +281,10 @@ echo "=== Done ==="
 echo ""
 echo "Test accounts (all password: b8):"
 echo "  admin@example.com      — superuser"
+echo "  oliver@hawk.com        — curator of Autumn Open 2025 (closed); owns 3 works, pinned 2"
 echo "  jonathan@bachrach.com  — curator of Feel-Full (in_review, 4 submissions, all scored)"
-echo "  juror1@example.com     — juror on Feel-Full; pinned 4 artworks"
-echo "  juror2@example.com     — juror on Feel-Full; pinned 2 artworks"
-echo "  oliver@hawk.com        — submitting artist; owns 3 works"
-echo "  dave@carter.com        — submitting artist; owns 2 works"
-echo "  laura@rokas.com        — submitting artist; owns 1 work"
-echo "  miguel@novelo.com      — submitting artist; pinned 3 artworks"
+echo "  juror1@example.com     — juror on Feel-Full"
+echo "  juror2@example.com     — juror on Feel-Full"
+echo "  dave@carter.com        — artist; owns 2 works"
+echo "  laura@rokas.com        — artist; owns 1 work, pinned 1"
+echo "  miguel@novelo.com      — artist; pinned 3 artworks"

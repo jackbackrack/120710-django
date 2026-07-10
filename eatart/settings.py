@@ -32,16 +32,18 @@ import os
 
 LOGIN_REDIRECT_URL = "/"
 
-# Configure the email backend
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_BACKEND = 'smtp2go_django.email_backend.Smtp2goEmailBackend'
-
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-for-dev-and-testing-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
 
 LOCAL_DEV = DEBUG and os.environ.get('DJANGO_ENV', 'local') == 'local'
+
+# In local dev emails are printed to the terminal instead of sent via SMTP2GO.
+if LOCAL_DEV:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'smtp2go_django.email_backend.Smtp2goEmailBackend'
 
 
 def _env_bool(name, default=False):

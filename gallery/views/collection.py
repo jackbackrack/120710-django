@@ -240,9 +240,11 @@ class CollectorsListView(ListView):
         )
 
         pinned_filter = Q(saved_artworks__isnull=False)
+        pinners_qs = User.objects.filter(pinned_filter)
+        if not is_staff_user(self.request.user):
+            pinners_qs = pinners_qs.filter(artists__isnull=False)
         pinners = list(
-            User.objects
-            .filter(pinned_filter)
+            pinners_qs
             .annotate(pinned_count=Count('saved_artworks', distinct=True))
             .order_by('-pinned_count')
             .distinct()
