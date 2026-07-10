@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -8,6 +10,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+
+logger = logging.getLogger(__name__)
 from gallery.forms import ArtworkSubmissionForm, QuickArtworkForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber, ShowInvitation
 from gallery.permissions import can_manage_show, can_view_reviews
@@ -49,7 +53,9 @@ def _send_selection_email(submission, accepted):
     try:
         msg.send()
     except Exception:
-        pass
+        logger.exception(
+            'Failed to send selection email to %s for submission %s', email, submission.pk
+        )
 
 
 
