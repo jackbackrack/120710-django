@@ -383,11 +383,38 @@
     });
   }
 
+  // ── Wire per-card ▶ play buttons ───────────────────────────────────────────
+  // Inserts a small play button into each card that has an image.
+  // Clicking it opens the section slideshow starting at that card's index.
+  function wireCardPlayButtons() {
+    document.querySelectorAll('.cards').forEach(function (container) {
+      var containerItems = collectItems(container);
+      if (!containerItems.length) return;
+      var slideIdx = 0;
+      container.querySelectorAll('.card').forEach(function (card) {
+        if (!card.querySelector('img.card__image')) return;
+        var myIdx = slideIdx++;
+        var btn = document.createElement('button');
+        btn.className = 'ss-card-play';
+        btn.setAttribute('aria-label', 'Open slideshow');
+        btn.title = 'Slideshow';
+        btn.innerHTML = '&#9654;';
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          open(containerItems, myIdx);
+        });
+        card.appendChild(btn);
+      });
+    });
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
     buildOverlay();
     wireStatusBarButtons();
     wireSectionButtons();
+    wireCardPlayButtons();
   });
 
 })();

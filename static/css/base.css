@@ -60,6 +60,7 @@ body {
 }
 
 .card {
+    position: relative;
     width: 175px;
     max-width: 175px;
     background-color: #dddddd;
