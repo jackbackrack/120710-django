@@ -195,14 +195,75 @@ for sub in submissions:
     print(f'  {sub.artwork.name}: {avg:.1f}')
 "
 
+echo "=== Setting up collectors and pinned artworks ==="
+
+python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from gallery.models import Artwork
+from gallery.models.collection import CollectionPiece, SavedArtwork
+
+User = get_user_model()
+
+oliver  = User.objects.get(email='oliver@hawk.com')
+dave    = User.objects.get(email='dave@carter.com')
+laura   = User.objects.get(email='laura@rokas.com')
+miguel  = User.objects.get(email='miguel@novelo.com')
+juror1  = User.objects.get(email='juror1@example.com')
+juror2  = User.objects.get(email='juror2@example.com')
+
+artworks = list(Artwork.objects.order_by('name'))
+
+def artwork(name):
+    return Artwork.objects.filter(name__icontains=name).first()
+
+# Confirmed purchases (owners)
+# oliver bought 3 works, dave bought 2, laura bought 1
+purchases = [
+    (oliver, 'Drawing',       '2025-03-10', 800),
+    (oliver, 'Quilt',         '2025-04-22', 1200),
+    (oliver, 'Rock Worship',  '2025-06-01', 950),
+    (dave,   'Oliver',        '2025-02-14', 600),
+    (dave,   'Quilt',         '2025-05-30', 1100),
+    (laura,  'Rock Worship',  '2025-07-04', 700),
+]
+for collector, name, date, price in purchases:
+    aw = artwork(name)
+    if aw:
+        CollectionPiece.objects.get_or_create(
+            collector=collector, artwork=aw,
+            defaults={'purchase_date': date, 'purchase_price': price,
+                      'status': CollectionPiece.STATUS_CONFIRMED}
+        )
+        print(f'{collector.email} owns \"{aw.name}\"')
+
+# Pinned / saved artworks
+# juror1 pinned 4, juror2 pinned 2, miguel pinned 3
+pins = [
+    (juror1, 'Oliver'),
+    (juror1, 'Quilt'),
+    (juror1, 'Drawing'),
+    (juror1, 'Rock Worship'),
+    (juror2, 'Quilt'),
+    (juror2, 'Oliver'),
+    (miguel, 'Drawing'),
+    (miguel, 'Quilt'),
+    (miguel, 'Rock Worship'),
+]
+for user, name in pins:
+    aw = artwork(name)
+    if aw:
+        SavedArtwork.objects.get_or_create(user=user, artwork=aw)
+        print(f'{user.email} pinned \"{aw.name}\"')
+"
+
 echo "=== Done ==="
 echo ""
 echo "Test accounts (all password: b8):"
 echo "  admin@example.com      — superuser"
 echo "  jonathan@bachrach.com  — curator of Feel-Full (in_review, 4 submissions, all scored)"
-echo "  juror1@example.com     — juror on Feel-Full (Alice Juror, all artworks scored)"
-echo "  juror2@example.com     — juror on Feel-Full (Bob Juror, all artworks scored)"
-echo "  oliver@hawk.com        — submitting artist (Oliver Feel-Full)"
-echo "  dave@carter.com        — submitting artist (Drawing Feel-Full)"
-echo "  laura@rokas.com        — submitting artist (Quilt Feel-Full)"
-echo "  miguel@novelo.com      — submitting artist (Rock Worship Feel-Full)"
+echo "  juror1@example.com     — juror on Feel-Full; pinned 4 artworks"
+echo "  juror2@example.com     — juror on Feel-Full; pinned 2 artworks"
+echo "  oliver@hawk.com        — submitting artist; owns 3 works"
+echo "  dave@carter.com        — submitting artist; owns 2 works"
+echo "  laura@rokas.com        — submitting artist; owns 1 work"
+echo "  miguel@novelo.com      — submitting artist; pinned 3 artworks"
