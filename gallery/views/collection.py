@@ -242,12 +242,12 @@ class CollectorsListView(ListView):
         pinned_filter = Q(saved_artworks__isnull=False)
         pinners_qs = User.objects.filter(pinned_filter)
         if not is_staff_user(self.request.user):
-            from gallery.models import Artwork
-            user_ids_in_shows = (
-                Artwork.objects
-                .filter(shows__isnull=False)
-                .values('artists__user_id')
-                .exclude(artists__user_id__isnull=True)
+            from gallery.models import Artist
+            user_ids_in_shows = set(
+                Artist.objects
+                .filter(artworks__shows__isnull=False, user__isnull=False)
+                .values_list('user_id', flat=True)
+                .distinct()
             )
             pinners_qs = pinners_qs.filter(pk__in=user_ids_in_shows)
         pinners = list(
