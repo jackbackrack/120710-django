@@ -68,20 +68,7 @@
         {% if quick_form.errors %}
         <div class="alert alert-danger">Please correct the errors below.</div>
         {% endif %}
-        {{ quick_form.name|as_crispy_field }}
-        <div class="row g-2">
-          <div class="col-auto">{{ quick_form.end_year|as_crispy_field }}</div>
-          <div class="col-auto">{{ quick_form.start_year|as_crispy_field }}</div>
-        </div>
-        {{ quick_form.medium|as_crispy_field }}
-        <div class="d-flex gap-2 align-items-end mb-3">
-          <div>{{ quick_form.width_inches|as_crispy_field }}</div>
-          <span class="mb-3">×</span>
-          <div>{{ quick_form.height_inches|as_crispy_field }}</div>
-          <span class="mb-3">×</span>
-          <div>{{ quick_form.depth_inches|as_crispy_field }}</div>
-        </div>
-        {{ quick_form.image|as_crispy_field }}
+        {% crispy quick_form %}
         <button type="submit" class="btn btn-secondary">Create &amp; Select</button>
         <button type="button" class="btn btn-link" id="cancel-quick-form">Cancel</button>
       </form>
@@ -91,6 +78,8 @@
 {% endblock %}
 
 {% block extra_js %}
+{% load static %}
+<script src="{% static 'js/artwork_form_validate.js' %}"></script>
 <style>
 .artwork-select-cards {
   align-items: flex-start;

@@ -12,7 +12,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 
 logger = logging.getLogger(__name__)
-from gallery.forms import ArtworkSubmissionForm, QuickArtworkForm
+from gallery.forms import ArtworkForm, ArtworkSubmissionForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber, ShowInvitation
 from gallery.permissions import can_manage_show, can_view_reviews
 from reviews.views import _compute_weighted_scores
@@ -315,7 +315,7 @@ def artwork_submit(request, slug):
         action = request.POST.get('action')
 
         if action == 'create_artwork':
-            quick_form = QuickArtworkForm(request.POST, request.FILES)
+            quick_form = ArtworkForm(request.POST, request.FILES, user=request.user)
             if quick_form.is_valid():
                 artwork = quick_form.save(commit=False)
                 artwork.created_by = request.user
@@ -326,7 +326,7 @@ def artwork_submit(request, slug):
             form = ArtworkSubmissionForm(show=show, artist=artist)
             preseed_pk = None
         else:
-            quick_form = QuickArtworkForm()
+            quick_form = ArtworkForm(user=request.user)
             form = ArtworkSubmissionForm(request.POST, show=show, artist=artist)
             if form.is_valid():
                 from django.db import IntegrityError
@@ -344,7 +344,7 @@ def artwork_submit(request, slug):
             preseed_pk = None
     else:
         form = ArtworkSubmissionForm(show=show, artist=artist)
-        quick_form = QuickArtworkForm()
+        quick_form = ArtworkForm(user=request.user)
         preseed_pk = request.GET.get('new_pk')
 
     return render(request, 'gallery/artwork_submit.html', {

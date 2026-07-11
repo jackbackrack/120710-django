@@ -1,4 +1,4 @@
-/* Real-time validation for artwork add/edit forms */
+/* Real-time validation + UX helpers for artwork add/edit/submit forms */
 (function () {
   var THIS_YEAR = new Date().getFullYear();
 
@@ -151,8 +151,51 @@
     });
   }
 
+  // ── Pricing type: show/hide price row ─────────────────────────────────────
+  function updatePriceField() {
+    var typeEl = document.getElementById('id_pricing_type');
+    var priceRow = document.getElementById('div_id_price');
+    var priceInput = document.getElementById('id_price');
+    var priceLabel = priceRow ? priceRow.querySelector('label') : null;
+    if (!typeEl || !priceRow) return;
+    var val = typeEl.value;
+    if (val === 'nfs' || val === 'on_request') {
+      priceRow.style.display = 'none';
+      if (priceInput) { priceInput.value = ''; priceInput.required = false; }
+    } else if (val === 'best_offer') {
+      priceRow.style.display = '';
+      if (priceLabel) priceLabel.textContent = 'Minimum offer ($) — optional';
+      if (priceInput) priceInput.required = false;
+    } else {
+      priceRow.style.display = '';
+      if (priceLabel) priceLabel.textContent = 'Price ($)';
+      if (priceInput) priceInput.required = true;
+    }
+  }
+  var pricingTypeEl = document.getElementById('id_pricing_type');
+  if (pricingTypeEl) {
+    pricingTypeEl.addEventListener('change', updatePriceField);
+    updatePriceField();
+  }
+
+  // ── Dimension keyboard navigation: x / × / / advances to next dim field ──
+  var dims = ['id_width_inches', 'id_height_inches', 'id_depth_inches'];
+  dims.forEach(function (id, i) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('keydown', function (e) {
+      if ((e.key === 'x' || e.key === 'X' || e.key === '×' || e.key === '/') && el.value.trim() !== '') {
+        e.preventDefault();
+        var next = document.getElementById(dims[i + 1]);
+        if (next) { next.focus(); next.select(); }
+      }
+    });
+  });
+
   // ── Submit: validate all, block + scroll to first error ───────────────────
-  var form = document.querySelector('form[method="post"]');
+  // Find the form that owns the artwork name field (handles pages with multiple forms).
+  var nameEl = document.getElementById('id_name');
+  var form = nameEl ? nameEl.closest('form') : null;
   if (form) {
     form.addEventListener('submit', function (e) {
       var firstBad = null;
