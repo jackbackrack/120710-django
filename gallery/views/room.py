@@ -1,0 +1,147 @@
+import json
+
+from django.contrib.auth.decorators import login_required
+from django.http import Http404, JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_POST
+
+from gallery.models import Artwork, Show, WallPlacement
+from gallery.models.room import RoomConfig
+from gallery.permissions import can_manage_show
+
+
+def _room_config(show):
+    config, _ = RoomConfig.objects.get_or_create(show=show)
+    return config
+
+
+def _artwork_json(artwork):
+    """Serialize artwork for the editor / viewer."""
+    try:
+        img_url = artwork.slideshow.url
+    except Exception:
+        img_url = artwork.image.url if artwork.image else ''
+    try:
+        thumb_url = artwork.card_sm.url
+    except Exception:
+        thumb_url = img_url
+    artists = ', '.join(str(a) for a in artwork.artists.all())
+    return {
+        'id':     artwork.pk,
+        'name':   artwork.name,
+        'artists': artists,
+        'year':   artwork.end_year,
+        'medium': artwork.medium or '',
+        'dims':   artwork.placard_dimensions if hasattr(artwork, 'placard_dimensions') else '',
+        'w_in':   float(artwork.width_inches)  if artwork.width_inches  else 24.0,
+        'h_in':   float(artwork.height_inches) if artwork.height_inches else 24.0,
+        'img':    img_url,
+        'thumb':  thumb_url,
+    }
+
+
+@login_required
+def room_layout(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+
+    config  = _room_config(show)
+    placed  = WallPlacement.objects.filter(show=show).select_related('artwork')
+    placed_ids = {wp.artwork_id for wp in placed}
+    pool_qs = show.artworks.exclude(pk__in=placed_ids).prefetch_related('artists')
+
+    placements_json = json.dumps([
+        {
+            'artwork': _artwork_json(wp.artwork),
+            'wall': wp.wall,
+            'x_in': wp.x_in,
+            'y_in': wp.y_in,
+            'z_in': wp.z_in,
+        }
+        for wp in placed
+    ])
+    pool_json = json.dumps([_artwork_json(a) for a in pool_qs])
+    config_json = json.dumps({
+        'width_in':  config.width_in,
+        'depth_in':  config.depth_in,
+        'height_in': config.height_in,
+    })
+
+    return render(request, 'gallery/room_layout.html', {
+        'show': show,
+        'config_json': config_json,
+        'placements_json': placements_json,
+        'pool_json': pool_json,
+    })
+
+
+@login_required
+@require_POST
+def room_layout_save(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'invalid JSON'}, status=400)
+
+    config = _room_config(show)
+    room_cfg = data.get('room')
+    if room_cfg:
+        config.width_in  = float(room_cfg.get('width_in',  config.width_in))
+        config.depth_in  = float(room_cfg.get('depth_in',  config.depth_in))
+        config.height_in = float(room_cfg.get('height_in', config.height_in))
+        config.save()
+
+    WallPlacement.objects.filter(show=show).delete()
+    errors = []
+    for item in data.get('placements', []):
+        try:
+            artwork = Artwork.objects.get(pk=item['artwork_id'])
+            WallPlacement.objects.create(
+                show=show,
+                artwork=artwork,
+                wall=item['wall'],
+                x_in=float(item['x_in']),
+                y_in=float(item['y_in']),
+                z_in=float(item['z_in']),
+            )
+        except (Artwork.DoesNotExist, KeyError, ValueError) as e:
+            errors.append(str(e))
+
+    return JsonResponse({'ok': True, 'errors': errors})
+
+
+def room_viewer(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    config  = _room_config(show)
+    placed  = (
+        WallPlacement.objects
+        .filter(show=show)
+        .select_related('artwork')
+        .prefetch_related('artwork__artists')
+    )
+
+    placements_json = json.dumps([
+        {
+            'artwork': _artwork_json(wp.artwork),
+            'wall': wp.wall,
+            'x_in': wp.x_in,
+            'y_in': wp.y_in,
+            'z_in': wp.z_in,
+        }
+        for wp in placed
+    ])
+    config_json = json.dumps({
+        'width_in':  config.width_in,
+        'depth_in':  config.depth_in,
+        'height_in': config.height_in,
+    })
+
+    return render(request, 'gallery/room_viewer.html', {
+        'show': show,
+        'config_json': config_json,
+        'placements_json': placements_json,
+    })

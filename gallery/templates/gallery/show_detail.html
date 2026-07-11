@@ -80,6 +80,10 @@
   {% if show.submission_type == 'open' and can_view_reviews %}
     <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
   {% endif %}
+  {% if can_manage_show %}
+    <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
+  {% endif %}
+  <a class="card__link" href="{% url 'gallery:room_viewer' show.slug %}">View in 3D</a>
   {% if can_show_print_controls %}
   <div style="width:100%"></div>
     <form method="post" action="{% url 'gallery:renumber_artworks' show.slug %}" style="display:inline">
