@@ -153,6 +153,10 @@ MAILCHIMP_AUDIENCE_ID = os.environ.get("MAILCHIMP_AUDIENCE_ID")
 
 SITE_ID = 1
 
+# Slug of the site that is active by default when no site is in the URL.
+# Set to None to disable the default site and show the global view.
+GALLERY_DEFAULT_SITE_SLUG = '120710'
+
 # Behind Railway/proxies, trust forwarded proto so callback URLs are generated as HTTPS.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
@@ -276,7 +280,7 @@ BASE_USE_S3 = os.getenv('USE_S3') == 'True'
 
 if LOCAL_DEV and not FORCE_S3_LOCAL:
     USE_S3_STATIC = os.getenv('USE_S3_STATIC_LOCAL', 'False') == 'True'
-    USE_S3_MEDIA = os.getenv('USE_S3_MEDIA_LOCAL', 'True') == 'True'
+    USE_S3_MEDIA = os.getenv('USE_S3_MEDIA_LOCAL', 'False') == 'True'
 else:
     USE_S3_STATIC = BASE_USE_S3
     USE_S3_MEDIA = BASE_USE_S3
@@ -297,7 +301,7 @@ if USE_S3_MEDIA:
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
 else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-    MEDIA_URL = 'media/'
+    MEDIA_URL = '/media/'
 
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
@@ -305,7 +309,7 @@ if USE_S3_STATIC:
     STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/'
 else:
     STATIC_ROOT = BASE_DIR / "staticfiles"
-    STATIC_URL = 'static/'
+    STATIC_URL = '/static/'
 
 STORAGES = {
     "default": {

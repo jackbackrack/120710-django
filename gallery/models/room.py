@@ -2,16 +2,16 @@ from django.db import models
 
 
 class RoomConfig(models.Model):
-    """Physical dimensions of the gallery space for a show."""
-    show      = models.OneToOneField(
-        'gallery.Show', on_delete=models.CASCADE, related_name='room_config'
+    """Physical dimensions of a gallery site (constant across shows at that location)."""
+    site      = models.OneToOneField(
+        'gallery.Site', on_delete=models.CASCADE, related_name='room_config'
     )
-    width_in  = models.FloatField(default=384.0)   # E–W (12 × 32 ft)
-    depth_in  = models.FloatField(default=576.0)   # N–S (12 × 48 ft)
+    width_in  = models.FloatField(default=384.0)   # E–W (32 ft)
+    depth_in  = models.FloatField(default=576.0)   # N–S (48 ft)
     height_in = models.FloatField(default=120.0)   # 10 ft
 
     def __str__(self):
-        return f'Room for {self.show}'
+        return f'Room for {self.site}'
 
 
 class WallPlacement(models.Model):

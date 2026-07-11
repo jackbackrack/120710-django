@@ -55,6 +55,16 @@ from gallery.views.collection import (
 from gallery.views.open_call import artwork_submit, invite_artists, show_submissions, promote_artworks, update_submission_status, renumber_artworks, retract_submission, send_submission_reminders
 from gallery.views.search import SearchResultsListView
 from gallery.views.room import room_layout, room_layout_save, room_viewer
+from gallery.views.sites import (
+    SiteListView,
+    SiteDetailView,
+    SiteArtistListView,
+    SiteArtworkListView,
+    SiteCreateView,
+    SiteUpdateView,
+    SiteDeleteView,
+    geocode_address,
+)
 
 __all__ = [
     'artwork_autocomplete',
@@ -106,4 +116,12 @@ __all__ = [
     'room_layout',
     'room_layout_save',
     'room_viewer',
+    'SiteListView',
+    'SiteDetailView',
+    'SiteArtistListView',
+    'SiteArtworkListView',
+    'SiteCreateView',
+    'SiteUpdateView',
+    'SiteDeleteView',
+    'geocode_address',
 ]

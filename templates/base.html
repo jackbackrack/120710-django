@@ -23,6 +23,7 @@
     {% if structured_data_json %}
     <script type="application/ld+json">{{ structured_data_json|safe }}</script>
     {% endif %}
+    {% block extra_head %}{% endblock %}
   </head>
   <body>
   <header>
@@ -30,9 +31,15 @@
   <nav class="navbar navbar-expand-md bg-white border-bottom" id="site-nav">
     <div class="container-fluid">
 
-      <a class="navbar-brand p-0" href="{% url 'index' %}">
-        <img loading="lazy" width="40" src="{% static 'img/120710-box-logo-03.png' %}" alt="120710">
+      {% if current_site and current_site.icon %}
+      <a class="navbar-brand p-0" href="{{ current_site.get_absolute_url }}">
+        <img loading="lazy" src="{{ current_site.icon_sm.url }}" style="height:40px;width:auto" alt="{{ current_site.name }}">
       </a>
+      {% else %}
+      <a class="navbar-brand p-0" href="{% url 'index' %}">
+        <img loading="lazy" width="40" src="{% static 'img/reset-art-power-on-circular.png' %}" alt="Reset Art">
+      </a>
+      {% endif %}
 
       <!-- Always visible on mobile: search + Reset Art logo -->
       <form class="d-flex d-md-none ms-auto me-2 align-items-center gap-1" action="{% url 'gallery:search_results' %}" method="get">
@@ -52,16 +59,34 @@
       <div class="collapse navbar-collapse" id="navbarMain">
         <ul class="navbar-nav me-auto mb-2 mb-md-0">
 
+          {% if not current_site or is_staff_user %}
           <li class="nav-item">
+            <a class="nav-link{% if 'site' in u %} active{% endif %}" href="{% url 'gallery:site_list' %}">Sites</a>
+          </li>
+          {% endif %}
+
+          <li class="nav-item">
+            {% if current_site %}
+            <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{{ current_site.get_absolute_url }}">Shows</a>
+            {% else %}
             <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{% url 'gallery:show_list' %}">Shows</a>
+            {% endif %}
           </li>
 
           <li class="nav-item">
+            {% if current_site %}
+            <a class="nav-link{% if 'artist' in u and request.path != my_artist_url %} active{% endif %}" href="{% url 'gallery:site_artist_list' current_site.slug %}">Artists</a>
+            {% else %}
             <a class="nav-link{% if 'artist' in u and request.path != my_artist_url %} active{% endif %}" href="{% url 'gallery:artist_list' %}">Artists</a>
+            {% endif %}
           </li>
 
           <li class="nav-item">
+            {% if current_site %}
+            <a class="nav-link{% if 'artwork' in u %} active{% endif %}" href="{% url 'gallery:site_artwork_list' current_site.slug %}">Artworks</a>
+            {% else %}
             <a class="nav-link{% if 'artwork' in u %} active{% endif %}" href="{% url 'gallery:artwork_list' %}">Artworks</a>
+            {% endif %}
           </li>
 
           {% if my_artist_url %}

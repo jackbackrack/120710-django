@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load site_tags %}
 
 {% block title %}{{ show.name }}{% endblock %}
 {% block block_title %}{{ show.name }}{% endblock %}
@@ -12,7 +13,7 @@
   <div class="card__content">
     <h1 class="mb-6 text-3xl">{{ show.name }}</h1>
     {% if show.show_type == 'public_art' %}<p class="text-gray-500 text-sm"><strong>Public Art Site</strong></p>{% endif %}
-    {% if show.location %}<p class="text-gray-500 text-sm"><strong>Location: </strong>{{ show.location }}</p>{% endif %}
+    {% with show_sites=show.sites.all %}{% if show_sites %}<p class="text-gray-500 text-sm"><strong>{% if show_sites|length == 1 %}Site{% else %}Sites{% endif %}:</strong> {% for s in show_sites %}<a class="card__link" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}{% endwith %}
     <p class="mb-6 text-3xl">{{ show.date_range }}</p>
     <h3 class="mb-6">Curators:
     {% with curators=show.curators.all %}
@@ -103,13 +104,14 @@
 <div class="cards">
 {% for entry in artwork_data %}
 {% with artwork=entry.artwork sub=entry.submission %}
-  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork.get_absolute_url }}">
+  {% surl artwork as artwork_url %}
+  <div class="card" data-sl-title="{{ artwork.name }}" data-sl-sub="{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}" data-sl-year="{{ artwork.end_year|default:'' }}" data-sl-medium="{{ artwork.medium|default:'' }}" data-sl-dims="{{ artwork.placard_dimensions }}" data-sl-url="{{ artwork_url }}">
     {% if artwork.image %}
-    <a style="display: contents" href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artwork_url }}"><img loading="lazy" src="{{ artwork.card_sm.url }}" data-sl-img="{{ artwork.slideshow.url }}" class="card__image"></a>
     {% endif %}
     <div class="card__content">
-      <h2 class="text-sm">{% for artist in artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h2>
-      <h2 class="text-sm"><a class="card__link" href="{{ artwork.get_absolute_url }}">{{ artwork.name }}</a> </h2>
+      <h2 class="text-sm">{% for artist in artwork.artists.all %}{% surl artist as artist_url %}<a class="card__link" href="{{ artist_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}</h2>
+      <h2 class="text-sm"><a class="card__link" href="{{ artwork_url }}">{{ artwork.name }}</a> </h2>
       <h2 class="text-sm">
         {% if artwork.start_year %}{{ artwork.start_year }}-{% endif %}
         {{ artwork.end_year }}
@@ -158,11 +160,12 @@
 <div class="cards">
   <!-- todo: remove dups and sort -->
   {% for artist in artists %}
-  <div class="card" data-sl-title="{{ artist.name }}" data-sl-url="{{ artist.get_absolute_url }}">
+  {% surl artist as artist_url %}
+  <div class="card" data-sl-title="{{ artist.name }}" data-sl-url="{{ artist_url }}">
     {% if artist.image %}
-    <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
+    <a style="display: contents" href="{{ artist_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
     {% endif %}
-    <div class="card__content"><a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.name }}</a></div>
+    <div class="card__content"><a class="card__link" href="{{ artist_url }}">{{ artist.name }}</a></div>
     <div class="card__info">
     {% if artist.id in can_manage_artist_ids %}
         <a class="card__link" href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>

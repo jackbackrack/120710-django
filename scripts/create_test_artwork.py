@@ -7,13 +7,14 @@ Usage:
                              --width WIDTH --height HEIGHT --image IMAGE_PATH
                              [--medium MEDIUM] [--show SHOW_SLUG]
 
-  --medium MEDIUM     Medium / materials description.
-  --show SHOW_SLUG    Submit the artwork to this show (by slug).
+  --show SHOW_SLUG   Slug of a show to submit this artwork to (accepted status).
+                     May be repeated to submit to multiple shows.
+  --medium MEDIUM    Medium / materials (default: 'mixed media').
 
 Example:
-    python create_test_artwork.py --email artist@example.com --name "My Painting" \\
-                             --year 2025 --width 12.5 --height 18 \\
-                             --medium "Oil on canvas" --show feel-full \\
+    python create_test_artwork.py --email artist@example.com --name "My Painting" \
+                             --year 2025 --width 12.5 --height 18 \
+                             --medium "Oil on canvas" --show feel-full \
                              --image ~/Downloads/painting.jpg
 """
 import os
@@ -25,7 +26,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eatart.settings')
 django.setup()
 
 from django.core.files import File
-from gallery.models import Artist, Artwork, ArtworkSubmission, Show
+from gallery.models import Artist, Artwork, Show
+from gallery.models.submissions import ArtworkSubmission
 
 def _pop_flag_value(args, flag):
     if flag in args:
@@ -38,6 +40,14 @@ def _pop_flag_value(args, flag):
         args.remove(flag)
     return None
 
+
+def _pop_all_flag_values(args, flag):
+    values = []
+    while flag in args:
+        values.append(_pop_flag_value(args, flag))
+    return values
+
+
 args = sys.argv[1:]
 email      = _pop_flag_value(args, '--email')
 name       = _pop_flag_value(args, '--name')
@@ -45,8 +55,8 @@ year_str   = _pop_flag_value(args, '--year')
 width_str  = _pop_flag_value(args, '--width')
 height_str = _pop_flag_value(args, '--height')
 image_path = _pop_flag_value(args, '--image')
-medium     = _pop_flag_value(args, '--medium') or ''
-show_slug  = _pop_flag_value(args, '--show')
+medium     = _pop_flag_value(args, '--medium') or 'mixed media'
+show_slugs = _pop_all_flag_values(args, '--show')
 
 missing = [f for f, v in (('--email', email), ('--name', name), ('--year', year_str),
                            ('--width', width_str), ('--height', height_str), ('--image', image_path)) if not v]
@@ -86,15 +96,17 @@ with open(image_path, 'rb') as f:
 
 artwork.artists.add(artist)
 
-if show_slug:
-    show = Show.objects.filter(slug=show_slug).first()
+for slug in show_slugs:
+    show = Show.objects.filter(slug=slug).first() or Show.objects.filter(name__iexact=slug).first()
     if not show:
-        print(f'Show not found: {show_slug}')
-        sys.exit(1)
+        print(f'Warning: show not found for slug/name {slug!r}, skipping.')
+        continue
     ArtworkSubmission.objects.get_or_create(
-        show=show, artwork=artwork,
-        defaults={'submitted_by': artist.user},
+        show=show,
+        artwork=artwork,
+        defaults={'submitted_by': artist.user, 'status': ArtworkSubmission.ACCEPTED},
     )
-    print(f'Created artwork "{artwork.name}" (pk={artwork.pk}) for artist {artist.name}, submitted to "{show.name}".')
-else:
-    print(f'Created artwork "{artwork.name}" (pk={artwork.pk}) for artist {artist.name}.')
+    show.artworks.add(artwork)
+    print(f'  Submitted to show "{show.name}" (accepted).')
+
+print(f'Created artwork "{artwork.name}" (pk={artwork.pk}) for artist {artist.name}.')

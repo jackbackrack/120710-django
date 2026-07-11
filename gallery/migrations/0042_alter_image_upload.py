@@ -1,0 +1,28 @@
+import gallery.models.artworks
+import gallery.models.people
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('gallery', '0041_site_icon'),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name='artist',
+            name='image',
+            field=models.ImageField(blank=True, null=True, upload_to=gallery.models.people.artist_image_upload, verbose_name='Profile photo'),
+        ),
+        migrations.AlterField(
+            model_name='artwork',
+            name='image',
+            field=models.ImageField(blank=True, null=True, upload_to=gallery.models.artworks.artwork_image_upload),
+        ),
+        migrations.AlterField(
+            model_name='artworkimage',
+            name='image',
+            field=models.ImageField(upload_to=gallery.models.artworks.artwork_image_upload),
+        ),
+    ]

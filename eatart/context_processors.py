@@ -1,4 +1,11 @@
+import re
+
+from django.conf import settings
+
 from gallery.permissions import is_staff_user
+
+_SITE_SLUG_RE = re.compile(r'^/site/([a-z0-9]+(?:-[a-z0-9]+)*)/')
+_DEFAULT_SITE_SLUG = getattr(settings, 'GALLERY_DEFAULT_SITE_SLUG', None)
 
 
 def navigation_roles(request):
@@ -17,9 +24,21 @@ def navigation_roles(request):
         saved_ids = set(
             SavedArtwork.objects.filter(user=user).values_list('artwork_id', flat=True)
         )
+
+    from gallery.models.sites import Site
+    current_site = None
+    m = _SITE_SLUG_RE.match(request.path)
+    if m:
+        current_site = Site.objects.filter(slug=m.group(1)).first()
+    elif _DEFAULT_SITE_SLUG:
+        current_site = Site.objects.filter(
+            slug=_DEFAULT_SITE_SLUG, status=Site.STATUS_PUBLISHED
+        ).first()
+
     return {
         'is_staff_user': bool(is_authenticated and is_staff_user(user)),
         'my_artist_url': my_artist_url,
         'my_artist_name': my_artist_name,
         'saved_artwork_ids': saved_ids,
+        'current_site': current_site,
     }

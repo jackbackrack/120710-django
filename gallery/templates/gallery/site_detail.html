@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}{{ site.name }}{% endblock %}
+{% block block_title %}{{ site.name }}{% endblock %}
+{% block content %}
+<div class="cards">
+<div class="card" id="big_card">
+  {% if site.image %}
+  <img loading="lazy" src="{{ site.card_md.url }}" data-full-src="{{ site.detail_lg.url }}" class="card__image zoomable">
+  {% endif %}
+  <div class="card__content" {% if not site.image %}style="border-top:2px solid #333333"{% endif %}>
+    <h1 class="mb-6 text-3xl">{{ site.name }}</h1>
+    {% if site.formatted_address %}<p class="text-gray-500 text-sm"><strong>Address:</strong><br><span style="white-space:pre-line">{{ site.formatted_address }}</span></p>{% endif %}
+    {% if site.phone %}<p class="text-gray-500 text-sm"><strong>Phone:</strong> <a class="card__link" href="tel:{{ site.phone }}">{{ site.phone }}</a></p>{% endif %}
+    {% if site.email %}<p class="text-gray-500 text-sm"><strong>Email:</strong> <a class="card__link" href="mailto:{{ site.email }}">{{ site.email }}</a></p>{% endif %}
+    {% if site.instagram %}<p class="text-gray-500 text-sm"><strong>Instagram:</strong> <a class="card__link" href="https://instagram.com/{{ site.instagram|cut:'@' }}" target="_blank" rel="noopener">{{ site.instagram }}</a></p>{% endif %}
+    {% if site.website %}<p class="text-gray-500 text-sm"><strong>Website:</strong> <a class="card__link" href="{{ site.website }}" target="_blank" rel="noopener">{{ site.website }}</a></p>{% endif %}
+    {% if site.description %}<p class="text-gray-500 text-sm mt-3">{{ site.description|safe }}</p>{% endif %}
+    {% if site.status == 'draft' %}<p><span class="badge bg-secondary">Draft — not publicly visible</span></p>{% endif %}
+  </div>
+  <div class="card__info" style="flex-wrap:wrap">
+    {% if can_manage_site %}
+    <a class="card__link" href="{% url 'gallery:site_edit' site.slug %}">Edit</a>
+    <a class="card__link" href="{% url 'gallery:site_delete' site.slug %}">Delete</a>
+    {% endif %}
+    <a class="card__link" href="{% url 'gallery:site_artist_list' site.slug %}">Artists</a>
+    <a class="card__link" href="{% url 'gallery:site_artwork_list' site.slug %}">Artworks</a>
+  </div>
+</div>
+</div>
+
+{% if shows %}
+<div class="text-center section-label"><h2>Shows</h2></div>
+<div class="cards">
+  {% for show in shows %}
+    {% include 'gallery/_show_card.html' %}
+  {% endfor %}
+</div>
+{% else %}
+<p class="container mt-3">No shows at this site yet.</p>
+{% endif %}
+{% endblock %}

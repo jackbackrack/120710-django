@@ -1,0 +1,51 @@
+<script>
+(function () {
+  var btn = document.getElementById('geocode-btn');
+  var status = document.getElementById('geocode-status');
+  if (!btn) return;
+
+  btn.addEventListener('click', function () {
+    var street     = (document.getElementById('id_street')      || {}).value || '';
+    var city       = (document.getElementById('id_city')        || {}).value || '';
+    var state      = (document.getElementById('id_state')       || {}).value || '';
+    var postalCode = (document.getElementById('id_postal_code') || {}).value || '';
+    var country    = (document.getElementById('id_country')     || {}).value || '';
+
+    if (!street && !city && !postalCode) {
+      status.textContent = 'Enter at least a street or city first.';
+      status.className = 'ms-2 text-danger small';
+      return;
+    }
+
+    btn.disabled = true;
+    status.textContent = 'Looking up…';
+    status.className = 'ms-2 text-muted small';
+
+    var csrf = document.cookie.match(/csrftoken=([^;]+)/);
+    var body = new URLSearchParams({
+      street: street, city: city, state: state,
+      postal_code: postalCode, country: country,
+      csrfmiddlewaretoken: csrf ? csrf[1] : '',
+    });
+
+    fetch('{% url "gallery:geocode_address" %}', { method: 'POST', body: body })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          status.textContent = res.data.error || 'Not found.';
+          status.className = 'ms-2 text-danger small';
+          return;
+        }
+        document.getElementById('id_latitude').value  = parseFloat(res.data.latitude).toFixed(6);
+        document.getElementById('id_longitude').value = parseFloat(res.data.longitude).toFixed(6);
+        status.textContent = '✓ ' + res.data.display_name;
+        status.className = 'ms-2 text-success small';
+      })
+      .catch(function () {
+        status.textContent = 'Request failed — check your connection.';
+        status.className = 'ms-2 text-danger small';
+      })
+      .finally(function () { btn.disabled = false; });
+  });
+}());
+</script>

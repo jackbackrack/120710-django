@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Artworks — {{ site.name }}{% endblock %}
+{% block block_title %}{{ site.name }}{% endblock %}
+{% block content %}
+<div class="text-center section-label"><h2>Artworks at {{ site.name }}</h2></div>
+{% if artworks %}
+<div class="cards">
+  {% for artwork in artworks %}
+    {% include 'gallery/_artwork_card.html' %}
+  {% endfor %}
+</div>
+{% else %}
+<p class="container mt-2">No artworks have been shown at this site yet.</p>
+{% endif %}
+{% endblock %}

@@ -78,8 +78,8 @@ class LinkTreeEntryAdmin(admin.ModelAdmin):
 
 @admin.register(RoomConfig)
 class RoomConfigAdmin(admin.ModelAdmin):
-    list_display = ('show', 'width_in', 'depth_in', 'height_in')
-    raw_id_fields = ('show',)
+    list_display = ('site', 'width_in', 'depth_in', 'height_in')
+    raw_id_fields = ('site',)
 
 
 @admin.register(WallPlacement)

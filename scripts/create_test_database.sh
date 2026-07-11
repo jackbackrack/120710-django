@@ -8,6 +8,7 @@ DIR="$(dirname "$0")"
 ARTIST="python $DIR/create_test_artist.py"
 ARTWORK="python $DIR/create_test_artwork.py"
 SHOW="python $DIR/create_test_show.py"
+SITE="python $DIR/create_test_site.py"
 
 SUPERUSER_EMAIL="admin@example.com"
 SUPERUSER_PASSWORD="b8"
@@ -33,6 +34,23 @@ user = User.objects.get(email='$SUPERUSER_EMAIL')
 EmailAddress.objects.get_or_create(user=user, email='$SUPERUSER_EMAIL', defaults={'primary': True, 'verified': True})
 "
 echo "Created superuser: $SUPERUSER_EMAIL / $SUPERUSER_PASSWORD"
+
+echo "=== Creating sites ==="
+
+$SITE --name "120710" \
+      --street "1207 10th Street" \
+      --city "Berkeley" \
+      --state "CA" \
+      --postal-code "94710" \
+      --country "USA" \
+      --email "info@120710.art" \
+      --instagram "@120710.art" \
+      --website "https://www.120710.art" \
+      --lat 37.881570 \
+      --lng -122.297147 \
+      --image media/site_images/120710.jpg \
+      --icon media/site_icons/120710.png \
+      --status published
 
 echo "=== Creating artists ==="
 
@@ -65,6 +83,7 @@ $SHOW --name "Autumn Open 2025" \
       --submission-deadline 2025-08-15 \
       --status closed \
       --curator oliver@hawk.com \
+      --site 120710 \
       --image media/show_images/234tgrwith_logo_copy.jpg
 
 echo "=== Creating artworks (submitted to Autumn Open 2025) ==="
@@ -112,13 +131,39 @@ $SHOW --name "Working Craft" \
       --submission-deadline 2026-06-15 \
       --curator oliver@hawk.com \
       --image media/show_images/234tgrwith_logo_copy.jpg \
+      --site 120710 \
+      --status published \
       --invited
 
 $SHOW --name "Feel-Full" \
       --start 2026-08-01 --end 2026-08-25 \
       --submission-deadline 2026-07-15 \
       --image media/show_images/far-away-is-now-updated.jpg \
-      --curator jonathan@bachrach.com
+      --curator jonathan@bachrach.com \
+      --site 120710 \
+      --status published
+
+echo "=== Creating artworks ==="
+
+$ARTWORK --email oliver@hawk.com --name "Oliver" \
+         --year 2024 --width 12 --height 16 \
+         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg \
+         --show working-craft
+
+$ARTWORK --email dave@carter.com --name "Drawing" \
+         --year 2024 --width 12 --height 16 \
+         --image media/piece_images/IMG_2448_-_David_Carter.jpeg \
+         --show working-craft
+
+$ARTWORK --email laura@rokas.com --name "Quilt" \
+         --year 2025 --width 18 --height 24 \
+         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg \
+         --show feel-full
+
+$ARTWORK --email miguel@novelo.com --name "Rock Worship" \
+         --year 2025 --width 18 --height 24 \
+         --image media/piece_images/miguel-rock_small.jpg \
+         --show feel-full
 
 echo "=== Submitting artworks to Feel-Full ==="
 

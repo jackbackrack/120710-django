@@ -9,14 +9,25 @@ from gallery.models import Artwork, Show, WallPlacement
 from gallery.models.room import RoomConfig
 from gallery.permissions import can_manage_show
 
+_DEFAULT_CONFIG = {'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0}
+
 
 def _room_config(show):
-    config, _ = RoomConfig.objects.get_or_create(show=show)
-    return config
+    """Return (RoomConfig, site) for the show's first site, or a stub if no site is set."""
+    site = show.sites.first()
+    if site is None:
+        return None, None
+    config, _ = RoomConfig.objects.get_or_create(site=site)
+    return config, site
+
+
+def _config_dict(config):
+    if config is None:
+        return _DEFAULT_CONFIG.copy()
+    return {'width_in': config.width_in, 'depth_in': config.depth_in, 'height_in': config.height_in}
 
 
 def _artwork_json(artwork):
-    """Serialize artwork for the editor / viewer."""
     try:
         img_url = artwork.slideshow.url
     except Exception:
@@ -27,16 +38,16 @@ def _artwork_json(artwork):
         thumb_url = img_url
     artists = ', '.join(str(a) for a in artwork.artists.all())
     return {
-        'id':     artwork.pk,
-        'name':   artwork.name,
+        'id':      artwork.pk,
+        'name':    artwork.name,
         'artists': artists,
-        'year':   artwork.end_year,
-        'medium': artwork.medium or '',
-        'dims':   artwork.placard_dimensions if hasattr(artwork, 'placard_dimensions') else '',
-        'w_in':   float(artwork.width_inches)  if artwork.width_inches  else 24.0,
-        'h_in':   float(artwork.height_inches) if artwork.height_inches else 24.0,
-        'img':    img_url,
-        'thumb':  thumb_url,
+        'year':    artwork.end_year,
+        'medium':  artwork.medium or '',
+        'dims':    artwork.placard_dimensions if hasattr(artwork, 'placard_dimensions') else '',
+        'w_in':    float(artwork.width_inches)  if artwork.width_inches  else 24.0,
+        'h_in':    float(artwork.height_inches) if artwork.height_inches else 24.0,
+        'img':     img_url,
+        'thumb':   thumb_url,
     }
 
 
@@ -46,27 +57,18 @@ def room_layout(request, slug):
     if not can_manage_show(request.user, show):
         raise Http404
 
-    config  = _room_config(show)
-    placed  = WallPlacement.objects.filter(show=show).select_related('artwork')
+    config, _site = _room_config(show)
+    placed     = WallPlacement.objects.filter(show=show).select_related('artwork')
     placed_ids = {wp.artwork_id for wp in placed}
-    pool_qs = show.artworks.exclude(pk__in=placed_ids).prefetch_related('artists')
+    pool_qs    = show.artworks.exclude(pk__in=placed_ids).prefetch_related('artists')
 
     placements_json = json.dumps([
-        {
-            'artwork': _artwork_json(wp.artwork),
-            'wall': wp.wall,
-            'x_in': wp.x_in,
-            'y_in': wp.y_in,
-            'z_in': wp.z_in,
-        }
+        {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
+         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in}
         for wp in placed
     ])
-    pool_json = json.dumps([_artwork_json(a) for a in pool_qs])
-    config_json = json.dumps({
-        'width_in':  config.width_in,
-        'depth_in':  config.depth_in,
-        'height_in': config.height_in,
-    })
+    pool_json   = json.dumps([_artwork_json(a) for a in pool_qs])
+    config_json = json.dumps(_config_dict(config))
 
     return render(request, 'gallery/room_layout.html', {
         'show': show,
@@ -87,13 +89,14 @@ def room_layout_save(request, slug):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'error': 'invalid JSON'}, status=400)
 
-    config = _room_config(show)
-    room_cfg = data.get('room')
-    if room_cfg:
-        config.width_in  = float(room_cfg.get('width_in',  config.width_in))
-        config.depth_in  = float(room_cfg.get('depth_in',  config.depth_in))
-        config.height_in = float(room_cfg.get('height_in', config.height_in))
-        config.save()
+    config, _site = _room_config(show)
+    if config is not None:
+        room_cfg = data.get('room')
+        if room_cfg:
+            config.width_in  = float(room_cfg.get('width_in',  config.width_in))
+            config.depth_in  = float(room_cfg.get('depth_in',  config.depth_in))
+            config.height_in = float(room_cfg.get('height_in', config.height_in))
+            config.save()
 
     WallPlacement.objects.filter(show=show).delete()
     errors = []
@@ -116,8 +119,8 @@ def room_layout_save(request, slug):
 
 def room_viewer(request, slug):
     show = get_object_or_404(Show, slug=slug)
-    config  = _room_config(show)
-    placed  = (
+    config, _site = _room_config(show)
+    placed = (
         WallPlacement.objects
         .filter(show=show)
         .select_related('artwork')
@@ -125,20 +128,11 @@ def room_viewer(request, slug):
     )
 
     placements_json = json.dumps([
-        {
-            'artwork': _artwork_json(wp.artwork),
-            'wall': wp.wall,
-            'x_in': wp.x_in,
-            'y_in': wp.y_in,
-            'z_in': wp.z_in,
-        }
+        {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
+         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in}
         for wp in placed
     ])
-    config_json = json.dumps({
-        'width_in':  config.width_in,
-        'depth_in':  config.depth_in,
-        'height_in': config.height_in,
-    })
+    config_json = json.dumps(_config_dict(config))
 
     return render(request, 'gallery/room_viewer.html', {
         'show': show,

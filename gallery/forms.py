@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Field, Row, Column, HTML
 
-from gallery.models import Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show, Tag
+from gallery.models import Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show, Site, Tag
 from gallery.permissions import is_curator_user, is_staff_user
 
 
@@ -256,6 +256,32 @@ class ArtworkForm(UserAwareModelForm):
 
 
 
+class SiteForm(UserAwareModelForm):
+    class Meta:
+        model = Site
+        fields = (
+            'name',
+            'street',
+            'city',
+            'state',
+            'postal_code',
+            'country',
+            'email',
+            'phone',
+            'instagram',
+            'website',
+            'description',
+            'image',
+            'icon',
+            'status',
+            'latitude',
+            'longitude',
+        )
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+        }
+
+
 class ArtworkSubmissionForm(forms.ModelForm):
     class Meta:
         model = ArtworkSubmission
@@ -270,13 +296,13 @@ class ArtworkSubmissionForm(forms.ModelForm):
 
 class ShowForm(UserAwareModelForm):
     curators = forms.ModelMultipleChoiceField(queryset=Artist.objects.none(), required=False)
+    sites = forms.ModelMultipleChoiceField(queryset=Site.objects.none(), required=False)
 
     class Meta:
         model = Show
         fields = (
             'name',
             'show_type',
-            'location',
             'description',
             'image',
             'status',
@@ -294,7 +320,6 @@ class ShowForm(UserAwareModelForm):
             'decision_date': forms.DateInput(attrs={'type': 'date'}),
             'start': forms.DateInput(attrs={'type': 'date'}),
             'end': forms.DateInput(attrs={'type': 'date'}),
-            'location': forms.Textarea(attrs={'rows': 2}),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -304,6 +329,9 @@ class ShowForm(UserAwareModelForm):
         ).order_by('name')
         if self.instance.pk:
             self.fields['curators'].initial = self.instance.curators.all()
+        self.fields['sites'].queryset = Site.objects.all().order_by('name')
+        if self.instance.pk:
+            self.fields['sites'].initial = self.instance.sites.all()
         self.fields['submission_deadline'].required = True
         if not is_staff_user(self.user) and not is_curator_user(self.user):
             self.fields.pop('status')
@@ -314,6 +342,7 @@ class ShowForm(UserAwareModelForm):
         if not commit:
             return show
         show.curators.set(self.cleaned_data['curators'])
+        show.sites.set(self.cleaned_data['sites'])
         return show
 
 

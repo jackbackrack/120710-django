@@ -23,6 +23,7 @@ Usage:
                                 Choices: under_consideration, open_call, in_review,
                                          draft, published, closed.
   --invited                     Set submission type to invitation only (default: open call).
+  --site SLUG_OR_NAME           Slug or name of site to associate with this show (repeatable).
 
 Example:
     python create_test_show.py --name "Spring Show" --start 2026-03-01 --end 2026-03-31 \\
@@ -40,7 +41,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eatart.settings')
 django.setup()
 
 from django.core.files import File
-from gallery.models import Artist, Show
+from gallery.models import Artist, Show, Site
 
 
 def _pop_flag_value(args, flag):
@@ -85,6 +86,7 @@ decision_date       = _pop_flag_value(args, '--decision-date')
 image_path          = _pop_flag_value(args, '--image')
 status              = _pop_flag_value(args, '--status') or Show.STATUS_UNDER_CONSIDERATION
 curator_emails      = _pop_flag_values(args, '--curator')
+site_slugs          = _pop_flag_values(args, '--site')
 invited             = _pop_flag(args, '--invited')
 
 if not name:
@@ -138,5 +140,13 @@ for email in curator_emails:
         print(f'Warning: no artist found for curator email: {email}')
     else:
         show.curators.add(artist)
+
+for slug_or_name in site_slugs:
+    site = Site.objects.filter(slug=slug_or_name).first() or \
+           Site.objects.filter(name__iexact=slug_or_name).first()
+    if not site:
+        print(f'Warning: no site found for --site {slug_or_name!r}')
+    else:
+        show.sites.add(site)
 
 print(f'Created show "{show.name}" (pk={show.pk}, status={show.status}).')

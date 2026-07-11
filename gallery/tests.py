@@ -11,7 +11,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.roles import add_staff_role
-from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber
+from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, Site
 
 
 def _make_test_image_dir():
@@ -2079,3 +2079,238 @@ class PlacardTests(TestCase):
         self.client.logout()
         response = self.client.post(reverse('gallery:renumber_artworks', kwargs={'slug': self.show.slug}))
         self.assertNotEqual(response.status_code, 200)
+
+
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+)
+@override_settings(
+    STORAGES={
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+)
+class SiteFeatureTests(TestCase):
+    """Tests for the Site model, views, and site-scoped artist/artwork filtering."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='staff@example.com', email='staff@example.com', password='pw'
+        )
+        self.staff_user.is_staff = True
+        self.staff_user.save()
+
+        self.regular_user = User.objects.create_user(
+            username='regular@example.com', email='regular@example.com', password='pw'
+        )
+
+        self.artist_user = User.objects.create_user(
+            username='artist@example.com', email='artist@example.com', password='pw'
+        )
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='Test Artist', first_name='Test', last_name='Artist',
+            email='artist@example.com', zipcode='94710',
+        )
+
+        self.published_site = Site.objects.create(
+            name='Main Gallery',
+            street='1207 Tenth St',
+            city='Berkeley',
+            state='CA',
+            postal_code='94710',
+            country='USA',
+            status=Site.STATUS_PUBLISHED,
+        )
+        self.draft_site = Site.objects.create(
+            name='Draft Gallery',
+            status=Site.STATUS_DRAFT,
+        )
+
+        self.show = Show.objects.create(
+            name='Test Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=30),
+            status=Show.STATUS_PUBLISHED,
+        )
+        self.show.sites.add(self.published_site)
+
+        self.artwork = Artwork.objects.create(
+            name='Test Artwork', end_year=2025, created_by=self.artist_user,
+            medium='oil on canvas', width_inches=10, height_inches=12,
+        )
+        self.artwork.artists.add(self.artist)
+        self.artwork.shows.add(self.show)
+
+        # A second show+artwork NOT linked to any site
+        self.other_show = Show.objects.create(
+            name='Other Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=10),
+            status=Show.STATUS_PUBLISHED,
+        )
+        self.other_artist_user = User.objects.create_user(
+            username='other@example.com', email='other@example.com', password='pw'
+        )
+        self.other_artist = Artist.objects.create(
+            name='Other Artist', first_name='Other', last_name='Artist',
+            email='other@example.com', zipcode='94720',
+        )
+        self.other_artwork = Artwork.objects.create(
+            name='Other Artwork', end_year=2025, created_by=self.other_artist_user,
+            medium='watercolor', width_inches=8, height_inches=10,
+        )
+        self.other_artwork.artists.add(self.other_artist)
+        self.other_artwork.shows.add(self.other_show)
+
+    # ── Model basics ──────────────────────────────────────────────────────────
+
+    def test_site_slug_auto_generated(self):
+        site = Site.objects.create(name='My New Gallery')
+        self.assertEqual(site.slug, 'my-new-gallery')
+
+    def test_site_get_absolute_url(self):
+        self.assertIn(self.published_site.slug, self.published_site.get_absolute_url())
+        self.assertTrue(self.published_site.get_absolute_url().startswith('/site/'))
+
+    def test_duplicate_site_names_get_unique_slugs(self):
+        site_a = Site.objects.create(name='Duplicate Gallery')
+        site_b = Site.objects.create(name='Duplicate Gallery')
+        self.assertNotEqual(site_a.slug, site_b.slug)
+
+    # ── Show.sites M2M ────────────────────────────────────────────────────────
+
+    def test_show_can_be_associated_with_site(self):
+        self.assertIn(self.published_site, self.show.sites.all())
+
+    def test_site_shows_reverse_relation(self):
+        self.assertIn(self.show, self.published_site.shows.all())
+
+    def test_show_form_has_no_location_field(self):
+        from gallery.forms import ShowForm
+        form = ShowForm(user=self.staff_user)
+        self.assertNotIn('location', form.fields)
+
+    def test_show_form_has_sites_field(self):
+        from gallery.forms import ShowForm
+        form = ShowForm(user=self.staff_user)
+        self.assertIn('sites', form.fields)
+
+    # ── Site list view ────────────────────────────────────────────────────────
+
+    def test_site_list_anonymous_sees_only_published(self):
+        response = self.client.get(reverse('gallery:site_list'))
+        self.assertEqual(response.status_code, 200)
+        sites = list(response.context['sites'])
+        self.assertIn(self.published_site, sites)
+        self.assertNotIn(self.draft_site, sites)
+
+    def test_site_list_staff_sees_draft_and_published(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(reverse('gallery:site_list'))
+        self.assertEqual(response.status_code, 200)
+        sites = list(response.context['sites'])
+        self.assertIn(self.published_site, sites)
+        self.assertIn(self.draft_site, sites)
+
+    # ── Site detail view ──────────────────────────────────────────────────────
+
+    def test_published_site_detail_returns_200_for_anonymous(self):
+        response = self.client.get(self.published_site.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+    def test_draft_site_detail_returns_404_for_anonymous(self):
+        response = self.client.get(self.draft_site.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+
+    def test_draft_site_detail_returns_200_for_staff(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.draft_site.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+    def test_site_detail_context_includes_shows(self):
+        response = self.client.get(self.published_site.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.show, response.context['shows'])
+
+    def test_site_detail_shows_site_name(self):
+        response = self.client.get(self.published_site.get_absolute_url())
+        self.assertContains(response, self.published_site.name)
+
+    # ── Site create/edit/delete — staff only ──────────────────────────────────
+
+    def test_anonymous_redirected_from_site_new(self):
+        response = self.client.get(reverse('gallery:site_new'))
+        self.assertNotEqual(response.status_code, 200)
+
+    def test_non_staff_gets_403_from_site_new(self):
+        self.client.force_login(self.regular_user)
+        response = self.client.get(reverse('gallery:site_new'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_staff_can_get_site_new(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(reverse('gallery:site_new'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_staff_can_create_site(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.post(reverse('gallery:site_new'), {
+            'name': 'New Test Site',
+            'street': '123 Main St',
+            'city': 'Berkeley',
+            'state': 'CA',
+            'postal_code': '94710',
+            'country': 'USA',
+            'email': '',
+            'phone': '',
+            'instagram': '',
+            'website': '',
+            'description': '',
+            'status': Site.STATUS_DRAFT,
+            'latitude': '',
+            'longitude': '',
+        })
+        self.assertTrue(Site.objects.filter(name='New Test Site').exists())
+        new_site = Site.objects.get(name='New Test Site')
+        self.assertRedirects(response, new_site.get_absolute_url())
+
+    def test_staff_can_edit_site(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(reverse('gallery:site_edit', kwargs={'slug': self.published_site.slug}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_non_staff_cannot_edit_site(self):
+        self.client.force_login(self.regular_user)
+        response = self.client.get(reverse('gallery:site_edit', kwargs={'slug': self.published_site.slug}))
+        self.assertEqual(response.status_code, 403)
+
+    # ── Site artist list ──────────────────────────────────────────────────────
+
+    def test_site_artist_list_includes_artist_who_showed_there(self):
+        response = self.client.get(reverse('gallery:site_artist_list', kwargs={'slug': self.published_site.slug}))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.artist, response.context['artists'])
+
+    def test_site_artist_list_excludes_artist_who_did_not_show_there(self):
+        response = self.client.get(reverse('gallery:site_artist_list', kwargs={'slug': self.published_site.slug}))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(self.other_artist, response.context['artists'])
+
+    # ── Site artwork list ─────────────────────────────────────────────────────
+
+    def test_site_artwork_list_includes_artwork_shown_there(self):
+        response = self.client.get(reverse('gallery:site_artwork_list', kwargs={'slug': self.published_site.slug}))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.artwork, response.context['artworks'])
+
+    def test_site_artwork_list_excludes_artwork_not_shown_there(self):
+        response = self.client.get(reverse('gallery:site_artwork_list', kwargs={'slug': self.published_site.slug}))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(self.other_artwork, response.context['artworks'])
