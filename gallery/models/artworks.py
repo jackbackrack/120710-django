@@ -1,16 +1,23 @@
+import os
+import re
+
 from django.db import models
 from django.urls import reverse
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit, Transpose
 
 from gallery.models.exhibitions import Show
-from gallery.models.people import Artist
+from gallery.models.people import Artist, _sanitize_upload_filename
 from gallery.models.slugs import build_unique_slug
+
+
+def artwork_image_upload(instance, filename):
+    return _sanitize_upload_filename('artwork_images', filename)
 
 
 class ArtworkImage(models.Model):
     artwork = models.ForeignKey('Artwork', related_name='supplemental_images', on_delete=models.CASCADE)
-    image = models.ImageField(upload_to='artwork_images')
+    image = models.ImageField(upload_to=artwork_image_upload)
     order = models.IntegerField(default=0)
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
@@ -39,7 +46,7 @@ class Artwork(models.Model):
     width_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Width (inches)')
     height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Height (inches)')
     depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Depth (inches, optional)')
-    image = models.ImageField(upload_to='artwork_images', blank=True, null=True)
+    image = models.ImageField(upload_to=artwork_image_upload, blank=True, null=True)
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})

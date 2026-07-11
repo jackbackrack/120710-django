@@ -1,3 +1,6 @@
+import os
+import re
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.urls import reverse
@@ -5,6 +8,17 @@ from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit, Transpose
 
 from gallery.models.slugs import build_unique_slug
+
+
+def _sanitize_upload_filename(directory, filename):
+    name, ext = os.path.splitext(filename)
+    name = re.sub(r'[^A-Za-z0-9_\-]', '-', name)
+    name = re.sub(r'-{2,}', '-', name).strip('-') or 'image'
+    return os.path.join(directory, name + ext)
+
+
+def artist_image_upload(instance, filename):
+    return _sanitize_upload_filename('artist_images', filename)
 
 
 class Artist(models.Model):
@@ -22,7 +36,7 @@ class Artist(models.Model):
     bio = models.TextField(blank=True, null=True)
     statement = models.TextField(blank=True, null=True)
     image = models.ImageField(
-        upload_to='artist_images', blank=True, null=True,
+        upload_to=artist_image_upload, blank=True, null=True,
         verbose_name='Profile photo',
     )
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
