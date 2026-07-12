@@ -44,7 +44,11 @@
 .placed-art { position: absolute; cursor: grab; border: 2px solid rgba(100,150,140,.8); box-sizing: border-box; user-select: none; z-index: 2; }
 .placed-art:hover { border-color: #64968c; }
 .placed-art.selected { border: 2px solid #e55; box-shadow: 0 0 0 2px #e5522244; }
-.placed-art img { width: 100%; height: 100%; object-fit: fill; display: block; pointer-events: none; }
+/* translateZ(0) promotes each image to its own GPU layer so it's rasterized
+   once as a texture — selection/hover/border repaints then composite cheaply
+   instead of re-rasterizing the large image. Safe (crisp) since the stage no
+   longer uses a scale() transform. */
+.placed-art img { width: 100%; height: 100%; object-fit: fill; display: block; pointer-events: none; transform: translateZ(0); }
 .placed-art .placard-bar { font-size: .45rem; background: rgba(255,255,255,.85); padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Hanging guide — artwork W×H + edge-to-wall-edge distances; shown when toggled on */
 .placed-art .art-dims,
@@ -68,24 +72,21 @@
 #toolbar button.active { background: #64968c; color: #fff; border-color: #4f7d74; }
 #save-status { font-size: .8rem; color: #888; margin-left: auto; }
 
-/* Position popover */
+/* Inline position controls (shown below the canvas when one artwork is selected) */
 #pos-panel {
   display: none;
-  position: absolute;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-shadow: 0 3px 12px rgba(0,0,0,.18);
-  padding: 10px 12px;
-  z-index: 100;
-  min-width: 200px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  padding: 6px 10px;
+  background: #eef3f1;
+  border-top: 1px solid #ddd;
   font-size: .8rem;
 }
-#pos-panel .pos-title { font-weight: 600; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-#pos-panel label { display: block; color: #666; margin-top: 6px; margin-bottom: 2px; }
-#pos-panel input[type=number] { width: 100%; padding: 3px 6px; border: 1px solid #ccc; border-radius: 3px; }
-#pos-panel .pos-close { position: absolute; top: 6px; right: 8px; cursor: pointer; color: #aaa; font-size: 1rem; line-height: 1; }
-#pos-panel .pos-close:hover { color: #333; }
+#pos-panel.active { display: flex; }
+#pos-panel .pos-title { font-weight: 600; margin-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+#pos-panel label { color: #555; margin: 0 2px 0 10px; }
+#pos-panel input[type=number] { width: 80px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 3px; }
 </style>
 {% endblock %}
 
@@ -116,18 +117,16 @@
     <div id="canvas-wrap">
       <!-- Wall stage: correct aspect ratio, pan/zoom via CSS transform -->
       <div id="wall-stage"></div>
-
-      <!-- Position popover (in canvas-wrap coords, not affected by zoom) -->
-      <div id="pos-panel">
-        <span class="pos-close" id="pos-close">✕</span>
-        <div class="pos-title" id="pos-title"></div>
-        <label id="pos-horiz-label">Horizontal from center (in)</label>
-        <input type="number" id="pos-horiz" step="0.5">
-        <label>Height from floor (in)</label>
-        <input type="number" id="pos-vert" step="0.5" min="0">
-        <label id="pos-depth-label" style="display:none">Depth from center (in)</label>
-        <input type="number" id="pos-depth" step="0.5" style="display:none">
-      </div>
+    </div>
+    <!-- Inline position controls — shown below when exactly one artwork is selected -->
+    <div id="pos-panel">
+      <span class="pos-title" id="pos-title"></span>
+      <label id="pos-horiz-label" for="pos-horiz">Horiz from center (in)</label>
+      <input type="number" id="pos-horiz" step="0.5">
+      <label for="pos-vert">Height from floor (in)</label>
+      <input type="number" id="pos-vert" step="0.5" min="0">
+      <label id="pos-depth-label" for="pos-depth" style="display:none">Depth from center (in)</label>
+      <input type="number" id="pos-depth" step="0.5" style="display:none">
     </div>
     <div id="toolbar">
       <button id="btn-align-h" title="Center selected on wall horizontally">Center H</button>
