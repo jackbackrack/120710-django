@@ -720,41 +720,44 @@
     scheduleSave();
   });
 
-  // Dist H: sum all current horizontal gaps, divide by (n-1), apply equal gap
+  // Dist H: first & last selected are immovable anchors; divide the span between
+  // them into equal slots (one per middle item) and center each item in its slot.
+  // Each piece gets equal air left/right, so the two end gaps are half the gap
+  // between pieces (for equal-width pieces).
   document.getElementById('btn-dist-h').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 3) return;
     var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.left) - parseFloat(b.style.left); });
-    var totalGap = 0;
-    for (var i = 0; i < sorted.length - 1; i++) {
-      totalGap += parseFloat(sorted[i + 1].style.left) - (parseFloat(sorted[i].style.left) + parseFloat(sorted[i].style.width));
-    }
-    var gap = totalGap / (sorted.length - 1);
-    var x = parseFloat(sorted[0].style.left) + parseFloat(sorted[0].style.width) + gap;
-    for (var i = 1; i < sorted.length; i++) {
-      sorted[i].style.left = x + 'px';
-      x += parseFloat(sorted[i].style.width) + gap;
-      var p = placementMap[parseInt(sorted[i].dataset.id, 10)]; if (p) syncWorldFromDiv(sorted[i], p);
-    }
+    var first = sorted[0], last = sorted[sorted.length - 1];
+    var L = parseFloat(first.style.left) + parseFloat(first.style.width);  // inner edge of first anchor
+    var R = parseFloat(last.style.left);                                   // inner edge of last anchor
+    var middle = sorted.slice(1, sorted.length - 1);
+    var slot = (R - L) / middle.length;
+    middle.forEach(function (div, i) {
+      if (div.classList.contains('corner') || div.classList.contains('obstacle')) return;  // immovable
+      var cx = L + (i + 0.5) * slot;                                       // slot centre
+      div.style.left = (cx - parseFloat(div.style.width) / 2) + 'px';
+      var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
+    });
     scheduleSave();
   });
 
-  // Dist V: sum all current vertical gaps, divide by (n-1), apply equal gap
+  // Dist V: same as Dist H but vertical (top/height).
   document.getElementById('btn-dist-v').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 3) return;
     var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.top) - parseFloat(b.style.top); });
-    var totalGap = 0;
-    for (var i = 0; i < sorted.length - 1; i++) {
-      totalGap += parseFloat(sorted[i + 1].style.top) - (parseFloat(sorted[i].style.top) + parseFloat(sorted[i].style.height));
-    }
-    var gap = totalGap / (sorted.length - 1);
-    var y = parseFloat(sorted[0].style.top) + parseFloat(sorted[0].style.height) + gap;
-    for (var i = 1; i < sorted.length; i++) {
-      sorted[i].style.top = y + 'px';
-      y += parseFloat(sorted[i].style.height) + gap;
-      var p = placementMap[parseInt(sorted[i].dataset.id, 10)]; if (p) syncWorldFromDiv(sorted[i], p);
-    }
+    var first = sorted[0], last = sorted[sorted.length - 1];
+    var T = parseFloat(first.style.top) + parseFloat(first.style.height);  // inner edge of first anchor
+    var B = parseFloat(last.style.top);                                    // inner edge of last anchor
+    var middle = sorted.slice(1, sorted.length - 1);
+    var slot = (B - T) / middle.length;
+    middle.forEach(function (div, i) {
+      if (div.classList.contains('corner') || div.classList.contains('obstacle')) return;  // immovable
+      var cy = T + (i + 0.5) * slot;
+      div.style.top = (cy - parseFloat(div.style.height) / 2) + 'px';
+      var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
+    });
     scheduleSave();
   });
 
