@@ -316,9 +316,12 @@
     div.style.top    = r.top  + 'px';
     div.style.width  = r.w    + 'px';
     div.style.height = r.h    + 'px';
+    // Use the high-res image on the wall (thumb is only ~200px → blurry when zoomed).
     div.innerHTML =
-      '<img src="' + (p.artwork.thumb || p.artwork.img) + '" alt="' + p.artwork.name + '">' +
-      '<div class="placard-bar">' + p.artwork.name + '</div>';
+      '<img src="' + (p.artwork.img || p.artwork.thumb) + '" alt="' + p.artwork.name + '">' +
+      '<div class="placard-bar">' + p.artwork.name + '</div>' +
+      '<div class="art-dims">' + fmtIn(p.artwork.w_in) + '×' + fmtIn(p.artwork.h_in) + '"</div>' +
+      '<div class="hang-info"></div>';
 
     makeDraggableOnStage(div, p);
     div.addEventListener('click', function (e) {
@@ -352,10 +355,65 @@
       var newW = r.h * arImg.naturalWidth / arImg.naturalHeight;
       div.style.width = newW + 'px';
       div.style.left  = (worldToStage(currentWall, p).x - newW / 2) + 'px';
+      fitLabel(div);
+      updateHangInfo(div);
     }
     arImg.onload = applyAspect;
-    arImg.src = p.artwork.thumb || p.artwork.img;
+    arImg.src = p.artwork.img || p.artwork.thumb;
     if (arImg.complete && arImg.naturalWidth) applyAspect();
+    fitLabel(div);
+    updateHangInfo(div);
+  }
+
+  // Shrink an element's font so its single-line text fits its box width.
+  // Uses canvas text measurement (independent of overflow/ellipsis state, which
+  // makes scrollWidth unreliable) so text never clips regardless of artwork size.
+  var _fitCanvas = null;
+  function _textWidth(text, fontPx, cs) {
+    if (!_fitCanvas) _fitCanvas = document.createElement('canvas');
+    var ctx = _fitCanvas.getContext('2d');
+    ctx.font = (cs.fontStyle || 'normal') + ' ' + (cs.fontWeight || '400') + ' ' +
+               fontPx + 'px ' + (cs.fontFamily || 'sans-serif');
+    return ctx.measureText(text).width;
+  }
+  function fitTextEl(el, maxFont) {
+    if (!el || !el.textContent) return;
+    var cs = getComputedStyle(el);
+    var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    var avail = el.clientWidth - padX;              // usable content width
+    if (avail <= 0) { el.style.fontSize = maxFont + 'px'; return; }  // hidden — refit when shown
+    var w = _textWidth(el.textContent, maxFont, cs);
+    // 0.97 safety margin absorbs sub-pixel rounding so the ellipsis never triggers
+    el.style.fontSize = (w > avail ? Math.max(0.5, maxFont * avail / w * 0.97) : maxFont) + 'px';
+  }
+  var LABEL_MAX_FONT = 8, HANG_MAX_FONT = 7;   // px at zoom=1; JS scales down to fit
+
+  // Compact inches: drop trailing ".0" (12.0 → "12", 12.5 → "12.5")
+  function fmtIn(v) { var r = Math.round(v * 10) / 10; return r % 1 === 0 ? r.toFixed(0) : r.toFixed(1); }
+
+  function fitLabel(div) {
+    fitTextEl(div.querySelector('.placard-bar'), LABEL_MAX_FONT);
+    fitTextEl(div.querySelector('.art-dims'),    HANG_MAX_FONT);
+  }
+
+  // Floor-to-bottom + center-to-nearest-edge, computed from the div's live
+  // pixel geometry so it stays correct mid-drag.  Meaningful for walls only.
+  function updateHangInfo(div) {
+    var hi = div.querySelector('.hang-info');
+    if (!hi) return;
+    if (currentWall === 'ceiling' || currentWall === 'floor') { hi.textContent = ''; return; }
+    var dims = wallDims(currentWall);
+    var ww = dims[0], wh = dims[1];
+    var left = parseFloat(div.style.left);
+    var top  = parseFloat(div.style.top);
+    var w    = parseFloat(div.style.width);
+    var h    = parseFloat(div.style.height);
+    var floorToBottom = wh - (top + h) / baseScale;   // inches, floor = 0
+    var leftH  = left / baseScale - ww / 2;            // horiz of left edge from wall center
+    var rightH = (left + w) / baseScale - ww / 2;      // horiz of right edge
+    var nearest = Math.min(Math.abs(leftH), Math.abs(rightH));
+    hi.textContent = '↥' + round1(floorToBottom) + '"  ↔' + round1(nearest) + '"';
+    fitTextEl(hi, HANG_MAX_FONT);
   }
 
   // ── Drag placed artworks on stage ─────────────────────────────────────────
@@ -373,6 +431,7 @@
         // Mouse delta in canvas pixels → stage pixels (divide by zoom)
         div.style.left = (startL + (dragMx - startMx) / zoom) + 'px';
         div.style.top  = (startT + (dragMy - startMy) / zoom) + 'px';
+        updateHangInfo(div);
       }
       function onMove(ev) {
         dragMx = ev.clientX; dragMy = ev.clientY;
@@ -397,6 +456,7 @@
     var sy = parseFloat(div.style.top)  + r.h / 2;
     var w  = stageToWorld(currentWall, sx, sy);
     p.x_in = w.x_in; p.y_in = w.y_in; p.z_in = w.z_in;
+    updateHangInfo(div);
   }
 
   function syncDivFromWorld(div, p) {
@@ -404,6 +464,7 @@
     var w = parseFloat(div.style.width);
     div.style.left = (worldToStage(currentWall, p).x - w / 2) + 'px';
     div.style.top  = r.top + 'px';
+    updateHangInfo(div);
   }
 
   // ── Drop from sidebar ─────────────────────────────────────────────────────
@@ -690,6 +751,25 @@
 
   document.getElementById('btn-measure').addEventListener('click', doMeasure);
 
+  // ── Hang Info toggle (floor-to-bottom + center-to-edge on each artwork) ────
+  var hangBtn = document.getElementById('btn-hang-info');
+  function applyHangInfoState() {
+    var on = localStorage.getItem('roomLayoutHangInfo') === '1';
+    stageEl.classList.toggle('hang-on', on);
+    if (hangBtn) hangBtn.classList.toggle('active', on);
+    if (on) stageEl.querySelectorAll('.placed-art').forEach(function (div) {
+      fitTextEl(div.querySelector('.art-dims'), HANG_MAX_FONT);  // now visible → fit
+      updateHangInfo(div);
+    });
+  }
+  if (hangBtn) {
+    hangBtn.addEventListener('click', function () {
+      var on = localStorage.getItem('roomLayoutHangInfo') === '1';
+      localStorage.setItem('roomLayoutHangInfo', on ? '0' : '1');
+      applyHangInfoState();
+    });
+  }
+
   // ── Keyboard: pan (WASD) and artwork nudge (arrows) ─────────────────────
   document.addEventListener('keydown', function (e) {
     if (e.target.matches('input, textarea, select')) return;
@@ -808,5 +888,6 @@
   // ── Init ─────────────────────────────────────────────────────────────────
   renderSidebar();
   renderWall();
+  applyHangInfoState();
 
 }());

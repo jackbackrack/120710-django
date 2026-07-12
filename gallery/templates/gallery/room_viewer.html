@@ -10,7 +10,6 @@
 #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 24px; color: rgba(255,255,255,.6); pointer-events: none; display: none; }
 #hud { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.75); font-size: .8rem; text-align: center; pointer-events: none; }
 #placard-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
-#back-link { position: absolute; top: 10px; left: 14px; color: #fff; text-decoration: none; font-size: .85rem; background: rgba(0,0,0,.45); padding: 4px 10px; border-radius: 4px; }
 </style>
 {% endblock %}
 
@@ -20,7 +19,6 @@
   <div id="crosshair">+</div>
   <div id="hud">Click to enter · WASD / arrows to move · Q/E to turn · R to reset · Mouse to look · ESC to exit</div>
   <div id="placard-overlay"></div>
-  <a id="back-link" href="{% url 'gallery:show_detail' show.slug %}">← Show</a>
 </div>
 {% endblock %}
 
