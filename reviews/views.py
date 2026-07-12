@@ -68,13 +68,6 @@ def show_review_dashboard(request, show_slug):
             weighted_scores = _compute_weighted_scores(show, criteria)
             for artwork in artworks:
                 artwork.weighted_score = weighted_scores.get(artwork.pk)
-        all_reviews = (
-            ArtworkReview.objects
-            .filter(show=show)
-            .select_related('artwork', 'juror')
-            .prefetch_related('criterion_scores__criterion')
-            .order_by('artwork__name', 'juror__last_name')
-        )
         jurors = list(show.jurors.select_related('user').order_by('user__last_name'))
         total_submissions = Artwork.objects.filter(submissions__show=show).count()
         review_counts = {
@@ -95,7 +88,6 @@ def show_review_dashboard(request, show_slug):
         context = {
             'show': show,
             'artworks': artworks,
-            'all_reviews': all_reviews,
             'jurors': jurors,
             'juror_progress': juror_progress,
             'all_jurors_done': all_jurors_done,

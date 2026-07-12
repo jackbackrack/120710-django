@@ -145,45 +145,11 @@
     {% endif %}
     {% endif %}
 
-    {% if all_reviews %}
-    <div class="text-center section-label"><h2>All Reviews</h2></div>
-    <table class="table table-sm mx-auto" style="width:auto">
-      <thead>
-        <tr>
-          <th>Artwork</th>
-          <th>Juror</th>
-          {% if criteria %}
-          {% for criterion in criteria %}
-          <th>{{ criterion.name }}</th>
-          {% endfor %}
-          {% endif %}
-          {% if not criteria %}<th>Overall</th>{% endif %}
-          <th>Notes</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for review in all_reviews %}
-        <tr>
-          <td><a class="card__link" href="{{ review.artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">{{ review.artwork.name }}</a></td>
-          <td>{{ review.juror.artists.first.full_name|default:review.juror.get_full_name|default:review.juror.username }}</td>
-          {% if criteria %}
-          {% for criterion in criteria %}
-          <td>
-            {% for cs in review.criterion_scores.all %}
-              {% if cs.criterion_id == criterion.pk %}{{ cs.score|score_label }}{% endif %}
-            {% endfor %}
-          </td>
-          {% endfor %}
-          {% endif %}
-          {% if not criteria %}<td>{% if review.rating %}{{ review.rating|score_label }}{% else %}&mdash;{% endif %}</td>{% endif %}
-          <td>{{ review.body|default:"&mdash;" }}</td>
-          <td>{{ review.updated_at|date:"N j, Y" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+    {% comment %}
+    Per-juror review details live on each artwork's page (the "View reviews"
+    link above) — kept off this dashboard so it stays fast with many
+    submissions/jurors.
+    {% endcomment %}
 
     {% else %}
 
