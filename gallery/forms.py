@@ -396,9 +396,10 @@ class ShowForm(UserAwareModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
-        self.fields['curators'].queryset = Artist.objects.filter(
-            user__isnull=False
-        ).order_by('name')
+        # Curators are Artists; some (esp. on legacy shows) have no linked user
+        # account. Allow any artist so account-less curators can be assigned and
+        # are never silently dropped when the show is edited/saved.
+        self.fields['curators'].queryset = Artist.objects.all().order_by('name')
         if self.instance.pk:
             self.fields['curators'].initial = self.instance.curators.all()
         self.fields['sites'].queryset = Site.objects.all().order_by('name')
