@@ -258,11 +258,45 @@ def invite_artists(request, slug):
 
         return redirect('gallery:invite_artists', slug=slug)
 
-    invitations = show.invitations.select_related('artist').order_by('email')
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    invitations = show.invitations.select_related('artist', 'artist__user').order_by('email')
     current_emails = '\n'.join(inv.email for inv in invitations)
+
+    # Submission counts to THIS show, keyed by lowercased submitter email.
+    sub_counts = {}
+    for email, n in (
+        ArtworkSubmission.objects.filter(show=show)
+        .values_list('submitted_by__email')
+        .annotate(n=Count('id'))
+    ):
+        if email:
+            sub_counts[email.lower()] = n
+
+    accounts = {e.lower() for e in User.objects.values_list('email', flat=True) if e}
+
+    invitation_rows = []
+    for inv in invitations:
+        email = inv.email.lower()
+        artist = inv.artist or (
+            Artist.objects.filter(user__email__iexact=email).first()
+            or Artist.objects.filter(email__iexact=email, user__isnull=True).first()
+        )
+        invitation_rows.append({
+            'invitation': inv,
+            'artist': artist,
+            'has_account': email in accounts or bool(artist and artist.user_id),
+            'info_complete': bool(artist and artist.image and artist.first_name
+                                  and artist.last_name and artist.zipcode),
+            'artworks_count': artist.artworks.count() if artist else 0,
+            'submitted_count': sub_counts.get(email, 0),
+        })
+
     return render(request, 'gallery/invite_artists.html', {
         'show': show,
         'invitations': invitations,
+        'invitation_rows': invitation_rows,
         'current_emails': current_emails,
     })
 

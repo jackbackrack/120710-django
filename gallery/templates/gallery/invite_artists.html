@@ -31,35 +31,47 @@
 
   <div class="text-center section-label"><h2>Invitations sent ({{ invitations|length }})</h2></div>
 
-  {% if invitations %}
+  {% if invitation_rows %}
   <table class="table table-sm table-borderless">
     <thead class="border-bottom">
       <tr>
         <th>Email</th>
         <th>Artist</th>
+        <th class="text-center">Account</th>
+        <th class="text-center" title="Artist profile complete: photo, name, and zip code">Profile</th>
+        <th class="text-center" title="Number of artworks the artist has uploaded">Artworks</th>
+        <th class="text-center" title="Number of artworks submitted to this show">Submitted</th>
         <th>Sent</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
-      {% for inv in invitations %}
+      {% for row in invitation_rows %}
       <tr class="border-bottom">
-        <td class="py-2">{{ inv.email }}</td>
+        <td class="py-2">{{ row.invitation.email }}</td>
         <td class="py-2">
-          {% if inv.artist %}
-            <a class="card__link" href="{{ inv.artist.get_absolute_url }}">{{ inv.artist.name }}</a>
+          {% if row.artist %}
+            <a class="card__link" href="{{ row.artist.get_absolute_url }}">{{ row.artist.name }}</a>
           {% else %}
-            <span class="text-muted">No account yet</span>
+            <span class="text-muted">—</span>
           {% endif %}
         </td>
-        <td class="py-2 text-muted">{{ inv.sent_at|date:"M d, Y" }}</td>
+        <td class="py-2 text-center">
+          {% if row.has_account %}<span class="text-success">✓</span>{% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="py-2 text-center">
+          {% if row.info_complete %}<span class="text-success">✓</span>{% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="py-2 text-center">{% if row.artworks_count %}{{ row.artworks_count }}{% else %}<span class="text-muted">0</span>{% endif %}</td>
+        <td class="py-2 text-center">{% if row.submitted_count %}<span class="text-success fw-semibold">{{ row.submitted_count }}</span>{% else %}<span class="text-muted">0</span>{% endif %}</td>
+        <td class="py-2 text-muted">{{ row.invitation.sent_at|date:"M d, Y" }}</td>
         <td class="py-2">
           <form method="post" style="display:inline">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete">
-            <input type="hidden" name="invitation_pk" value="{{ inv.pk }}">
+            <input type="hidden" name="invitation_pk" value="{{ row.invitation.pk }}">
             <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
-                    onclick="return confirm('Remove invitation for {{ inv.email }}?')">Remove</button>
+                    onclick="return confirm('Remove invitation for {{ row.invitation.email }}?')">Remove</button>
           </form>
         </td>
       </tr>
