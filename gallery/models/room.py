@@ -21,6 +21,30 @@ class RoomConfig(models.Model):
         return f'Room for {self.site}'
 
 
+WALL_CHOICES = [
+    ('N', 'North'), ('E', 'East'), ('S', 'South'), ('W', 'West'),
+    ('ceiling', 'Ceiling'), ('floor', 'Floor'),
+]
+
+
+class WallObstacle(models.Model):
+    """Immovable rectangular obstacle on a wall (e.g. door, window) used as a layout reference."""
+    room_config = models.ForeignKey(RoomConfig, on_delete=models.CASCADE, related_name='obstacles')
+    wall        = models.CharField(max_length=8, choices=WALL_CHOICES)
+    label       = models.CharField(max_length=100, default='Obstacle')
+    x_in        = models.FloatField(default=0)    # horiz center from room center (or z for E/W walls)
+    y_in        = models.FloatField(default=42)   # height center from floor
+    z_in        = models.FloatField(default=0)    # used for E/W wall depth and ceiling/floor
+    w_in        = models.FloatField(default=36)   # width
+    h_in        = models.FloatField(default=80)   # height
+
+    class Meta:
+        ordering = ['wall', 'x_in', 'z_in']
+
+    def __str__(self):
+        return f'{self.label} on {self.get_wall_display()} wall of {self.room_config.site}'
+
+
 class WallPlacement(models.Model):
     WALL_N       = 'N'
     WALL_E       = 'E'
@@ -28,10 +52,7 @@ class WallPlacement(models.Model):
     WALL_W       = 'W'
     WALL_CEILING = 'ceiling'
     WALL_FLOOR   = 'floor'
-    WALL_CHOICES = [
-        (WALL_N, 'North'), (WALL_E, 'East'), (WALL_S, 'South'), (WALL_W, 'West'),
-        (WALL_CEILING, 'Ceiling'), (WALL_FLOOR, 'Floor'),
-    ]
+    WALL_CHOICES = WALL_CHOICES
 
     show    = models.ForeignKey(
         'gallery.Show', on_delete=models.CASCADE, related_name='wall_placements'

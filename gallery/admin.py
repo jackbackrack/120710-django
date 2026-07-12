@@ -3,7 +3,7 @@ from import_export.admin import ImportExportModelAdmin
 
 from gallery.models import Artist, Artwork, ArtworkImage, Event, LinkTreeEntry, Show, ShowInvitation, Tag
 from gallery.models.collection import CollectionPiece, SavedArtwork
-from gallery.models.room import RoomConfig, WallPlacement
+from gallery.models.room import RoomConfig, WallObstacle, WallPlacement
 from reviews.models import ShowJuror
 
 
@@ -76,10 +76,17 @@ class LinkTreeEntryAdmin(admin.ModelAdmin):
     ordering = ('order', 'name')
 
 
+class WallObstacleInline(admin.TabularInline):
+    model = WallObstacle
+    extra = 1
+    fields = ['wall', 'label', 'x_in', 'y_in', 'z_in', 'w_in', 'h_in']
+
+
 @admin.register(RoomConfig)
 class RoomConfigAdmin(admin.ModelAdmin):
     list_display = ('site', 'width_in', 'depth_in', 'height_in')
     raw_id_fields = ('site',)
+    inlines = [WallObstacleInline]
 
 
 @admin.register(WallPlacement)

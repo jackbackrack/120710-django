@@ -225,11 +225,83 @@
     stageEl.querySelectorAll('.placed-art').forEach(function (el) { el.remove(); });
   }
 
+  var CORNER_T = 6;  // corner strip thickness in inches
+
+  function addCornerDivs() {
+    var dims = wallDims(currentWall);
+    var wIn = dims[0], hIn = dims[1];
+    var T   = CORNER_T * baseScale;
+    var wPx = wIn * baseScale, hPx = hIn * baseScale;
+    var corners = [
+      { id: 'corner-left',   left: 0,        top: 0,        w: T,   h: hPx },
+      { id: 'corner-right',  left: wPx - T,  top: 0,        w: T,   h: hPx },
+      { id: 'corner-top',    left: 0,        top: 0,        w: wPx, h: T   },
+      { id: 'corner-bottom', left: 0,        top: hPx - T,  w: wPx, h: T   },
+    ];
+    corners.forEach(function (c) {
+      var div = document.createElement('div');
+      div.className = 'placed-art corner';
+      div.dataset.id = c.id;
+      div.style.left   = c.left + 'px';
+      div.style.top    = c.top  + 'px';
+      div.style.width  = c.w   + 'px';
+      div.style.height = c.h   + 'px';
+      addSelectableListener(div, c.id);
+      stageEl.appendChild(div);
+    });
+  }
+
+  function addObstacleDivs() {
+    var wallObs = (cfg.obstacles || []).filter(function (ob) { return ob.wall === currentWall; });
+    wallObs.forEach(function (ob) {
+      var div = document.createElement('div');
+      div.className = 'placed-art obstacle';
+      div.dataset.id = 'obs-' + ob.id;
+      var sc  = worldToStage(currentWall, ob);
+      var wPx = ob.w_in * baseScale;
+      var hPx = ob.h_in * baseScale;
+      div.style.left   = (sc.x - wPx / 2) + 'px';
+      div.style.top    = (sc.y - hPx / 2) + 'px';
+      div.style.width  = wPx + 'px';
+      div.style.height = hPx + 'px';
+      var lbl = document.createElement('div');
+      lbl.className = 'obstacle-label';
+      lbl.textContent = ob.label;
+      div.appendChild(lbl);
+      addSelectableListener(div, 'obs-' + ob.id);
+      stageEl.appendChild(div);
+    });
+  }
+
+  // Shared click-to-select handler for corners and obstacles (no popover, no drag)
+  function addSelectableListener(div, id) {
+    div.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasSelected = div.classList.contains('selected');
+      if (!e.shiftKey) {
+        clearSelection();
+        div.classList.add('selected');
+        selectionOrder.push(id);
+      } else {
+        if (wasSelected) {
+          div.classList.remove('selected');
+          selectionOrder = selectionOrder.filter(function (i) { return i !== id; });
+        } else {
+          div.classList.add('selected');
+          selectionOrder.push(id);
+        }
+      }
+      if (measureDisplay) measureDisplay.textContent = '';
+    });
+  }
+
   function renderWall() {
     closePopover();
     selectionOrder = [];
     initStage();
     clearPlacedDivs();
+    addCornerDivs();   // z-index 0 — behind everything
+    addObstacleDivs(); // z-index 1 — behind artworks
     Object.values(placementMap).forEach(function (p) {
       if (p.wall === currentWall) addPlacedDiv(p);
     });
@@ -251,7 +323,7 @@
     makeDraggableOnStage(div, p);
     div.addEventListener('click', function (e) {
       e.stopPropagation();
-      var id = p.artwork.id;
+      var id = String(p.artwork.id);  // string for consistent selectionOrder
       var wasSelected = div.classList.contains('selected');
       if (!e.shiftKey) {
         clearSelection();
@@ -267,6 +339,7 @@
           selectionOrder.push(id);
         }
       }
+      if (measureDisplay) measureDisplay.textContent = '';
     });
     stageEl.appendChild(div);
 
@@ -294,14 +367,21 @@
       startMx = e.clientX; startMy = e.clientY;
       startL  = parseFloat(div.style.left);
       startT  = parseFloat(div.style.top);
-      function onMove(ev) {
+      var dragMx = e.clientX, dragMy = e.clientY, dragRaf = 0;
+      function applyDrag() {
+        dragRaf = 0;
         // Mouse delta in canvas pixels → stage pixels (divide by zoom)
-        div.style.left = (startL + (ev.clientX - startMx) / zoom) + 'px';
-        div.style.top  = (startT + (ev.clientY - startMy) / zoom) + 'px';
+        div.style.left = (startL + (dragMx - startMx) / zoom) + 'px';
+        div.style.top  = (startT + (dragMy - startMy) / zoom) + 'px';
+      }
+      function onMove(ev) {
+        dragMx = ev.clientX; dragMy = ev.clientY;
+        if (!dragRaf) dragRaf = requestAnimationFrame(applyDrag);  // coalesce to 1 write/frame
       }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        if (dragRaf) { cancelAnimationFrame(dragRaf); applyDrag(); }
         syncWorldFromDiv(div, p);
         if (popoverArtId === p.artwork.id) updatePopoverValues(p);
         scheduleSave();
@@ -386,11 +466,12 @@
       canvasWrap.style.cursor = 'grabbing';
     }
   });
+  var panRaf = 0;
   document.addEventListener('mousemove', function (e) {
     if (!isPanning) return;
     panX = panAnchorPX + (e.clientX - panAnchorX);
     panY = panAnchorPY + (e.clientY - panAnchorY);
-    applyTransform();
+    if (!panRaf) panRaf = requestAnimationFrame(function () { panRaf = 0; applyTransform(); });
   });
   document.addEventListener('mouseup', function (e) {
     if (isPanning && (e.button === 1 || e.button === 0)) {
@@ -569,6 +650,7 @@
 
   document.getElementById('btn-remove').addEventListener('click', function () {
     getSelected().forEach(function (div) {
+      if (div.classList.contains('obstacle') || div.classList.contains('corner')) return;
       var id = parseInt(div.dataset.id, 10);
       delete placementMap[id];
       placements = placements.filter(function (p) { return p.artwork.id !== id; });
@@ -581,15 +663,20 @@
   });
 
   // ── Measure ───────────────────────────────────────────────────────────────
+  function divWorldCenter(div) {
+    var sx = parseFloat(div.style.left) + parseFloat(div.style.width)  / 2;
+    var sy = parseFloat(div.style.top)  + parseFloat(div.style.height) / 2;
+    return stageToWorld(currentWall, sx, sy);
+  }
+
   function doMeasure() {
     var sel = getSelected();
     if (sel.length !== 2) {
-      measureDisplay.textContent = 'Select exactly 2 artworks to measure';
+      measureDisplay.textContent = 'Select exactly 2 items to measure';
       return;
     }
-    var p1 = placementMap[parseInt(sel[0].dataset.id, 10)];
-    var p2 = placementMap[parseInt(sel[1].dataset.id, 10)];
-    if (!p1 || !p2) return;
+    var p1 = divWorldCenter(sel[0]);
+    var p2 = divWorldCenter(sel[1]);
     var dx = Math.abs(p2.x_in - p1.x_in);
     var dy = Math.abs(p2.y_in - p1.y_in);
     var dz = Math.abs(p2.z_in - p1.z_in);
@@ -615,10 +702,13 @@
 
     var selected = getSelected();
 
-    // Arrows with artwork(s) selected → nudge in wall-local coordinates
-    if (isArrow && selected.length > 0) {
+    // Arrows with artwork(s) selected → nudge in wall-local coordinates (skip obstacles/corners)
+    var artworkSelected = selected.filter(function (d) {
+      return !d.classList.contains('obstacle') && !d.classList.contains('corner');
+    });
+    if (isArrow && artworkSelected.length > 0) {
       var step = e.shiftKey ? 0.1 : 1.0;  // inches
-      selected.forEach(function (div) {
+      artworkSelected.forEach(function (div) {
         var id = parseInt(div.dataset.id, 10);
         var p  = placementMap[id];
         if (!p) return;

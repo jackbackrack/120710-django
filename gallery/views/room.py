@@ -9,7 +9,10 @@ from gallery.models import Artwork, Show, WallPlacement
 from gallery.models.room import RoomConfig
 from gallery.permissions import can_manage_show
 
-_DEFAULT_CONFIG = {'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0}
+_DEFAULT_CONFIG = {'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0,
+                   'wall_n_img': None, 'wall_e_img': None, 'wall_s_img': None,
+                   'wall_w_img': None, 'floor_img': None, 'ceiling_img': None,
+                   'obstacles': []}
 
 
 def _room_config(show):
@@ -36,6 +39,12 @@ def _config_dict(config):
         'wall_w_img':  _url(config.wall_w_image),
         'floor_img':   _url(config.floor_image),
         'ceiling_img': _url(config.ceiling_image),
+        'obstacles': [
+            {'id': ob.pk, 'wall': ob.wall, 'label': ob.label,
+             'x_in': ob.x_in, 'y_in': ob.y_in, 'z_in': ob.z_in,
+             'w_in': ob.w_in, 'h_in': ob.h_in}
+            for ob in config.obstacles.all()
+        ],
     }
 
 

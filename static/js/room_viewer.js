@@ -18,9 +18,10 @@ const HW = W / 2, HD = D / 2;
 
 // ── Renderer ─────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('viewer-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMap.enabled = true;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+// Cap pixel ratio: on a 2×/3× retina display, full DPR renders 4–9× the fragments
+// for little visible gain in a gallery walkthrough.  1.5 keeps edges smooth cheaply.
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 function setSize() {
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   camera.aspect = canvas.clientWidth / canvas.clientHeight;
@@ -117,12 +118,14 @@ function placementPosition(p) {
 }
 
 function wallQuaternion(wall) {
-  // Orient the plane so it faces inward
+  // PlaneGeometry default normal is +Z.  We need each plane to face inward.
+  // Ry(+π/2) rotates +Z → +X (outward for East) — so East needs Ry(-π/2) → -X (inward).
+  // West needs Ry(+π/2) → +X (inward from west wall at -W/2).
   const q = new THREE.Quaternion();
   if (wall === 'N') q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0);
   else if (wall === 'S') q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-  else if (wall === 'E') q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
-  else if (wall === 'W') q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+  else if (wall === 'E') q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+  else if (wall === 'W') q.setFromAxisAngle(new THREE.Vector3(0, 1, 0),  Math.PI / 2);
   else if (wall === 'ceiling') q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
   else q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   return q;
@@ -137,12 +140,11 @@ placements.forEach(function (p) {
   var ah = art.h_in * IN2M;
   var geo = new THREE.PlaneGeometry(aw, ah);
 
-  var mat = new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.FrontSide });
+  var mat = new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.DoubleSide });
   var mesh = new THREE.Mesh(geo, mat);
 
   var pos = placementPosition(p);
   var norm = wallNormal(p.wall);
-  // Push slightly off the wall surface
   pos.addScaledVector(norm, WALL_OFFSET);
   mesh.position.copy(pos);
   mesh.quaternion.copy(wallQuaternion(p.wall));
@@ -152,11 +154,14 @@ placements.forEach(function (p) {
     textureLoader.load(art.img, function (tex) {
       tex.colorSpace = THREE.SRGBColorSpace;
       var imgAspect = tex.image.width / tex.image.height;
+      if (!isFinite(imgAspect) || imgAspect <= 0) return;
       mesh.geometry.dispose();
       mesh.geometry = new THREE.PlaneGeometry(ah * imgAspect, ah);
       var frame = mesh.children[0];
       if (frame) { frame.geometry.dispose(); frame.geometry = new THREE.EdgesGeometry(mesh.geometry); }
-      mesh.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide });
+      mesh.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+    }, undefined, function () {
+      console.warn('3D viewer: failed to load texture', art.img);
     });
   }
 
@@ -169,6 +174,38 @@ placements.forEach(function (p) {
   var frameGeo = new THREE.EdgesGeometry(geo);
   var frame = new THREE.LineSegments(frameGeo, frameMat);
   mesh.add(frame);
+});
+
+// ── Obstacle planes ───────────────────────────────────────────────────────────
+const obstacleMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+
+function obstaclePosition(ob) {
+  // N/S walls: x_in is horizontal, z_in is irrelevant (fixed at wall face).
+  // E/W walls: z_in is horizontal along wall, x_in is irrelevant (fixed at wall face).
+  if (ob.wall === 'N') return new THREE.Vector3(ob.x_in * IN2M, ob.y_in * IN2M, -D / 2);
+  if (ob.wall === 'S') return new THREE.Vector3(ob.x_in * IN2M, ob.y_in * IN2M,  D / 2);
+  if (ob.wall === 'E') return new THREE.Vector3( W / 2, ob.y_in * IN2M, ob.z_in * IN2M);
+  if (ob.wall === 'W') return new THREE.Vector3(-W / 2, ob.y_in * IN2M, ob.z_in * IN2M);
+  return new THREE.Vector3(ob.x_in * IN2M, ob.wall === 'ceiling' ? H : 0, ob.z_in * IN2M);
+}
+
+(cfg.obstacles || []).forEach(function (ob) {
+  var ow = ob.w_in * IN2M;
+  var oh = ob.h_in * IN2M;
+  var geo = new THREE.PlaneGeometry(ow, oh);
+  var mesh = new THREE.Mesh(geo, obstacleMat);
+
+  var pos = obstaclePosition(ob);
+  var norm = wallNormal(ob.wall);
+  pos.addScaledVector(norm, WALL_OFFSET * 0.5);  // slightly behind artworks
+  mesh.position.copy(pos);
+  mesh.quaternion.copy(wallQuaternion(ob.wall));
+
+  // Thin border
+  var borderMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+  var border = new THREE.LineSegments(new THREE.EdgesGeometry(geo), borderMat);
+  mesh.add(border);
+  scene.add(mesh);
 });
 
 // ── Controls (PointerLock) ────────────────────────────────────────────────────
@@ -213,6 +250,14 @@ let lastTime = null;
 const raycaster = new THREE.Raycaster();
 const placardOverlay = document.getElementById('placard-overlay');
 let lastHovered = null;
+let raycastAccum = 0;              // seconds since last raycast (throttled)
+const RAYCAST_INTERVAL = 0.1;     // raycast at most ~10×/s, not every frame
+
+// Reusable scratch objects — avoid per-frame allocation (GC pressure → stutter)
+const _vel      = new THREE.Vector3();
+const _turnAxis = new THREE.Vector3(0, 1, 0);
+const _turnQ    = new THREE.Quaternion();
+const _center   = new THREE.Vector2(0, 0);
 
 function updatePlacard(art, screenX, screenY) {
   if (!art) {
@@ -241,22 +286,22 @@ function animate(now) {
   lastTime = now;
 
   if (controls.isLocked) {
-    var vel = new THREE.Vector3();
-    if (keys['KeyW'] || keys['ArrowUp'])    vel.z -= 1;
-    if (keys['KeyS'] || keys['ArrowDown'])  vel.z += 1;
-    if (keys['KeyA'] || keys['ArrowLeft'])  vel.x -= 1;
-    if (keys['KeyD'] || keys['ArrowRight']) vel.x += 1;
-    vel.normalize().multiplyScalar(SPEED * dt);
-    controls.moveRight(vel.x);
-    controls.moveForward(-vel.z);
+    _vel.set(0, 0, 0);
+    if (keys['KeyW'] || keys['ArrowUp'])    _vel.z -= 1;
+    if (keys['KeyS'] || keys['ArrowDown'])  _vel.z += 1;
+    if (keys['KeyA'] || keys['ArrowLeft'])  _vel.x -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) _vel.x += 1;
+    if (_vel.x || _vel.z) {
+      _vel.normalize().multiplyScalar(SPEED * dt);
+      controls.moveRight(_vel.x);
+      controls.moveForward(-_vel.z);
+    }
 
     // Q / E — rotate left / right around world Y
     if (keys['KeyQ'] || keys['KeyE']) {
       var turnDir = keys['KeyQ'] ? 1 : -1;
-      var turnQ = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, 1, 0), turnDir * TURN_SPEED * dt
-      );
-      camera.quaternion.premultiply(turnQ);
+      _turnQ.setFromAxisAngle(_turnAxis, turnDir * TURN_SPEED * dt);
+      camera.quaternion.premultiply(_turnQ);
     }
 
     // Clamp to room bounds
@@ -264,14 +309,18 @@ function animate(now) {
     camera.position.z = clamp(camera.position.z, -HD + MARGIN, HD - MARGIN);
     camera.position.y = EYE_H;  // no vertical movement / gravity
 
-    // Raycast from centre of screen
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    var hits = raycaster.intersectObjects(artworkMeshes);
-    if (hits.length && hits[0].distance < 3) {
-      var rect = canvas.getBoundingClientRect();
-      updatePlacard(hits[0].object.userData.art, rect.width / 2, rect.height / 2);
-    } else {
-      updatePlacard(null);
+    // Raycast from centre of screen — throttled; non-recursive (meshes' children are frames)
+    raycastAccum += dt;
+    if (raycastAccum >= RAYCAST_INTERVAL) {
+      raycastAccum = 0;
+      raycaster.setFromCamera(_center, camera);
+      var hits = raycaster.intersectObjects(artworkMeshes, false);
+      if (hits.length && hits[0].distance < 3) {
+        var rect = canvas.getBoundingClientRect();
+        updatePlacard(hits[0].object.userData.art, rect.width / 2, rect.height / 2);
+      } else {
+        updatePlacard(null);
+      }
     }
   }
 

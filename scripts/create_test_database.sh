@@ -52,6 +52,51 @@ $SITE --name "120710" \
       --icon media/site_icons/120710.png \
       --status published
 
+echo "=== Creating room config and obstacles for 120710 ==="
+
+python manage.py shell -c "
+from gallery.models import Site
+from gallery.models.room import RoomConfig, WallObstacle
+
+site = Site.objects.get(slug='120710')
+cfg, _ = RoomConfig.objects.get_or_create(
+    site=site,
+    defaults={'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0},
+)
+# Ensure correct dimensions even if it already existed
+cfg.width_in  = 384.0   # 32 ft E-W
+cfg.depth_in  = 576.0   # 48 ft N-S
+cfg.height_in = 120.0   # 10 ft
+cfg.save()
+
+WallObstacle.objects.filter(room_config=cfg).delete()
+
+# North wall: centered door 9' wide x 8' high (bottom at floor)
+WallObstacle.objects.create(
+    room_config=cfg, wall='N', label='Door',
+    x_in=0, y_in=48, z_in=0,   # center: x=0, y=48\" (half of 96\")
+    w_in=108, h_in=96,           # 9' x 8'
+)
+
+# West wall: two doors 40\" wide x 7' high, 44\" gap from each end
+# When viewing the west wall the south side is on the left, north on the right.
+# Left door (south side): center z_in = +288 - 44 - 20 = +224\"
+WallObstacle.objects.create(
+    room_config=cfg, wall='W', label='Door (S)',
+    x_in=0, y_in=42, z_in=224,  # center: z=+224\" (south side), y=42\" (half of 84\")
+    w_in=40, h_in=84,
+)
+# Right door (north side): center z_in = -288 + 44 + 20 = -224\"
+WallObstacle.objects.create(
+    room_config=cfg, wall='W', label='Door (N)',
+    x_in=0, y_in=42, z_in=-224, # center: z=-224\" (north side)
+    w_in=40, h_in=84,
+)
+print('Room config: 384\" x 576\" x 120\"')
+print('North wall: 1 door (9\\'x8\\', centered)')
+print('West wall:  2 doors (40\"x7\\', 44\" from each end)')
+"
+
 echo "=== Creating artists ==="
 
 $ARTIST --email oliver@hawk.com --password b8 --curator \
