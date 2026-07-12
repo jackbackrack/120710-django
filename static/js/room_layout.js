@@ -1,250 +1,473 @@
 /*
  * Room Layout Editor
- * Coordinate conventions (stored in PLACEMENTS / sent to server):
- *   x_in  east from room centre  (positive = east)
- *   y_in  height from floor      (positive = up)
- *   z_in  south from room centre (positive = south)
  *
- * The canvas represents one wall at a time in screen coordinates.
- * For N/S walls: screen-x maps to room-x (east), screen-y maps to room-y (height).
- * For E/W walls: screen-x maps to room-z (south←→north), screen-y maps to room-y.
- * Ceiling/floor: screen-x → room-x, screen-y → room-z.
+ * World coordinates (stored / sent to server):
+ *   x_in  east  from room centre  (positive = east)
+ *   y_in  height from floor       (positive = up)
+ *   z_in  south from room centre  (positive = south)
+ *
+ * Stage coordinates: pixels within #wall-stage at zoom=1.
+ *   Origin = top-left corner of stage.
+ *   For N/S walls:  stage-x = x_in + wallW/2,  stage-y = wallH - y_in  (in px/in units)
+ *   For E/W walls:  stage-x = ±z_in + wallW/2, stage-y = wallH - y_in
+ *   Ceiling/floor:  stage-x = x_in + wallW/2,  stage-y = z_in + wallD/2
+ *
+ * Pan/zoom: CSS transform on #wall-stage.
+ *   canvas coords = stageOffsetX + stage-x * zoom
  */
 (function () {
   'use strict';
 
   // ── State ────────────────────────────────────────────────────────────────
-  var cfg         = window.ROOM_CONFIG;    // { width_in, depth_in, height_in }
-  var placements  = window.PLACEMENTS;     // [{ artwork, wall, x_in, y_in, z_in }]
-  var pool        = window.POOL_ARTWORKS;  // [artwork …]
-  var saveUrl     = window.SAVE_URL;
-  var csrfToken   = window.CSRF_TOKEN;
+  var cfg        = window.ROOM_CONFIG;
+  var placements = window.PLACEMENTS;
+  var pool       = window.POOL_ARTWORKS;
+  var saveUrl    = window.SAVE_URL;
+  var csrfToken  = window.CSRF_TOKEN;
 
-  var WALLS = ['N','E','S','W','ceiling','floor'];
   var currentWall = 'N';
-
-  // Map: artwork.id → placement data { artwork, wall, x_in, y_in, z_in }
   var placementMap = {};
   placements.forEach(function (p) { placementMap[p.artwork.id] = p; });
 
-  // ── DOM refs ─────────────────────────────────────────────────────────────
-  var canvasWrap   = document.getElementById('canvas-wrap');
-  var poolList     = document.getElementById('pool-list');
-  var placedList   = document.getElementById('placed-list');
-  var saveBtn      = document.getElementById('btn-save');
-  var saveStatus   = document.getElementById('save-status');
-  var tabs         = document.querySelectorAll('.wall-tab');
+  // Tracks click order so first/last selected can anchor align/distribute ops
+  var selectionOrder = [];
+  function clearSelection() {
+    stageEl.querySelectorAll('.placed-art.selected').forEach(function (el) { el.classList.remove('selected'); });
+    selectionOrder = [];
+    if (measureDisplay) measureDisplay.textContent = '';
+  }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // Immutable master list of all artworks (pool + any server-placed artworks not in pool)
+  var allArtworks = pool.slice();
+  placements.forEach(function (p) {
+    if (!allArtworks.some(function (a) { return a.id === p.artwork.id; })) {
+      allArtworks.push(p.artwork);
+    }
+  });
 
-  // Wall dimensions in inches: [width, height] in screen space
+  // Stage geometry (recalculated on wall switch / resize)
+  var baseScale   = 1;   // px per inch at zoom=1
+  var stageLeft   = 0;   // initial centered offset X (px, in canvas coords)
+  var stageTop    = 0;   // initial centered offset Y
+  var zoom        = 1;
+  var panX        = 0;   // additional pan beyond centered offset
+  var panY        = 0;
+
+  var popoverArtId = null;
+  var spaceDown    = false;
+  var isPanning    = false;
+  var panAnchorX, panAnchorY, panAnchorPX, panAnchorPY;
+
+  // ── DOM ───────────────────────────────────────────────────────────────────
+  var canvasWrap  = document.getElementById('canvas-wrap');
+  var stageEl     = document.getElementById('wall-stage');
+  var poolList    = document.getElementById('pool-list');
+  var placedList  = document.getElementById('placed-list');
+  var saveBtn     = document.getElementById('btn-save');
+  var saveStatus  = document.getElementById('save-status');
+  var tabs        = document.querySelectorAll('.wall-tab');
+
+  var measureDisplay = document.getElementById('measure-display');
+  var posPanel      = document.getElementById('pos-panel');
+  var posTitle      = document.getElementById('pos-title');
+  var posHoriz      = document.getElementById('pos-horiz');
+  var posVert       = document.getElementById('pos-vert');
+  var posDepth      = document.getElementById('pos-depth');
+  var posHorizLabel = document.getElementById('pos-horiz-label');
+  var posDepthLabel = document.getElementById('pos-depth-label');
+
+  // ── Wall dimensions ───────────────────────────────────────────────────────
   function wallDims(wall) {
     var w = cfg.width_in, d = cfg.depth_in, h = cfg.height_in;
     if (wall === 'N' || wall === 'S') return [w, h];
     if (wall === 'E' || wall === 'W') return [d, h];
-    return [w, d];  // ceiling / floor
+    return [w, d];
   }
 
-  // Convert screen fraction [0–1] to world coords for a given wall
-  function screenToWorld(wall, fx, fy) {
-    var w = cfg.width_in, d = cfg.depth_in, h = cfg.height_in;
-    var hw = w / 2, hd = d / 2;
-    if (wall === 'N' || wall === 'S') {
-      return { x_in: (fx - 0.5) * w, y_in: (1 - fy) * h, z_in: wall === 'N' ? -hd : hd };
-    }
-    if (wall === 'E' || wall === 'W') {
-      var signZ = wall === 'E' ? 1 : -1;
-      return { x_in: wall === 'E' ? hw : -hw, y_in: (1 - fy) * h, z_in: signZ * (fx - 0.5) * d };
-    }
-    // ceiling / floor
-    return { x_in: (fx - 0.5) * w, y_in: wall === 'ceiling' ? h : 0, z_in: (fy - 0.5) * d };
-  }
+  // ── Stage setup ───────────────────────────────────────────────────────────
+  var PAD = 48;  // pixels of padding around wall in canvas
 
-  function worldToScreen(wall, p) {
-    var w = cfg.width_in, d = cfg.depth_in, h = cfg.height_in;
-    if (wall === 'N' || wall === 'S') {
-      return { fx: p.x_in / w + 0.5, fy: 1 - p.y_in / h };
-    }
-    if (wall === 'E' || wall === 'W') {
-      var signZ = wall === 'E' ? 1 : -1;
-      return { fx: signZ * p.z_in / d + 0.5, fy: 1 - p.y_in / h };
-    }
-    return { fx: p.x_in / w + 0.5, fy: p.z_in / d + 0.5 };
-  }
-
-  // artwork pixel size on canvas at current scale
-  function artPxSize(art) {
+  function initStage() {
     var dims = wallDims(currentWall);
-    var rect = canvasWrap.getBoundingClientRect();
-    var scaleX = rect.width  / dims[0];
-    var scaleY = rect.height / dims[1];
-    var sc = Math.min(scaleX, scaleY);
-    return { w: art.w_in * sc, h: art.h_in * sc };
+    var wrapW = canvasWrap.clientWidth;
+    var wrapH = canvasWrap.clientHeight;
+    baseScale = Math.min((wrapW - PAD * 2) / dims[0], (wrapH - PAD * 2) / dims[1]);
+    var stageW = dims[0] * baseScale;
+    var stageH = dims[1] * baseScale;
+    stageEl.style.width  = stageW + 'px';
+    stageEl.style.height = stageH + 'px';
+    stageLeft = (wrapW - stageW) / 2;
+    stageTop  = (wrapH - stageH) / 2;
+    zoom = 1; panX = 0; panY = 0;
+    applyTransform();
   }
 
-  // ── Render sidebar ────────────────────────────────────────────────────────
+  function applyTransform() {
+    var tx = stageLeft + panX;
+    var ty = stageTop  + panY;
+    stageEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + zoom + ')';
+  }
 
+  // Convert canvas-relative coords → stage-local pixels (before baseScale)
+  function canvasToStage(cx, cy) {
+    return {
+      x: (cx - stageLeft - panX) / zoom,
+      y: (cy - stageTop  - panY) / zoom,
+    };
+  }
+
+  // ── World ↔ stage-pixel conversions ──────────────────────────────────────
+  function worldToStage(wall, p) {
+    var dims = wallDims(wall);
+    var ww = dims[0], wh = dims[1];
+    var sx, sy;
+    if (wall === 'N' || wall === 'S') { sx = (p.x_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
+    else if (wall === 'E')             { sx = (p.z_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
+    else if (wall === 'W')             { sx = (-p.z_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
+    else /* ceil/floor */              { sx = (p.x_in + ww/2) * baseScale; sy = (p.z_in + wh/2) * baseScale; }
+    return { x: sx, y: sy };
+  }
+
+  function stageToWorld(wall, sx, sy) {
+    var dims = wallDims(wall);
+    var ww = dims[0], wh = dims[1];
+    var xi = sx / baseScale - ww / 2;
+    var yi = wh - sy / baseScale;
+    var p = {};
+    if (wall === 'N') { p.x_in = xi; p.y_in = yi; p.z_in = -cfg.depth_in / 2; }
+    else if (wall === 'S') { p.x_in = xi; p.y_in = yi; p.z_in = cfg.depth_in / 2; }
+    else if (wall === 'E') { p.x_in = cfg.width_in / 2; p.y_in = yi; p.z_in = xi; }
+    else if (wall === 'W') { p.x_in = -cfg.width_in / 2; p.y_in = yi; p.z_in = -xi; }
+    else { p.x_in = xi; p.y_in = wall === 'ceiling' ? cfg.height_in : 0; p.z_in = sy / baseScale - wh / 2; }
+    return p;
+  }
+
+  function artStagePx(p) {
+    var sc  = worldToStage(currentWall, p);
+    var aw  = p.artwork.w_in * baseScale;
+    var ah  = p.artwork.h_in * baseScale;
+    return { left: sc.x - aw / 2, top: sc.y - ah / 2, w: aw, h: ah };
+  }
+
+  // ── World-coordinate helpers for popover ─────────────────────────────────
+  function worldHoriz(wall, p) {
+    if (wall === 'N' || wall === 'S') return p.x_in;
+    if (wall === 'E')  return  p.z_in;
+    if (wall === 'W')  return -p.z_in;
+    return p.x_in;
+  }
+  function applyHoriz(wall, p, val) {
+    if (wall === 'N' || wall === 'S') p.x_in = val;
+    else if (wall === 'E')  p.z_in =  val;
+    else if (wall === 'W')  p.z_in = -val;
+    else                    p.x_in =  val;
+  }
+
+  // ── Sidebar ───────────────────────────────────────────────────────────────
   function renderSidebar() {
-    poolList.innerHTML = '';
-    placedList.innerHTML = '';
-
-    pool.forEach(function (art) {
-      if (placementMap[art.id]) return;
-      poolList.appendChild(makeSidebarThumb(art, false));
-    });
-
-    pool.concat(placements.map(function (p) { return p.artwork; })).forEach(function (art) {
-      if (!placementMap[art.id]) return;
+    poolList.innerHTML = placedList.innerHTML = '';
+    allArtworks.forEach(function (art) {
       var p = placementMap[art.id];
-      var el = makeSidebarThumb(art, true);
-      var lbl = el.querySelector('.pool-label');
-      lbl.textContent += ' (' + p.wall + ')';
-      placedList.appendChild(el);
+      var el = makeSidebarThumb(art, !!p);
+      if (p) {
+        el.querySelector('.pool-label').textContent += ' (' + p.wall + ')';
+        placedList.appendChild(el);
+      } else {
+        poolList.appendChild(el);
+      }
     });
   }
 
   function makeSidebarThumb(art, placed) {
     var div = document.createElement('div');
-    div.className = 'pool-thumb';
+    div.className  = 'pool-thumb';
     div.dataset.id = art.id;
-    div.draggable = !placed;
-    div.innerHTML = '<img src="' + (art.thumb || art.img) + '" alt="">' +
-      '<div class="pool-label">' + art.name + '</div>';
-
-    if (!placed) {
-      div.addEventListener('dragstart', function (e) {
-        e.dataTransfer.setData('text/plain', String(art.id));
-        div.classList.add('dragging-src');
-      });
-      div.addEventListener('dragend', function () {
-        div.classList.remove('dragging-src');
-      });
-    }
+    div.draggable  = true;
+    div.title      = art.name + (placed ? ' — drag to reposition' : ' — drag onto wall');
+    div.innerHTML  = '<img src="' + (art.thumb || art.img) + '" alt="">' +
+                     '<div class="pool-label">' + art.name + '</div>';
+    div.addEventListener('dragstart', function (e) {
+      e.dataTransfer.setData('text/plain', String(art.id));
+      div.classList.add('dragging-src');
+      // Use a correctly-proportioned ghost instead of the wide sidebar thumbnail
+      var ghost = document.createElement('img');
+      ghost.src = art.thumb || art.img;
+      var GHOST_H = 80;
+      var ghostW = ghost.naturalWidth ? Math.round(GHOST_H * ghost.naturalWidth / ghost.naturalHeight) : GHOST_H;
+      ghost.style.cssText = 'position:fixed;top:-9999px;height:' + GHOST_H + 'px;width:' + ghostW + 'px;object-fit:fill;pointer-events:none;';
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, ghostW / 2, GHOST_H / 2);
+      setTimeout(function () { ghost.remove(); }, 0);
+    });
+    div.addEventListener('dragend', function () { div.classList.remove('dragging-src'); });
     return div;
   }
 
-  // ── Render wall canvas ────────────────────────────────────────────────────
-
-  // Remove all placed-art elements from canvasWrap
+  // ── Wall rendering ────────────────────────────────────────────────────────
   function clearPlacedDivs() {
-    canvasWrap.querySelectorAll('.placed-art').forEach(function (el) { el.remove(); });
+    stageEl.querySelectorAll('.placed-art').forEach(function (el) { el.remove(); });
   }
 
   function renderWall() {
+    closePopover();
+    selectionOrder = [];
+    initStage();
     clearPlacedDivs();
-    Object.keys(placementMap).forEach(function (id) {
-      var p = placementMap[id];
-      if (p.wall !== currentWall) return;
-      addPlacedDiv(p);
+    Object.values(placementMap).forEach(function (p) {
+      if (p.wall === currentWall) addPlacedDiv(p);
     });
   }
 
   function addPlacedDiv(p) {
-    var art  = p.artwork;
-    var sc   = worldToScreen(currentWall, p);
-    var dims = wallDims(currentWall);
-    var rect = canvasWrap.getBoundingClientRect();
-    var scaleX = rect.width  / dims[0];
-    var scaleY = rect.height / dims[1];
-
-    // Maintain aspect but fit to wall scale
-    var sc2 = Math.min(scaleX, scaleY);
-    var pw = art.w_in * sc2;
-    var ph = art.h_in * sc2;
-
-    var cx = sc.fx * rect.width;
-    var cy = sc.fy * rect.height;
-
+    var r   = artStagePx(p);
     var div = document.createElement('div');
-    div.className = 'placed-art';
-    div.dataset.id = art.id;
-    div.style.left   = (cx - pw / 2) + 'px';
-    div.style.top    = (cy - ph / 2) + 'px';
-    div.style.width  = pw + 'px';
-    div.style.height = ph + 'px';
-    div.innerHTML = '<img src="' + (art.thumb || art.img) + '" alt="' + art.name + '">' +
-      '<div class="placard-bar">' + art.name + '</div>';
+    div.className  = 'placed-art';
+    div.dataset.id = p.artwork.id;
+    div.style.left   = r.left + 'px';
+    div.style.top    = r.top  + 'px';
+    div.style.width  = r.w    + 'px';
+    div.style.height = r.h    + 'px';
+    div.innerHTML =
+      '<img src="' + (p.artwork.thumb || p.artwork.img) + '" alt="' + p.artwork.name + '">' +
+      '<div class="placard-bar">' + p.artwork.name + '</div>';
 
-    makeDraggableOnCanvas(div, p);
+    makeDraggableOnStage(div, p);
     div.addEventListener('click', function (e) {
       e.stopPropagation();
-      div.classList.toggle('selected');
+      var id = p.artwork.id;
+      var wasSelected = div.classList.contains('selected');
+      if (!e.shiftKey) {
+        clearSelection();
+        div.classList.add('selected');
+        selectionOrder.push(id);
+        openPopover(p, div);
+      } else {
+        if (wasSelected) {
+          div.classList.remove('selected');
+          selectionOrder = selectionOrder.filter(function (i) { return i !== id; });
+        } else {
+          div.classList.add('selected');
+          selectionOrder.push(id);
+        }
+      }
     });
-    canvasWrap.appendChild(div);
+    stageEl.appendChild(div);
+
+    // Resize width to match actual image pixel aspect ratio (height stays fixed at h_in).
+    // Use a standalone Image object — unlike an off-DOM img element, it reliably reports
+    // naturalWidth for cached images without requiring the load event to fire.
+    var arImg = new Image();
+    function applyAspect() {
+      if (!arImg.naturalWidth || !arImg.naturalHeight) return;
+      var newW = r.h * arImg.naturalWidth / arImg.naturalHeight;
+      div.style.width = newW + 'px';
+      div.style.left  = (worldToStage(currentWall, p).x - newW / 2) + 'px';
+    }
+    arImg.onload = applyAspect;
+    arImg.src = p.artwork.thumb || p.artwork.img;
+    if (arImg.complete && arImg.naturalWidth) applyAspect();
   }
 
-  // ── Drag on canvas ────────────────────────────────────────────────────────
-
-  function makeDraggableOnCanvas(div, p) {
+  // ── Drag placed artworks on stage ─────────────────────────────────────────
+  function makeDraggableOnStage(div, p) {
     var startMx, startMy, startL, startT;
-
     div.addEventListener('mousedown', function (e) {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || spaceDown) return;
       e.preventDefault();
       startMx = e.clientX; startMy = e.clientY;
       startL  = parseFloat(div.style.left);
       startT  = parseFloat(div.style.top);
-
       function onMove(ev) {
-        var dx = ev.clientX - startMx;
-        var dy = ev.clientY - startMy;
-        div.style.left = (startL + dx) + 'px';
-        div.style.top  = (startT + dy) + 'px';
+        // Mouse delta in canvas pixels → stage pixels (divide by zoom)
+        div.style.left = (startL + (ev.clientX - startMx) / zoom) + 'px';
+        div.style.top  = (startT + (ev.clientY - startMy) / zoom) + 'px';
       }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        // Update world coords
-        var rect  = canvasWrap.getBoundingClientRect();
-        var dims  = wallDims(currentWall);
-        var scaleX = rect.width  / dims[0];
-        var scaleY = rect.height / dims[1];
-        var sc2 = Math.min(scaleX, scaleY);
-        var cx = parseFloat(div.style.left) + parseFloat(div.style.width)  / 2;
-        var cy = parseFloat(div.style.top)  + parseFloat(div.style.height) / 2;
-        var fx = cx / rect.width;
-        var fy = cy / rect.height;
-        var world = screenToWorld(currentWall, fx, fy);
-        p.x_in = world.x_in;
-        p.y_in = world.y_in;
-        p.z_in = world.z_in;
+        syncWorldFromDiv(div, p);
+        if (popoverArtId === p.artwork.id) updatePopoverValues(p);
+        scheduleSave();
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
   }
 
-  // ── Drop from sidebar ─────────────────────────────────────────────────────
+  function syncWorldFromDiv(div, p) {
+    var r  = artStagePx(p);
+    var sx = parseFloat(div.style.left) + parseFloat(div.style.width) / 2;
+    var sy = parseFloat(div.style.top)  + r.h / 2;
+    var w  = stageToWorld(currentWall, sx, sy);
+    p.x_in = w.x_in; p.y_in = w.y_in; p.z_in = w.z_in;
+  }
 
+  function syncDivFromWorld(div, p) {
+    var r = artStagePx(p);
+    var w = parseFloat(div.style.width);
+    div.style.left = (worldToStage(currentWall, p).x - w / 2) + 'px';
+    div.style.top  = r.top + 'px';
+  }
+
+  // ── Drop from sidebar ─────────────────────────────────────────────────────
   canvasWrap.addEventListener('dragover', function (e) { e.preventDefault(); });
   canvasWrap.addEventListener('drop', function (e) {
     e.preventDefault();
-    var id = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    var id  = parseInt(e.dataTransfer.getData('text/plain'), 10);
     if (!id) return;
     var art = findArtwork(id);
     if (!art) return;
+    var wrapRect = canvasWrap.getBoundingClientRect();
+    var sp = canvasToStage(e.clientX - wrapRect.left, e.clientY - wrapRect.top);
+    var w  = stageToWorld(currentWall, sp.x, sp.y);
 
-    var rect = canvasWrap.getBoundingClientRect();
-    var fx = (e.clientX - rect.left) / rect.width;
-    var fy = (e.clientY - rect.top)  / rect.height;
-    var world = screenToWorld(currentWall, fx, fy);
-
-    var p = { artwork: art, wall: currentWall, x_in: world.x_in, y_in: world.y_in, z_in: world.z_in };
-    placementMap[art.id] = p;
+    if (placementMap[id]) {
+      placements = placements.filter(function (p) { return p.artwork.id !== id; });
+      var old = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+      if (old) old.remove();
+    }
+    var p = { artwork: art, wall: currentWall, x_in: w.x_in, y_in: w.y_in, z_in: w.z_in };
+    placementMap[id] = p;
     placements.push(p);
-
     addPlacedDiv(p);
     renderSidebar();
+    scheduleSave();
   });
 
   function findArtwork(id) {
-    for (var i = 0; i < pool.length; i++) if (pool[i].id === id) return pool[i];
-    for (var j = 0; j < placements.length; j++) if (placements[j].artwork.id === id) return placements[j].artwork;
+    for (var i = 0; i < allArtworks.length; i++) if (allArtworks[i].id === id) return allArtworks[i];
     return null;
   }
 
-  // ── Wall tab switching ────────────────────────────────────────────────────
+  // ── Pan & Zoom ────────────────────────────────────────────────────────────
+  var MIN_ZOOM = 0.15, MAX_ZOOM = 8;
 
+  // Mouse-wheel zoom (zoom toward cursor)
+  canvasWrap.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var factor  = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    var newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
+    var wrapRect = canvasWrap.getBoundingClientRect();
+    var mx = e.clientX - wrapRect.left;
+    var my = e.clientY - wrapRect.top;
+    // Keep point under cursor fixed
+    var offX = stageLeft + panX;
+    var offY = stageTop  + panY;
+    panX = mx - stageLeft - (mx - offX) * newZoom / zoom;
+    panY = my - stageTop  - (my - offY) * newZoom / zoom;
+    zoom = newZoom;
+    applyTransform();
+  }, { passive: false });
+
+  // Middle-mouse-button pan
+  canvasWrap.addEventListener('mousedown', function (e) {
+    if (e.button === 1 || (e.button === 0 && spaceDown)) {
+      e.preventDefault();
+      isPanning    = true;
+      panAnchorX   = e.clientX; panAnchorY   = e.clientY;
+      panAnchorPX  = panX;      panAnchorPY  = panY;
+      canvasWrap.style.cursor = 'grabbing';
+    }
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (!isPanning) return;
+    panX = panAnchorPX + (e.clientX - panAnchorX);
+    panY = panAnchorPY + (e.clientY - panAnchorY);
+    applyTransform();
+  });
+  document.addEventListener('mouseup', function (e) {
+    if (isPanning && (e.button === 1 || e.button === 0)) {
+      isPanning = false;
+      canvasWrap.style.cursor = spaceDown ? 'grab' : '';
+    }
+  });
+
+  // Space = pan mode (grab cursor)
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && !e.target.matches('input,textarea')) {
+      e.preventDefault();
+      if (!spaceDown) { spaceDown = true; canvasWrap.style.cursor = 'grab'; }
+    }
+  });
+  document.addEventListener('keyup', function (e) {
+    if (e.code === 'Space') { spaceDown = false; if (!isPanning) canvasWrap.style.cursor = ''; }
+  });
+
+  // Double-click to reset view
+  canvasWrap.addEventListener('dblclick', function (e) {
+    if (e.target === canvasWrap || e.target === stageEl) {
+      zoom = 1; panX = 0; panY = 0;
+      applyTransform();
+    }
+  });
+
+  // ── Position popover ──────────────────────────────────────────────────────
+  function openPopover(p, div) {
+    popoverArtId = p.artwork.id;
+    posTitle.textContent = p.artwork.name;
+    var isCF = (currentWall === 'ceiling' || currentWall === 'floor');
+    posHorizLabel.textContent = isCF ? 'East from center (in)' : 'Horiz from center (in, + = right)';
+    posDepthLabel.style.display = isCF ? 'block' : 'none';
+    posDepth.style.display      = isCF ? 'block' : 'none';
+    updatePopoverValues(p);
+
+    // Position popover in canvas coords (right of artwork, clamped to wrap)
+    var stageRect = stageEl.getBoundingClientRect();
+    var wrapRect  = canvasWrap.getBoundingClientRect();
+    var artCanvasLeft  = (parseFloat(div.style.left) * zoom) + (stageRect.left - wrapRect.left);
+    var artCanvasRight = artCanvasLeft + parseFloat(div.style.width) * zoom;
+    var artCanvasTop   = (parseFloat(div.style.top)  * zoom) + (stageRect.top  - wrapRect.top);
+    var panelW = 220;
+    var left   = artCanvasRight + 6;
+    if (left + panelW > wrapRect.width) left = artCanvasLeft - panelW - 6;
+    if (left < 0) left = 4;
+    posPanel.style.left    = left + 'px';
+    posPanel.style.top     = Math.max(4, artCanvasTop) + 'px';
+    posPanel.style.display = 'block';
+  }
+
+  function updatePopoverValues(p) {
+    posHoriz.value = round1(worldHoriz(currentWall, p));
+    posVert.value  = round1(p.y_in);
+    if (currentWall === 'ceiling' || currentWall === 'floor') posDepth.value = round1(p.z_in);
+  }
+
+  function round1(v) { return Math.round(v * 10) / 10; }
+
+  function closePopover() {
+    posPanel.style.display = 'none';
+    popoverArtId = null;
+  }
+
+  document.getElementById('pos-close').addEventListener('click', closePopover);
+
+  function applyPopoverInputs() {
+    if (popoverArtId === null) return;
+    var p = placementMap[popoverArtId];
+    if (!p) return;
+    var h = parseFloat(posHoriz.value), v = parseFloat(posVert.value);
+    if (!isNaN(h)) applyHoriz(currentWall, p, h);
+    if (!isNaN(v)) p.y_in = Math.max(0, v);
+    if ((currentWall === 'ceiling' || currentWall === 'floor') && posDepth.value !== '') {
+      var d = parseFloat(posDepth.value);
+      if (!isNaN(d)) p.z_in = d;
+    }
+    var div = stageEl.querySelector('.placed-art[data-id="' + popoverArtId + '"]');
+    if (div) syncDivFromWorld(div, p);
+  }
+
+  [posHoriz, posVert, posDepth].forEach(function (inp) {
+    inp.addEventListener('input', function () { applyPopoverInputs(); scheduleSave(); });
+  });
+
+  // Click empty stage/canvas → deselect + close popover
+  [canvasWrap, stageEl].forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      if (e.target === el) { clearSelection(); closePopover(); }
+    });
+  });
+
+  // ── Wall tabs ─────────────────────────────────────────────────────────────
   tabs.forEach(function (tab) {
     tab.addEventListener('click', function () {
       tabs.forEach(function (t) { t.classList.remove('active'); });
@@ -254,81 +477,76 @@
     });
   });
 
-  // ── Toolbar actions ───────────────────────────────────────────────────────
-
+  // ── Toolbar ───────────────────────────────────────────────────────────────
   function getSelected() {
-    return Array.from(canvasWrap.querySelectorAll('.placed-art.selected'));
+    // Return in selection order (first clicked = index 0)
+    return selectionOrder.map(function (id) {
+      return stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+    }).filter(Boolean);
   }
 
-  function updateWorldFromDiv(div) {
-    var id = parseInt(div.dataset.id, 10);
-    var p  = placementMap[id];
-    if (!p) return;
-    var rect  = canvasWrap.getBoundingClientRect();
-    var cx = parseFloat(div.style.left) + parseFloat(div.style.width)  / 2;
-    var cy = parseFloat(div.style.top)  + parseFloat(div.style.height) / 2;
-    var fx = cx / rect.width;
-    var fy = cy / rect.height;
-    var world = screenToWorld(currentWall, fx, fy);
-    p.x_in = world.x_in; p.y_in = world.y_in; p.z_in = world.z_in;
-  }
-
+  // Center H: align all selected to first-selected's vertical centre
   document.getElementById('btn-align-h').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 2) return;
-    var rect = canvasWrap.getBoundingClientRect();
-    var cy = rect.height / 2;
+    var ref_cy = parseFloat(sel[0].style.top) + parseFloat(sel[0].style.height) / 2;
     sel.forEach(function (div) {
-      var h = parseFloat(div.style.height);
-      div.style.top = (cy - h / 2) + 'px';
-      updateWorldFromDiv(div);
+      div.style.top = (ref_cy - parseFloat(div.style.height) / 2) + 'px';
+      var p = placementMap[parseInt(div.dataset.id, 10)];
+      if (p) syncWorldFromDiv(div, p);
     });
+    scheduleSave();
   });
 
+  // Center V: align all selected to first-selected's horizontal centre
   document.getElementById('btn-align-v').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 2) return;
-    var rect = canvasWrap.getBoundingClientRect();
-    var cx = rect.width / 2;
+    var ref_cx = parseFloat(sel[0].style.left) + parseFloat(sel[0].style.width) / 2;
     sel.forEach(function (div) {
-      var w = parseFloat(div.style.width);
-      div.style.left = (cx - w / 2) + 'px';
-      updateWorldFromDiv(div);
+      div.style.left = (ref_cx - parseFloat(div.style.width) / 2) + 'px';
+      var p = placementMap[parseInt(div.dataset.id, 10)];
+      if (p) syncWorldFromDiv(div, p);
     });
+    scheduleSave();
   });
 
+  // Dist H: sum all current horizontal gaps, divide by (n-1), apply equal gap
   document.getElementById('btn-dist-h').addEventListener('click', function () {
-    var sel = getSelected().sort(function (a, b) { return parseFloat(a.style.left) - parseFloat(b.style.left); });
+    var sel = getSelected();
     if (sel.length < 3) return;
-    var rect = canvasWrap.getBoundingClientRect();
-    var firstL = parseFloat(sel[0].style.left);
-    var lastR  = parseFloat(sel[sel.length - 1].style.left) + parseFloat(sel[sel.length - 1].style.width);
-    var totalW = sel.reduce(function (s, d) { return s + parseFloat(d.style.width); }, 0);
-    var gap = (lastR - firstL - totalW) / (sel.length - 1);
-    var x = firstL;
-    sel.forEach(function (div) {
-      div.style.left = x + 'px';
-      x += parseFloat(div.style.width) + gap;
-      updateWorldFromDiv(div);
-    });
-    void rect;
+    var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.left) - parseFloat(b.style.left); });
+    var totalGap = 0;
+    for (var i = 0; i < sorted.length - 1; i++) {
+      totalGap += parseFloat(sorted[i + 1].style.left) - (parseFloat(sorted[i].style.left) + parseFloat(sorted[i].style.width));
+    }
+    var gap = totalGap / (sorted.length - 1);
+    var x = parseFloat(sorted[0].style.left) + parseFloat(sorted[0].style.width) + gap;
+    for (var i = 1; i < sorted.length; i++) {
+      sorted[i].style.left = x + 'px';
+      x += parseFloat(sorted[i].style.width) + gap;
+      var p = placementMap[parseInt(sorted[i].dataset.id, 10)]; if (p) syncWorldFromDiv(sorted[i], p);
+    }
+    scheduleSave();
   });
 
+  // Dist V: sum all current vertical gaps, divide by (n-1), apply equal gap
   document.getElementById('btn-dist-v').addEventListener('click', function () {
-    var sel = getSelected().sort(function (a, b) { return parseFloat(a.style.top) - parseFloat(b.style.top); });
+    var sel = getSelected();
     if (sel.length < 3) return;
-    var rect = canvasWrap.getBoundingClientRect();
-    var firstT = parseFloat(sel[0].style.top);
-    var lastB  = parseFloat(sel[sel.length - 1].style.top) + parseFloat(sel[sel.length - 1].style.height);
-    var totalH = sel.reduce(function (s, d) { return s + parseFloat(d.style.height); }, 0);
-    var gap = (lastB - firstT - totalH) / (sel.length - 1);
-    var y = firstT;
-    sel.forEach(function (div) {
-      div.style.top = y + 'px';
-      y += parseFloat(div.style.height) + gap;
-      updateWorldFromDiv(div);
-    });
-    void rect;
+    var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.top) - parseFloat(b.style.top); });
+    var totalGap = 0;
+    for (var i = 0; i < sorted.length - 1; i++) {
+      totalGap += parseFloat(sorted[i + 1].style.top) - (parseFloat(sorted[i].style.top) + parseFloat(sorted[i].style.height));
+    }
+    var gap = totalGap / (sorted.length - 1);
+    var y = parseFloat(sorted[0].style.top) + parseFloat(sorted[0].style.height) + gap;
+    for (var i = 1; i < sorted.length; i++) {
+      sorted[i].style.top = y + 'px';
+      y += parseFloat(sorted[i].style.height) + gap;
+      var p = placementMap[parseInt(sorted[i].dataset.id, 10)]; if (p) syncWorldFromDiv(sorted[i], p);
+    }
+    scheduleSave();
   });
 
   document.getElementById('btn-remove').addEventListener('click', function () {
@@ -338,43 +556,109 @@
       placements = placements.filter(function (p) { return p.artwork.id !== id; });
       div.remove();
     });
+    selectionOrder = [];
+    closePopover();
     renderSidebar();
+    scheduleSave();
   });
 
-  // Click on empty canvas → deselect all
-  canvasWrap.addEventListener('click', function () {
-    canvasWrap.querySelectorAll('.placed-art.selected').forEach(function (el) { el.classList.remove('selected'); });
+  // ── Measure ───────────────────────────────────────────────────────────────
+  function doMeasure() {
+    var sel = getSelected();
+    if (sel.length !== 2) {
+      measureDisplay.textContent = 'Select exactly 2 artworks to measure';
+      return;
+    }
+    var p1 = placementMap[parseInt(sel[0].dataset.id, 10)];
+    var p2 = placementMap[parseInt(sel[1].dataset.id, 10)];
+    if (!p1 || !p2) return;
+    var dx = Math.abs(p2.x_in - p1.x_in);
+    var dy = Math.abs(p2.y_in - p1.y_in);
+    var dz = Math.abs(p2.z_in - p1.z_in);
+    var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    var r = function (v) { return Math.round(v * 10) / 10; };
+    measureDisplay.textContent =
+      'Δx ' + r(dx) + '"  Δy ' + r(dy) + '"' +
+      (dz > 0.05 ? '  Δz ' + r(dz) + '"' : '') +
+      '  dist ' + r(dist) + '"';
+  }
+
+  document.getElementById('btn-measure').addEventListener('click', doMeasure);
+
+  // ── Keyboard: pan (WASD) and artwork nudge (arrows) ─────────────────────
+  document.addEventListener('keydown', function (e) {
+    if (e.target.matches('input, textarea, select')) return;
+
+    if (e.code === 'KeyM') { doMeasure(); return; }
+    var isPan   = (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD');
+    var isArrow = (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight');
+    if (!isPan && !isArrow) return;
+    e.preventDefault();
+
+    var selected = getSelected();
+
+    // Arrows with artwork(s) selected → nudge in wall-local coordinates
+    if (isArrow && selected.length > 0) {
+      var step = e.shiftKey ? 0.1 : 1.0;  // inches
+      selected.forEach(function (div) {
+        var id = parseInt(div.dataset.id, 10);
+        var p  = placementMap[id];
+        if (!p) return;
+        if (e.code === 'ArrowLeft')  applyHoriz(currentWall, p, worldHoriz(currentWall, p) - step);
+        if (e.code === 'ArrowRight') applyHoriz(currentWall, p, worldHoriz(currentWall, p) + step);
+        if (e.code === 'ArrowUp')    p.y_in += step;
+        if (e.code === 'ArrowDown')  p.y_in = Math.max(0, p.y_in - step);
+        syncDivFromWorld(div, p);
+      });
+      if (popoverArtId !== null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
+      scheduleSave();
+      return;
+    }
+
+    // WASD always pans; arrows pan when nothing is selected
+    var PAN = 30;  // px per keypress
+    if (e.code === 'KeyA' || e.code === 'ArrowLeft')  panX += PAN;
+    if (e.code === 'KeyD' || e.code === 'ArrowRight') panX -= PAN;
+    if (e.code === 'KeyW' || e.code === 'ArrowUp')    panY += PAN;
+    if (e.code === 'KeyS' || e.code === 'ArrowDown')  panY -= PAN;
+    applyTransform();
   });
 
-  // ── Save ─────────────────────────────────────────────────────────────────
+  // ── Save ──────────────────────────────────────────────────────────────────
+  var saveTimer = null;
 
-  saveBtn.addEventListener('click', function () {
+  function doSave() {
     saveStatus.textContent = 'Saving…';
-    var body = {
-      room: { width_in: cfg.width_in, depth_in: cfg.depth_in, height_in: cfg.height_in },
-      placements: placements.map(function (p) {
-        return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in };
-      }),
-    };
     fetch(saveUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        room: { width_in: cfg.width_in, depth_in: cfg.depth_in, height_in: cfg.height_in },
+        placements: placements.map(function (p) {
+          return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in };
+        }),
+      }),
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        saveStatus.textContent = data.ok ? 'Saved.' : ('Error: ' + (data.errors || []).join('; '));
+        saveStatus.textContent = data.ok ? 'Saved.' : 'Error: ' + (data.errors || []).join('; ');
         setTimeout(function () { saveStatus.textContent = ''; }, 3000);
       })
       .catch(function () { saveStatus.textContent = 'Save failed.'; });
-  });
+  }
 
-  // ── Re-render on window resize ────────────────────────────────────────────
+  function scheduleSave() {
+    saveStatus.textContent = 'Unsaved…';
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 1500);
+  }
 
+  saveBtn.addEventListener('click', doSave);
+
+  // ── Resize ────────────────────────────────────────────────────────────────
   window.addEventListener('resize', function () { renderWall(); });
 
-  // ── Init ──────────────────────────────────────────────────────────────────
-
+  // ── Init ─────────────────────────────────────────────────────────────────
   renderSidebar();
   renderWall();
 

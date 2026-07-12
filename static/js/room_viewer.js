@@ -29,8 +29,7 @@ function setSize() {
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
-scene.fog = new THREE.Fog(0x1a1a1a, 5, 30);
+scene.background = new THREE.Color(0xddd8d0);
 
 // ── Camera ────────────────────────────────────────────────────────────────────
 const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
@@ -38,46 +37,34 @@ const EYE_H = 60 * IN2M;   // 60" eye height
 camera.position.set(0, EYE_H, 0);
 
 // ── Lighting ──────────────────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-sun.position.set(0, H * 0.9, 0);
-scene.add(sun);
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 
-// Small warm fill lights near ceiling
+// Track lighting — four warm points near ceiling
 [[HW * 0.4, H * 0.95, 0], [-HW * 0.4, H * 0.95, 0],
- [0, H * 0.95, HD * 0.4], [0, H * 0.95, -HD * 0.4]].forEach(function ([x, y, z]) {
-  var pt = new THREE.PointLight(0xfff5e0, 0.4, 20);
+ [0, H * 0.95, HD * 0.3], [0, H * 0.95, -HD * 0.3]].forEach(function ([x, y, z]) {
+  const pt = new THREE.PointLight(0xfff5e0, 1.0, 30);
   pt.position.set(x, y, z);
   scene.add(pt);
 });
 
 // ── Room geometry ─────────────────────────────────────────────────────────────
-const roomMat = {
-  walls:   new THREE.MeshLambertMaterial({ color: 0xf0ece4, side: THREE.BackSide }),
-  floor:   new THREE.MeshLambertMaterial({ color: 0xb8a890, side: THREE.BackSide }),
-  ceiling: new THREE.MeshLambertMaterial({ color: 0xfaf8f4, side: THREE.BackSide }),
-};
+// Inside-out box: BackSide renders the inner faces visible from inside the room.
+// BoxGeometry face order: +X(E), -X(W), +Y(ceil), -Y(floor), +Z(S), -Z(N)
+const wallMat  = new THREE.MeshLambertMaterial({ color: 0xf0ece4, side: THREE.BackSide });
+const floorMat = new THREE.MeshLambertMaterial({ color: 0xb8a890, side: THREE.BackSide });
+const ceilMat  = new THREE.MeshLambertMaterial({ color: 0xfaf8f4, side: THREE.BackSide });
 
-// Build room as 6 separate planes (back-face visible from inside)
-function addPlane(w, h, mat, posX, posY, posZ, rotX, rotY) {
-  const geo = new THREE.PlaneGeometry(w, h);
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(posX, posY, posZ);
-  mesh.rotation.set(rotX, rotY, 0);
-  scene.add(mesh);
-}
+const room = new THREE.Mesh(
+  new THREE.BoxGeometry(W, H, D),
+  [wallMat, wallMat, ceilMat, floorMat, wallMat, wallMat]
+);
+room.position.y = H / 2;   // floor at y=0, ceiling at y=H
+scene.add(room);
 
-// Floor / ceiling
-addPlane(W, D, roomMat.floor,   0, 0,  0,  -Math.PI / 2, 0);
-addPlane(W, D, roomMat.ceiling, 0, H,  0,   Math.PI / 2, 0);
-// North wall (z = -HD, faces south)
-addPlane(W, H, roomMat.walls,   0, H/2, -HD, 0, 0);
-// South wall (z = +HD, faces north)
-addPlane(W, H, roomMat.walls,   0, H/2,  HD, 0, Math.PI);
-// East wall  (x = +HW, faces west)
-addPlane(D, H, roomMat.walls,   HW, H/2, 0, 0, -Math.PI / 2);
-// West wall  (x = -HW, faces east)
-addPlane(D, H, roomMat.walls,  -HW, H/2, 0, 0,  Math.PI / 2);
+// Subtle floor grid for spatial reference
+const gridHelper = new THREE.GridHelper(Math.max(W, D), 20, 0x999988, 0xbbbb99);
+gridHelper.position.y = 0.001;
+scene.add(gridHelper);
 
 // ── Artwork planes ────────────────────────────────────────────────────────────
 const textureLoader = new THREE.TextureLoader();
@@ -128,10 +115,15 @@ placements.forEach(function (p) {
   mesh.position.copy(pos);
   mesh.quaternion.copy(wallQuaternion(p.wall));
 
-  // Load texture
+  // Load texture — resize plane to match image pixel aspect ratio (keeping height)
   if (art.img) {
     textureLoader.load(art.img, function (tex) {
       tex.colorSpace = THREE.SRGBColorSpace;
+      var imgAspect = tex.image.width / tex.image.height;
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.PlaneGeometry(ah * imgAspect, ah);
+      var frame = mesh.children[0];
+      if (frame) { frame.geometry.dispose(); frame.geometry = new THREE.EdgesGeometry(mesh.geometry); }
       mesh.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide });
     });
   }
@@ -166,11 +158,20 @@ controls.addEventListener('unlock', function () {
 
 // ── Movement ──────────────────────────────────────────────────────────────────
 const keys = {};
-document.addEventListener('keydown', function (e) { keys[e.code] = true; });
+document.addEventListener('keydown', function (e) {
+  keys[e.code] = true;
+  if (e.code === 'KeyR' && controls.isLocked) resetCamera();
+});
 document.addEventListener('keyup',   function (e) { keys[e.code] = false; });
 
-const SPEED = 60 * IN2M;   // 60 in/s walking speed
-const MARGIN = 0.3;         // metres from wall
+function resetCamera() {
+  camera.position.set(0, EYE_H, 0);
+  camera.quaternion.set(0, 0, 0, 1);  // identity — looking down -Z (north)
+}
+
+const SPEED      = 60 * IN2M;       // 60 in/s walking speed
+const TURN_SPEED = Math.PI * 0.2;   // ~36 °/s turn speed (Q / E keys)
+const MARGIN     = 0.3;             // metres from wall
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -216,6 +217,15 @@ function animate(now) {
     vel.normalize().multiplyScalar(SPEED * dt);
     controls.moveRight(vel.x);
     controls.moveForward(-vel.z);
+
+    // Q / E — rotate left / right around world Y
+    if (keys['KeyQ'] || keys['KeyE']) {
+      var turnDir = keys['KeyQ'] ? 1 : -1;
+      var turnQ = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 1, 0), turnDir * TURN_SPEED * dt
+      );
+      camera.quaternion.premultiply(turnQ);
+    }
 
     // Clamp to room bounds
     camera.position.x = clamp(camera.position.x, -HW + MARGIN, HW - MARGIN);
