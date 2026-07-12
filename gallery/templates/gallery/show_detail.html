@@ -69,6 +69,11 @@
   {% if can_manage_show %}
     <a class="card__link new-button" href="{% url 'gallery:event_new' %}?show={{ show.pk }}">New Event</a>
   {% endif %}
+  {% if has_placements or can_manage_show %}
+    <a class="card__link" href="{% url 'gallery:room_viewer' show.slug %}">View in 3D</a>
+  {% endif %}
+  {# Curatorial actions on their own line for admin / juror / curator #}
+  {% if can_view_reviews %}<div style="width:100%"></div>{% endif %}
   {% if show.submission_type == 'invited' and can_manage_show %}
     <a class="card__link" href="{% url 'gallery:invite_artists' show.slug %}">Invite Artists</a>
   {% endif %}
@@ -83,9 +88,6 @@
   {% endif %}
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
-  {% endif %}
-  {% if has_placements or can_manage_show %}
-    <a class="card__link" href="{% url 'gallery:room_viewer' show.slug %}">View in 3D</a>
   {% endif %}
   {% if can_show_print_controls %}
   <div style="width:100%"></div>
