@@ -321,7 +321,8 @@
       '<img src="' + (p.artwork.img || p.artwork.thumb) + '" alt="' + p.artwork.name + '">' +
       '<div class="placard-bar">' + p.artwork.name + '</div>' +
       '<div class="art-dims">' + fmtIn(p.artwork.w_in) + '×' + fmtIn(p.artwork.h_in) + '"</div>' +
-      '<div class="hang-info"></div>';
+      '<div class="hang-h"></div>' +
+      '<div class="hang-v"></div>';
 
     makeDraggableOnStage(div, p);
     div.addEventListener('click', function (e) {
@@ -396,24 +397,27 @@
     fitTextEl(div.querySelector('.art-dims'),    HANG_MAX_FONT);
   }
 
-  // Floor-to-bottom + center-to-nearest-edge, computed from the div's live
-  // pixel geometry so it stays correct mid-drag.  Meaningful for walls only.
+  // Distance from each artwork edge to the corresponding wall edge, computed
+  // from the div's live pixel geometry so it stays correct mid-drag.  Works on
+  // every surface (walls, floor, ceiling) since it's pure 2D stage geometry.
   function updateHangInfo(div) {
-    var hi = div.querySelector('.hang-info');
-    if (!hi) return;
-    if (currentWall === 'ceiling' || currentWall === 'floor') { hi.textContent = ''; return; }
+    var hh = div.querySelector('.hang-h');
+    var hv = div.querySelector('.hang-v');
+    if (!hh || !hv) return;
     var dims = wallDims(currentWall);
     var ww = dims[0], wh = dims[1];
     var left = parseFloat(div.style.left);
     var top  = parseFloat(div.style.top);
     var w    = parseFloat(div.style.width);
     var h    = parseFloat(div.style.height);
-    var floorToBottom = wh - (top + h) / baseScale;   // inches, floor = 0
-    var leftH  = left / baseScale - ww / 2;            // horiz of left edge from wall center
-    var rightH = (left + w) / baseScale - ww / 2;      // horiz of right edge
-    var nearest = Math.min(Math.abs(leftH), Math.abs(rightH));
-    hi.textContent = '↥' + round1(floorToBottom) + '"  ↔' + round1(nearest) + '"';
-    fitTextEl(hi, HANG_MAX_FONT);
+    var leftD   = left / baseScale;                  // left edge → left wall edge
+    var rightD  = ww - (left + w) / baseScale;       // right edge → right wall edge
+    var topD    = top / baseScale;                   // top edge → top wall edge
+    var bottomD = wh - (top + h) / baseScale;        // bottom edge → bottom wall edge
+    hh.textContent = '←' + fmtIn(leftD) + '"  →' + fmtIn(rightD) + '"';
+    hv.textContent = '↑' + fmtIn(topD) + '"  ↓' + fmtIn(bottomD) + '"';
+    fitTextEl(hh, HANG_MAX_FONT);
+    fitTextEl(hv, HANG_MAX_FONT);
   }
 
   // ── Drag placed artworks on stage ─────────────────────────────────────────
