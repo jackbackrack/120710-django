@@ -50,16 +50,49 @@ scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 // ── Room geometry ─────────────────────────────────────────────────────────────
 // Inside-out box: BackSide renders the inner faces visible from inside the room.
 // BoxGeometry face order: +X(E), -X(W), +Y(ceil), -Y(floor), +Z(S), -Z(N)
-const wallMat  = new THREE.MeshLambertMaterial({ color: 0xf0ece4, side: THREE.BackSide });
-const floorMat = new THREE.MeshLambertMaterial({ color: 0xb8a890, side: THREE.BackSide });
-const ceilMat  = new THREE.MeshLambertMaterial({ color: 0xfaf8f4, side: THREE.BackSide });
+const textureLoader = new THREE.TextureLoader();
 
+function makeSurfaceMat(color) {
+  return new THREE.MeshLambertMaterial({ color: color, side: THREE.BackSide });
+}
+
+const matE    = makeSurfaceMat(0xf0ece4);
+const matW    = makeSurfaceMat(0xf0ece4);
+const matCeil = makeSurfaceMat(0xfaf8f4);
+const matFloor= makeSurfaceMat(0xb8a890);
+const matS    = makeSurfaceMat(0xf0ece4);
+const matN    = makeSurfaceMat(0xf0ece4);
+
+// BoxGeometry face order: +X(E), -X(W), +Y(ceil), -Y(floor), +Z(S), -Z(N)
 const room = new THREE.Mesh(
   new THREE.BoxGeometry(W, H, D),
-  [wallMat, wallMat, ceilMat, floorMat, wallMat, wallMat]
+  [matE, matW, matCeil, matFloor, matS, matN]
 );
 room.position.y = H / 2;   // floor at y=0, ceiling at y=H
 scene.add(room);
+
+// Apply wall/floor/ceiling textures if configured
+(function () {
+  var surfaces = [
+    { url: cfg.wall_e_img,  mat: matE    },
+    { url: cfg.wall_w_img,  mat: matW    },
+    { url: cfg.ceiling_img, mat: matCeil },
+    { url: cfg.floor_img,   mat: matFloor},
+    { url: cfg.wall_s_img,  mat: matS    },
+    { url: cfg.wall_n_img,  mat: matN    },
+  ];
+  surfaces.forEach(function (s) {
+    if (!s.url) return;
+    textureLoader.load(s.url, function (tex) {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      s.mat.map = tex;
+      s.mat.color.set(0xffffff);
+      s.mat.needsUpdate = true;
+    });
+  });
+}());
 
 // Subtle floor grid for spatial reference
 const gridHelper = new THREE.GridHelper(Math.max(W, D), 20, 0x999988, 0xbbbb99);
@@ -67,7 +100,6 @@ gridHelper.position.y = 0.001;
 scene.add(gridHelper);
 
 // ── Artwork planes ────────────────────────────────────────────────────────────
-const textureLoader = new THREE.TextureLoader();
 const WALL_OFFSET = 0.005; // 5 mm gap from wall surface
 
 function wallNormal(wall) {

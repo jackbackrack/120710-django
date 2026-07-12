@@ -9,7 +9,8 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy
 
 from gallery.models import Site, Show, Artist, Artwork
-from gallery.forms import SiteForm
+from gallery.models.room import RoomConfig
+from gallery.forms import SiteForm, RoomConfigForm
 from gallery.permissions import is_staff_user
 
 
@@ -156,6 +157,31 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        site = self.object
+        room_config, _ = RoomConfig.objects.get_or_create(
+            site=site,
+            defaults={'width_in': 384, 'depth_in': 576, 'height_in': 120},
+        )
+        if self.request.method == 'POST':
+            context['room_form'] = RoomConfigForm(self.request.POST, instance=room_config)
+        else:
+            context['room_form'] = RoomConfigForm(instance=room_config)
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        site = self.object
+        room_config, _ = RoomConfig.objects.get_or_create(
+            site=site,
+            defaults={'width_in': 384, 'depth_in': 576, 'height_in': 120},
+        )
+        room_form = RoomConfigForm(self.request.POST, instance=room_config)
+        if room_form.is_valid():
+            room_form.save()
+        return response
 
     def test_func(self):
         return is_staff_user(self.request.user)

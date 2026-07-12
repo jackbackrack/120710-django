@@ -9,7 +9,10 @@
   {{ form|crispy }}
   <button type="button" class="btn btn-outline-secondary btn-sm" id="geocode-btn">Look up coordinates from address</button>
   <span id="geocode-status" class="ms-2 text-muted small"></span>
-  <br><br>
+  <hr>
+  <h5>Gallery Room Dimensions</h5>
+  {{ room_form|crispy }}
+  <br>
   <button class="btn btn-info ms-2" type="submit">Update</button>
   <a class="btn btn-secondary ms-2" href="{{ object.get_absolute_url }}">Cancel</a>
 </form>

@@ -87,6 +87,22 @@
   // ── Stage setup ───────────────────────────────────────────────────────────
   var PAD = 48;  // pixels of padding around wall in canvas
 
+  var WALL_IMG_MAP = {
+    'N': cfg.wall_n_img, 'E': cfg.wall_e_img,
+    'S': cfg.wall_s_img, 'W': cfg.wall_w_img,
+    'ceiling': cfg.ceiling_img, 'floor': cfg.floor_img,
+  };
+
+  function updateStageBackground() {
+    var url = WALL_IMG_MAP[currentWall];
+    if (url) {
+      stageEl.style.backgroundImage = 'url(' + url + ')';
+      stageEl.style.backgroundSize  = '100% 100%';
+    } else {
+      stageEl.style.backgroundImage = '';
+    }
+  }
+
   function initStage() {
     var dims = wallDims(currentWall);
     var wrapW = canvasWrap.clientWidth;
@@ -99,6 +115,7 @@
     stageLeft = (wrapW - stageW) / 2;
     stageTop  = (wrapH - stageH) / 2;
     zoom = 1; panX = 0; panY = 0;
+    updateStageBackground();
     applyTransform();
   }
 
@@ -473,6 +490,7 @@
       tabs.forEach(function (t) { t.classList.remove('active'); });
       tab.classList.add('active');
       currentWall = tab.dataset.wall;
+      updateStageBackground();
       renderWall();
     });
   });

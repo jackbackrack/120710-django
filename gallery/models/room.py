@@ -10,6 +10,13 @@ class RoomConfig(models.Model):
     depth_in  = models.FloatField(default=576.0)   # N–S (48 ft)
     height_in = models.FloatField(default=120.0)   # 10 ft
 
+    wall_n_image  = models.ImageField(upload_to='room_textures/', blank=True, null=True)
+    wall_e_image  = models.ImageField(upload_to='room_textures/', blank=True, null=True)
+    wall_s_image  = models.ImageField(upload_to='room_textures/', blank=True, null=True)
+    wall_w_image  = models.ImageField(upload_to='room_textures/', blank=True, null=True)
+    floor_image   = models.ImageField(upload_to='room_textures/', blank=True, null=True)
+    ceiling_image = models.ImageField(upload_to='room_textures/', blank=True, null=True)
+
     def __str__(self):
         return f'Room for {self.site}'
 

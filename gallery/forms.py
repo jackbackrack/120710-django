@@ -256,6 +256,31 @@ class ArtworkForm(UserAwareModelForm):
 
 
 
+class RoomConfigForm(forms.ModelForm):
+    class Meta:
+        from gallery.models.room import RoomConfig
+        model = RoomConfig
+        fields = ('width_in', 'depth_in', 'height_in',
+                  'wall_n_image', 'wall_e_image', 'wall_s_image', 'wall_w_image',
+                  'floor_image', 'ceiling_image')
+        labels = {
+            'width_in':      'Room width (in, E–W)',
+            'depth_in':      'Room depth (in, N–S)',
+            'height_in':     'Room height (in)',
+            'wall_n_image':  'North wall image',
+            'wall_e_image':  'East wall image',
+            'wall_s_image':  'South wall image',
+            'wall_w_image':  'West wall image',
+            'floor_image':   'Floor image',
+            'ceiling_image': 'Ceiling image',
+        }
+        widgets = {
+            'width_in':  forms.NumberInput(attrs={'step': '1'}),
+            'depth_in':  forms.NumberInput(attrs={'step': '1'}),
+            'height_in': forms.NumberInput(attrs={'step': '1'}),
+        }
+
+
 class SiteForm(UserAwareModelForm):
     class Meta:
         model = Site

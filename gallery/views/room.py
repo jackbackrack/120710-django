@@ -24,7 +24,19 @@ def _room_config(show):
 def _config_dict(config):
     if config is None:
         return _DEFAULT_CONFIG.copy()
-    return {'width_in': config.width_in, 'depth_in': config.depth_in, 'height_in': config.height_in}
+    def _url(field):
+        return field.url if field else None
+    return {
+        'width_in':    config.width_in,
+        'depth_in':    config.depth_in,
+        'height_in':   config.height_in,
+        'wall_n_img':  _url(config.wall_n_image),
+        'wall_e_img':  _url(config.wall_e_image),
+        'wall_s_img':  _url(config.wall_s_image),
+        'wall_w_img':  _url(config.wall_w_image),
+        'floor_img':   _url(config.floor_image),
+        'ceiling_img': _url(config.ceiling_image),
+    }
 
 
 def _artwork_json(artwork):
