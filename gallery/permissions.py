@@ -146,6 +146,12 @@ def visible_artwork_queryset(user):
     if is_curator_user(user):
         q = Q(shows__in=_curator_show_ids(user)) | Q(shows__in=_published_show_ids())
         q |= Q(created_by=user) | Q(artists__user=user)
+        # Curators (and any show they also jury) can view artworks submitted to
+        # their shows before those submissions are accepted into the show — so the
+        # review-slideshow "detail" link works during curation/review.
+        q |= Q(submissions__show__in=_curator_show_ids(user))
+        if is_juror_user(user):
+            q |= Q(submissions__show__in=_juror_show_ids(user))
         return q
     public = Q(shows__in=_published_show_ids())
     if user.is_authenticated:
