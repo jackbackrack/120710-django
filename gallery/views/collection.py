@@ -61,6 +61,10 @@ def artwork_add_to_collection(request, pk):
     artwork = get_object_or_404(
         Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct(), pk=pk
     )
+    # An artist can't collect their own work.
+    if artwork.artists.filter(user=request.user).exists():
+        messages.error(request, "You can't add your own artwork to your collection.")
+        return redirect(artwork.get_absolute_url())
     piece, created = CollectionPiece.objects.get_or_create(
         collector=request.user,
         artwork=artwork,

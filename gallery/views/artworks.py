@@ -83,13 +83,16 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
             artwork.collection_pieces.filter(collector=user).first()
             if user.is_authenticated else None
         )
-        context['can_confirm_piece'] = (
+        context['is_own_artwork'] = (
             user.is_authenticated
-            and (
-                Artist.objects.filter(user=user, artworks=artwork).exists()
-                or is_curator_user(user)
-            )
+            and Artist.objects.filter(user=user, artworks=artwork).exists()
         )
+        context['can_confirm_piece'] = (
+            context['is_own_artwork'] or (user.is_authenticated and is_curator_user(user))
+        )
+        # Staff/admins can remove any collection claim (e.g. an artist who
+        # mistakenly claimed their own work).
+        context['can_remove_any_piece'] = is_staff_user(user)
         return context
 
     def get_queryset(self):

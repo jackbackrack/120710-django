@@ -45,6 +45,12 @@
           <button name="action" value="decline" type="submit" class="btn btn-xs btn-link text-danger p-0">Decline</button>
         </form>
         {% endif %}
+        {% if can_remove_any_piece %}
+        <form method="post" action="{% url 'gallery:remove_collection_piece' piece.pk %}" style="display:inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-xs btn-link text-danger p-0 ms-1" onclick="return confirm('Remove this collection claim?')">Remove</button>
+        </form>
+        {% endif %}
         {% if not forloop.last %}, {% endif %}
       {% endfor %}
     </p>
@@ -67,7 +73,7 @@
         {% csrf_token %}
         <button type="submit" class="card__link" style="background:none;border:none;padding:0;cursor:pointer;color:#c0392b" onclick="return confirm('Remove this from your collection?')">Unclaim</button>
       </form>
-      {% else %}
+      {% elif not is_own_artwork %}
       <form method="post" action="{% url 'gallery:artwork_add_to_collection' artwork.pk %}" style="display:inline">
         {% csrf_token %}
         <button type="submit" class="card__link" style="background:none;border:none;padding:0;cursor:pointer" title="Claim ownership — for artworks you have purchased, received as a gift, or otherwise own">Claim</button>
