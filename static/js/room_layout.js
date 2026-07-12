@@ -766,6 +766,45 @@
   // ── Resize ────────────────────────────────────────────────────────────────
   window.addEventListener('resize', function () { renderWall(); });
 
+  // ── Sidebar resizer (wider = more thumbnail columns) ───────────────────────
+  (function () {
+    var sidebar = document.getElementById('sidebar');
+    var resizer = document.getElementById('sidebar-resizer');
+    var MIN = 120, MAX = 640, DEFAULT = 220;
+
+    var saved = parseFloat(localStorage.getItem('roomLayoutSidebarW'));
+    if (saved >= MIN && saved <= MAX) sidebar.style.width = saved + 'px';
+
+    var resizeRaf = 0, pendingW = 0;
+    function applyWidth() {
+      resizeRaf = 0;
+      sidebar.style.width = pendingW + 'px';
+    }
+    resizer.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      resizer.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+      function onMove(ev) {
+        var w = ev.clientX - sidebar.getBoundingClientRect().left;
+        pendingW = Math.max(MIN, Math.min(MAX, w));
+        if (!resizeRaf) resizeRaf = requestAnimationFrame(applyWidth);  // coalesce writes
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        resizer.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        localStorage.setItem('roomLayoutSidebarW', parseFloat(sidebar.style.width));
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    resizer.addEventListener('dblclick', function () {
+      sidebar.style.width = DEFAULT + 'px';
+      localStorage.setItem('roomLayoutSidebarW', DEFAULT);
+    });
+  }());
+
   // ── Init ─────────────────────────────────────────────────────────────────
   renderSidebar();
   renderWall();

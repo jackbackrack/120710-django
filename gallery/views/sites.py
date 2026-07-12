@@ -10,8 +10,48 @@ from django.urls import reverse_lazy
 
 from gallery.models import Site, Show, Artist, Artwork
 from gallery.models.room import RoomConfig
-from gallery.forms import SiteForm, RoomConfigForm
+from gallery.forms import SiteForm, RoomConfigForm, _make_obstacle_formset
 from gallery.permissions import is_staff_user
+
+ROOM_DEFAULTS = {'width_in': 384, 'depth_in': 576, 'height_in': 120}
+
+
+class RoomConfigMixin:
+    """Adds a RoomConfig form + WallObstacle inline formset to a Site create/update view."""
+
+    def _get_room_config(self, site):
+        room_config, _ = RoomConfig.objects.get_or_create(site=site, defaults=ROOM_DEFAULTS)
+        return room_config
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # self.object is None on create (site not yet saved); use an unsaved RoomConfig.
+        room_config = self._get_room_config(self.object) if self.object else RoomConfig(**ROOM_DEFAULTS)
+        ObstacleFormSet = _make_obstacle_formset()
+        if self.request.method == 'POST':
+            context.setdefault('room_form', RoomConfigForm(self.request.POST, self.request.FILES, instance=room_config))
+            context.setdefault('obstacle_formset', ObstacleFormSet(self.request.POST, instance=room_config))
+        else:
+            context.setdefault('room_form', RoomConfigForm(instance=room_config))
+            context.setdefault('obstacle_formset', ObstacleFormSet(instance=room_config))
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)   # saves the Site → self.object
+        room_config = self._get_room_config(self.object)
+        room_form = RoomConfigForm(self.request.POST, self.request.FILES, instance=room_config)
+        ObstacleFormSet = _make_obstacle_formset()
+        obstacle_formset = ObstacleFormSet(self.request.POST, instance=room_config)
+
+        if room_form.is_valid() and obstacle_formset.is_valid():
+            room_form.save()
+            obstacle_formset.save()
+            return response
+
+        # Re-render with errors (Site is already saved; that's acceptable here).
+        return self.render_to_response(self.get_context_data(
+            form=form, room_form=room_form, obstacle_formset=obstacle_formset,
+        ))
 
 
 @require_POST
@@ -134,7 +174,7 @@ class SiteArtworkListView(DetailView):
         return context
 
 
-class SiteCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+class SiteCreateView(LoginRequiredMixin, UserPassesTestMixin, RoomConfigMixin, CreateView):
     model = Site
     form_class = SiteForm
     template_name = 'gallery/site_new.html'
@@ -148,7 +188,7 @@ class SiteCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return is_staff_user(self.request.user)
 
 
-class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, RoomConfigMixin, UpdateView):
     model = Site
     form_class = SiteForm
     template_name = 'gallery/site_edit.html'
@@ -157,31 +197,6 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        site = self.object
-        room_config, _ = RoomConfig.objects.get_or_create(
-            site=site,
-            defaults={'width_in': 384, 'depth_in': 576, 'height_in': 120},
-        )
-        if self.request.method == 'POST':
-            context['room_form'] = RoomConfigForm(self.request.POST, instance=room_config)
-        else:
-            context['room_form'] = RoomConfigForm(instance=room_config)
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        site = self.object
-        room_config, _ = RoomConfig.objects.get_or_create(
-            site=site,
-            defaults={'width_in': 384, 'depth_in': 576, 'height_in': 120},
-        )
-        room_form = RoomConfigForm(self.request.POST, instance=room_config)
-        if room_form.is_valid():
-            room_form.save()
-        return response
 
     def test_func(self):
         return is_staff_user(self.request.user)

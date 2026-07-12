@@ -281,6 +281,53 @@ class RoomConfigForm(forms.ModelForm):
         }
 
 
+class WallObstacleForm(forms.ModelForm):
+    def has_changed(self):
+        # A brand-new row (no pk) with a blank label is treated as empty and
+        # skipped by the formset — so clicking "+ Add row" and not filling it in
+        # never produces validation errors.
+        if not self.instance.pk:
+            label = (self.data.get(self.add_prefix('label')) or '').strip()
+            if not label:
+                return False
+        return super().has_changed()
+
+    class Meta:
+        from gallery.models.room import WallObstacle
+        model = WallObstacle
+        fields = ('wall', 'label', 'x_in', 'y_in', 'z_in', 'w_in', 'h_in')
+        labels = {
+            'x_in': 'Horiz center (in)',
+            'y_in': 'Height center (in)',
+            'z_in': 'Depth center (in)',
+            'w_in': 'Width (in)',
+            'h_in': 'Height (in)',
+        }
+        help_texts = {
+            'x_in': 'For N/S walls only. Horizontal from room center (+ = east).',
+            'z_in': 'For E/W walls only. Along-wall from center (+ = south).',
+            'y_in': 'Center height above the floor.',
+        }
+        widgets = {
+            'wall':  forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'label': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Door'}),
+            'x_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '1'}),
+            'y_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '1'}),
+            'z_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '1'}),
+            'w_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '1'}),
+            'h_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '1'}),
+        }
+
+
+def _make_obstacle_formset(**kwargs):
+    from django.forms import inlineformset_factory
+    from gallery.models.room import RoomConfig, WallObstacle
+    return inlineformset_factory(
+        RoomConfig, WallObstacle, form=WallObstacleForm,
+        extra=kwargs.pop('extra', 2), can_delete=True,
+    )
+
+
 class SiteForm(UserAwareModelForm):
     class Meta:
         model = Site

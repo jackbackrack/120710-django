@@ -1,0 +1,75 @@
+{% load crispy_forms_tags %}
+{# Room dimensions + per-wall textures + obstacles. Requires room_form and obstacle_formset in context. #}
+<hr>
+<h4>Gallery Room</h4>
+<p class="text-muted small">Physical room dimensions, a texture image per wall, and any fixed obstacles
+   (doors, windows, columns) used as layout references.</p>
+
+<h5 class="mt-3">Dimensions &amp; wall textures</h5>
+{{ room_form|crispy }}
+
+<h5 class="mt-4">Obstacles</h5>
+<p class="text-muted small">
+  Immovable rectangles on a wall. Position by center: use <em>Horiz center</em> for North/South walls
+  and <em>Depth center</em> for East/West walls; <em>Height center</em> is measured from the floor.
+</p>
+
+{{ obstacle_formset.management_form }}
+{% if obstacle_formset.non_form_errors %}
+  <div class="alert alert-danger py-1 px-2 small">{{ obstacle_formset.non_form_errors }}</div>
+{% endif %}
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle" id="obstacle-table">
+    <thead>
+      <tr>
+        <th>Wall</th><th>Label</th>
+        <th>Horiz</th><th>Height</th><th>Depth</th>
+        <th>Width</th><th>Height</th><th>Delete</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for oform in obstacle_formset %}
+      <tr class="obstacle-row">
+        {{ oform.id }}
+        <td>{{ oform.wall }}{% if oform.wall.errors %}<div class="text-danger small">{{ oform.wall.errors }}</div>{% endif %}</td>
+        <td>{{ oform.label }}</td>
+        <td>{{ oform.x_in }}</td>
+        <td>{{ oform.y_in }}</td>
+        <td>{{ oform.z_in }}</td>
+        <td>{{ oform.w_in }}</td>
+        <td>{{ oform.h_in }}</td>
+        <td class="text-center">{{ oform.DELETE }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<button type="button" class="btn btn-outline-secondary btn-sm" id="add-obstacle">+ Add obstacle row</button>
+
+<script>
+// Clone the last (blank) obstacle row and bump the formset TOTAL_FORMS count.
+(function () {
+  var addBtn = document.getElementById('add-obstacle');
+  if (!addBtn) return;
+  addBtn.addEventListener('click', function () {
+    var tbody = document.querySelector('#obstacle-table tbody');
+    var totalInput = document.querySelector('input[name$="-TOTAL_FORMS"]');
+    if (!tbody || !totalInput) return;
+    var count = parseInt(totalInput.value, 10);
+    var rows = tbody.querySelectorAll('tr.obstacle-row');
+    var template = rows[rows.length - 1];
+    var clone = template.cloneNode(true);
+    // Renumber field name/id attributes from "-(count-1)-" to "-count-", clear values.
+    clone.querySelectorAll('input, select').forEach(function (el) {
+      if (el.name) el.name = el.name.replace(/-\d+-/, '-' + count + '-');
+      if (el.id)   el.id   = el.id.replace(/-\d+-/, '-' + count + '-');
+      if (el.type === 'checkbox') el.checked = false;
+      else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    });
+    tbody.appendChild(clone);
+    totalInput.value = count + 1;
+  });
+}());
+</script>

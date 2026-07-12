@@ -8,7 +8,8 @@
   {{ form|crispy }}
   <button type="button" class="btn btn-outline-secondary btn-sm" id="geocode-btn">Look up coordinates from address</button>
   <span id="geocode-status" class="ms-2 text-muted small"></span>
-  <br><br>
+  {% include 'gallery/_room_config_form.html' %}
+  <br>
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>
 </div>
