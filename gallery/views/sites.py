@@ -3,6 +3,7 @@ import urllib.parse
 import urllib.request
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import F
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -123,9 +124,11 @@ class SiteDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         site = self.object
-        shows = site.shows.filter(
-            status__in=Show.PUBLIC_STATUSES
-        ).order_by('-start')
+        shows = (
+            site.shows.filter(status__in=Show.PUBLIC_STATUSES)
+            .prefetch_related('curators', 'sites', 'events')
+            .order_by(F('start').desc(nulls_last=True), '-created_at')
+        )
         context['shows'] = shows
         context['can_manage_site'] = (
             self.request.user.is_authenticated and
@@ -150,7 +153,7 @@ class SiteArtistListView(DetailView):
         site = self.object
         context['artists'] = Artist.objects.filter(
             artworks__shows__sites=site
-        ).distinct().order_by('name')
+        ).distinct().order_by('-created_at')
         return context
 
 
@@ -168,9 +171,12 @@ class SiteArtworkListView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         site = self.object
-        context['artworks'] = Artwork.objects.filter(
-            shows__sites=site
-        ).distinct().order_by('name')
+        context['artworks'] = (
+            Artwork.objects.filter(shows__sites=site)
+            .prefetch_related('artists', 'shows')
+            .distinct()
+            .order_by('-created_at')
+        )
         return context
 
 
