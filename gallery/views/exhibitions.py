@@ -66,7 +66,10 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
         context['can_manage_show'] = can_manage_show(self.request.user, show)
         context['can_delete_show'] = can_delete_show(self.request.user, show)
-        context['has_placements'] = show.wall_placements.exists()
+        has_placements = show.wall_placements.exists()
+        context['has_placements'] = has_placements
+        published = show.status in (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED)
+        context['can_view_3d'] = has_placements and (published or can_manage_show(self.request.user, show))
 
         user = self.request.user
         context['can_submit'] = False

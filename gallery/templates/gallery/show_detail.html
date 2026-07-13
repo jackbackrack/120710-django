@@ -69,7 +69,7 @@
   {% if can_manage_show %}
     <a class="card__link new-button" href="{% url 'gallery:event_new' %}?show={{ show.pk }}">New Event</a>
   {% endif %}
-  {% if has_placements or can_manage_show %}
+  {% if can_view_3d %}
     <a class="card__link" href="{% url 'gallery:room_viewer' show.slug %}">View in 3D</a>
   {% endif %}
   {# Curatorial actions on their own line for admin / juror / curator #}

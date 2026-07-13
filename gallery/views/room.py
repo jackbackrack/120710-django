@@ -140,6 +140,9 @@ def room_layout_save(request, slug):
 
 def room_viewer(request, slug):
     show = get_object_or_404(Show, slug=slug)
+    published = show.status in (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED)
+    if not published and not can_manage_show(request.user, show):
+        raise Http404
     config, _site = _room_config(show)
     placed = (
         WallPlacement.objects
