@@ -66,6 +66,13 @@ body {
     background-color: #dddddd;
 }
 
+/* Grid card size slider: zoom scales the whole card (image, text, padding)
+   uniformly and reflows the grid, so the same text fits at any size.
+   Detail hero (#big_card/.big-card) is excluded. */
+.cards .card:not(#big_card):not(.big-card) {
+    zoom: var(--card-zoom, 1);
+}
+
 .image-card:focus,
 .image-card:focus-within {
     outline: none;
