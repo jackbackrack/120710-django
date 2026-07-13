@@ -429,6 +429,13 @@ def show_submissions(request, slug):
     for sub in submissions:
         sub.weighted_score = weighted_scores.get(sub.artwork_id)
 
+    # Order every group by weighted score (falling back to avg rating when there's
+    # no rubric), highest first; unscored pieces sort last.
+    def _score_key(sub):
+        s = sub.weighted_score if sub.weighted_score is not None else sub.avg_rating
+        return (0, sub.artwork.name) if s is None else (-s, sub.artwork.name)
+    submissions.sort(key=_score_key)
+
     # For invited shows, compute who has and hasn't submitted.
     invited_submitted = []
     invited_not_submitted = []
