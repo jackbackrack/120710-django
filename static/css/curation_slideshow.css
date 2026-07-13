@@ -91,6 +91,7 @@
   min-width: 0;
   overflow: hidden;
   background: #000;
+  touch-action: none; /* let JS own horizontal swipe on iOS */
 }
 #cs-img-a, #cs-img-b {
   position: absolute;
