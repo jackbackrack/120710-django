@@ -106,10 +106,10 @@
       if (!swipeDragging) return;
       var dx = e.touches[0].clientX - swipeStartX;
       var dy = Math.abs(e.touches[0].clientY - swipeStartY);
-      // Only track horizontal swipes; cancel vertical scrolling
       if (dy > Math.abs(dx) && Math.abs(dx) < 12) { swipeDragging = false; swipePanel.style.transform = ''; return; }
+      e.preventDefault();
       swipePanel.style.transform = 'translateX(' + dx + 'px)';
-    }, { passive: true });
+    }, { passive: false });
     overlay.addEventListener('touchend', function (e) {
       if (!swipeDragging) return;
       swipeDragging = false;

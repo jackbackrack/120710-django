@@ -124,9 +124,11 @@
     // Physics swipe — finger follows drag; commit slides off and in; cancel springs back
     var swipePanel = overlay.querySelector('#rs-left');
     var swipeStartX = 0, swipeStartTime = 0, swipeDragging = false;
+    var swipeStartY = 0;
     overlay.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) return;
       swipeStartX = e.touches[0].clientX;
+      swipeStartY = e.touches[0].clientY;
       swipeStartTime = Date.now();
       swipeDragging = true;
       swipePanel.style.transition = 'none';
@@ -134,8 +136,11 @@
     overlay.addEventListener('touchmove', function (e) {
       if (!swipeDragging) return;
       var dx = e.touches[0].clientX - swipeStartX;
+      var dy = Math.abs(e.touches[0].clientY - swipeStartY);
+      if (dy > Math.abs(dx) && Math.abs(dx) < 12) { swipeDragging = false; swipePanel.style.transform = ''; return; }
+      e.preventDefault();
       swipePanel.style.transform = 'translateX(' + dx + 'px)';
-    }, { passive: true });
+    }, { passive: false });
     overlay.addEventListener('touchend', function (e) {
       if (!swipeDragging) return;
       swipeDragging = false;
