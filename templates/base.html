@@ -149,7 +149,7 @@
   </nav>
   {% endwith %}
   <div id="status-bar">
-    <span>{% block block_title %}{% endblock %}</span>
+    <span id="page-title">{% block block_title %}{% endblock %}</span>
     {% if my_artist_name %}<span class="status-sep">|</span> {{ my_artist_name }}{% endif %}
   </div>
   </header>
@@ -226,17 +226,35 @@
     }());
   </script>
 
-  <!-- Consistent card-grid totals: any <div class="cards" data-grid-count="noun"> gets a count -->
+  <!-- Consistent card-grid totals: appends "(N)" to the grid's heading -->
   <script>
     (function () {
+      // Insert " (N)" right after the first non-empty text (the noun) in a heading,
+      // so buttons/links in the heading stay after it.
+      function appendCount(container, n) {
+        var suffix = ' (' + n + ')';
+        for (var i = 0; i < container.childNodes.length; i++) {
+          var node = container.childNodes[i];
+          if (node.nodeType === 3 && node.textContent.trim()) {
+            container.insertBefore(document.createTextNode(suffix), node.nextSibling);
+            return;
+          }
+        }
+        container.appendChild(document.createTextNode(suffix));
+      }
       document.querySelectorAll('.cards[data-grid-count]').forEach(function (grid) {
-        var noun = grid.getAttribute('data-grid-count') || 'items';
         var n = grid.querySelectorAll(':scope > .card').length;
-        if (n === 1 && noun.slice(-1) === 's') noun = noun.slice(0, -1);  // naive singular
-        var el = document.createElement('div');
-        el.style.cssText = 'text-align:center;color:#888;font-size:.85rem;margin-top:.4rem';
-        el.textContent = n + ' ' + noun;
-        grid.parentNode.insertBefore(el, grid);
+        // Nearest preceding .section-label heading (stop at another grid), else page title.
+        var target = null, el = grid.previousElementSibling;
+        while (el) {
+          if (el.classList && el.classList.contains('cards')) break;
+          if (el.classList && el.classList.contains('section-label')) { target = el; break; }
+          el = el.previousElementSibling;
+        }
+        var heading = target
+          ? (target.querySelector('h1,h2,h3,h4,h5,h6') || target)
+          : document.getElementById('page-title');
+        if (heading) appendCount(heading, n);
       });
     }());
   </script>
