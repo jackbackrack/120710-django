@@ -33,18 +33,6 @@
     </p>
   </div>
   <div class="card__info" style="flex-direction:column;align-items:stretch;gap:3px">
-    {% if can_manage %}
-    <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}">
-      {% csrf_token %}
-      <select name="decision" class="form-select form-select-sm" onchange="this.form.submit()" style="width:100%;font-size:0.75rem">
-        <option value="undecided" {% if sub.curator_decision == 'undecided' %}selected{% endif %}>Undecided</option>
-        <option value="selected" {% if sub.curator_decision == 'selected' %}selected{% endif %}>Selected</option>
-        <option value="rejected" {% if sub.curator_decision == 'rejected' %}selected{% endif %}>Rejected</option>
-      </select>
-    </form>
-    {% else %}
-    <span style="font-size:0.8em">{{ sub.get_status_display }}</span>
-    {% endif %}
     <a class="card__link" style="font-size:0.8em" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=sub.artwork.slug %}">Review</a>
   </div>
 </div>
