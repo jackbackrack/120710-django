@@ -11,7 +11,7 @@
 {% block content %}
 {% if current_shows %}
 <div class="text-center section-label"><h2>Current Shows</h2></div>
-<div class="cards">
+<div class="cards" data-grid-count="shows">
   {% for show in current_shows %}
     {% include 'gallery/_show_card.html' %}
   {% endfor %}
@@ -20,7 +20,7 @@
 
 {% if future_shows %}
 <div class="text-center section-label"><h2>Future Shows</h2></div>
-<div class="cards">
+<div class="cards" data-grid-count="shows">
   {% for show in future_shows %}
     {% include 'gallery/_show_card.html' %}
   {% endfor %}
@@ -29,7 +29,7 @@
 
 {% if past_shows %}
 <div class="text-center section-label"><h2>Past Shows</h2></div>
-<div class="cards">
+<div class="cards" data-grid-count="shows">
   {% for show in past_shows %}
     {% include 'gallery/_show_card.html' %}
   {% endfor %}

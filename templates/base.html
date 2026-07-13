@@ -226,6 +226,21 @@
     }());
   </script>
 
+  <!-- Consistent card-grid totals: any <div class="cards" data-grid-count="noun"> gets a count -->
+  <script>
+    (function () {
+      document.querySelectorAll('.cards[data-grid-count]').forEach(function (grid) {
+        var noun = grid.getAttribute('data-grid-count') || 'items';
+        var n = grid.querySelectorAll(':scope > .card').length;
+        if (n === 1 && noun.slice(-1) === 's') noun = noun.slice(0, -1);  // naive singular
+        var el = document.createElement('div');
+        el.style.cssText = 'text-align:center;color:#888;font-size:.85rem;margin-top:.4rem';
+        el.textContent = n + ' ' + noun;
+        grid.parentNode.insertBefore(el, grid);
+      });
+    }());
+  </script>
+
   {% block javascript %}
   <!-- Bootstrap JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

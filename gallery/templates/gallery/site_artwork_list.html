@@ -4,7 +4,7 @@
 {% block content %}
 <div class="text-center section-label"><h2>Artworks at {{ site.name }}</h2></div>
 {% if artworks %}
-<div class="cards">
+<div class="cards" data-grid-count="artworks">
   {% for artwork in artworks %}
     {% include 'gallery/_artwork_card.html' %}
   {% endfor %}

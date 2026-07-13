@@ -8,7 +8,7 @@
 {% endblock %}
   
 {% block content %}
-<div class="cards">
+<div class="cards" data-grid-count="events">
 {% for event in event_list %}
   <div class="card">
     {% if event.image %}

@@ -9,7 +9,7 @@
 {% endblock %}
   
 {% block content %}
-<div class="cards">
+<div class="cards" data-grid-count="artists">
 {% for artist in artist_list %}
   {% include 'gallery/_artist_card.html' %}
 {% endfor %}

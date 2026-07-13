@@ -8,7 +8,7 @@
 <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>
 {% endblock %}
 {% block content %}
-<div class="cards">
+<div class="cards" data-grid-count="artworks">
 {% for artwork in artwork_list %}
   {% include 'gallery/_artwork_card.html' %}
 {% endfor %}

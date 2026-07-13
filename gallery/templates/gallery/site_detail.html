@@ -30,7 +30,7 @@
 
 {% if shows %}
 <div class="text-center section-label"><h2>Shows</h2></div>
-<div class="cards">
+<div class="cards" data-grid-count="shows">
   {% for show in shows %}
     {% include 'gallery/_show_card.html' with hide_site=True %}
   {% endfor %}
