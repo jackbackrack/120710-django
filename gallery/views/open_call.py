@@ -450,10 +450,21 @@ def show_submissions(request, slug):
             else:
                 invited_not_submitted.append(inv)
 
+    # Total width of selected flat wall art (depth 0 or unset) — a rough gauge
+    # of how much linear wall space the selected pieces need.
+    selected_flat_width = sum(
+        float(s.artwork.width_inches)
+        for s in submissions
+        if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED
+        and s.artwork.width_inches is not None
+        and (s.artwork.depth_inches is None or s.artwork.depth_inches == 0)
+    )
+
     context = {
         'show': show,
         'criteria': criteria,
         'submissions': submissions,
+        'selected_flat_width': round(selected_flat_width, 1),
         'undecided_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED],
         'selected_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED],
         'rejected_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED],

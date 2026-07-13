@@ -53,7 +53,7 @@
 {% if submissions %}
 <div class="d-flex gap-4 mb-3 justify-content-center align-items-center">
   <span><strong>{{ n_undecided }}</strong> undecided</span>
-  <span class="text-success"><strong>{{ n_selected }}</strong> selected</span>
+  <span class="text-success"><strong>{{ n_selected }}</strong> selected{% if selected_flat_width %} · {{ selected_flat_width|floatformat:"-1" }}&Prime; flat wall art{% endif %}</span>
   <span class="text-danger"><strong>{{ n_rejected }}</strong> rejected</span>
   <span class="text-muted">{{ submissions|length }} total</span>
 </div>
