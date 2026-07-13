@@ -83,7 +83,7 @@
     // ── Photo-roll swipe: drag the real current image + neighbor ghosts ───────
     var swipePanel = overlay.querySelector('#cs-left');
     var swipeStartX = 0, swipeStartY = 0, swipeStartTime = 0, swipeDragging = false;
-    var swActive = false, swW = 0, ghostPrev = null, ghostNext = null;
+    var swActive = false, swW = 0, swFilmstrip = null;
 
     function swImg(i) {
       var a = artworks;
@@ -92,32 +92,32 @@
       return a[i] ? a[i].img : null;
     }
 
-    function swCurImg() { return activeSlot === 'a' ? imgA : imgB; }
-
-    function swMakeGhost(url, offset) {
-      var g = document.createElement('img');
-      g.className = 'cs-swipe-ghost';
-      if (url) g.src = url;
-      g.draggable = false;
-      g.style.transition = 'none';
-      g.style.transform = 'translateX(' + offset + 'px)';
-      swipePanel.appendChild(g);
-      return g;
-    }
-
     function swBegin() {
       swActive = true;
       swW = swipePanel.offsetWidth || window.innerWidth;
-      swCurImg().style.transition = 'none';
-      ghostPrev = swMakeGhost(swImg(current - 1), -swW);
-      ghostNext = swMakeGhost(swImg(current + 1), swW);
+      var strip = document.createElement('div');
+      strip.style.cssText = 'position:absolute;top:0;left:0;width:' + (3 * swW) + 'px;height:100%;display:flex;transition:none;will-change:transform;';
+      strip.style.transform = 'translateX(' + (-swW) + 'px)';
+      [swImg(current - 1), swImg(current), swImg(current + 1)].forEach(function (url) {
+        var cell = document.createElement('div');
+        cell.style.cssText = 'width:' + swW + 'px;height:100%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+        if (url) {
+          var img = document.createElement('img');
+          img.src = url;
+          img.draggable = false;
+          img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+          cell.appendChild(img);
+        }
+        strip.appendChild(cell);
+      });
+      swipePanel.appendChild(strip);
+      swFilmstrip = strip;
     }
 
     function swCleanup() {
-      if (ghostPrev) { ghostPrev.remove(); ghostPrev = null; }
-      if (ghostNext) { ghostNext.remove(); ghostNext = null; }
       imgA.style.transition = ''; imgA.style.transform = '';
       imgB.style.transition = ''; imgB.style.transform = '';
+      if (swFilmstrip) { swFilmstrip.remove(); swFilmstrip = null; }
       swActive = false;
     }
 
@@ -136,9 +136,7 @@
       if (!swActive && dy > Math.abs(dx) && Math.abs(dx) < 12) { swipeDragging = false; return; }
       e.preventDefault();
       if (!swActive) swBegin();
-      swCurImg().style.transform = 'translateX(' + dx + 'px)';
-      if (ghostPrev) ghostPrev.style.transform = 'translateX(' + (-swW + dx) + 'px)';
-      if (ghostNext) ghostNext.style.transform = 'translateX(' + (swW + dx) + 'px)';
+      swFilmstrip.style.transform = 'translateX(' + (-swW + dx) + 'px)';
     }, { passive: false });
 
     overlay.addEventListener('touchend', function (e) {
@@ -151,28 +149,15 @@
       var commit = Math.abs(dx) > swW * 0.25 || Math.abs(vel) > 0.4;
       var EASE = 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
       var SPRING = 'transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      var cur = swCurImg();
       if (commit) {
         var navDir = dx < 0 ? 1 : -1;
-        cur.style.transition = EASE;
-        if (ghostPrev) ghostPrev.style.transition = EASE;
-        if (ghostNext) ghostNext.style.transition = EASE;
-        if (navDir > 0) {
-          cur.style.transform = 'translateX(' + (-swW) + 'px)';
-          if (ghostNext) ghostNext.style.transform = 'translateX(0px)';
-        } else {
-          cur.style.transform = 'translateX(' + swW + 'px)';
-          if (ghostPrev) ghostPrev.style.transform = 'translateX(0px)';
-        }
+        swFilmstrip.style.transition = EASE;
+        swFilmstrip.style.transform = 'translateX(' + (navDir > 0 ? -2 * swW : 0) + 'px)';
         goTo(current + navDir);
         setTimeout(swCleanup, 320);
       } else {
-        cur.style.transition = SPRING;
-        if (ghostPrev) ghostPrev.style.transition = SPRING;
-        if (ghostNext) ghostNext.style.transition = SPRING;
-        cur.style.transform = 'translateX(0px)';
-        if (ghostPrev) ghostPrev.style.transform = 'translateX(' + (-swW) + 'px)';
-        if (ghostNext) ghostNext.style.transform = 'translateX(' + swW + 'px)';
+        swFilmstrip.style.transition = SPRING;
+        swFilmstrip.style.transform = 'translateX(' + (-swW) + 'px)';
         setTimeout(swCleanup, 340);
       }
     });

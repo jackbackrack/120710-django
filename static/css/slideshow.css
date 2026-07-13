@@ -175,13 +175,6 @@
   transition: opacity 0.35s ease;
   pointer-events: none;
 }
-.ss-swipe-ghost {
-  position: absolute;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  pointer-events: none;
-}
 
 #ss-stage img.ss-hidden-img {
   opacity: 0;
