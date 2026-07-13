@@ -90,27 +90,57 @@
       if (e.target === helpEl) hideHelp();
     });
 
-    // Touch swipe — horizontal drag navigates, tap toggles info
-    var touchStartX = 0, touchStartY = 0, didSwipe = false;
+    // Physics swipe — finger follows drag; commit slides off and in; cancel springs back
+    // Horizontal drag navigates; tap (barely moved) toggles info overlay.
+    var swipePanel = overlay.querySelector('#ss-stage');
+    var swipeStartX = 0, swipeStartY = 0, swipeStartTime = 0, swipeDragging = false;
     overlay.addEventListener('touchstart', function (e) {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      didSwipe = false;
+      if (e.touches.length !== 1) return;
+      swipeStartX = e.touches[0].clientX;
+      swipeStartY = e.touches[0].clientY;
+      swipeStartTime = Date.now();
+      swipeDragging = true;
+      swipePanel.style.transition = 'none';
     }, { passive: true });
     overlay.addEventListener('touchmove', function (e) {
-      var dx = Math.abs(e.touches[0].clientX - touchStartX);
-      var dy = Math.abs(e.touches[0].clientY - touchStartY);
-      if (dx > dy && dx > 12) didSwipe = true;
+      if (!swipeDragging) return;
+      var dx = e.touches[0].clientX - swipeStartX;
+      var dy = Math.abs(e.touches[0].clientY - swipeStartY);
+      // Only track horizontal swipes; cancel vertical scrolling
+      if (dy > Math.abs(dx) && Math.abs(dx) < 12) { swipeDragging = false; swipePanel.style.transform = ''; return; }
+      swipePanel.style.transform = 'translateX(' + dx + 'px)';
     }, { passive: true });
     overlay.addEventListener('touchend', function (e) {
-      var dx = e.changedTouches[0].clientX - touchStartX;
-      if (didSwipe && Math.abs(dx) > 50) {
-        if (dx < 0) next(); else prev();
-      } else if (!didSwipe) {
-        var isControl = e.target.closest(
-          '#ss-topbar, #ss-footer, #ss-prev, #ss-next, #ss-help'
-        );
-        if (!isControl) toggleInfo();
+      if (!swipeDragging) return;
+      swipeDragging = false;
+      var dx = e.changedTouches[0].clientX - swipeStartX;
+      var elapsed = Math.max(Date.now() - swipeStartTime, 1);
+      var vel = dx / elapsed;
+      var W = swipePanel.offsetWidth || window.innerWidth;
+      var commit = Math.abs(dx) > W * 0.25 || Math.abs(vel) > 0.4;
+      if (commit) {
+        var dir = dx < 0 ? -1 : 1;
+        swipePanel.style.transition = 'transform 0.2s ease-in';
+        swipePanel.style.transform = 'translateX(' + (dir * W * 1.05) + 'px)';
+        setTimeout(function () {
+          if (dir < 0) next(); else prev();
+          swipePanel.style.transition = 'none';
+          swipePanel.style.transform = 'translateX(' + (-dir * W * 1.05) + 'px)';
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              swipePanel.style.transition = 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+              swipePanel.style.transform = 'translateX(0)';
+            });
+          });
+        }, 185);
+      } else {
+        swipePanel.style.transition = 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        swipePanel.style.transform = 'translateX(0)';
+        // Tap (barely moved) toggles info
+        if (Math.abs(dx) < 8) {
+          var isControl = e.target.closest('#ss-topbar, #ss-footer, #ss-prev, #ss-next, #ss-help');
+          if (!isControl) toggleInfo();
+        }
       }
     });
 
