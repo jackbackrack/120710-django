@@ -66,3 +66,46 @@
 <p class="text-center">No submissions yet.</p>
 {% endif %}
 {% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // Before status form submits, remember the next card so we can scroll to it after reload.
+  document.addEventListener('change', function (e) {
+    if (e.target.name !== 'decision') return;
+    var card = e.target.closest('.card[data-sub-id]');
+    if (!card) return;
+    var next = card.nextElementSibling;
+    if (next && next.dataset.subId) {
+      sessionStorage.setItem('curation_scroll_sub', next.dataset.subId);
+    } else {
+      // Last card in section — scroll to the section heading instead.
+      var section = card.closest('.cards');
+      var heading = section && section.previousElementSibling;
+      sessionStorage.setItem('curation_scroll_section',
+        heading ? heading.textContent.trim().split('(')[0].trim() : '');
+      sessionStorage.removeItem('curation_scroll_sub');
+    }
+  });
+
+  // On load, restore scroll position.
+  var subId = sessionStorage.getItem('curation_scroll_sub');
+  var sectionName = sessionStorage.getItem('curation_scroll_section');
+  sessionStorage.removeItem('curation_scroll_sub');
+  sessionStorage.removeItem('curation_scroll_section');
+
+  if (subId) {
+    var card = document.querySelector('.card[data-sub-id="' + subId + '"]');
+    if (card) card.scrollIntoView({ block: 'center', behavior: 'instant' });
+  } else if (sectionName) {
+    var headings = document.querySelectorAll('.section-label h3');
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].textContent.trim().startsWith(sectionName)) {
+        headings[i].scrollIntoView({ block: 'start', behavior: 'instant' });
+        break;
+      }
+    }
+  }
+}());
+</script>
+{% endblock %}
