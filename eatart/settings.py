@@ -321,8 +321,10 @@ STORAGES = {
         **({"OPTIONS": {"location": "media/"}} if USE_S3_MEDIA else {}),
     },
     "staticfiles": {
+        # Manifest storage content-hashes filenames (e.g. slideshow.a1b2c3.js) so
+        # every change gets a new URL and browser/CDN caches bust automatically.
         "BACKEND": (
-            "storages.backends.s3boto3.S3StaticStorage"
+            "storages.backends.s3boto3.S3ManifestStaticStorage"
             if USE_S3_STATIC else
             "whitenoise.storage.CompressedManifestStaticFilesStorage"
         ),
