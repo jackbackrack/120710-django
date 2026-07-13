@@ -14,7 +14,7 @@
 <div class="card" data-sl-title="{{ sub.artwork.name }}" data-sl-sub="{% if not show.blind_review %}{% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}" data-sl-year="{{ sub.artwork.end_year|default:'' }}" data-sl-medium="{{ sub.artwork.medium|default:'' }}" data-sl-dims="{{ sub.artwork.placard_dimensions }}" data-sl-url="{{ sub.artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}" style="width:200px;max-width:200px;{% if row_class == 'table-success' %}border-color:#198754{% elif row_class == 'table-danger' %}border-color:#dc3545{% endif %}">
   {% if sub.artwork.image %}
   <a style="display:contents" href="{{ sub.artwork.get_absolute_url }}{% if show.blind_review %}?blind=1{% endif %}">
-    <img loading="lazy" src="{{ sub.artwork.card_sm.url }}" data-sl-img="{{ sub.artwork.slideshow.url }}" data-full-src="{{ sub.artwork.detail_lg.url }}" class="card__image zoomable">
+    <img loading="lazy" src="{{ sub.artwork.card_sm.url }}" data-sl-img="{{ sub.artwork.slideshow.url }}" class="card__image">
   </a>
   {% endif %}
   <div class="card__content">
