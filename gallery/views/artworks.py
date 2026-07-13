@@ -180,7 +180,7 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return response
 
     def test_func(self):
-        return is_artist_user(self.request.user)
+        return is_artist_user(self.request.user) or is_staff_user(self.request.user)
 
 
 def artwork_inquire(request, pk):
