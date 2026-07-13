@@ -80,52 +80,80 @@
       if (btn) handleDecision(btn.dataset.decision);
     });
 
-    // Physics swipe — finger follows drag; commit slides off and in; cancel springs back
+    // ── Photo-roll swipe: edge-to-edge filmstrip that follows the finger ──────
     var swipePanel = overlay.querySelector('#cs-left');
-    var swipeStartX = 0, swipeStartTime = 0, swipeDragging = false;
-    var swipeStartY = 0;
+    var swipeStartX = 0, swipeStartY = 0, swipeStartTime = 0, swipeDragging = false;
+    var swTrack = null, swW = 0;
+
+    function swImg(i) {
+      var a = artworks;
+      if (!a.length) return null;
+      i = ((i % a.length) + a.length) % a.length;
+      return a[i] ? a[i].img : null;
+    }
+
+    function swBuildTrack() {
+      if (swTrack) swTrack.remove();
+      swW = swipePanel.offsetWidth || window.innerWidth;
+      swTrack = document.createElement('div');
+      swTrack.style.cssText = 'position:absolute;top:0;left:0;height:100%;display:flex;will-change:transform;z-index:5;';
+      swTrack.style.width = (swW * 3) + 'px';
+      [current - 1, current, current + 1].forEach(function (idx) {
+        var cell = document.createElement('div');
+        cell.style.cssText = 'flex:0 0 ' + swW + 'px;height:100%;display:flex;align-items:center;justify-content:center;';
+        var url = swImg(idx);
+        if (url) {
+          var im = document.createElement('img');
+          im.src = url;
+          im.draggable = false;
+          im.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;pointer-events:none;user-select:none;';
+          cell.appendChild(im);
+        }
+        swTrack.appendChild(cell);
+      });
+      swTrack.style.transition = 'none';
+      swTrack.style.transform = 'translateX(' + (-swW) + 'px)';
+      swipePanel.appendChild(swTrack);
+    }
+
     overlay.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) return;
       swipeStartX = e.touches[0].clientX;
       swipeStartY = e.touches[0].clientY;
       swipeStartTime = Date.now();
       swipeDragging = true;
-      swipePanel.style.transition = 'none';
     }, { passive: true });
+
     overlay.addEventListener('touchmove', function (e) {
       if (!swipeDragging) return;
       var dx = e.touches[0].clientX - swipeStartX;
       var dy = Math.abs(e.touches[0].clientY - swipeStartY);
-      if (dy > Math.abs(dx) && Math.abs(dx) < 12) { swipeDragging = false; swipePanel.style.transform = ''; return; }
+      if (!swTrack && dy > Math.abs(dx) && Math.abs(dx) < 12) { swipeDragging = false; return; } // vertical → allow scroll
       e.preventDefault();
-      swipePanel.style.transform = 'translateX(' + dx + 'px)';
+      if (!swTrack) swBuildTrack();
+      swTrack.style.transform = 'translateX(' + (-swW + dx) + 'px)';
     }, { passive: false });
+
     overlay.addEventListener('touchend', function (e) {
       if (!swipeDragging) return;
       swipeDragging = false;
       var dx = e.changedTouches[0].clientX - swipeStartX;
+      if (!swTrack) return; // tap or vertical — nothing to settle
       var elapsed = Math.max(Date.now() - swipeStartTime, 1);
       var vel = dx / elapsed;
-      var W = swipePanel.offsetWidth || window.innerWidth;
-      var commit = Math.abs(dx) > W * 0.25 || Math.abs(vel) > 0.4;
+      var commit = Math.abs(dx) > swW * 0.25 || Math.abs(vel) > 0.4;
+      var el = swTrack;
       if (commit) {
-        var dir = dx < 0 ? -1 : 1;
-        swipePanel.style.transition = 'transform 0.2s ease-in';
-        swipePanel.style.transform = 'translateX(' + (dir * W * 1.05) + 'px)';
-        setTimeout(function () {
-          if (dir < 0) next(); else prev();
-          swipePanel.style.transition = 'none';
-          swipePanel.style.transform = 'translateX(' + (-dir * W * 1.05) + 'px)';
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              swipePanel.style.transition = 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-              swipePanel.style.transform = 'translateX(0)';
-            });
-          });
-        }, 185);
+        var navDir = dx < 0 ? 1 : -1;
+        var targetX = navDir > 0 ? -swW * 2 : 0;
+        el.style.transition = 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        el.style.transform = 'translateX(' + targetX + 'px)';
+        goTo(current + navDir);
+        setTimeout(function () { el.remove(); if (swTrack === el) swTrack = null; }, 320);
       } else {
-        swipePanel.style.transition = 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        swipePanel.style.transform = 'translateX(0)';
+        el.style.transition = 'transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        el.style.transform = 'translateX(' + (-swW) + 'px)';
+        setTimeout(function () { el.remove(); if (swTrack === el) swTrack = null; }, 340);
       }
     });
   }
