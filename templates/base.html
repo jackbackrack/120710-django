@@ -206,22 +206,34 @@
 
   <!-- Card-size slider (shown only on pages that have a card grid) -->
   <div id="card-size-control" style="display:none;position:fixed;right:12px;bottom:12px;z-index:1050;background:rgba(255,255,255,.95);border:1px solid #ccc;border-radius:20px;padding:5px 12px;box-shadow:0 2px 8px rgba(0,0,0,.18);align-items:center;gap:8px;font-size:.8rem">
-    <span title="Card size" style="font-size:1rem;line-height:1">▦</span>
-    <input type="range" id="card-size-slider" min="0.25" max="2" step="0.05" value="1" title="Adjust card size" style="width:120px">
+    <span title="Card size (double-click to reset)" id="card-size-icon" style="font-size:1rem;line-height:1;cursor:pointer">▦</span>
+    <input type="range" id="card-size-slider" min="0.25" max="2" step="0.05" value="1" title="Adjust card size" style="width:100px">
+    <span id="card-size-label" style="min-width:3em;text-align:right;font-variant-numeric:tabular-nums;color:#555"></span>
   </div>
   <script>
     (function () {
       var slider = document.getElementById('card-size-slider');
       var ctrl = document.getElementById('card-size-control');
+      var label = document.getElementById('card-size-label');
+      var icon  = document.getElementById('card-size-icon');
       if (!slider || !ctrl || !document.querySelector('.cards')) return;  // only where grids exist
       ctrl.style.display = 'flex';
       var saved = parseFloat(localStorage.getItem('cardZoom'));
       if (saved >= 0.25 && saved <= 2) slider.value = saved;
-      function apply() { document.documentElement.style.setProperty('--card-zoom', slider.value); }
+      function apply() {
+        var v = parseFloat(slider.value);
+        document.documentElement.style.setProperty('--card-zoom', v);
+        label.textContent = (v * 100).toFixed(0) + '%';
+      }
       apply();
       slider.addEventListener('input', function () {
         apply();
         localStorage.setItem('cardZoom', slider.value);
+      });
+      icon.addEventListener('dblclick', function () {
+        slider.value = 1;
+        apply();
+        localStorage.setItem('cardZoom', '1');
       });
     }());
   </script>
