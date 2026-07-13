@@ -1,5 +1,5 @@
 {% if group %}
-<div class="text-center section-label"><h3>{{ label }} ({{ group|length }})
+<div class="text-center section-label"><h3>{{ label }} ({{ group|length }}){% if extra_width %} · <span class="text-success" style="font-size:.7em">{{ extra_width|floatformat:"-1" }}&Prime; flat wall art</span>{% endif %}
   {% if can_manage %}
   <button class="ss-status-btn cs-launch-btn"
     data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}?decision={{ decision }}"
