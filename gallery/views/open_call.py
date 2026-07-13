@@ -305,6 +305,7 @@ def invite_artists(request, slug):
 def artwork_submit(request, slug):
     show = get_object_or_404(Show, slug=slug)
     if not show.is_accepting_submissions:
+        messages.error(request, 'This show is not currently accepting submissions.')
         return redirect(show)
 
     artist = request.user.artists.order_by('-created_at').first()
