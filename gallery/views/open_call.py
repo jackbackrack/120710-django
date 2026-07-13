@@ -601,6 +601,29 @@ def renumber_artworks(request, slug):
 
 
 @login_required
+def bulk_update_submission_status(request):
+    if request.method != 'POST':
+        from django.http import JsonResponse as _JR
+        return _JR({'ok': False}, status=405)
+    from django.http import JsonResponse as _JR
+    import json as _json
+    try:
+        data = _json.loads(request.body)
+    except Exception:
+        return _JR({'ok': False, 'error': 'bad json'}, status=400)
+    pks = data.get('pks', [])
+    decision = data.get('decision')
+    if decision not in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}:
+        return _JR({'ok': False, 'error': 'invalid decision'}, status=400)
+    subs = ArtworkSubmission.objects.filter(pk__in=pks).select_related('show')
+    for sub in subs:
+        if not can_manage_show(request.user, sub.show):
+            return _JR({'ok': False, 'error': 'permission denied'}, status=403)
+    updated = subs.update(curator_decision=decision)
+    return _JR({'ok': True, 'updated': updated})
+
+
+@login_required
 def retract_submission(request, pk):
     submission = get_object_or_404(ArtworkSubmission, pk=pk, submitted_by=request.user)
     if not submission.show.is_accepting_submissions:

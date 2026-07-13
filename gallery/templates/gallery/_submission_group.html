@@ -1,6 +1,7 @@
 {% if group %}
 <div class="text-center section-label"><h3>{{ label }} ({{ group|length }}){% if extra_width %} · <span class="text-success" style="font-size:.7em">{{ extra_width|floatformat:"-1" }}&Prime; flat wall art</span>{% endif %}
   {% if can_manage %}
+  <button class="bulk-select-all ss-status-btn" type="button" title="Select all in this section (Shift to add to selection)">☑ All</button>
   <button class="ss-status-btn cs-launch-btn"
     data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}?decision={{ decision }}"
     data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}"

@@ -1,10 +1,12 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Submissions — {{ show.name }}{% endblock %}
 {% block block_title %}Submissions — {{ show.name }}
 {% if can_manage %}<button class="ss-status-btn cs-launch-btn" data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}" data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}" type="button">Curation Slideshow</button>{% else %}<button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>{% endif %}
 {% endblock %}
 {% block search_action %}{% url 'gallery:show_submissions' show.slug %}{% endblock %}
+{% block extra_head %}{% if can_manage %}<link rel="stylesheet" href="{% static 'css/curation_select.css' %}">{% endif %}{% endblock %}
 
 {% block content %}
 
@@ -65,6 +67,7 @@
 {% else %}
 <p class="text-center">No submissions yet.</p>
 {% endif %}
+{% if can_manage %}<div id="curation-select-root" data-bulk-url="{% url 'gallery:bulk_submission_status' %}"></div>{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -108,4 +111,5 @@
   }
 }());
 </script>
+{% if can_manage %}<script src="{% static 'js/curation_select.js' %}"></script>{% endif %}
 {% endblock %}

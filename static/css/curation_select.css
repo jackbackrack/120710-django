@@ -1,0 +1,79 @@
+/* ── Bulk selection for the curation submissions grid ─────────────────────── */
+
+.card[data-sub-id] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.card.cs-bulk-selected {
+  outline: 3px solid #5b9bd5;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(91, 155, 213, 0.22);
+}
+
+/* Rubber-band selection rectangle */
+#rb-select {
+  position: fixed;
+  border: 1.5px solid #5b9bd5;
+  background: rgba(91, 155, 213, 0.12);
+  pointer-events: none;
+  z-index: 9000;
+}
+
+/* Floating action bar — slides up from bottom when cards are selected */
+#bulk-action-bar {
+  position: fixed;
+  bottom: -64px;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  background: #1e2a38;
+  color: #eee;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  box-shadow: 0 -2px 14px rgba(0, 0, 0, 0.45);
+  transition: bottom 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#bulk-action-bar.bulk-bar-visible {
+  bottom: 0;
+}
+
+#bulk-count {
+  font-weight: 700;
+  min-width: 5.5em;
+  color: #a8c7e8;
+}
+
+.bulk-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #3a4a5c;
+  color: #eee;
+  transition: background 0.12s;
+}
+.bulk-btn:hover:not(:disabled) { background: #4a5a6c; }
+.bulk-btn:disabled { opacity: 0.5; cursor: default; }
+
+.bulk-btn-sel { background: #1a6640; }
+.bulk-btn-sel:hover:not(:disabled) { background: #228050; }
+
+.bulk-btn-rej { background: #7a1a1a; }
+.bulk-btn-rej:hover:not(:disabled) { background: #942020; }
+
+.bulk-btn-clr { background: #444; margin-left: auto; }
+.bulk-btn-clr:hover:not(:disabled) { background: #555; }
+
+/* "☑ All" button in section headings */
+.bulk-select-all {
+  font-size: 0.72em;
+  vertical-align: middle;
+}
