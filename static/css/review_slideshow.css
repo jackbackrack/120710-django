@@ -36,7 +36,7 @@
   gap: 12px;
   flex-shrink: 0;
 }
-#rs-auto-label, #rs-skip-label {
+#rs-auto-label {
   font-size: 0.8em;
   color: #aaa;
   cursor: pointer;
@@ -220,7 +220,6 @@
 }
 .rs-thumb.rs-thumb-partial  { border-color: #d4a017; }
 .rs-thumb.rs-thumb-done     { border-color: #198754; }
-.rs-thumb.rs-thumb-weak     { border-color: #c0392b; }
 .rs-thumb.rs-thumb-current  { border-color: #64968c; outline: 2px solid #64968c; }
 
 /* ── Help panel ─────────────────────────────────────────────────────────── */
