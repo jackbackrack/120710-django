@@ -40,7 +40,7 @@
     {% if juror_progress %}
     <table class="table table-sm mx-auto" style="width:auto">
       <thead>
-        <tr><th>Juror</th><th>Progress</th><th>Assigned</th></tr>
+        <tr><th>Juror</th><th>Progress</th><th>Assigned</th><th></th></tr>
       </thead>
       <tbody>
         {% for p in juror_progress %}
@@ -51,6 +51,14 @@
             {% if p.finished %}<span class="badge bg-success ms-1">Done</span>{% endif %}
           </td>
           <td>{{ p.assignment.assigned_at|date:"N j, Y" }}</td>
+          <td>
+            {% if p.done %}
+            <button class="ss-status-btn cs-launch-btn"
+              data-curation-data-url="{% url 'reviews:curation_data' show_slug=show.slug %}?juror={{ p.assignment.user_id }}"
+              data-save-decision-url="{% url 'reviews:save_decision' show_slug=show.slug %}"
+              type="button" title="View {{ p.name }}'s ranking in slideshow form">Slideshow</button>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

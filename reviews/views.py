@@ -430,9 +430,21 @@ def curation_data(request, show_slug):
         subs_qs = subs_qs.filter(curator_decision=decision_filter)
     submissions = list(subs_qs)
 
+    # Optional ?juror=<user_id> restricts to one juror's scores, so the slideshow
+    # shows that juror's own ranking/order instead of the cross-juror average.
+    juror_user = None
+    juror_id = request.GET.get('juror')
+    if juror_id:
+        if not show.jurors.filter(user_id=juror_id).exists():
+            raise Http404
+        from django.contrib.auth import get_user_model
+        juror_user = get_user_model().objects.filter(pk=juror_id).first()
+
+    reviews_qs = ArtworkReview.objects.filter(show=show)
+    if juror_user is not None:
+        reviews_qs = reviews_qs.filter(juror=juror_user)
     all_reviews = list(
-        ArtworkReview.objects
-        .filter(show=show)
+        reviews_qs
         .select_related('juror')
         .prefetch_related('criterion_scores', 'juror__artists')
         .order_by('juror__last_name', 'juror__first_name')
@@ -510,6 +522,7 @@ def curation_data(request, show_slug):
     return JsonResponse({
         'show_slug': show.slug,
         'blind_review': show.blind_review,
+        'juror_name': juror_display(juror_user) if juror_user else None,
         'criteria': [{'id': c.pk, 'name': c.name, 'percentage': c.percentage} for c in criteria],
         'artworks': artwork_list,
     })
