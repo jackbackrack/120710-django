@@ -489,6 +489,7 @@
       startMx = e.clientX; startMy = e.clientY;
       startL  = parseFloat(div.style.left);
       startT  = parseFloat(div.style.top);
+      var preDragSnap = snapshotPlacements();
       var dragMx = e.clientX, dragMy = e.clientY, dragRaf = 0;
       function applyDrag() {
         dragRaf = 0;
@@ -505,6 +506,9 @@
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         if (dragRaf) { cancelAnimationFrame(dragRaf); applyDrag(); }
+        if (parseFloat(div.style.left) !== startL || parseFloat(div.style.top) !== startT) {
+          pushUndo(preDragSnap);   // only if the piece actually moved
+        }
         syncWorldFromDiv(div, p);
         if (popoverArtId === p.artwork.id) updatePopoverValues(p);
         scheduleSave();
@@ -539,6 +543,7 @@
     if (!id) return;
     var art = findArtwork(id);
     if (!art) return;
+    pushUndo();
     var wrapRect = canvasWrap.getBoundingClientRect();
     var sp = canvasToStage(e.clientX - wrapRect.left, e.clientY - wrapRect.top);
     var w  = stageToWorld(currentWall, sp.x, sp.y);
@@ -757,10 +762,48 @@
     }).filter(Boolean);
   }
 
+  // ── Undo ──────────────────────────────────────────────────────────────────
+  // Snapshot placement positions before each edit so a mistake (e.g. distribute
+  // in the wrong direction) can be reverted to the previous layout.
+  var undoStack = [];
+  var lastNudgeUndoT = 0;
+  var undoBtn = document.getElementById('btn-undo');
+  function snapshotPlacements() {
+    return placements.map(function (p) {
+      return { id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in };
+    });
+  }
+  function pushUndo(snap) {
+    undoStack.push(snap || snapshotPlacements());
+    if (undoStack.length > 50) undoStack.shift();
+    if (undoBtn) undoBtn.disabled = false;
+  }
+  function undo() {
+    if (!undoStack.length) return;
+    var snap = undoStack.pop();
+    var newPlacements = [], newMap = {};
+    snap.forEach(function (s) {
+      var art = findArtwork(s.id);
+      if (!art) return;
+      var p = { artwork: art, wall: s.wall, x_in: s.x_in, y_in: s.y_in, z_in: s.z_in };
+      newPlacements.push(p);
+      newMap[s.id] = p;
+    });
+    placements = newPlacements;
+    placementMap = newMap;
+    selectionOrder = [];
+    renderWall();
+    renderSidebar();
+    scheduleSave();
+    if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+  }
+  if (undoBtn) undoBtn.addEventListener('click', undo);
+
   // Center H: align all selected to first-selected's vertical centre
   document.getElementById('btn-align-h').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 2) return;
+    pushUndo();
     var ref_cy = parseFloat(sel[0].style.top) + parseFloat(sel[0].style.height) / 2;
     sel.forEach(function (div) {
       div.style.top = (ref_cy - parseFloat(div.style.height) / 2) + 'px';
@@ -774,6 +817,7 @@
   document.getElementById('btn-align-v').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 2) return;
+    pushUndo();
     var ref_cx = parseFloat(sel[0].style.left) + parseFloat(sel[0].style.width) / 2;
     sel.forEach(function (div) {
       div.style.left = (ref_cx - parseFloat(div.style.width) / 2) + 'px';
@@ -789,6 +833,7 @@
   document.getElementById('btn-dist-h').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 3) return;
+    pushUndo();
     var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.left) - parseFloat(b.style.left); });
     var first = sorted[0], last = sorted[sorted.length - 1];
     var E0 = parseFloat(first.style.left) + parseFloat(first.style.width);  // right edge of first anchor
@@ -812,6 +857,7 @@
   document.getElementById('btn-dist-v').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 3) return;
+    pushUndo();
     var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.top) - parseFloat(b.style.top); });
     var first = sorted[0], last = sorted[sorted.length - 1];
     var E0 = parseFloat(first.style.top) + parseFloat(first.style.height);  // bottom edge of first anchor
@@ -832,6 +878,7 @@
   });
 
   function removeSelected() {
+    var snap = snapshotPlacements();
     var removed = 0;
     getSelected().forEach(function (div) {
       if (div.classList.contains('obstacle') || div.classList.contains('corner')) return;
@@ -842,6 +889,7 @@
       removed++;
     });
     if (!removed) return;
+    pushUndo(snap);
     selectionOrder = [];
     closePopover();
     renderSidebar();
@@ -901,6 +949,7 @@
   document.addEventListener('keydown', function (e) {
     if (e.target.matches('input, textarea, select')) return;
 
+    if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ') { e.preventDefault(); undo(); return; }
     if (e.code === 'KeyM') { doMeasure(); return; }
     if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); removeSelected(); return; }
     var isPan   = (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD');
@@ -915,6 +964,10 @@
       return !d.classList.contains('obstacle') && !d.classList.contains('corner');
     });
     if (isArrow && artworkSelected.length > 0) {
+      // Coalesce a burst of nudges into a single undo step.
+      var nowT = performance.now();
+      if (nowT - lastNudgeUndoT > 600) pushUndo();
+      lastNudgeUndoT = nowT;
       var step = e.shiftKey ? 0.1 : 1.0;  // inches
       artworkSelected.forEach(function (div) {
         var id = parseInt(div.dataset.id, 10);
