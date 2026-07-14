@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags honeypot %}
 
 {% block title %}Inquire — {{ artwork.name }}{% endblock %}
 {% block block_title %}Inquire about {{ artwork.name }}{% endblock %}
@@ -26,6 +26,7 @@
   <p class="text-muted">Your message will be sent directly to the artist. Your email address will be included so they can reply to you.</p>
   <form method="post">
     {% csrf_token %}
+    {% render_honeypot_field %}
     {{ form|crispy }}
     <button class="btn btn-primary" type="submit">Send inquiry</button>
     <a class="btn btn-link" href="{{ artwork.get_absolute_url }}">Cancel</a>

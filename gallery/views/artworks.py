@@ -1,12 +1,17 @@
 from eatart.schemaorg.mappers import artwork_to_schema
 
+import logging
+import threading
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMultiAlternatives
-from django.http import JsonResponse
+from django.db import connection
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
@@ -15,10 +20,14 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from django.db.models import Max
 
+from honeypot.decorators import check_honeypot
+
 from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
 from gallery.models import Artwork, ArtworkImage, Tag
 from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_curator_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
+
+logger = logging.getLogger(__name__)
 
 
 def detail(request, pk):
@@ -183,7 +192,54 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return is_artist_user(self.request.user) or is_staff_user(self.request.user)
 
 
+def _client_ip(request):
+    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '') or 'unknown'
+
+
+def _rate_limited(key, limit, window):
+    """Best-effort fixed-window rate limit. NOTE: the default cache is
+    per-process (LocMemCache), so the effective ceiling scales with the number
+    of gunicorn workers; a shared cache (Redis) turns this into a hard limit."""
+    if cache.add(key, 1, window):
+        return False
+    try:
+        return cache.incr(key) > limit
+    except ValueError:
+        cache.set(key, 1, window)
+        return False
+
+
+def _send_inquiry_email_async(subject, body, html, recipient_emails, reply_to):
+    """Send the inquiry off the request thread so a POST never ties up a worker
+    on SMTP latency (which is what let a flood exhaust all workers)."""
+    def _run():
+        try:
+            msg = EmailMultiAlternatives(
+                subject=subject, body=body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=recipient_emails, reply_to=reply_to,
+            )
+            msg.attach_alternative(html, 'text/html')
+            msg.send()
+            logger.info('Sent artwork inquiry to %s', recipient_emails)
+        except Exception:
+            logger.exception('Failed to send artwork inquiry to %s', recipient_emails)
+        finally:
+            connection.close()
+    threading.Thread(target=_run, daemon=True).start()
+
+
+@check_honeypot
 def artwork_inquire(request, pk):
+    ip = _client_ip(request)
+    # Cheap throttle on every hit to this public endpoint (covers GET floods too).
+    if _rate_limited(f'inq-req:{ip}', 20, 60):
+        logger.warning('Throttled inquiry requests from %s', ip)
+        return HttpResponse('Too many requests — please try again in a minute.', status=429)
+
     artwork = get_object_or_404(
         Artwork.objects.filter(visible_artwork_queryset(request.user)).distinct(),
         pk=pk,
@@ -194,6 +250,10 @@ def artwork_inquire(request, pk):
         return redirect(artwork.get_absolute_url())
 
     if request.method == 'POST':
+        # Stricter cap on actual sends — nobody legitimately sends many a minute.
+        if _rate_limited(f'inq-send:{ip}', 5, 600):
+            logger.warning('Throttled inquiry sends from %s', ip)
+            return HttpResponse('Too many inquiries — please try again later.', status=429)
         form = ArtworkInquiryForm(request.POST)
         if form.is_valid():
             sender_name = form.cleaned_data['sender_name']
@@ -207,18 +267,14 @@ def artwork_inquire(request, pk):
                 'message': message_text,
                 'artwork_url': artwork_url,
             })
-            email = EmailMultiAlternatives(
-                subject=f'Inquiry about "{artwork.name}"',
-                body=(
-                    f'{sender_name} ({sender_email}) sent an inquiry about '
-                    f'"{artwork.name}":\n\n{message_text}\n\n{artwork_url}'
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=recipient_emails,
-                reply_to=[f'{sender_name} <{sender_email}>'],
+            body = (
+                f'{sender_name} ({sender_email}) sent an inquiry about '
+                f'"{artwork.name}":\n\n{message_text}\n\n{artwork_url}'
             )
-            email.attach_alternative(html, 'text/html')
-            email.send()
+            _send_inquiry_email_async(
+                f'Inquiry about "{artwork.name}"', body, html,
+                recipient_emails, [f'{sender_name} <{sender_email}>'],
+            )
             messages.success(request, 'Your inquiry has been sent to the artist.')
             return redirect(artwork.get_absolute_url())
     else:
