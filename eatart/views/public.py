@@ -60,7 +60,7 @@ def linktree(request):
     open_call_shows = list(
         Show.objects.filter(
             status=Show.STATUS_OPEN_CALL,
-            submission_type__in=(Show.SUBMISSION_OPEN, Show.SUBMISSION_INVITED),
+            submission_type=Show.SUBMISSION_OPEN,
         ).order_by('start')
     )
     custom_links = list(LinkTreeEntry.objects.filter(is_active=True))
