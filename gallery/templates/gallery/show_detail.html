@@ -88,6 +88,7 @@
   {% endif %}
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
+    <a class="card__link" href="{% url 'gallery:show_artist_emails' show.slug %}">Emails</a>
   {% endif %}
   {% if can_show_print_controls %}
   <div style="width:100%"></div>

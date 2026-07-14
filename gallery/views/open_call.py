@@ -632,3 +632,25 @@ def retract_submission(request, pk):
     if request.method == 'POST':
         submission.delete()
     return redirect(show)
+
+
+@login_required
+def show_artist_emails(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    artist_emails = set(
+        Artist.objects
+        .filter(artwork_submissions__show=show)
+        .exclude(email='')
+        .values_list('email', flat=True)
+        .distinct()
+    )
+    curator_emails = set(
+        show.curators.exclude(email='').values_list('email', flat=True)
+    )
+    emails = sorted(artist_emails | curator_emails)
+    return render(request, 'gallery/show_artist_emails.html', {
+        'show': show,
+        'emails': emails,
+    })
