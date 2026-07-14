@@ -30,6 +30,9 @@
 
 #canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #888; cursor: default; }
 
+/* Rubber-band multi-select rectangle */
+.marquee-box { position: absolute; border: 1px dashed #64968c; background: rgba(100,150,140,.15); pointer-events: none; z-index: 10; }
+
 /* The wall itself — sized to real aspect ratio, transformed for pan/zoom */
 #wall-stage {
   position: absolute;

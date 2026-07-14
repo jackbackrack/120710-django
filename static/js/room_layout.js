@@ -616,6 +616,69 @@
     if (e.code === 'Space') { spaceDown = false; if (!isPanning) canvasWrap.style.cursor = ''; }
   });
 
+  // ── Marquee (rubber-band) multi-select ────────────────────────────────────
+  // A plain left-drag over empty canvas draws a rectangle and selects every
+  // artwork it touches. (Panning uses space-drag / middle-mouse, so there's no
+  // conflict.)  Shift adds to the current selection instead of replacing it.
+  var marqueeEl = null, marqueeStartX = 0, marqueeStartY = 0, marqueeShift = false, marqueeActive = false;
+
+  function onMarqueeMove(e) {
+    if (!marqueeActive) return;
+    var dx = e.clientX - marqueeStartX, dy = e.clientY - marqueeStartY;
+    if (!marqueeEl) {
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;   // still a click, not a drag
+      marqueeEl = document.createElement('div');
+      marqueeEl.className = 'marquee-box';
+      canvasWrap.appendChild(marqueeEl);
+    }
+    var wrapRect = canvasWrap.getBoundingClientRect();
+    marqueeEl.style.left   = (Math.min(e.clientX, marqueeStartX) - wrapRect.left) + 'px';
+    marqueeEl.style.top    = (Math.min(e.clientY, marqueeStartY) - wrapRect.top)  + 'px';
+    marqueeEl.style.width  = Math.abs(dx) + 'px';
+    marqueeEl.style.height = Math.abs(dy) + 'px';
+  }
+
+  function onMarqueeUp() {
+    document.removeEventListener('mousemove', onMarqueeMove);
+    document.removeEventListener('mouseup', onMarqueeUp);
+    marqueeActive = false;
+    if (!marqueeEl) {                          // no drag → background click deselects
+      if (!marqueeShift) clearSelection();
+      return;
+    }
+    var box = marqueeEl.getBoundingClientRect();
+    marqueeEl.remove();
+    marqueeEl = null;
+    if (!marqueeShift) clearSelection();
+    stageEl.querySelectorAll('.placed-art:not(.obstacle):not(.corner)').forEach(function (div) {
+      var r = div.getBoundingClientRect();
+      var hit = !(r.right < box.left || r.left > box.right || r.bottom < box.top || r.top > box.bottom);
+      if (!hit || div.classList.contains('selected')) return;
+      div.classList.add('selected');
+      var id = div.dataset.id;
+      if (selectionOrder.indexOf(id) === -1) selectionOrder.push(id);
+    });
+    // One artwork → show its position bar; several/none → keep it hidden.
+    if (selectionOrder.length === 1 && placementMap[selectionOrder[0]]) {
+      openPopover(placementMap[selectionOrder[0]]);
+    } else {
+      closePopover();
+    }
+    if (measureDisplay) measureDisplay.textContent = '';
+  }
+
+  canvasWrap.addEventListener('mousedown', function (e) {
+    if (e.button !== 0 || spaceDown) return;         // left button only; space = pan
+    if (e.target.closest('.placed-art')) return;     // artwork/obstacle handles its own click
+    marqueeActive = true;
+    marqueeShift  = e.shiftKey;
+    marqueeStartX = e.clientX;
+    marqueeStartY = e.clientY;
+    marqueeEl     = null;                             // created lazily once the pointer moves
+    document.addEventListener('mousemove', onMarqueeMove);
+    document.addEventListener('mouseup', onMarqueeUp);
+  });
+
   // Double-click to reset view (refit to wall + recenter)
   canvasWrap.addEventListener('dblclick', function (e) {
     if (e.target === canvasWrap || e.target === stageEl) {
