@@ -558,6 +558,14 @@
     placements.push(p);
     addPlacedDiv(p);
     renderSidebar();
+    // Select just the freshly-placed piece so it can be adjusted right away.
+    clearSelection();
+    var newDiv = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+    if (newDiv) {
+      newDiv.classList.add('selected');
+      selectionOrder = [String(id)];
+      openPopover(p);
+    }
     scheduleSave();
   });
 
