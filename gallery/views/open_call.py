@@ -499,6 +499,17 @@ def show_submissions(request, slug):
     return render(request, 'gallery/show_submissions.html', context)
 
 
+def _sync_show_artworks(show, artwork, decision):
+    """Keep show.artworks in sync with curator decisions for draft/published shows."""
+    active = {Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED}
+    if show.status not in active:
+        return
+    if decision == ArtworkSubmission.CURATOR_SELECTED:
+        show.artworks.add(artwork)
+    else:
+        show.artworks.remove(artwork)
+
+
 @login_required
 def update_submission_status(request, pk):
     submission = get_object_or_404(ArtworkSubmission, pk=pk)
@@ -509,6 +520,7 @@ def update_submission_status(request, pk):
         if new_decision in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}:
             submission.curator_decision = new_decision
             submission.save(update_fields=['curator_decision'])
+            _sync_show_artworks(submission.show, submission.artwork, new_decision)
     return redirect('gallery:show_submissions', slug=submission.show.slug)
 
 
@@ -627,12 +639,14 @@ def bulk_update_submission_status(request):
     decision = data.get('decision')
     if decision not in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}:
         return _JR({'ok': False, 'error': 'invalid decision'}, status=400)
-    subs = ArtworkSubmission.objects.filter(pk__in=pks).select_related('show')
+    subs = list(ArtworkSubmission.objects.filter(pk__in=pks).select_related('show', 'artwork'))
     for sub in subs:
         if not can_manage_show(request.user, sub.show):
             return _JR({'ok': False, 'error': 'permission denied'}, status=403)
-    updated = subs.update(curator_decision=decision)
-    return _JR({'ok': True, 'updated': updated})
+    ArtworkSubmission.objects.filter(pk__in=pks).update(curator_decision=decision)
+    for sub in subs:
+        _sync_show_artworks(sub.show, sub.artwork, decision)
+    return _JR({'ok': True, 'updated': len(subs)})
 
 
 @login_required
