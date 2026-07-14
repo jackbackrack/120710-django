@@ -52,6 +52,9 @@ def _send_selection_email(submission, accepted):
     msg.attach_alternative(html, 'text/html')
     try:
         msg.send()
+        from django.utils import timezone
+        submission.email_sent_at = timezone.now()
+        submission.save(update_fields=['email_sent_at'])
     except Exception:
         logger.exception(
             'Failed to send selection email to %s for submission %s', email, submission.pk
@@ -111,10 +114,12 @@ def send_juror_review_notifications(show, request):
 
 
 def send_submission_emails(show):
-    """Send acceptance/rejection emails to all submitters. Called when a show is published."""
+    """Send acceptance/rejection emails to unsent submissions. Safe to call multiple times."""
     subs = (
         ArtworkSubmission.objects.filter(
-            show=show, status__in=[ArtworkSubmission.ACCEPTED, ArtworkSubmission.REJECTED]
+            show=show,
+            status__in=[ArtworkSubmission.ACCEPTED, ArtworkSubmission.REJECTED],
+            email_sent_at__isnull=True,
         ).select_related('artwork', 'submitted_by')
     )
     for sub in subs:
@@ -559,11 +564,11 @@ def promote_artworks(request, slug):
             sub.status = ArtworkSubmission.REJECTED
             sub.save(update_fields=['status'])
 
-        # Publish from Draft: transition to Published and send acceptance/rejection emails
+        # Publish from Draft: transition to Published (emails sent separately)
         if show.status == Show.STATUS_DRAFT:
             show.status = Show.STATUS_PUBLISHED
             show.save(update_fields=['status'])
-            send_submission_emails(show)
+            messages.info(request, 'Show published. Use the "Send Emails" button to notify artists.')
 
         return redirect(show)
 
@@ -631,6 +636,38 @@ def retract_submission(request, pk):
     show = submission.show
     if request.method == 'POST':
         submission.delete()
+    return redirect(show)
+
+
+@login_required
+def send_selection_emails(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    if request.method == 'POST':
+        pending_count = ArtworkSubmission.objects.filter(
+            show=show,
+            status__in=[ArtworkSubmission.ACCEPTED, ArtworkSubmission.REJECTED],
+            email_sent_at__isnull=True,
+        ).count()
+        if pending_count == 0:
+            messages.info(request, 'No unsent emails — all artists have already been notified.')
+        else:
+            import threading
+            from django.db import connection
+
+            def _send(show_id):
+                try:
+                    from gallery.models import Show as S
+                    s = S.objects.get(pk=show_id)
+                    send_submission_emails(s)
+                except Exception:
+                    logger.exception('Background email send failed for show %s', show_id)
+                finally:
+                    connection.close()
+
+            threading.Thread(target=_send, args=(show.pk,), daemon=True).start()
+            messages.success(request, f'Sending {pending_count} email(s) in the background.')
     return redirect(show)
 
 

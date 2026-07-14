@@ -90,6 +90,16 @@
     <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
     <a class="card__link" href="{% url 'gallery:show_artist_emails' show.slug %}">Emails</a>
   {% endif %}
+  {% if emails_pending or emails_sent %}
+  <div style="width:100%"></div>
+  <form method="post" action="{% url 'gallery:send_selection_emails' show.slug %}">
+    {% csrf_token %}
+    <button type="submit" class="card__link"
+      onclick="return confirm('Send acceptance/rejection emails to {{ emails_pending }} artist(s)?')">
+      Send Emails ({{ emails_pending }} pending{% if emails_sent %}, {{ emails_sent }} sent{% endif %})
+    </button>
+  </form>
+  {% endif %}
   {% if can_show_print_controls %}
   <div style="width:100%"></div>
     <form method="post" action="{% url 'gallery:renumber_artworks' show.slug %}" style="display:inline">

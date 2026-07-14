@@ -70,6 +70,19 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['has_placements'] = has_placements
         published = show.status in (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED)
         context['can_view_3d'] = has_placements and (published or can_manage_show(self.request.user, show))
+        if can_manage_show(self.request.user, show) and published:
+            context['emails_pending'] = ArtworkSubmission.objects.filter(
+                show=show,
+                status__in=[ArtworkSubmission.ACCEPTED, ArtworkSubmission.REJECTED],
+                email_sent_at__isnull=True,
+            ).count()
+            context['emails_sent'] = ArtworkSubmission.objects.filter(
+                show=show,
+                email_sent_at__isnull=False,
+            ).count()
+        else:
+            context['emails_pending'] = 0
+            context['emails_sent'] = 0
 
         user = self.request.user
         context['can_submit'] = False

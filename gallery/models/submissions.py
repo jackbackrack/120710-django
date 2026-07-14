@@ -37,6 +37,7 @@ class ArtworkSubmission(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=SUBMITTED)
     curator_decision = models.CharField(max_length=20, choices=DECISION_CHOICES, default=UNDECIDED)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('show', 'artwork')
