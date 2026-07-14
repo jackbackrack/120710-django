@@ -228,8 +228,9 @@ function applyLook() {
   camera.quaternion.setFromEuler(_lookEuler);
 }
 
-// Movement flags driven by the on-screen buttons.
-const touchMove = { fwd: false, back: false, turnL: false, turnR: false };
+// Movement flags driven by the on-screen buttons. (Looking around is done by
+// dragging on the view, so there are no turn buttons.)
+const touchMove = { fwd: false, back: false };
 
 if (TOUCH) {
   setupTouchControls();
@@ -290,8 +291,6 @@ function setupTouchControls() {
   }
   hold('tc-fwd',   function (v) { touchMove.fwd = v; });
   hold('tc-back',  function (v) { touchMove.back = v; });
-  hold('tc-turnL', function (v) { touchMove.turnL = v; });
-  hold('tc-turnR', function (v) { touchMove.turnR = v; });
 
   document.getElementById('tc-reset').addEventListener('click', function (e) {
     e.preventDefault();
@@ -365,12 +364,8 @@ function animate(now) {
   lastTime = now;
 
   if (controls.isLocked || TOUCH) {
-    // Touch: apply drag / turn-button look before moving so we walk where we face.
-    if (TOUCH) {
-      if (touchMove.turnL) yaw += TURN_SPEED * dt;
-      if (touchMove.turnR) yaw -= TURN_SPEED * dt;
-      applyLook();
-    }
+    // Touch: apply the drag-look orientation before moving so we walk where we face.
+    if (TOUCH) applyLook();
 
     _vel.set(0, 0, 0);
     if (keys['KeyW'] || keys['ArrowUp']    || touchMove.fwd)  _vel.z -= 1;
