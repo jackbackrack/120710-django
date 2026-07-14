@@ -29,6 +29,7 @@
       {% endwith %}
     </h4>
   </div>
+  {% if show.id in can_manage_show or show.id in can_delete_show or show.id in submittable_show_ids %}
   <div class="card__info">
     {% if show.id in can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
@@ -40,4 +41,5 @@
     <a class="card__link" href="{% url 'gallery:artwork_submit' show.slug %}">Submit</a>
     {% endif %}
   </div>
+  {% endif %}
 </div>

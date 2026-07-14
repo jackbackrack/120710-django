@@ -6,6 +6,7 @@
   <div class="card__content">
     <a class="card__link" href="{{ artist_url }}">{{ artist.full_name }}</a>
   </div>
+  {% if artist.id in can_manage_artist or artist.id in can_delete_artist %}
   <div class="card__info">
   {% if artist.id in can_manage_artist %}
     <a class="card__link" href="{% url 'gallery:artist_edit' artist.pk %}">Edit</a>
@@ -14,4 +15,5 @@
     <a class="card__link" href="{% url 'gallery:artist_delete' artist.pk %}">Delete</a>
   {% endif %}
   </div>
+  {% endif %}
 </div>

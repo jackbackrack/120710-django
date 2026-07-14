@@ -10,6 +10,7 @@
       {% for artist in artwork.artists.all %}{% surl artist as artist_url %}<a class="card__link" href="{{ artist_url }}">{{ artist }}</a>{% if not forloop.last %}{% if forloop.revcounter > 2 %}, {% else %} and {% endif %}{% endif %}{% endfor %}{% if not artwork.shows.all %}
       <br>Private{% endif %}</h3>
   </div>
+  {% if user.is_authenticated or artwork.id in can_manage_artwork or artwork.id in can_delete_artwork %}
   <div class="card__info">
   {% if user.is_authenticated %}
   <button class="save-artwork-btn{% if artwork.id in saved_artwork_ids %} saved{% endif %}"
@@ -25,4 +26,5 @@
     <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
   {% endif %}
   </div>
+  {% endif %}
 </div>
