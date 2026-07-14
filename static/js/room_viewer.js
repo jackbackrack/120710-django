@@ -250,19 +250,24 @@ if (TOUCH) {
 
 function setupTouchControls() {
   crosshair.style.display = 'block';
-  hud.textContent = 'Drag to look · buttons to move';
+  hud.textContent = 'Drag to look · buttons to walk · double-tap to reset';
   document.getElementById('touch-controls').style.display = 'flex';
   applyLook();
 
-  // One-finger drag on the canvas rotates the view.
+  // One-finger drag rotates the view; a double-tap (quick, stationary) resets it.
   const el = renderer.domElement;
   const LOOK_SENS = 0.005;
+  const TAP_MOVE_TOL = 12, TAP_MAX_MS = 300, DOUBLE_TAP_MS = 320;
   let dragging = false, lastX = 0, lastY = 0;
+  let tapStartX = 0, tapStartY = 0, tapStartT = 0, moved = false, lastTapT = 0;
+
   el.addEventListener('touchstart', function (e) {
     if (e.touches.length !== 1) return;
     dragging = true;
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
+    moved = false;
+    lastX = tapStartX = e.touches[0].clientX;
+    lastY = tapStartY = e.touches[0].clientY;
+    tapStartT = performance.now();
   }, { passive: true });
   el.addEventListener('touchmove', function (e) {
     if (!dragging || e.touches.length !== 1) return;
@@ -273,11 +278,20 @@ function setupTouchControls() {
     pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitch));
     lastX = t.clientX;
     lastY = t.clientY;
+    if (Math.hypot(t.clientX - tapStartX, t.clientY - tapStartY) > TAP_MOVE_TOL) moved = true;
   }, { passive: false });
-  el.addEventListener('touchend',    function () { dragging = false; });
+  el.addEventListener('touchend', function () {
+    dragging = false;
+    const now = performance.now();
+    if (!moved && now - tapStartT < TAP_MAX_MS) {
+      // Quick stationary tap — a second one right after resets the view.
+      if (now - lastTapT < DOUBLE_TAP_MS) { resetCamera(); lastTapT = 0; }
+      else lastTapT = now;
+    }
+  });
   el.addEventListener('touchcancel', function () { dragging = false; });
 
-  // Press-and-hold movement / turn buttons.
+  // Press-and-hold walk buttons.
   function hold(id, set) {
     const b = document.getElementById(id);
     const down = function (e) { e.preventDefault(); set(true); };
@@ -291,11 +305,6 @@ function setupTouchControls() {
   }
   hold('tc-fwd',   function (v) { touchMove.fwd = v; });
   hold('tc-back',  function (v) { touchMove.back = v; });
-
-  document.getElementById('tc-reset').addEventListener('click', function (e) {
-    e.preventDefault();
-    resetCamera();
-  });
 }
 
 // ── Movement ──────────────────────────────────────────────────────────────────

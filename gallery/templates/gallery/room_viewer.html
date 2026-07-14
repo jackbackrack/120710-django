@@ -24,7 +24,6 @@
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
   touch-action: none; transition: transform .07s ease, background .12s ease; }
 #touch-controls .tc-btn:active { background: rgba(100,150,140,.92); transform: scale(.86); }
-#touch-controls .tc-reset { width: auto; height: 44px; padding: 0 22px; border-radius: 22px; font-size: 16px; font-weight: 600; }
 
 /* On touch, lift the hint above the button row so they don't overlap. */
 @media (hover: none) and (pointer: coarse) {
@@ -42,7 +41,6 @@
   <div id="touch-controls">
     <button id="tc-fwd" class="tc-btn" aria-label="Walk forward">▲</button>
     <button id="tc-back" class="tc-btn" aria-label="Walk back">▼</button>
-    <button id="tc-reset" class="tc-btn tc-reset" aria-label="Reset view">Reset</button>
   </div>
 </div>
 {% endblock %}
