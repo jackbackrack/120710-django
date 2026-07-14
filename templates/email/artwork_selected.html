@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html>
 <body>
-<p>Congratulations!</p>
-<p>Your artwork <strong>{{ artwork.name }}</strong> has been selected for <strong>{{ show.name }}</strong>.</p>
+<p>Congratulations! Your artwork <strong>{{ artwork.name }}</strong> has been selected for <strong>{{ show.name }}</strong>.</p>
+<p>Thank you for participating in our open call — we are so glad you shared your work with us.</p>
 {% if show.start %}
-<p>The show runs {{ show.date_range }}.</p>
+<p>The show runs {{ show.date_range }}. Art drop-offs will begin the weekend before the show opens, and we will be in touch shortly with more details.</p>
+{% else %}
+<p>Art drop-offs will begin the weekend before the show opens, and we will be in touch shortly with more details.</p>
 {% endif %}
-<p>We will be in touch with next steps.</p>
 <p>— The 120710 Team</p>
 </body>
 </html>
