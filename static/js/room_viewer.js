@@ -54,7 +54,7 @@ scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 const textureLoader = new THREE.TextureLoader();
 
 function makeSurfaceMat(color) {
-  return new THREE.MeshLambertMaterial({ color: color, side: THREE.BackSide });
+  return new THREE.MeshBasicMaterial({ color: color, side: THREE.BackSide });
 }
 
 const matE    = makeSurfaceMat(0xf0ece4);
@@ -91,6 +91,8 @@ scene.add(room);
       s.mat.map = tex;
       s.mat.color.set(0xffffff);
       s.mat.needsUpdate = true;
+    }, undefined, function () {
+      console.warn('3D viewer: failed to load wall texture', s.url);
     });
   });
 }());
