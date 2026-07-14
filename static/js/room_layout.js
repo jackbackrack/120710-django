@@ -783,24 +783,27 @@
     scheduleSave();
   });
 
-  // Dist H: first & last selected are immovable anchors; divide the span between
-  // them into equal slots (one per middle item) and center each item in its slot.
-  // Each piece gets equal air left/right, so the two end gaps are half the gap
-  // between pieces (for equal-width pieces).
+  // Dist H: first & last selected are immovable anchors; place the middle items
+  // so every adjacent edge-to-edge GAP is equal (independent of piece widths).
+  // gap = (span between anchors' inner edges − total middle width) / (#gaps).
   document.getElementById('btn-dist-h').addEventListener('click', function () {
     var sel = getSelected();
     if (sel.length < 3) return;
     var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.left) - parseFloat(b.style.left); });
     var first = sorted[0], last = sorted[sorted.length - 1];
-    var L = parseFloat(first.style.left) + parseFloat(first.style.width);  // inner edge of first anchor
-    var R = parseFloat(last.style.left);                                   // inner edge of last anchor
+    var E0 = parseFloat(first.style.left) + parseFloat(first.style.width);  // right edge of first anchor
+    var R  = parseFloat(last.style.left);                                   // left edge of last anchor
     var middle = sorted.slice(1, sorted.length - 1);
-    var slot = (R - L) / middle.length;
-    middle.forEach(function (div, i) {
-      if (div.classList.contains('corner') || div.classList.contains('obstacle')) return;  // immovable
-      var cx = L + (i + 0.5) * slot;                                       // slot centre
-      div.style.left = (cx - parseFloat(div.style.width) / 2) + 'px';
-      var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
+    var totalW = middle.reduce(function (s, div) { return s + parseFloat(div.style.width); }, 0);
+    var gap = (R - E0 - totalW) / (sorted.length - 1);                      // equal edge-to-edge gap
+    var x = E0;
+    middle.forEach(function (div) {
+      var left = x + gap;
+      if (!div.classList.contains('corner') && !div.classList.contains('obstacle')) {
+        div.style.left = left + 'px';
+        var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
+      }
+      x = left + parseFloat(div.style.width);
     });
     scheduleSave();
   });
@@ -811,15 +814,19 @@
     if (sel.length < 3) return;
     var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.top) - parseFloat(b.style.top); });
     var first = sorted[0], last = sorted[sorted.length - 1];
-    var T = parseFloat(first.style.top) + parseFloat(first.style.height);  // inner edge of first anchor
-    var B = parseFloat(last.style.top);                                    // inner edge of last anchor
+    var E0 = parseFloat(first.style.top) + parseFloat(first.style.height);  // bottom edge of first anchor
+    var B  = parseFloat(last.style.top);                                    // top edge of last anchor
     var middle = sorted.slice(1, sorted.length - 1);
-    var slot = (B - T) / middle.length;
-    middle.forEach(function (div, i) {
-      if (div.classList.contains('corner') || div.classList.contains('obstacle')) return;  // immovable
-      var cy = T + (i + 0.5) * slot;
-      div.style.top = (cy - parseFloat(div.style.height) / 2) + 'px';
-      var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
+    var totalH = middle.reduce(function (s, div) { return s + parseFloat(div.style.height); }, 0);
+    var gap = (B - E0 - totalH) / (sorted.length - 1);                      // equal edge-to-edge gap
+    var y = E0;
+    middle.forEach(function (div) {
+      var top = y + gap;
+      if (!div.classList.contains('corner') && !div.classList.contains('obstacle')) {
+        div.style.top = top + 'px';
+        var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
+      }
+      y = top + parseFloat(div.style.height);
     });
     scheduleSave();
   });
