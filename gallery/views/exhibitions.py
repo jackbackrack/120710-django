@@ -257,5 +257,15 @@ def transition_show_status(request, pk):
         if old_status != Show.STATUS_IN_REVIEW and new_status == Show.STATUS_IN_REVIEW:
             from gallery.views.open_call import send_juror_review_notifications
             send_juror_review_notifications(show, request)
+        if new_status == Show.STATUS_DRAFT:
+            from gallery.models import ArtworkSubmission
+            selected_ids = list(
+                ArtworkSubmission.objects.filter(
+                    show=show, curator_decision=ArtworkSubmission.CURATOR_SELECTED
+                ).values_list('artwork_id', flat=True)
+            )
+            if selected_ids:
+                show.artworks.add(*selected_ids)
+                messages.info(request, f'{len(selected_ids)} selected artwork(s) added to show for layout.')
         messages.success(request, f'Status changed to {show.get_status_display()}.')
     return redirect(show)
