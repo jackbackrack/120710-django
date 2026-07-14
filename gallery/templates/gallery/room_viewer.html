@@ -12,10 +12,11 @@
 #placard-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
 
 /* On-screen walk + reset controls for touch devices (no keyboard/pointer-lock).
-   Looking around (all directions) is done by dragging on the view. */
-#touch-controls { position: absolute; bottom: 20px; left: 0; right: 0; display: none;
-  flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
-#touch-controls .tc-row { display: flex; gap: 10px; }
+   Looking around (all directions) is done by dragging on the view. A single
+   horizontal row hugging the bottom edge keeps the view as clear as possible. */
+#touch-controls { position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  left: 0; right: 0; display: none;
+  flex-direction: row; align-items: center; justify-content: center; gap: 16px; pointer-events: none; }
 #touch-controls .tc-btn { pointer-events: auto; width: 66px; height: 66px; border-radius: 50%;
   border: 3px solid rgba(255,255,255,.92); background: rgba(20,22,24,.5); color: #fff;
   font-size: 30px; font-weight: 700; line-height: 1;
@@ -24,6 +25,11 @@
   touch-action: none; transition: transform .07s ease, background .12s ease; }
 #touch-controls .tc-btn:active { background: rgba(100,150,140,.92); transform: scale(.86); }
 #touch-controls .tc-reset { width: auto; height: 44px; padding: 0 22px; border-radius: 22px; font-size: 16px; font-weight: 600; }
+
+/* On touch, lift the hint above the button row so they don't overlap. */
+@media (hover: none) and (pointer: coarse) {
+  #hud { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); font-size: .72rem; }
+}
 </style>
 {% endblock %}
 
@@ -34,9 +40,9 @@
   <div id="hud">Click to enter · WASD / arrows to move · Q/E to turn · R to reset · Mouse to look · ESC to exit</div>
   <div id="placard-overlay"></div>
   <div id="touch-controls">
-    <div class="tc-row"><button id="tc-fwd" class="tc-btn" aria-label="Walk forward">▲</button></div>
-    <div class="tc-row"><button id="tc-back" class="tc-btn" aria-label="Walk back">▼</button></div>
-    <div class="tc-row"><button id="tc-reset" class="tc-btn tc-reset" aria-label="Reset view">Reset</button></div>
+    <button id="tc-fwd" class="tc-btn" aria-label="Walk forward">▲</button>
+    <button id="tc-back" class="tc-btn" aria-label="Walk back">▼</button>
+    <button id="tc-reset" class="tc-btn tc-reset" aria-label="Reset view">Reset</button>
   </div>
 </div>
 {% endblock %}
