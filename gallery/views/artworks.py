@@ -77,7 +77,10 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         shows = list(artwork.shows.all())
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(self.request.user, s)}
         context['can_delete_show'] = {s.id for s in shows if can_delete_show(self.request.user, s)}
-        context['can_inquire'] = artwork.artists.filter(email__isnull=False).exclude(email='').exists()
+        context['can_inquire'] = (
+            self.request.user.is_authenticated
+            and artwork.artists.filter(email__isnull=False).exclude(email='').exists()
+        )
         context['blind_artist'] = self.request.GET.get('blind') == '1'
         user = self.request.user
         from gallery.models.collection import CollectionPiece
@@ -232,10 +235,11 @@ def _send_inquiry_email_async(subject, body, html, recipient_emails, reply_to):
     threading.Thread(target=_run, daemon=True).start()
 
 
+@login_required
 @check_honeypot
 def artwork_inquire(request, pk):
     ip = _client_ip(request)
-    # Cheap throttle on every hit to this public endpoint (covers GET floods too).
+    # Cheap throttle on every hit (defense-in-depth alongside login).
     if _rate_limited(f'inq-req:{ip}', 20, 60):
         logger.warning('Throttled inquiry requests from %s', ip)
         return HttpResponse('Too many requests — please try again in a minute.', status=429)
