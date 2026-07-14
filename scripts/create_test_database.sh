@@ -48,8 +48,8 @@ $SITE --name "120710" \
       --website "https://www.120710.art" \
       --lat 37.881570 \
       --lng -122.297147 \
-      --image media/site_images/120710.jpg \
-      --icon media/site_icons/120710.png \
+      --image test_fixtures/site_images/120710.jpg \
+      --icon test_fixtures/site_icons/120710.png \
       --status published
 
 echo "=== Creating room config and obstacles for 120710 ==="
@@ -100,19 +100,19 @@ print('West wall:  2 doors (40\"x7\\', 44\" from each end)')
 echo "=== Creating artists ==="
 
 $ARTIST --email oliver@hawk.com --password b8 --curator \
-        --first Oliver --last Hawk --image media/artist_images/oliver-hawk.jpg
+        --first Oliver --last Hawk --image test_fixtures/artist_images/oliver-hawk.jpg
 
 $ARTIST --email jonathan@bachrach.com --password b8 --curator \
-        --first Jonathan --last Bachrach --image media/artist_images/jrb-400.png
+        --first Jonathan --last Bachrach --image test_fixtures/artist_images/jrb-400.png
 
 $ARTIST --email miguel@novelo.com --password b8 --artist \
-        --first Miguel --last Novelo --image media/artist_images/miguel-novelo.jpg
+        --first Miguel --last Novelo --image test_fixtures/artist_images/miguel-novelo.jpg
 
 $ARTIST --email laura@rokas.com --password b8 --artist \
-        --first Laura --last Rokas --image media/artist_images/laura-rokas.jpg
+        --first Laura --last Rokas --image test_fixtures/artist_images/laura-rokas.jpg
 
 $ARTIST --email dave@carter.com --password b8 --artist \
-        --first Dave --last Carter --image media/artist_images/dave-carter.jpg
+        --first Dave --last Carter --image test_fixtures/artist_images/dave-carter.jpg
 
 # Dedicated juror accounts for testing the jury workflow
 $ARTIST --email juror1@example.com --password b8 --artist \
@@ -129,7 +129,7 @@ $SHOW --name "Autumn Open 2025" \
       --status closed \
       --curator oliver@hawk.com \
       --site 120710 \
-      --image media/show_images/234tgrwith_logo_copy.jpg
+      --image test_fixtures/show_images/234tgrwith_logo_copy.jpg
 
 echo "=== Creating artworks (submitted to Autumn Open 2025) ==="
 
@@ -137,25 +137,25 @@ $ARTWORK --email oliver@hawk.com --name "Oliver" \
          --year 2024 --width 12 --height 16 \
          --medium "Oil on canvas" \
          --show autumn-open-2025 \
-         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg
+         --image test_fixtures/piece_images/Imaged_two_-_Oliver_Holden.jpg
 
 $ARTWORK --email dave@carter.com --name "Drawing" \
          --year 2024 --width 12 --height 16 \
          --medium "Graphite on paper" \
          --show autumn-open-2025 \
-         --image media/piece_images/IMG_2448_-_David_Carter.jpeg
+         --image test_fixtures/piece_images/IMG_2448_-_David_Carter.jpeg
 
 $ARTWORK --email laura@rokas.com --name "Quilt" \
          --year 2025 --width 18 --height 24 \
          --medium "Textile" \
          --show autumn-open-2025 \
-         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
+         --image test_fixtures/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
 
 $ARTWORK --email miguel@novelo.com --name "Rock Worship" \
          --year 2025 --width 18 --height 24 \
          --medium "Mixed media" \
          --show autumn-open-2025 \
-         --image media/piece_images/miguel-rock_small.jpg
+         --image test_fixtures/piece_images/miguel-rock_small.jpg
 
 echo "=== Promoting all artworks into Autumn Open 2025 ==="
 
@@ -175,7 +175,7 @@ $SHOW --name "Working Craft" \
       --start 2026-07-01 --end 2026-07-25 \
       --submission-deadline 2026-06-15 \
       --curator oliver@hawk.com \
-      --image media/show_images/234tgrwith_logo_copy.jpg \
+      --image test_fixtures/show_images/234tgrwith_logo_copy.jpg \
       --site 120710 \
       --status published \
       --invited
@@ -183,7 +183,7 @@ $SHOW --name "Working Craft" \
 $SHOW --name "Feel-Full" \
       --start 2026-08-01 --end 2026-08-25 \
       --submission-deadline 2026-07-15 \
-      --image media/show_images/far-away-is-now-updated.jpg \
+      --image test_fixtures/show_images/far-away-is-now-updated.jpg \
       --curator jonathan@bachrach.com \
       --site 120710 \
       --status published
@@ -192,22 +192,22 @@ echo "=== Creating artworks ==="
 
 $ARTWORK --email oliver@hawk.com --name "Oliver" \
          --year 2024 --width 12 --height 16 \
-         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg \
+         --image test_fixtures/piece_images/Imaged_two_-_Oliver_Holden.jpg \
          --show working-craft
 
 $ARTWORK --email dave@carter.com --name "Drawing" \
          --year 2024 --width 12 --height 16 \
-         --image media/piece_images/IMG_2448_-_David_Carter.jpeg \
+         --image test_fixtures/piece_images/IMG_2448_-_David_Carter.jpeg \
          --show working-craft
 
 $ARTWORK --email laura@rokas.com --name "Quilt" \
          --year 2025 --width 18 --height 24 \
-         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg \
+         --image test_fixtures/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg \
          --show feel-full
 
 $ARTWORK --email miguel@novelo.com --name "Rock Worship" \
          --year 2025 --width 18 --height 24 \
-         --image media/piece_images/miguel-rock_small.jpg \
+         --image test_fixtures/piece_images/miguel-rock_small.jpg \
          --show feel-full
 
 echo "=== Submitting artworks to Feel-Full ==="
@@ -217,25 +217,25 @@ $ARTWORK --email oliver@hawk.com --name "Oliver (Feel-Full)" \
          --year 2024 --width 12 --height 16 \
          --medium "Oil on canvas" \
          --show feel-full \
-         --image media/piece_images/Imaged_two_-_Oliver_Holden.jpg
+         --image test_fixtures/piece_images/Imaged_two_-_Oliver_Holden.jpg
 
 $ARTWORK --email dave@carter.com --name "Drawing (Feel-Full)" \
          --year 2024 --width 12 --height 16 \
          --medium "Graphite on paper" \
          --show feel-full \
-         --image media/piece_images/IMG_2448_-_David_Carter.jpeg
+         --image test_fixtures/piece_images/IMG_2448_-_David_Carter.jpeg
 
 $ARTWORK --email laura@rokas.com --name "Quilt (Feel-Full)" \
          --year 2025 --width 18 --height 24 \
          --medium "Textile" \
          --show feel-full \
-         --image media/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
+         --image test_fixtures/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
 
 $ARTWORK --email miguel@novelo.com --name "Rock Worship (Feel-Full)" \
          --year 2025 --width 18 --height 24 \
          --medium "Mixed media" \
          --show feel-full \
-         --image media/piece_images/miguel-rock_small.jpg
+         --image test_fixtures/piece_images/miguel-rock_small.jpg
 
 echo "=== Setting up jury for Feel-Full ==="
 

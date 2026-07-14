@@ -16,3 +16,6 @@ compose.yml
 120710-database
 /docker/*
 /scripts/*
+media/
+staticfiles/
+.DS_Store
