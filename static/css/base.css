@@ -115,6 +115,10 @@ body {
     margin-bottom: 0;
 }
 
+.card__info:not(:has(*)) {
+    display: none;
+}
+
 .card__info {
     display: flex;
     justify-content: space-between;
