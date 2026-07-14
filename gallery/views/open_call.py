@@ -55,6 +55,10 @@ def _send_selection_email(submission, accepted):
         from django.utils import timezone
         submission.email_sent_at = timezone.now()
         submission.save(update_fields=['email_sent_at'])
+        logger.info(
+            'Sent selection email to %s for submission %s (%s)',
+            email, submission.pk, 'accepted' if accepted else 'rejected',
+        )
     except Exception:
         logger.exception(
             'Failed to send selection email to %s for submission %s', email, submission.pk
@@ -115,15 +119,26 @@ def send_juror_review_notifications(show, request):
 
 def send_submission_emails(show):
     """Send acceptance/rejection emails to unsent submissions. Safe to call multiple times."""
-    subs = (
+    subs = list(
         ArtworkSubmission.objects.filter(
             show=show,
             status__in=[ArtworkSubmission.ACCEPTED, ArtworkSubmission.REJECTED],
             email_sent_at__isnull=True,
         ).select_related('artwork', 'submitted_by')
     )
+    logger.info('Starting selection email send for show %s: %d pending', show.pk, len(subs))
+    sent = 0
     for sub in subs:
+        before = sub.email_sent_at
         _send_selection_email(sub, accepted=(sub.status == ArtworkSubmission.ACCEPTED))
+        sub.refresh_from_db(fields=['email_sent_at'])
+        if sub.email_sent_at and not before:
+            sent += 1
+    failed = len(subs) - sent
+    logger.info(
+        'Selection email send complete for show %s: %d sent, %d failed',
+        show.pk, sent, failed,
+    )
 
 
 def _send_invitation_email(show, email, request):
