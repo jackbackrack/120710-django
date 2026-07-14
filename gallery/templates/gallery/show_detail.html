@@ -103,7 +103,7 @@
   </div>
 </div>
 </div>
-<div class="text-center section-label"><h2>Artworks <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
+<div class="text-center section-label"><h2>Artworks ({{ artwork_data|length }}) <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 {% if can_submit %}<div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a></div>{% endif %}
 {% if show.is_accepting_submissions and not can_submit %}<p class="text-center text-muted small mt-2"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">Help submitting</a></p>{% endif %}
 <div class="cards">
@@ -157,7 +157,7 @@
   </div>
 {% endfor %}
 </div>
-<div class="text-center section-label"><h2>Artists <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
+<div class="text-center section-label"><h2>Artists ({{ artists|length }}) <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
 <div class="cards">
   <!-- todo: remove dups and sort -->
   {% for artist in artists %}
