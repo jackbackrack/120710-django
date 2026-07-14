@@ -215,17 +215,89 @@ const controls = new PointerLockControls(camera, renderer.domElement);
 const crosshair = document.getElementById('crosshair');
 const hud = document.getElementById('hud');
 
-renderer.domElement.addEventListener('click', function () {
-  if (!controls.isLocked) controls.lock();
-});
-controls.addEventListener('lock', function () {
+// Touch devices (phones/tablets) have no pointer-lock or keyboard, so we use
+// drag-to-look plus on-screen buttons instead of mouse-look + WASD.
+const TOUCH = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
+// Manual look state, used in touch mode (yaw around Y, pitch around X).
+const _lookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+const PITCH_MAX = Math.PI / 2 * 0.95;
+let yaw = 0, pitch = 0;
+function applyLook() {
+  _lookEuler.set(pitch, yaw, 0, 'YXZ');
+  camera.quaternion.setFromEuler(_lookEuler);
+}
+
+// Movement flags driven by the on-screen buttons.
+const touchMove = { fwd: false, back: false, turnL: false, turnR: false };
+
+if (TOUCH) {
+  setupTouchControls();
+} else {
+  renderer.domElement.addEventListener('click', function () {
+    if (!controls.isLocked) controls.lock();
+  });
+  controls.addEventListener('lock', function () {
+    crosshair.style.display = 'block';
+    hud.style.display = 'none';
+  });
+  controls.addEventListener('unlock', function () {
+    crosshair.style.display = 'none';
+    hud.style.display = 'block';
+  });
+}
+
+function setupTouchControls() {
   crosshair.style.display = 'block';
-  hud.style.display = 'none';
-});
-controls.addEventListener('unlock', function () {
-  crosshair.style.display = 'none';
-  hud.style.display = 'block';
-});
+  hud.textContent = 'Drag to look · buttons to move';
+  document.getElementById('touch-controls').style.display = 'flex';
+  applyLook();
+
+  // One-finger drag on the canvas rotates the view.
+  const el = renderer.domElement;
+  const LOOK_SENS = 0.005;
+  let dragging = false, lastX = 0, lastY = 0;
+  el.addEventListener('touchstart', function (e) {
+    if (e.touches.length !== 1) return;
+    dragging = true;
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+  }, { passive: true });
+  el.addEventListener('touchmove', function (e) {
+    if (!dragging || e.touches.length !== 1) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    yaw   -= (t.clientX - lastX) * LOOK_SENS;
+    pitch -= (t.clientY - lastY) * LOOK_SENS;
+    pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitch));
+    lastX = t.clientX;
+    lastY = t.clientY;
+  }, { passive: false });
+  el.addEventListener('touchend',    function () { dragging = false; });
+  el.addEventListener('touchcancel', function () { dragging = false; });
+
+  // Press-and-hold movement / turn buttons.
+  function hold(id, set) {
+    const b = document.getElementById(id);
+    const down = function (e) { e.preventDefault(); set(true); };
+    const up   = function (e) { e.preventDefault(); set(false); };
+    b.addEventListener('touchstart', down, { passive: false });
+    b.addEventListener('touchend', up);
+    b.addEventListener('touchcancel', up);
+    b.addEventListener('mousedown', down);
+    b.addEventListener('mouseup', up);
+    b.addEventListener('mouseleave', up);
+  }
+  hold('tc-fwd',   function (v) { touchMove.fwd = v; });
+  hold('tc-back',  function (v) { touchMove.back = v; });
+  hold('tc-turnL', function (v) { touchMove.turnL = v; });
+  hold('tc-turnR', function (v) { touchMove.turnR = v; });
+
+  document.getElementById('tc-reset').addEventListener('click', function (e) {
+    e.preventDefault();
+    resetCamera();
+  });
+}
 
 // ── Movement ──────────────────────────────────────────────────────────────────
 const keys = {};
@@ -237,7 +309,12 @@ document.addEventListener('keyup',   function (e) { keys[e.code] = false; });
 
 function resetCamera() {
   camera.position.set(0, EYE_H, 0);
-  camera.quaternion.set(0, 0, 0, 1);  // identity — looking down -Z (north)
+  if (TOUCH) {
+    yaw = 0; pitch = 0;
+    applyLook();
+  } else {
+    camera.quaternion.set(0, 0, 0, 1);  // identity — looking down -Z (north)
+  }
 }
 
 const SPEED      = 60 * IN2M;       // 60 in/s walking speed
@@ -287,10 +364,17 @@ function animate(now) {
   var dt = Math.min((now - lastTime) / 1000, 0.1);
   lastTime = now;
 
-  if (controls.isLocked) {
+  if (controls.isLocked || TOUCH) {
+    // Touch: apply drag / turn-button look before moving so we walk where we face.
+    if (TOUCH) {
+      if (touchMove.turnL) yaw += TURN_SPEED * dt;
+      if (touchMove.turnR) yaw -= TURN_SPEED * dt;
+      applyLook();
+    }
+
     _vel.set(0, 0, 0);
-    if (keys['KeyW'] || keys['ArrowUp'])    _vel.z -= 1;
-    if (keys['KeyS'] || keys['ArrowDown'])  _vel.z += 1;
+    if (keys['KeyW'] || keys['ArrowUp']    || touchMove.fwd)  _vel.z -= 1;
+    if (keys['KeyS'] || keys['ArrowDown']  || touchMove.back) _vel.z += 1;
     if (keys['KeyA'] || keys['ArrowLeft'])  _vel.x -= 1;
     if (keys['KeyD'] || keys['ArrowRight']) _vel.x += 1;
     if (_vel.x || _vel.z) {
@@ -299,8 +383,8 @@ function animate(now) {
       controls.moveForward(-_vel.z);
     }
 
-    // Q / E — rotate left / right around world Y
-    if (keys['KeyQ'] || keys['KeyE']) {
+    // Q / E — rotate left / right around world Y (desktop keyboard only)
+    if (!TOUCH && (keys['KeyQ'] || keys['KeyE'])) {
       var turnDir = keys['KeyQ'] ? 1 : -1;
       _turnQ.setFromAxisAngle(_turnAxis, turnDir * TURN_SPEED * dt);
       camera.quaternion.premultiply(_turnQ);

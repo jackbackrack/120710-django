@@ -6,10 +6,21 @@
 {{ block.super }}
 <style>
 #viewer-root { position: relative; width: 100%; height: calc(100vh - 160px); min-height: 500px; background: #000; overflow: hidden; }
-#viewer-canvas { display: block; width: 100%; height: 100%; }
+#viewer-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 24px; color: rgba(255,255,255,.6); pointer-events: none; display: none; }
-#hud { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.75); font-size: .8rem; text-align: center; pointer-events: none; }
+#hud { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.75); font-size: .8rem; text-align: center; pointer-events: none; padding: 0 12px; }
 #placard-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+/* On-screen movement controls for touch devices (no keyboard/pointer-lock) */
+#touch-controls { position: absolute; bottom: 18px; left: 0; right: 0; display: none;
+  flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+#touch-controls .tc-row { display: flex; gap: 8px; }
+#touch-controls .tc-btn { pointer-events: auto; width: 58px; height: 58px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.45); color: #fff; font-size: 24px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+#touch-controls .tc-btn:active { background: rgba(0,0,0,.72); }
+#touch-controls .tc-reset { width: auto; height: 40px; padding: 0 18px; border-radius: 20px; font-size: 15px; }
 </style>
 {% endblock %}
 
@@ -19,6 +30,15 @@
   <div id="crosshair">+</div>
   <div id="hud">Click to enter · WASD / arrows to move · Q/E to turn · R to reset · Mouse to look · ESC to exit</div>
   <div id="placard-overlay"></div>
+  <div id="touch-controls">
+    <div class="tc-row"><button id="tc-fwd" class="tc-btn" aria-label="Forward">▲</button></div>
+    <div class="tc-row">
+      <button id="tc-turnL" class="tc-btn" aria-label="Turn left">⟲</button>
+      <button id="tc-back" class="tc-btn" aria-label="Back">▼</button>
+      <button id="tc-turnR" class="tc-btn" aria-label="Turn right">⟳</button>
+    </div>
+    <div class="tc-row"><button id="tc-reset" class="tc-btn tc-reset" aria-label="Reset view">Reset</button></div>
+  </div>
 </div>
 {% endblock %}
 
