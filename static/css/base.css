@@ -115,10 +115,6 @@ body {
     margin-bottom: 0;
 }
 
-.card__info:not(:has(*)) {
-    display: none;
-}
-
 .card__info {
     display: flex;
     justify-content: space-between;
@@ -130,6 +126,14 @@ body {
     border-right: 2px solid #333333;
     border-left: 2px solid #333333;
     padding: 3px;
+}
+
+/* Collapse the info bar when it has no buttons (e.g. logged-out visitors),
+   so it doesn't render a grey strip + second bottom border. Placed AFTER the
+   base .card__info rule: both selectors have equal specificity, so source
+   order decides which display value wins. */
+.card__info:not(:has(*)) {
+    display: none;
 }
 
 .card__info i {
