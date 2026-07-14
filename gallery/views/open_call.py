@@ -641,7 +641,7 @@ def show_artist_emails(request, slug):
         raise Http404
     artist_emails = set(
         Artist.objects
-        .filter(artworks__submissions__show=show)
+        .filter(artworks__shows=show)
         .exclude(email='')
         .values_list('email', flat=True)
         .distinct()
