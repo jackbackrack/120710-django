@@ -88,6 +88,8 @@
   {% endif %}
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
+    {# Email actions on their own line so they don't overflow the row above #}
+    <div style="width:100%"></div>
     {% if emails_pending or emails_sent %}<form method="post" action="{% url 'gallery:send_selection_emails' show.slug %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 card__link" onclick="return confirm('Send acceptance/rejection emails to {{ emails_pending }} artist(s)?')">Send Emails ({{ emails_pending }} pending{% if emails_sent %}, {{ emails_sent }} sent{% endif %})</button></form>{% endif %}
     <a class="card__link" href="{% url 'gallery:show_artist_emails' show.slug %}">Emails</a>
   {% endif %}
