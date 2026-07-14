@@ -24,7 +24,7 @@ class ShowListView(ListView):
     template_name = 'gallery/show_list.html'
 
     def get_queryset(self):
-        qs = Show.objects.prefetch_related('curators', 'tags', 'events')
+        qs = Show.objects.prefetch_related('curators', 'tags', 'events', 'sites')
         qs = visible_show_queryset(qs, self.request.user)
         return tag_filter_queryset(qs, self.request.GET.get('tag')).distinct()
 
@@ -168,7 +168,7 @@ class ShowPlacardsView(CanonicalSlugRedirectMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object')
-        context['artworks'] = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).distinct().order_by('artists__name')
+        context['artworks'] = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').distinct().order_by('artists__name')
         return context
 
 
@@ -180,7 +180,7 @@ class ShowInstagramView(CanonicalSlugRedirectMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object')
-        context['artworks'] = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).order_by('artists__name', 'name').distinct()
+        context['artworks'] = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').order_by('artists__name', 'name').distinct()
         return context
 
 

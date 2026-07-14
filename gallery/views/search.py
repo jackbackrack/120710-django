@@ -50,7 +50,7 @@ class SearchResultsListView(ListView):
                 | Q(end_year_str__icontains=query)
                 | Q(artists__name__icontains=query),
             )
-            .prefetch_related('artists', 'shows')
+            .prefetch_related('artists', 'shows', 'shows__curators')
             .distinct()
         )
         artworks = list(tag_filter_queryset(artwork_qs, tag).distinct())

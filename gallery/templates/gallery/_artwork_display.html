@@ -36,7 +36,7 @@
     <p class="text-gray-500 text-sm mb-0">
       <strong>In collection of:</strong>
       {% for piece in collection_pieces %}
-        <a class="card__link" href="{% url 'gallery:artist_detail' pk=piece.collector.artists.first.pk %}">{{ piece.collector.get_full_name|default:piece.collector.username }}</a>
+        <a class="card__link" href="{% url 'gallery:artist_detail' pk=piece.collector.artists.all.0.pk %}">{{ piece.collector.get_full_name|default:piece.collector.username }}</a>
         {% if piece.status == 'confirmed' %}<span class="badge bg-success ms-1" style="font-size:0.65em">confirmed</span>{% else %}<span class="badge bg-secondary ms-1" style="font-size:0.65em">pending</span>{% endif %}
         {% if can_confirm_piece and piece.status == 'pending' %}
         <form method="post" action="{% url 'gallery:confirm_collection_piece' piece.pk %}" style="display:inline">

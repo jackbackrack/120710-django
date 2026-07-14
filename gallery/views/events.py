@@ -16,7 +16,7 @@ class EventListView(ListView):
     template_name = 'gallery/event_list.html'
 
     def get_queryset(self):
-        return tag_filter_queryset(Event.objects.select_related('show'), self.request.GET.get('tag')).distinct()
+        return tag_filter_queryset(Event.objects.select_related('show').prefetch_related('show__curators'), self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

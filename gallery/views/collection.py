@@ -239,6 +239,7 @@ class CollectorsListView(ListView):
             User.objects
             .filter(confirmed_filter)
             .annotate(confirmed_count=Count('collection_pieces', filter=confirmed_filter))
+            .prefetch_related('artists')
             .order_by('-confirmed_count')
             .distinct()
         )
@@ -257,6 +258,7 @@ class CollectorsListView(ListView):
         pinners = list(
             pinners_qs
             .annotate(pinned_count=Count('saved_artworks', distinct=True))
+            .prefetch_related('artists')
             .order_by('-pinned_count')
             .distinct()
         )

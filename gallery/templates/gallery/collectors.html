@@ -9,7 +9,7 @@
 <div class="text-center section-label"><h2>Owners</h2></div>
 <div class="cards" data-grid-count="owners">
 {% for collector in owners %}
-{% with artist=collector.artists.first %}
+{% with artist=collector.artists.all.0 %}
 <div class="card" data-sl-title="{{ collector.get_full_name|default:collector.username }}" data-sl-sub="{{ collector.confirmed_count }} work{{ collector.confirmed_count|pluralize }}" {% if artist %}data-sl-url="{{ artist.get_absolute_url }}"{% endif %}>
   {% if artist and artist.image %}
   <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
@@ -33,7 +33,7 @@
 <div class="text-center section-label"><h2>Pinners</h2></div>
 <div class="cards" data-grid-count="pinners">
 {% for collector in pinners %}
-{% with artist=collector.artists.first %}
+{% with artist=collector.artists.all.0 %}
 <div class="card" data-sl-title="{{ collector.get_full_name|default:collector.username }}" data-sl-sub="{{ collector.pinned_count }} pinned" {% if artist %}data-sl-url="{{ artist.get_absolute_url }}"{% endif %}>
   {% if artist and artist.image %}
   <a style="display: contents" href="{{ artist.get_absolute_url }}"><img loading="lazy" src="{{ artist.card_sm.url }}" data-sl-img="{{ artist.slideshow.url }}" class="card__image"></a>
