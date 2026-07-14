@@ -87,10 +87,34 @@
 #pos-panel .pos-title { font-weight: 600; margin-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 #pos-panel label { color: #555; margin: 0 2px 0 10px; }
 #pos-panel input[type=number] { width: 80px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 3px; }
+
+/* The layout editor needs a mouse + keyboard (drag-and-drop, wheel-zoom,
+   Delete key), none of which work on touch. Show a notice on touch devices. */
+#layout-touch-note { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  #layout-touch-note {
+    display: block;
+    margin: 16px;
+    padding: 14px 16px;
+    background: #fff6b4;
+    border: 2px solid #333;
+    font-size: .95rem;
+    line-height: 1.4;
+  }
+  #layout-touch-note strong { display: block; margin-bottom: 4px; }
+  /* Hide the editor itself so a phone user isn't left poking at dead controls */
+  #layout-root { display: none; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
+<div id="layout-touch-note">
+  <strong>The layout editor works best on a desktop.</strong>
+  Arranging artwork needs a mouse and keyboard (drag-and-drop, scroll-to-zoom, and the Delete key),
+  which aren’t available on a phone or tablet. Please open this page on a computer.
+  You can still explore the finished show in the <a href="{% url 'gallery:room_viewer' show.slug %}">3D walkthrough</a>, which works on touch.
+</div>
 <div id="layout-root">
   <!-- Artwork pool sidebar -->
   <div id="sidebar">
