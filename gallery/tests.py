@@ -1315,7 +1315,7 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
 
     # --- Promote in Draft state auto-publishes ---
 
-    def test_promote_in_draft_state_publishes_show_and_sends_emails(self):
+    def test_promote_in_draft_state_publishes_show_without_sending_emails(self):
         self.show.status = Show.STATUS_DRAFT
         self.show.save(update_fields=['status'])
         ArtworkSubmission.objects.create(
@@ -1328,8 +1328,60 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
 
         self.show.refresh_from_db()
         self.assertEqual(self.show.status, Show.STATUS_PUBLISHED)
+        # Emails are now sent separately via send_selection_emails, not inline
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_send_selection_emails_sends_and_stamps_email_sent_at(self):
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
+            status=ArtworkSubmission.ACCEPTED,
+        )
+        self.assertIsNone(sub.email_sent_at)
+        self.client.force_login(self.curator_user)
+
+        # Thread runs synchronously in test environment; join briefly
+        import threading
+        sent = []
+        orig_start = threading.Thread.start
+        def sync_start(self_thread):
+            self_thread.run()
+            sent.append(True)
+        with self.settings():
+            threading.Thread.start = sync_start
+            try:
+                self.client.post(reverse('gallery:send_selection_emails', kwargs={'slug': self.show.slug}))
+            finally:
+                threading.Thread.start = orig_start
+
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(self.artist_user.email, mail.outbox[0].recipients())
+        sub.refresh_from_db()
+        self.assertIsNotNone(sub.email_sent_at)
+
+    def test_send_selection_emails_skips_already_sent(self):
+        from django.utils import timezone
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            curator_decision=ArtworkSubmission.CURATOR_SELECTED,
+            status=ArtworkSubmission.ACCEPTED,
+            email_sent_at=timezone.now(),
+        )
+        self.client.force_login(self.curator_user)
+
+        import threading
+        orig_start = threading.Thread.start
+        threading.Thread.start = lambda self_thread: self_thread.run()
+        try:
+            self.client.post(reverse('gallery:send_selection_emails', kwargs={'slug': self.show.slug}))
+        finally:
+            threading.Thread.start = orig_start
+
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_promote_in_open_call_state_does_not_auto_publish(self):
         # show starts as STATUS_OPEN_CALL in setUp
