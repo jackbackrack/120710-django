@@ -8,6 +8,9 @@
 {% else %}
 <p>Art drop-offs will begin the weekend before the show opens, and we will be in touch shortly with more details.</p>
 {% endif %}
+{% if schedule_url %}
+<p>Please <a href="{{ schedule_url }}">schedule your {% if show.self_install %}install{% else %}drop-off{% endif %} and pickup times</a> for the show. Once the available windows are posted you can pick a specific time (and add it to your calendar).</p>
+{% endif %}
 <p>— The 120710 Team</p>
 </body>
 </html>

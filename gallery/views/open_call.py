@@ -30,10 +30,19 @@ def _send_selection_email(submission, accepted):
         if accepted else
         f'Update on your submission to {submission.show.name}'
     )
+    # Absolute link to the artist's scheduling page, built from the show's site
+    # website (emails are sent without a request). Omitted if no site/website.
+    schedule_url = None
+    if accepted:
+        site = submission.show.sites.first()
+        base = (site.website or '').rstrip('/') if site else ''
+        if base:
+            schedule_url = base + reverse('gallery:artist_schedule', kwargs={'slug': submission.show.slug})
     html = render_to_string(template, {
         'submission': submission,
         'show': submission.show,
         'artwork': submission.artwork,
+        'schedule_url': schedule_url,
     })
     msg = EmailMultiAlternatives(
         subject=subject,

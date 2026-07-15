@@ -2601,3 +2601,40 @@ class RemoveArtworkFromShowTests(TestCase):
                                      kwargs={'slug': self.show.slug, 'pk': self.artwork.pk}))
         self.assertEqual(r.status_code, 404)
         self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
+
+
+class AcceptanceEmailScheduleLinkTests(TestCase):
+    """Acceptance email links to the artist scheduling page using the show's site website."""
+
+    def setUp(self):
+        self.artist_user = User.objects.create_user(
+            username='ae-artist@example.com', email='ae-artist@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='AE Artist', first_name='AE', last_name='Artist',
+            email='ae-artist@example.com', phone='')
+        self.site = Site.objects.create(name='120710 AE', website='https://www.example-gallery.art/')
+        self.show = Show.objects.create(
+            name='AE Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7))
+        self.show.sites.add(self.site)
+        self.artwork = Artwork.objects.create(name='AE Piece', created_by=self.artist_user, end_year=2025)
+        self.artwork.artists.add(self.artist)
+        self.sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.ACCEPTED, curator_decision=ArtworkSubmission.CURATOR_SELECTED)
+
+    def test_acceptance_email_has_schedule_link(self):
+        from gallery.views.open_call import _send_selection_email
+        from django.urls import reverse
+        _send_selection_email(self.sub, accepted=True)
+        self.assertEqual(len(mail.outbox), 1)
+        html = mail.outbox[0].alternatives[0][0]
+        expected = 'https://www.example-gallery.art' + reverse(
+            'gallery:artist_schedule', kwargs={'slug': self.show.slug})
+        self.assertIn(expected, html)
+
+    def test_rejection_email_has_no_schedule_link(self):
+        from gallery.views.open_call import _send_selection_email
+        _send_selection_email(self.sub, accepted=False)
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertNotIn('/schedule/', html)
