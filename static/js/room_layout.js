@@ -406,21 +406,9 @@
     });
     stageEl.appendChild(div);
 
-    // Resize width to match actual image pixel aspect ratio (height stays fixed at h_in).
-    // Use a standalone Image object — unlike an off-DOM img element, it reliably reports
-    // naturalWidth for cached images without requiring the load event to fire.
-    var arImg = new Image();
-    function applyAspect() {
-      if (!arImg.naturalWidth || !arImg.naturalHeight) return;
-      var newW = r.h * arImg.naturalWidth / arImg.naturalHeight;
-      div.style.width = newW + 'px';
-      div.style.left  = (worldToStage(currentWall, p).x - newW / 2) + 'px';
-      fitLabel(div);
-      updateHangInfo(div);
-    }
-    arImg.onload = applyAspect;
-    arImg.src = p.artwork.img || p.artwork.thumb;
-    if (arImg.complete && arImg.naturalWidth) applyAspect();
+    // The rectangle is the artwork's real w_in × h_in footprint (set above from
+    // artStagePx); the image is best-fit (object-fit: contain) inside it and
+    // letterboxed if its pixel aspect ratio differs — no width override.
     fitLabel(div);
     updateHangInfo(div);
   }

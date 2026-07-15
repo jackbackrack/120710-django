@@ -44,14 +44,16 @@
      text/images. Without it the browser re-rasterizes crisply at the zoomed scale. */
 }
 
-.placed-art { position: absolute; cursor: grab; border: 2px solid rgba(100,150,140,.8); box-sizing: border-box; user-select: none; z-index: 2; }
+.placed-art { position: absolute; cursor: grab; border: 2px solid rgba(100,150,140,.8); box-sizing: border-box; user-select: none; z-index: 2; background: #fff; }
 .placed-art:hover { border-color: #64968c; }
 .placed-art.selected { border: 2px solid #e55; box-shadow: 0 0 0 2px #e5522244; }
 /* translateZ(0) promotes each image to its own GPU layer so it's rasterized
    once as a texture — selection/hover/border repaints then composite cheaply
    instead of re-rasterizing the large image. Safe (crisp) since the stage no
    longer uses a scale() transform. */
-.placed-art img { width: 100%; height: 100%; object-fit: fill; display: block; pointer-events: none; transform: translateZ(0); }
+/* Rectangle is the artwork's real footprint; the image best-fits (contain) and
+   is letterboxed against the white background if its aspect ratio differs. */
+.placed-art img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; transform: translateZ(0); }
 .placed-art .placard-bar { font-size: .45rem; background: rgba(255,255,255,.85); padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Hanging guide — artwork W×H + edge-to-wall-edge distances; shown when toggled on */
 .placed-art .art-dims,
