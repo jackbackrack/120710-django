@@ -131,6 +131,7 @@
   function close() { modal.style.display = 'none'; }
 
   openBtn.addEventListener('click', open);
+  if (/[?&]crop=1(&|$)/.test(location.search)) open();   // arrived via the Recrop button
   document.getElementById('crop-cancel').addEventListener('click', close);
   document.getElementById('crop-reset').addEventListener('click', function () { pts = defaultPts(); redraw(); });
   modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
@@ -174,9 +175,12 @@
   }
 
   document.getElementById('crop-save').addEventListener('click', function () {
+    if (!fileInput) { status.textContent = 'Layout image field not found on the form.'; close(); return; }
     var size = outputSize(), canvas = document.createElement('canvas');
     canvas.width = size[0]; canvas.height = size[1];
-    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    // preserveDrawingBuffer is required so the async toBlob can read the render.
+    var opts = { preserveDrawingBuffer: true, premultipliedAlpha: false };
+    var gl = canvas.getContext('webgl', opts) || canvas.getContext('experimental-webgl', opts);
     if (!gl) { status.textContent = 'Your browser does not support WebGL for perspective crop.'; close(); return; }
 
     var vs = 'attribute vec2 aPos; attribute vec2 aUV; varying vec2 vUV; void main(){ vUV=aUV; gl_Position=vec4(aPos,0.0,1.0); }';
@@ -196,7 +200,9 @@
     gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
     gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 16, 8);
 
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);    // texture (0,0) = top-left of image
+    // Sample coords from H use y-down image fractions (0 = top). Keep the texture
+    // un-flipped so t=0 is the top row too, otherwise the output comes out upside down.
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
