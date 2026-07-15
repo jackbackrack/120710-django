@@ -186,18 +186,18 @@ function buildFlatPlane(p, art, aw, ah, norm) {
                                   new THREE.MeshBasicMaterial({ color: 0x333333 })));
 }
 
-// 3D piece (depth > 0): a cuboid (w × h × d). The image goes on BOTH w×h faces
-// so it reads regardless of orientation (for a wall piece the rear face just
-// ends up inside the wall, which is harmless). Local axes: X=width, Y=height,
-// Z=depth.
+// 3D piece (depth > 0): a cuboid (w × h × d). Floor/ceiling pieces get the image
+// best-fit on ALL SIX faces; wall pieces get the two w×h faces (rear one ends up
+// inside the wall). A face is skipped if it's a thin sliver — its shorter side
+// under 1/8 of its longer side. Local axes: X=width, Y=height, Z=depth.
 function buildCuboid(p, art, aw, ah, ad, norm) {
   var box = new THREE.Mesh(
     new THREE.BoxGeometry(aw, ah, ad),
     new THREE.MeshBasicMaterial({ color: 0xdddddd })
   );
   var base = placementPosition(p);
-  var imageZ = [ad / 2, -ad / 2];   // both w×h faces
-  if (p.wall === 'floor' || p.wall === 'ceiling') {
+  var isFloorCeil = (p.wall === 'floor' || p.wall === 'ceiling');
+  if (isFloorCeil) {
     // Stand upright: footprint w×d on the surface, height h; identity orientation.
     var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (ah / 2);
     box.position.set(base.x, cy, base.z);
@@ -212,12 +212,29 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
   artworkMeshes.push(box);
   box.add(new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry),
                                  new THREE.MeshBasicMaterial({ color: 0x333333 })));
+
+  var eps = 0.004;   // sit each image plane just off its face
+  // Each face: image dims (fw × fh), local position, and rotation to face outward.
+  var faces = isFloorCeil ? [
+    { fw: aw, fh: ah, pos: [0, 0,  ad / 2 + eps], rot: [0, 0, 0] },            // +Z
+    { fw: aw, fh: ah, pos: [0, 0, -ad / 2 - eps], rot: [0, Math.PI, 0] },      // -Z
+    { fw: ad, fh: ah, pos: [ aw / 2 + eps, 0, 0], rot: [0,  Math.PI / 2, 0] }, // +X
+    { fw: ad, fh: ah, pos: [-aw / 2 - eps, 0, 0], rot: [0, -Math.PI / 2, 0] }, // -X
+    { fw: aw, fh: ad, pos: [0,  ah / 2 + eps, 0], rot: [-Math.PI / 2, 0, 0] }, // +Y (top)
+    { fw: aw, fh: ad, pos: [0, -ah / 2 - eps, 0], rot: [ Math.PI / 2, 0, 0] }, // -Y (bottom)
+  ] : [
+    { fw: aw, fh: ah, pos: [0, 0,  ad / 2 + eps], rot: [0, 0, 0] },
+    { fw: aw, fh: ah, pos: [0, 0, -ad / 2 - eps], rot: [0, Math.PI, 0] },
+  ];
+
   if (art.img) {
     loadTex(art.img, function (tex) {
-      imageZ.forEach(function (z) {
-        var plane = bestFitImagePlane(tex, aw, ah);
-        plane.position.z = z + (z >= 0 ? 0.004 : -0.004);  // sit just off the face
-        if (z < 0) plane.rotation.y = Math.PI;             // back face → orient outward
+      faces.forEach(function (f) {
+        // Skip thin sliver faces (shorter side < 1/8 of the longer side).
+        if (Math.min(f.fw, f.fh) < Math.max(f.fw, f.fh) / 8) return;
+        var plane = bestFitImagePlane(tex, f.fw, f.fh);
+        plane.position.set(f.pos[0], f.pos[1], f.pos[2]);
+        plane.rotation.set(f.rot[0], f.rot[1], f.rot[2]);
         box.add(plane);
       });
     });
