@@ -8,8 +8,7 @@
 
   {% if object.image %}
   <div class="mb-3" id="crop-tools"
-       data-hero="{{ object.slideshow.url }}"
-       {% if object.width_inches and object.height_inches %}data-w="{{ object.width_inches }}" data-h="{{ object.height_inches }}"{% endif %}>
+       data-hero="{{ object.slideshow.url }}">
     <button type="button" id="crop-from-hero" class="btn btn-sm btn-outline-secondary">Crop layout / 3D image from main image</button>
     <span id="crop-status" class="text-muted small ms-2"></span>
     <button type="button" id="crop-undo" class="btn btn-sm btn-link" style="display:none">Undo crop</button>
@@ -164,12 +163,16 @@
   }
 
   function outputSize() {
-    var w = parseFloat(tools.dataset.w), h = parseFloat(tools.dataset.h), MAX = 1600;
-    if (!(w > 0 && h > 0)) {
-      var nw = image.naturalWidth || 1, nh = image.naturalHeight || 1;
-      function d(i, j) { return Math.hypot((pts[i][0] - pts[j][0]) * nw, (pts[i][1] - pts[j][1]) * nh); }
-      w = (d(0, 1) + d(3, 2)) / 2; h = (d(0, 3) + d(1, 2)) / 2;
-    }
+    // Keep the crop's own proportions (the rough bounding box you drew) rather
+    // than forcing the artwork's entered dimensions — stretching an angled shot
+    // to typed-in numbers looks wrong. Average opposite edges so the perspective
+    // straighten still un-skews correctly; the layout/3D best-fit (contain) then
+    // handles any crop-vs-dimensions mismatch by letterboxing, never stretching.
+    var MAX = 1600;
+    var nw = image.naturalWidth || 1, nh = image.naturalHeight || 1;
+    function d(i, j) { return Math.hypot((pts[i][0] - pts[j][0]) * nw, (pts[i][1] - pts[j][1]) * nh); }
+    var w = (d(0, 1) + d(3, 2)) / 2;   // top & bottom edges
+    var h = (d(0, 3) + d(1, 2)) / 2;   // left & right edges
     if (!(w > 0) || !(h > 0)) { w = h = 1; }
     return w >= h ? [MAX, Math.round(MAX * h / w)] : [Math.round(MAX * w / h), MAX];
   }
