@@ -59,6 +59,7 @@ class Artwork(models.Model):
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
     slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
     layout_lg = ImageSpecField(source='layout_image', processors=[Transpose(), ResizeToFit(width=1600)], format='JPEG', options={'quality': 85})
+    layout_sm = ImageSpecField(source='layout_image', processors=[Transpose(), ResizeToFit(width=300)], format='JPEG', options={'quality': 80})
     PRICING_FOR_SALE = 'for_sale'
     PRICING_ON_REQUEST = 'on_request'
     PRICING_BEST_OFFER = 'best_offer'

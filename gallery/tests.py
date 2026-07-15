@@ -2673,13 +2673,15 @@ class ArtworkLayoutImageTests(TestCase):
         a = Artwork.objects.create(name='LI', end_year=2025)
         a.image.name = 'artwork_images/hero.jpg'
         a.save()
-        hero_img = _artwork_json(a)['img']
-        self.assertTrue(hero_img)  # falls back to hero
+        hero = _artwork_json(a)
+        self.assertTrue(hero['img'])    # falls back to hero
+        self.assertTrue(hero['thumb'])
         a.layout_image.name = 'artwork_images/crop.jpg'
         a.save()
-        crop_img = _artwork_json(a)['img']
-        self.assertTrue(crop_img)
-        self.assertNotEqual(crop_img, hero_img)   # now uses the cropped layout image
+        crop = _artwork_json(a)
+        self.assertTrue(crop['img'])
+        self.assertNotEqual(crop['img'], hero['img'])       # wall/3D uses the crop
+        self.assertNotEqual(crop['thumb'], hero['thumb'])   # sidebar pool uses the crop thumbnail
 
     def test_form_includes_layout_image(self):
         from gallery.forms import ArtworkForm

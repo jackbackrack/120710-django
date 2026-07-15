@@ -61,10 +61,19 @@ def _artwork_json(artwork):
             img_url = artwork.slideshow.url
         except Exception:
             img_url = artwork.image.url if artwork.image else ''
-    try:
-        thumb_url = artwork.card_sm.url
-    except Exception:
-        thumb_url = img_url
+    # Sidebar thumbnail: prefer a small crop thumbnail so the layout pool shows
+    # the cropped image too, not just the hero.
+    thumb_url = ''
+    if artwork.layout_image:
+        try:
+            thumb_url = artwork.layout_sm.url
+        except Exception:
+            thumb_url = img_url
+    if not thumb_url:
+        try:
+            thumb_url = artwork.card_sm.url
+        except Exception:
+            thumb_url = img_url
     artists = ', '.join(str(a) for a in artwork.artists.all())
     return {
         'id':      artwork.pk,
