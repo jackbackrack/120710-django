@@ -376,6 +376,7 @@
     Object.values(placementMap).forEach(function (p) {
       if (p.wall === currentWall) addPlacedDiv(p);
     });
+    renderGroupBoxes();
   }
 
   function addPlacedDiv(p) {
@@ -416,6 +417,8 @@
         }
         closePopover();   // multi-select → hide single-artwork position controls
       }
+      expandSelectionToGroups();                 // grouped piece → select whole group
+      if (selectionOrder.length > 1) closePopover();
       if (measureDisplay) measureDisplay.textContent = '';
     });
     stageEl.appendChild(div);
@@ -483,23 +486,39 @@
   }
 
   // ── Drag placed artworks on stage ─────────────────────────────────────────
+  // Dragging moves EVERY selected piece together (so groups / multi-selections
+  // move as one). Grabbing an unselected piece first selects it (and its group).
   function makeDraggableOnStage(div, p) {
-    var startMx, startMy, startL, startT;
     div.addEventListener('mousedown', function (e) {
       if (e.button !== 0 || spaceDown) return;
       e.preventDefault();
-      startMx = e.clientX; startMy = e.clientY;
-      startL  = parseFloat(div.style.left);
-      startT  = parseFloat(div.style.top);
+      if (!div.classList.contains('selected')) {
+        clearSelection();
+        div.classList.add('selected');
+        selectionOrder = [String(p.artwork.id)];
+        expandSelectionToGroups();
+        if (selectionOrder.length === 1) openPopover(p); else closePopover();
+      }
+      var movers = getSelected().filter(function (d) {
+        return !d.classList.contains('obstacle') && !d.classList.contains('corner');
+      }).map(function (d) {
+        return { div: d, startL: parseFloat(d.style.left), startT: parseFloat(d.style.top),
+                 p: placementMap[parseInt(d.dataset.id, 10)] };
+      });
+      var startMx = e.clientX, startMy = e.clientY;
       var preDragSnap = snapshotPlacements();
-      var dragMx = e.clientX, dragMy = e.clientY, dragRaf = 0;
+      var dragMx = e.clientX, dragMy = e.clientY, dragRaf = 0, movedAny = false;
       function applyDrag() {
         dragRaf = 0;
-        // Mouse delta in canvas px == stage px (no scale transform)
-        div.style.left = (startL + (dragMx - startMx)) + 'px';
-        div.style.top  = (startT + (dragMy - startMy)) + 'px';
-        clampDivToWall(div);   // don't let the piece leave the wall
-        updateHangInfo(div);
+        var dx = dragMx - startMx, dy = dragMy - startMy;
+        if (dx || dy) movedAny = true;
+        movers.forEach(function (m) {
+          m.div.style.left = (m.startL + dx) + 'px';
+          m.div.style.top  = (m.startT + dy) + 'px';
+          clampDivToWall(m.div);   // don't let a piece leave the wall
+          updateHangInfo(m.div);
+        });
+        renderGroupBoxes();
       }
       function onMove(ev) {
         dragMx = ev.clientX; dragMy = ev.clientY;
@@ -509,11 +528,10 @@
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         if (dragRaf) { cancelAnimationFrame(dragRaf); applyDrag(); }
-        if (parseFloat(div.style.left) !== startL || parseFloat(div.style.top) !== startT) {
-          pushUndo(preDragSnap);   // only if the piece actually moved
-        }
-        syncWorldFromDiv(div, p);
-        if (popoverArtId === p.artwork.id) updatePopoverValues(p);
+        if (movedAny) pushUndo(preDragSnap);
+        movers.forEach(function (m) { if (m.p) syncWorldFromDiv(m.div, m.p); });
+        if (popoverArtId != null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
+        renderGroupBoxes();
         scheduleSave();
       }
       document.addEventListener('mousemove', onMove);
@@ -569,11 +587,12 @@
       var old = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
       if (old) old.remove();
     }
-    var p = { artwork: art, wall: currentWall, x_in: w.x_in, y_in: w.y_in, z_in: w.z_in };
+    var p = { artwork: art, wall: currentWall, x_in: w.x_in, y_in: w.y_in, z_in: w.z_in, rotation: 0, group: null };
     placementMap[id] = p;
     placements.push(p);
     addPlacedDiv(p);
     renderSidebar();
+    renderGroupBoxes();
     // Select just the freshly-placed piece so it can be adjusted right away.
     clearSelection();
     var newDiv = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
@@ -688,6 +707,7 @@
       var id = div.dataset.id;
       if (selectionOrder.indexOf(id) === -1) selectionOrder.push(id);
     });
+    expandSelectionToGroups();   // a marquee touching one group member selects the whole group
     // One artwork → show its position bar; several/none → keep it hidden.
     if (selectionOrder.length === 1 && placementMap[selectionOrder[0]]) {
       openPopover(placementMap[selectionOrder[0]]);
@@ -764,6 +784,7 @@
       selectionOrder = [id];
       openPopover(p);
     }
+    renderGroupBoxes();
     scheduleSave();
   }
   if (posRotate) posRotate.addEventListener('click', function (e) { e.preventDefault(); rotateSelected(); });
@@ -814,6 +835,96 @@
     }).filter(Boolean);
   }
 
+  // ── Grouping ────────────────────────────────────────────────────────────
+  var GROUP_COLORS = ['#c0392b', '#2277cc', '#8e44ad', '#e67e22', '#16a085', '#2c3e50', '#d81b60'];
+  function groupColor(gid) {
+    var n = GROUP_COLORS.length;
+    return GROUP_COLORS[((gid % n) + n) % n];
+  }
+  function nextGroupId() {
+    var max = 0;
+    Object.values(placementMap).forEach(function (p) { if (p.group != null && p.group > max) max = p.group; });
+    return max + 1;
+  }
+  function groupMemberIds(gid) {
+    var ids = [];
+    Object.values(placementMap).forEach(function (p) {
+      if (p.group != null && p.group === gid) ids.push(String(p.artwork.id));
+    });
+    return ids;
+  }
+  function expandSelectionToGroups() {
+    var extra = [];
+    selectionOrder.forEach(function (id) {
+      var p = placementMap[id];
+      if (p && p.group != null) {
+        groupMemberIds(p.group).forEach(function (mid) {
+          if (selectionOrder.indexOf(mid) === -1 && extra.indexOf(mid) === -1) extra.push(mid);
+        });
+      }
+    });
+    extra.forEach(function (mid) {
+      selectionOrder.push(mid);
+      var div = stageEl.querySelector('.placed-art[data-id="' + mid + '"]');
+      if (div) div.classList.add('selected');
+    });
+  }
+  // Draw a dashed colored box around each group's members on the current wall.
+  function renderGroupBoxes() {
+    stageEl.querySelectorAll('.group-box').forEach(function (el) { el.remove(); });
+    var groups = {};
+    Object.values(placementMap).forEach(function (p) {
+      if (p.wall !== currentWall || p.group == null) return;
+      (groups[p.group] = groups[p.group] || []).push(p);
+    });
+    Object.keys(groups).forEach(function (gidKey) {
+      var gid = parseInt(gidKey, 10);
+      var minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity, found = false;
+      groups[gid].forEach(function (p) {
+        var div = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+        if (!div) return;
+        found = true;
+        var l = parseFloat(div.style.left), t = parseFloat(div.style.top);
+        minL = Math.min(minL, l); minT = Math.min(minT, t);
+        maxR = Math.max(maxR, l + parseFloat(div.style.width));
+        maxB = Math.max(maxB, t + parseFloat(div.style.height));
+      });
+      if (!found) return;
+      var pad = 6;
+      var box = document.createElement('div');
+      box.className = 'group-box';
+      box.style.left        = (minL - pad) + 'px';
+      box.style.top         = (minT - pad) + 'px';
+      box.style.width       = (maxR - minL + 2 * pad) + 'px';
+      box.style.height      = (maxB - minT + 2 * pad) + 'px';
+      box.style.borderColor = groupColor(gid);
+      stageEl.appendChild(box);
+    });
+  }
+  function groupSelected() {
+    var sel = getSelected().filter(function (d) {
+      return !d.classList.contains('obstacle') && !d.classList.contains('corner');
+    });
+    if (sel.length < 2) return;
+    pushUndo();
+    var gid = nextGroupId();
+    sel.forEach(function (d) { var p = placementMap[parseInt(d.dataset.id, 10)]; if (p) p.group = gid; });
+    renderGroupBoxes();
+    scheduleSave();
+  }
+  function ungroupSelected() {
+    var targets = getSelected()
+      .map(function (d) { return placementMap[parseInt(d.dataset.id, 10)]; })
+      .filter(function (p) { return p && p.group != null; });
+    if (!targets.length) return;
+    pushUndo();
+    targets.forEach(function (p) { p.group = null; });
+    renderGroupBoxes();
+    scheduleSave();
+  }
+  document.getElementById('btn-group').addEventListener('click', groupSelected);
+  document.getElementById('btn-ungroup').addEventListener('click', ungroupSelected);
+
   // ── Undo ──────────────────────────────────────────────────────────────────
   // Snapshot placement positions before each edit so a mistake (e.g. distribute
   // in the wrong direction) can be reverted to the previous layout.
@@ -822,7 +933,7 @@
   var undoBtn = document.getElementById('btn-undo');
   function snapshotPlacements() {
     return placements.map(function (p) {
-      return { id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0 };
+      return { id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0, group: (p.group == null ? null : p.group) };
     });
   }
   function pushUndo(snap) {
@@ -837,7 +948,7 @@
     snap.forEach(function (s) {
       var art = findArtwork(s.id);
       if (!art) return;
-      var p = { artwork: art, wall: s.wall, x_in: s.x_in, y_in: s.y_in, z_in: s.z_in, rotation: s.rotation || 0 };
+      var p = { artwork: art, wall: s.wall, x_in: s.x_in, y_in: s.y_in, z_in: s.z_in, rotation: s.rotation || 0, group: (s.group == null ? null : s.group) };
       newPlacements.push(p);
       newMap[s.id] = p;
     });
@@ -945,6 +1056,7 @@
     selectionOrder = [];
     closePopover();
     renderSidebar();
+    renderGroupBoxes();
     scheduleSave();
   }
 
@@ -1056,7 +1168,7 @@
       body: JSON.stringify({
         room: { width_in: cfg.width_in, depth_in: cfg.depth_in, height_in: cfg.height_in },
         placements: placements.map(function (p) {
-          return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0 };
+          return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0, group: (p.group == null ? null : p.group) };
         }),
       }),
     })

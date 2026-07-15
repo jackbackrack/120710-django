@@ -86,7 +86,8 @@ def room_layout(request, slug):
 
     placements_json = json.dumps([
         {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
-         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation}
+         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation,
+         'group': wp.group}
         for wp in placed
     ])
     pool_json   = json.dumps([_artwork_json(a) for a in pool_qs])
@@ -133,6 +134,7 @@ def room_layout_save(request, slug):
                 y_in=float(item['y_in']),
                 z_in=float(item['z_in']),
                 rotation=90 if int(item.get('rotation', 0) or 0) == 90 else 0,
+                group=(int(item['group']) if item.get('group') not in (None, '') else None),
             )
         except (Artwork.DoesNotExist, KeyError, ValueError) as e:
             errors.append(str(e))
@@ -155,7 +157,8 @@ def room_viewer(request, slug):
 
     placements_json = json.dumps([
         {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
-         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation}
+         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation,
+         'group': wp.group}
         for wp in placed
     ])
     config_json = json.dumps(_config_dict(config))

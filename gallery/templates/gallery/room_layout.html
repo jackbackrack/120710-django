@@ -33,6 +33,10 @@
 /* Rubber-band multi-select rectangle */
 .marquee-box { position: absolute; border: 1px dashed #64968c; background: rgba(100,150,140,.15); pointer-events: none; z-index: 10; }
 
+/* Group outline (drawn around the members of a group; color set inline) */
+.group-box { position: absolute; border: 2px dashed; border-radius: 4px; pointer-events: none; z-index: 0; }
+.group-box .group-tag { position: absolute; top: -0.9em; left: 4px; font-size: .6rem; font-weight: 700; padding: 0 3px; background: #fff; }
+
 /* The wall itself — sized to real aspect ratio, transformed for pan/zoom */
 #wall-stage {
   position: absolute;
@@ -164,6 +168,8 @@
       <button id="btn-dist-h" title="Distribute selected evenly horizontal">Dist H</button>
       <button id="btn-dist-v" title="Distribute selected evenly vertical">Dist V</button>
       <button id="btn-remove" title="Return selected to unplaced pool">Remove</button>
+      <button id="btn-group" title="Group selected artworks (move &amp; arrange together)">Group</button>
+      <button id="btn-ungroup" title="Ungroup selected artworks">Ungroup</button>
       <button id="btn-undo" title="Undo the last change (Ctrl/Cmd+Z)" disabled>Undo</button>
       <button id="btn-measure" title="Measure distance between two selected artworks (M)">Measure</button>
       <button id="btn-hang-info" title="Show each artwork's size and the distance from each edge to the wall edges (for hanging)">Hang Info</button>

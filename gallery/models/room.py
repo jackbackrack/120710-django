@@ -72,6 +72,10 @@ class WallPlacement(models.Model):
     # Yaw rotation in degrees for floor/ceiling pieces: 0 or 90.
     rotation = models.IntegerField(default=0)
 
+    # Optional grouping id — placements sharing a value move/align/distribute
+    # together in the layout editor. Null = ungrouped.
+    group = models.IntegerField(null=True, blank=True)
+
     class Meta:
         unique_together = [('show', 'artwork')]
 
