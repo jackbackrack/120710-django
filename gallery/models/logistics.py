@@ -8,6 +8,26 @@ PICKUP = 'pickup'
 KIND_CHOICES = [(DROPOFF, 'Drop-off'), (INSTALL, 'Install'), (PICKUP, 'Pickup')]
 
 
+def _site_location(show):
+    site = show.sites.first()
+    if not site:
+        return ''
+    parts = [site.street, site.city, site.state, site.postal_code, site.country]
+    return ', '.join([p for p in parts if p]) or site.name
+
+
+def _google_calendar_url(text, start, end, details, location):
+    from urllib.parse import urlencode
+    fmt = '%Y%m%dT%H%M%S'
+    return 'https://calendar.google.com/calendar/render?' + urlencode({
+        'action': 'TEMPLATE',
+        'text': text,
+        'dates': f'{start.strftime(fmt)}/{end.strftime(fmt)}',
+        'details': details,
+        'location': location,
+    })
+
+
 class ScheduleWindow(models.Model):
     """A curator-defined date + time range during which artists may drop off
     work before a show (kind='dropoff') or pick it up after (kind='pickup').
@@ -24,6 +44,16 @@ class ScheduleWindow(models.Model):
 
     def __str__(self):
         return f'{self.show.name} {self.get_kind_display()} {self.date} {self.start}-{self.end}'
+
+    def google_calendar_url(self):
+        """'Add to Google Calendar' link spanning this window's full range."""
+        import datetime
+        start = datetime.datetime.combine(self.date, self.start)
+        end = datetime.datetime.combine(self.date, self.end)
+        label = self.get_kind_display()
+        return _google_calendar_url(
+            f'{label} window: {self.show.name}', start, end,
+            f'{label} window for the show {self.show.name}.', _site_location(self.show))
 
 
 class ArtistSchedule(models.Model):
@@ -53,37 +83,16 @@ class ArtistSchedule(models.Model):
         clock time), which is what a local drop-off/install/pickup wants."""
         if not (self.window and self.scheduled_time):
             return None
-        import datetime
-        from urllib.parse import urlencode
-        start = datetime.datetime.combine(self.window.date, self.scheduled_time)
-        end = start + datetime.timedelta(minutes=duration_minutes)
-        fmt = '%Y%m%dT%H%M%S'
-        site = self.show.sites.first()
-        location = ''
-        if site:
-            parts = [site.street, site.city, site.state, site.postal_code, site.country]
-            location = ', '.join([p for p in parts if p]) or site.name
-        label = self.get_kind_display()
-        params = {
-            'action': 'TEMPLATE',
-            'text': f'{label}: {self.show.name}',
-            'dates': f'{start.strftime(fmt)}/{end.strftime(fmt)}',
-            'details': f'{label} for the show "{self.show.name}".',
-            'location': location,
-        }
-        return 'https://calendar.google.com/calendar/render?' + urlencode(params)
+        start, end, label, location = self._event_parts(duration_minutes)
+        return _google_calendar_url(
+            f'{label}: {self.show.name}', start, end,
+            f'{label} for the show {self.show.name}.', location)
 
     def _event_parts(self, duration_minutes=30):
         import datetime
         start = datetime.datetime.combine(self.window.date, self.scheduled_time)
         end = start + datetime.timedelta(minutes=duration_minutes)
-        site = self.show.sites.first()
-        location = ''
-        if site:
-            parts = [site.street, site.city, site.state, site.postal_code, site.country]
-            location = ', '.join([p for p in parts if p]) or site.name
-        label = self.get_kind_display()
-        return start, end, label, location
+        return start, end, self.get_kind_display(), _site_location(self.show)
 
     def ics(self, duration_minutes=30):
         """An iCalendar (.ics) event for this scheduled time — opens in Apple

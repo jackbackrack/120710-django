@@ -19,6 +19,7 @@
   <ul class="list-unstyled">
     {% for w in s.windows %}
     <li class="mb-1">{{ w.date }} · {{ w.start|time:"g:i A" }}–{{ w.end|time:"g:i A" }}
+      <a class="card__link" href="{{ w.google_calendar_url }}" target="_blank" rel="noopener">add to Google Calendar</a>
       <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="window_id" value="{{ w.pk }}"><button class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this window?')">remove</button></form>
     </li>
     {% empty %}<li class="text-muted">None yet.</li>{% endfor %}

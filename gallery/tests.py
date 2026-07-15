@@ -2535,6 +2535,17 @@ class ArtScheduleTests(TestCase):
         s2 = ArtistSchedule.objects.create(show=self.show, artist=self.artist, kind='pickup')
         self.assertIsNone(s2.google_calendar_url())
 
+    def test_window_google_calendar_url(self):
+        from gallery.models import ScheduleWindow
+        w = ScheduleWindow.objects.create(
+            show=self.show, kind='install',
+            date=datetime.date(2025, 6, 7), start=datetime.time(10, 0), end=datetime.time(14, 0))
+        url = w.google_calendar_url()
+        self.assertIn('calendar.google.com', url)
+        self.assertIn('20250607T100000', url)   # window start
+        self.assertIn('20250607T140000', url)   # window end
+        self.assertIn('Install', url)
+
     def test_ics_download(self):
         from gallery.models import ScheduleWindow, ArtistSchedule
         w = ScheduleWindow.objects.create(
