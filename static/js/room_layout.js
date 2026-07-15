@@ -413,7 +413,9 @@
       '<div class="hang-v"></div>';
 
     makeDraggableOnStage(div, p);
-    if (!READONLY) div.addEventListener('click', function (e) {
+    // Selection stays enabled in read-only mode so artists can pick two pieces to
+    // measure between; only editing (drag/nudge/delete/rotate) is disabled.
+    div.addEventListener('click', function (e) {
       e.stopPropagation();
       var id = String(p.artwork.id);  // string for consistent selectionOrder
       var wasSelected = div.classList.contains('selected');
@@ -754,7 +756,6 @@
   }
 
   canvasWrap.addEventListener('mousedown', function (e) {
-    if (READONLY) return;                            // read-only 2D viewer: no marquee select
     if (e.button !== 0 || spaceDown) return;         // left button only; space = pan
     if (e.target.closest('.placed-art')) return;     // artwork/obstacle handles its own click
     marqueeActive = true;
@@ -805,6 +806,7 @@
   // rotates as a rigid body about its group centre; each ungrouped piece rotates
   // about its own centre. Reversible: rotating again returns to 0°.
   function rotateSelection() {
+    if (READONLY) return;                     // read-only 2D viewer: no rotation
     var members = getSelected()
       .filter(function (d) { return !d.classList.contains('obstacle') && !d.classList.contains('corner'); })
       .map(function (d) { return placementMap[parseInt(d.dataset.id, 10)]; })
@@ -1148,6 +1150,7 @@
   });
 
   function removeSelected() {
+    if (READONLY) return;                     // read-only 2D viewer: no deletion
     var snap = snapshotPlacements();
     var removed = 0;
     getSelected().forEach(function (div) {
@@ -1234,7 +1237,7 @@
     var artworkSelected = selected.filter(function (d) {
       return !d.classList.contains('obstacle') && !d.classList.contains('corner');
     });
-    if (isArrow && artworkSelected.length > 0) {
+    if (isArrow && artworkSelected.length > 0 && !READONLY) {   // no nudging in read-only; arrows pan instead
       // Coalesce a burst of nudges into a single undo step.
       var nowT = performance.now();
       if (nowT - lastNudgeUndoT > 600) pushUndo();

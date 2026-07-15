@@ -129,11 +129,10 @@
 #layout-root.readonly #btn-ungroup,
 #layout-root.readonly #btn-rotate,
 #layout-root.readonly #btn-undo,
-#layout-root.readonly #btn-measure,
-#layout-root.readonly #measure-display,
 #layout-root.readonly #btn-save,
 #layout-root.readonly #save-status { display: none !important; }
-#layout-root.readonly .placed-art { cursor: default; }
+/* Measure + Hang Info stay available in read-only — they don't change anything. */
+#layout-root.readonly .placed-art { cursor: pointer; }
 </style>
 {% endblock %}
 
