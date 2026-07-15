@@ -7,7 +7,9 @@
   {% crispy form %}
 
   {% if object.image %}
-  <div class="mb-3" id="crop-tools" data-hero="{{ object.image.url }}">
+  <div class="mb-3" id="crop-tools"
+       data-hero="{{ object.slideshow.url }}"
+       {% if object.width_inches and object.height_inches %}data-w="{{ object.width_inches }}" data-h="{{ object.height_inches }}"{% endif %}>
     <button type="button" id="crop-from-hero" class="btn btn-sm btn-outline-secondary">Crop layout / 3D image from main image</button>
     <span id="crop-status" class="text-muted small ms-2"></span>
     <button type="button" id="crop-undo" class="btn btn-sm btn-link" style="display:none">Undo crop</button>
@@ -46,14 +48,25 @@
 {% load static %}
 <script src="{% static 'js/artwork_form_validate.js' %}"></script>
 
-<!-- In-browser crop tool for the layout/3D image -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
-<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<!-- In-browser 4-corner (perspective) crop for the layout/3D image -->
+<style>
+  #crop-stage { position: relative; display: inline-block; touch-action: none; }
+  #crop-stage img { display: block; max-width: 88vw; max-height: 68vh; -webkit-user-drag: none; user-select: none; }
+  .crop-handle { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+    border: 2px solid #fff; background: rgba(229,85,85,.85); box-shadow: 0 0 0 1px rgba(0,0,0,.4);
+    cursor: grab; touch-action: none; }
+</style>
 <div id="crop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;">
   <div style="background:#fff;padding:12px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:8px;">
-    <div style="max-height:72vh;overflow:hidden;"><img id="crop-image" style="max-width:100%;display:block;"></div>
+    <p class="text-muted small mb-0">Drag each corner onto a corner of the artwork. The selected shape is straightened to a rectangle.</p>
+    <div id="crop-stage">
+      <img id="crop-image">
+      <svg id="crop-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+        <polygon id="crop-poly" fill="rgba(100,150,140,.18)" stroke="#e55" stroke-width="2"></polygon>
+      </svg>
+    </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button type="button" id="crop-reset" class="btn btn-sm btn-link">Reset box</button>
+      <button type="button" id="crop-reset" class="btn btn-sm btn-link">Reset corners</button>
       <button type="button" id="crop-cancel" class="btn btn-sm btn-link">Cancel</button>
       <button type="button" id="crop-save" class="btn btn-sm btn-primary">Use this crop</button>
     </div>
@@ -62,57 +75,150 @@
 <script>
 (function () {
   var tools = document.getElementById('crop-tools');
-  if (!tools || typeof Cropper === 'undefined') return;
+  if (!tools) return;
   var openBtn = document.getElementById('crop-from-hero');
   var modal   = document.getElementById('crop-modal');
+  var stage   = document.getElementById('crop-stage');
   var image   = document.getElementById('crop-image');
+  var poly    = document.getElementById('crop-poly');
   var status  = document.getElementById('crop-status');
   var undoBtn = document.getElementById('crop-undo');
   var fileInput = document.getElementById('id_layout_image');
-  var cropper = null;
+  // Corners in order: top-left, top-right, bottom-right, bottom-left (fractions 0..1).
+  var pts = [], handles = [];
 
-  function close() {
-    if (cropper) { cropper.destroy(); cropper = null; }
-    modal.style.display = 'none';
+  function defaultPts() { return [[0.08, 0.08], [0.92, 0.08], [0.92, 0.92], [0.08, 0.92]]; }
+
+  function redraw() {
+    var w = image.clientWidth, h = image.clientHeight;
+    poly.setAttribute('points', pts.map(function (p) { return (p[0] * w) + ',' + (p[1] * h); }).join(' '));
+    handles.forEach(function (hn, i) {
+      hn.style.left = (pts[i][0] * w) + 'px';
+      hn.style.top  = (pts[i][1] * h) + 'px';
+    });
   }
 
-  openBtn.addEventListener('click', function () {
-    image.crossOrigin = 'anonymous';                 // needed for canvas export (S3 CORS)
-    image.onload = function () {
-      if (cropper) cropper.destroy();
-      cropper = new Cropper(image, {
-        aspectRatio: NaN,                            // free crop — corners drag independently
-        viewMode: 1, autoCropArea: 1, background: false,
+  function makeHandles() {
+    handles.forEach(function (h) { h.remove(); });
+    handles = pts.map(function (_, i) {
+      var hn = document.createElement('div');
+      hn.className = 'crop-handle';
+      hn.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        hn.setPointerCapture(e.pointerId);
+        function move(ev) {
+          var r = image.getBoundingClientRect();
+          pts[i][0] = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+          pts[i][1] = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+          redraw();
+        }
+        function up(ev) { hn.releasePointerCapture(e.pointerId); hn.removeEventListener('pointermove', move); hn.removeEventListener('pointerup', up); }
+        hn.addEventListener('pointermove', move);
+        hn.addEventListener('pointerup', up);
       });
-    };
+      stage.appendChild(hn);
+      return hn;
+    });
+  }
+
+  function open() {
+    pts = defaultPts();
+    image.crossOrigin = 'anonymous';                 // needed for WebGL texture export (S3 CORS)
+    image.onload = function () { makeHandles(); redraw(); };
     image.src = tools.dataset.hero + (tools.dataset.hero.indexOf('?') === -1 ? '?x=1' : '&x=1');
     modal.style.display = 'flex';
-  });
+  }
+  function close() { modal.style.display = 'none'; }
 
+  openBtn.addEventListener('click', open);
   document.getElementById('crop-cancel').addEventListener('click', close);
-  document.getElementById('crop-reset').addEventListener('click', function () { if (cropper) cropper.reset(); });
+  document.getElementById('crop-reset').addEventListener('click', function () { pts = defaultPts(); redraw(); });
   modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+  window.addEventListener('resize', function () { if (modal.style.display !== 'none') redraw(); });
 
-  // Discard a pending (unsaved) crop and go back to whatever was there before.
   undoBtn.addEventListener('click', function () {
     if (fileInput) fileInput.value = '';
     status.textContent = '';
     undoBtn.style.display = 'none';
   });
 
+  // Projective map from the unit square to the chosen quad (Heckbert).
+  function squareToQuad(q) {
+    var x0 = q[0][0], y0 = q[0][1], x1 = q[1][0], y1 = q[1][1],
+        x2 = q[2][0], y2 = q[2][1], x3 = q[3][0], y3 = q[3][1];
+    var dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3;
+    var dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+    var a, b, c, d, e, f, g, h;
+    if (dx3 === 0 && dy3 === 0) {
+      a = x1 - x0; b = x2 - x1; c = x0; d = y1 - y0; e = y2 - y1; f = y0; g = 0; h = 0;
+    } else {
+      var den = dx1 * dy2 - dx2 * dy1;
+      g = (dx3 * dy2 - dx2 * dy3) / den;
+      h = (dx1 * dy3 - dx3 * dy1) / den;
+      a = x1 - x0 + g * x1; b = x3 - x0 + h * x3; c = x0;
+      d = y1 - y0 + g * y1; e = y3 - y0 + h * y3; f = y0;
+    }
+    // column-major mat3 so GLSL H*vec3(u,v,1) = [a b c;d e f;g h 1]·(u,v,1)
+    return [a, d, g, b, e, h, c, f, 1];
+  }
+
+  function outputSize() {
+    var w = parseFloat(tools.dataset.w), h = parseFloat(tools.dataset.h), MAX = 1600;
+    if (!(w > 0 && h > 0)) {
+      var nw = image.naturalWidth || 1, nh = image.naturalHeight || 1;
+      function d(i, j) { return Math.hypot((pts[i][0] - pts[j][0]) * nw, (pts[i][1] - pts[j][1]) * nh); }
+      w = (d(0, 1) + d(3, 2)) / 2; h = (d(0, 3) + d(1, 2)) / 2;
+    }
+    if (!(w > 0) || !(h > 0)) { w = h = 1; }
+    return w >= h ? [MAX, Math.round(MAX * h / w)] : [Math.round(MAX * w / h), MAX];
+  }
+
   document.getElementById('crop-save').addEventListener('click', function () {
-    if (!cropper) return;
-    var canvas = cropper.getCroppedCanvas({ maxWidth: 2000, maxHeight: 2000 });
-    if (!canvas) { close(); return; }
+    var size = outputSize(), canvas = document.createElement('canvas');
+    canvas.width = size[0]; canvas.height = size[1];
+    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) { status.textContent = 'Your browser does not support WebGL for perspective crop.'; close(); return; }
+
+    var vs = 'attribute vec2 aPos; attribute vec2 aUV; varying vec2 vUV; void main(){ vUV=aUV; gl_Position=vec4(aPos,0.0,1.0); }';
+    var fs = 'precision highp float; uniform sampler2D tex; uniform mat3 H; varying vec2 vUV; void main(){ vec3 p=H*vec3(vUV,1.0); gl_FragColor=texture2D(tex, p.xy/p.z); }';
+    function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+    var prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(prog); gl.useProgram(prog);
+
+    // Full-screen quad: clip-space position + unit-square UV (top-left origin).
+    var verts = new Float32Array([
+      -1, 1, 0, 0,   1, 1, 1, 0,   -1, -1, 0, 1,
+       1, 1, 1, 0,   1, -1, 1, 1,  -1, -1, 0, 1,
+    ]);
+    var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+    var aPos = gl.getAttribLocation(prog, 'aPos'), aUV = gl.getAttribLocation(prog, 'aUV');
+    gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 16, 8);
+
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);    // texture (0,0) = top-left of image
+    var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image); }
+    catch (err) { status.textContent = 'Could not read image (CORS?).'; close(); return; }
+
+    gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'H'), false, squareToQuad(pts));
+    gl.uniform1i(gl.getUniformLocation(prog, 'tex'), 0);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
     canvas.toBlob(function (blob) {
-      if (!blob) { status.textContent = 'Could not crop (image blocked by CORS?).'; close(); return; }
+      if (!blob) { status.textContent = 'Could not export the crop.'; close(); return; }
       var dt = new DataTransfer();
       dt.items.add(new File([blob], 'layout-crop.jpg', { type: 'image/jpeg' }));
       if (fileInput) fileInput.files = dt.files;
       status.textContent = 'Cropped image ready — click Update to save.';
       undoBtn.style.display = '';
       close();
-    }, 'image/jpeg', 0.9);
+    }, 'image/jpeg', 0.92);
   });
 }());
 </script>
