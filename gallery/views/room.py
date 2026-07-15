@@ -67,6 +67,15 @@ def _artwork_json(artwork):
     }
 
 
+def _placements_json(placed):
+    return json.dumps([
+        {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
+         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation,
+         'group': wp.group}
+        for wp in placed
+    ])
+
+
 @login_required
 def room_layout(request, slug):
     show = get_object_or_404(Show, slug=slug)
@@ -78,12 +87,7 @@ def room_layout(request, slug):
     placed_ids = {wp.artwork_id for wp in placed}
     pool_qs    = show.artworks.exclude(pk__in=placed_ids).prefetch_related('artists')
 
-    placements_json = json.dumps([
-        {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
-         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation,
-         'group': wp.group}
-        for wp in placed
-    ])
+    placements_json = _placements_json(placed)
     pool_json   = json.dumps([_artwork_json(a) for a in pool_qs])
     config_json = json.dumps(_config_dict(config))
 
@@ -92,6 +96,31 @@ def room_layout(request, slug):
         'config_json': config_json,
         'placements_json': placements_json,
         'pool_json': pool_json,
+    })
+
+
+def room_2d(request, slug):
+    """Read-only version of the layout editor for artists to see where to install
+    their work. Same rendering as the editor, with all editing controls and
+    gestures disabled. Visible on published shows (like the 3D viewer) or to a
+    curator anytime."""
+    show = get_object_or_404(Show, slug=slug)
+    published = show.status in (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED)
+    if not published and not can_manage_show(request.user, show):
+        raise Http404
+    config, _site = _room_config(show)
+    placed = (
+        WallPlacement.objects
+        .filter(show=show)
+        .select_related('artwork')
+        .prefetch_related('artwork__artists')
+    )
+    return render(request, 'gallery/room_layout.html', {
+        'show': show,
+        'config_json': json.dumps(_config_dict(config)),
+        'placements_json': _placements_json(placed),
+        'pool_json': '[]',
+        'readonly': True,
     })
 
 
@@ -149,12 +178,7 @@ def room_viewer(request, slug):
         .prefetch_related('artwork__artists')
     )
 
-    placements_json = json.dumps([
-        {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
-         'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation,
-         'group': wp.group}
-        for wp in placed
-    ])
+    placements_json = _placements_json(placed)
     config_json = json.dumps(_config_dict(config))
 
     return render(request, 'gallery/room_viewer.html', {

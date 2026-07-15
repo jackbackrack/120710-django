@@ -71,6 +71,7 @@
   {% endif %}
   {% if can_view_3d %}
     <a class="card__link" href="{% url 'gallery:room_viewer' show.slug %}">View in 3D</a>
+    <a class="card__link" href="{% url 'gallery:room_2d' show.slug %}">2D View</a>
   {% endif %}
   {# Curatorial actions on their own line for admin / juror / curator #}
   {% if can_view_reviews %}<div style="width:100%"></div>{% endif %}

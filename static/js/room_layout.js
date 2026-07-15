@@ -25,6 +25,7 @@
   var pool       = window.POOL_ARTWORKS;
   var saveUrl    = window.SAVE_URL;
   var csrfToken  = window.CSRF_TOKEN;
+  var READONLY   = !!window.LAYOUT_READONLY;   // 2D viewer mode: navigation only, no editing
 
   var currentWall = 'N';
   var placementMap = {};
@@ -351,6 +352,7 @@
 
   // Shared click-to-select handler for corners and obstacles (no popover, no drag)
   function addSelectableListener(div, id) {
+    if (READONLY) return;                     // read-only 2D viewer: no selection
     div.addEventListener('click', function (e) {
       e.stopPropagation();
       var wasSelected = div.classList.contains('selected');
@@ -411,7 +413,7 @@
       '<div class="hang-v"></div>';
 
     makeDraggableOnStage(div, p);
-    div.addEventListener('click', function (e) {
+    if (!READONLY) div.addEventListener('click', function (e) {
       e.stopPropagation();
       var id = String(p.artwork.id);  // string for consistent selectionOrder
       var wasSelected = div.classList.contains('selected');
@@ -502,6 +504,7 @@
   // Dragging moves EVERY selected piece together (so groups / multi-selections
   // move as one). Grabbing an unselected piece first selects it (and its group).
   function makeDraggableOnStage(div, p) {
+    if (READONLY) return;                     // read-only 2D viewer: no dragging
     div.addEventListener('mousedown', function (e) {
       if (e.button !== 0 || spaceDown) return;
       e.preventDefault();
@@ -604,6 +607,7 @@
   canvasWrap.addEventListener('dragover', function (e) { e.preventDefault(); });
   canvasWrap.addEventListener('drop', function (e) {
     e.preventDefault();
+    if (READONLY) return;                     // read-only 2D viewer: no drop-to-place
     var id  = parseInt(e.dataTransfer.getData('text/plain'), 10);
     if (!id) return;
     var art = findArtwork(id);
@@ -750,6 +754,7 @@
   }
 
   canvasWrap.addEventListener('mousedown', function (e) {
+    if (READONLY) return;                            // read-only 2D viewer: no marquee select
     if (e.button !== 0 || spaceDown) return;         // left button only; space = pan
     if (e.target.closest('.placed-art')) return;     // artwork/obstacle handles its own click
     marqueeActive = true;

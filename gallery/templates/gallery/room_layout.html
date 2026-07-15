@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
-{% block title %}Layout — {{ show.name }}{% endblock %}
-{% block block_title %}Layout: {{ show.name }}{% endblock %}
+{% block title %}{% if readonly %}2D View{% else %}Layout{% endif %} — {{ show.name }}{% endblock %}
+{% block block_title %}{% if readonly %}2D View{% else %}Layout{% endif %}: {{ show.name }}{% endblock %}
 
 {% block css %}
 {{ block.super }}
@@ -111,20 +111,42 @@
     line-height: 1.4;
   }
   #layout-touch-note strong { display: block; margin-bottom: 4px; }
-  /* Hide the editor itself so a phone user isn't left poking at dead controls */
-  #layout-root { display: none; }
+  /* Hide the *editor* on touch (no drag/keyboard). The read-only 2D viewer stays
+     visible — it fits each wall to the screen and only needs the wall tabs. */
+  #layout-root:not(.readonly) { display: none; }
 }
+
+/* ── Read-only 2D viewer: hide every editing control, keep navigation + hang info ── */
+#layout-root.readonly #sidebar,
+#layout-root.readonly #sidebar-resizer,
+#layout-root.readonly #pos-panel,
+#layout-root.readonly #btn-align-h,
+#layout-root.readonly #btn-align-v,
+#layout-root.readonly #btn-dist-h,
+#layout-root.readonly #btn-dist-v,
+#layout-root.readonly #btn-remove,
+#layout-root.readonly #btn-group,
+#layout-root.readonly #btn-ungroup,
+#layout-root.readonly #btn-rotate,
+#layout-root.readonly #btn-undo,
+#layout-root.readonly #btn-measure,
+#layout-root.readonly #measure-display,
+#layout-root.readonly #btn-save,
+#layout-root.readonly #save-status { display: none !important; }
+#layout-root.readonly .placed-art { cursor: default; }
 </style>
 {% endblock %}
 
 {% block content %}
+{% if not readonly %}
 <div id="layout-touch-note">
   <strong>The layout editor works best on a desktop.</strong>
   Arranging artwork needs a mouse and keyboard (drag-and-drop, scroll-to-zoom, and the Delete key),
   which aren’t available on a phone or tablet. Please open this page on a computer.
   You can still explore the finished show in the <a href="{% url 'gallery:room_viewer' show.slug %}">3D walkthrough</a>, which works on touch.
 </div>
-<div id="layout-root">
+{% endif %}
+<div id="layout-root"{% if readonly %} class="readonly"{% endif %}>
   <!-- Artwork pool sidebar -->
   <div id="sidebar">
     <h6>Unplaced</h6>
@@ -190,6 +212,7 @@ window.PLACEMENTS     = {{ placements_json|safe }};
 window.POOL_ARTWORKS  = {{ pool_json|safe }};
 window.SAVE_URL       = "{% url 'gallery:room_layout_save' show.slug %}";
 window.CSRF_TOKEN     = "{{ csrf_token }}";
+window.LAYOUT_READONLY = {% if readonly %}true{% else %}false{% endif %};
 </script>
 <script src="{% static 'js/room_layout.js' %}"></script>
 {% endblock %}

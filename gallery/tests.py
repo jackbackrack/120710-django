@@ -2431,6 +2431,58 @@ class WallPlacementRotationGroupTests(TestCase):
         self.assertEqual(data['d_in'], 12.0)
 
 
+class RoomTwoDViewTests(TestCase):
+    """Read-only 2D layout viewer (artists checking where to install)."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='staff2d@example.com', email='staff2d@example.com', password='pw'
+        )
+        add_staff_role(self.staff_user)
+        self.show = Show.objects.create(
+            name='TwoD Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+        )
+        self.artwork = Artwork.objects.create(
+            name='Painting', created_by=self.staff_user, end_year=2025,
+            width_inches=20, height_inches=30,
+        )
+        self.show.artworks.add(self.artwork)
+        from gallery.models import WallPlacement
+        WallPlacement.objects.create(
+            show=self.show, artwork=self.artwork, wall='N',
+            x_in=0.0, y_in=48.0, z_in=0.0,
+        )
+        self.url = reverse('gallery:room_2d', kwargs={'slug': self.show.slug})
+
+    def test_published_show_is_public_and_readonly(self):
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save()
+        resp = self.client.get(self.url)                 # anonymous
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn('window.LAYOUT_READONLY = true', body)
+        self.assertIn('class="readonly"', body)          # editing chrome hidden
+
+    def test_draft_show_hidden_from_public(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save()
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_curator_can_view_draft(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save()
+        self.client.force_login(self.staff_user)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_editor_is_not_readonly(self):
+        self.client.force_login(self.staff_user)
+        resp = self.client.get(reverse('gallery:room_layout', kwargs={'slug': self.show.slug}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('window.LAYOUT_READONLY = false', resp.content.decode())
+
+
 class ArtScheduleTests(TestCase):
     """Drop-off / pickup windows, artist scheduling, and curator check-off."""
 

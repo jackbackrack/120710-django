@@ -2,7 +2,7 @@ from django.urls import path, re_path
 
 from gallery.views.placards import placard_html, placard_json
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
-from gallery.views.room import room_layout, room_layout_save, room_viewer
+from gallery.views.room import room_layout, room_layout_save, room_viewer, room_2d
 from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker, schedule_ics
 from gallery.views import (
     artwork_autocomplete,
@@ -81,6 +81,7 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/layout/$', room_layout, name='room_layout'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/layout/save/$', room_layout_save, name='room_layout_save'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/3d/$', room_viewer, name='room_viewer'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/2d/$', room_2d, name='room_2d'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submit/$', artwork_submit, name='artwork_submit'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/invite/$', invite_artists, name='invite_artists'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submissions/$', show_submissions, name='show_submissions'),
