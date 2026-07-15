@@ -2517,3 +2517,48 @@ class ArtScheduleTests(TestCase):
                          {'kind': 'pickup', 'pickup-window': window.pk, 'pickup-time': '13:00'})
         self.assertTrue(ArtistSchedule.objects.filter(
             show=self.show, artist=self.artist, kind='pickup').exists())
+
+
+class RemoveArtworkFromShowTests(TestCase):
+    """Curator/admin removes an artwork from a published show without deleting it."""
+
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            username='rm-staff@example.com', email='rm-staff@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.artist_user = User.objects.create_user(
+            username='rm-artist@example.com', email='rm-artist@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='RM Artist', first_name='RM', last_name='Artist',
+            email='rm-artist@example.com', phone='')
+        self.show = Show.objects.create(
+            name='RM Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+            status=Show.STATUS_PUBLISHED)
+        self.artwork = Artwork.objects.create(name='RM Piece', created_by=self.artist_user, end_year=2025)
+        self.artwork.artists.add(self.artist)
+        self.show.artworks.add(self.artwork)
+        self.sub = ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user,
+            status=ArtworkSubmission.ACCEPTED, curator_decision=ArtworkSubmission.CURATOR_SELECTED)
+
+    def test_curator_removes_artwork_keeps_records(self):
+        self.client.force_login(self.staff)
+        r = self.client.post(reverse('gallery:remove_artwork_from_show',
+                                     kwargs={'slug': self.show.slug, 'pk': self.artwork.pk}))
+        self.assertEqual(r.status_code, 302)
+        # No longer in the show
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork.pk).exists())
+        # Artwork and artist still exist
+        self.assertTrue(Artwork.objects.filter(pk=self.artwork.pk).exists())
+        self.assertTrue(Artist.objects.filter(pk=self.artist.pk).exists())
+        # Submission neutralized so a later sync won't re-add it
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.curator_decision, ArtworkSubmission.UNDECIDED)
+
+    def test_non_manager_cannot_remove(self):
+        self.client.force_login(self.artist_user)
+        r = self.client.post(reverse('gallery:remove_artwork_from_show',
+                                     kwargs={'slug': self.show.slug, 'pk': self.artwork.pk}))
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())

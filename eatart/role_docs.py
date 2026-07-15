@@ -474,6 +474,7 @@ ROLE_DOCUMENTATION = {
             'The total width of selected flat wall artworks (depth = 0) is shown next to the Selected heading on the Submissions page — useful for gauging how much linear wall space the selection requires.',
             'Place artwork in the virtual room using the Layout editor. Access it from the curatorial button row on the show detail page.',
             'View the placed artwork in 3D using the 3D View button on the show detail page. The button is hidden from the public until at least one artwork has been placed.',
+            'Remove an artwork from a show (e.g. the artist withdrew it) with the "Remove from show" button on that artwork\'s card on the show detail page. This only pulls it from the show — the artwork and artist records are kept — and also clears any wall placement for it.',
             'Choose who installs the work with the "Artists install their own work" setting on the show Edit page: on (default) means artists schedule an install time that also serves as their drop-off; off means artists schedule a drop-off and you install. Set up the install/drop-off and pickup windows from "Schedule Windows", then use "Schedule Tracker" to check off which artists have installed/dropped off and collected their work, and see who is still outstanding.',
             'Edit juror reviews when corrections are needed.',
             'Your artist profile becomes publicly visible when you are added as a curator of a show.',

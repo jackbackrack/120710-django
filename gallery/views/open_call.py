@@ -661,6 +661,26 @@ def retract_submission(request, pk):
 
 
 @login_required
+def remove_artwork_from_show(request, slug, pk):
+    """Curator/admin: pull an artwork out of a show (e.g. the artist withdrew it)
+    without deleting the artwork or artist. Removes it from the show's artwork
+    set, clears any wall placement, and neutralizes the submission decision so a
+    later sync won't re-add it."""
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    if request.method == 'POST':
+        artwork = get_object_or_404(Artwork, pk=pk)
+        show.artworks.remove(artwork)
+        from gallery.models import WallPlacement
+        WallPlacement.objects.filter(show=show, artwork=artwork).delete()
+        ArtworkSubmission.objects.filter(show=show, artwork=artwork).update(
+            curator_decision=ArtworkSubmission.UNDECIDED)
+        messages.success(request, f'Removed "{artwork.name}" from {show.name}.')
+    return redirect(show)
+
+
+@login_required
 def send_selection_emails(request, slug):
     show = get_object_or_404(Show, slug=slug)
     if not can_manage_show(request.user, show):
