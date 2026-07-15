@@ -496,6 +496,7 @@
         // Mouse delta in canvas px == stage px (no scale transform)
         div.style.left = (startL + (dragMx - startMx)) + 'px';
         div.style.top  = (startT + (dragMy - startMy)) + 'px';
+        clampDivToWall(div);   // don't let the piece leave the wall
         updateHangInfo(div);
       }
       function onMove(ev) {
@@ -518,7 +519,19 @@
     });
   }
 
+  // Keep an artwork's rectangle inside the wall: its edges may reach but not
+  // cross the wall boundary (e.g. the bottom stops at the floor). Oversized
+  // pieces pin to the top-left corner.
+  function clampDivToWall(div) {
+    var dims = wallDims(currentWall);
+    var maxL = dims[0] * baseScale - parseFloat(div.style.width);
+    var maxT = dims[1] * baseScale - parseFloat(div.style.height);
+    div.style.left = Math.max(0, Math.min(maxL, parseFloat(div.style.left))) + 'px';
+    div.style.top  = Math.max(0, Math.min(maxT, parseFloat(div.style.top)))  + 'px';
+  }
+
   function syncWorldFromDiv(div, p) {
+    clampDivToWall(div);
     var r  = artStagePx(p);
     var sx = parseFloat(div.style.left) + parseFloat(div.style.width) / 2;
     var sy = parseFloat(div.style.top)  + r.h / 2;
@@ -532,7 +545,8 @@
     var w = parseFloat(div.style.width);
     div.style.left = (worldToStage(currentWall, p).x - w / 2) + 'px';
     div.style.top  = r.top + 'px';
-    updateHangInfo(div);
+    clampDivToWall(div);
+    syncWorldFromDiv(div, p);   // reflect any clamp back into world coords + hang info
   }
 
   // ── Drop from sidebar ─────────────────────────────────────────────────────
