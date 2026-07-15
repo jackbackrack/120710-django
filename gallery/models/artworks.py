@@ -47,10 +47,18 @@ class Artwork(models.Model):
     height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Height (inches)')
     depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Depth (inches, optional)')
     image = models.ImageField(upload_to=artwork_image_upload, blank=True, null=True)
+    # Optional cropped image used only in the room layout editor and 3D viewer.
+    # Falls back to the hero image when empty. Not shown in cards.
+    layout_image = models.ImageField(
+        upload_to=artwork_image_upload, blank=True, null=True,
+        verbose_name='Layout / 3D image (optional)',
+        help_text='A cropped image of just the artwork, used in the room layout and 3D view. '
+                  'Best matched to the piece’s proportions. Defaults to the main image if left blank.')
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
     slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
+    layout_lg = ImageSpecField(source='layout_image', processors=[Transpose(), ResizeToFit(width=1600)], format='JPEG', options={'quality': 85})
     PRICING_FOR_SALE = 'for_sale'
     PRICING_ON_REQUEST = 'on_request'
     PRICING_BEST_OFFER = 'best_offer'

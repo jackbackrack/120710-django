@@ -2649,3 +2649,38 @@ class AcceptanceEmailScheduleLinkTests(TestCase):
         _send_selection_email(self.sub, accepted=False)
         html = mail.outbox[0].alternatives[0][0]
         self.assertNotIn('/schedule/', html)
+
+
+class ArtworkLayoutImageTests(TestCase):
+    """The layout/3D image is used when set, otherwise the hero image."""
+
+    def setUp(self):
+        from PIL import Image as PILImage
+        self._tmp = tempfile.mkdtemp()
+        d = os.path.join(self._tmp, 'artwork_images')
+        os.makedirs(d)
+        PILImage.new('RGB', (8, 8), 'white').save(os.path.join(d, 'hero.jpg'), 'JPEG')
+        PILImage.new('RGB', (8, 8), 'black').save(os.path.join(d, 'crop.jpg'), 'JPEG')
+        self._override = self.settings(MEDIA_ROOT=self._tmp)
+        self._override.enable()
+
+    def tearDown(self):
+        self._override.disable()
+        shutil.rmtree(self._tmp, ignore_errors=True)
+
+    def test_layout_image_preferred_in_room_json(self):
+        from gallery.views.room import _artwork_json
+        a = Artwork.objects.create(name='LI', end_year=2025)
+        a.image.name = 'artwork_images/hero.jpg'
+        a.save()
+        hero_img = _artwork_json(a)['img']
+        self.assertTrue(hero_img)  # falls back to hero
+        a.layout_image.name = 'artwork_images/crop.jpg'
+        a.save()
+        crop_img = _artwork_json(a)['img']
+        self.assertTrue(crop_img)
+        self.assertNotEqual(crop_img, hero_img)   # now uses the cropped layout image
+
+    def test_form_includes_layout_image(self):
+        from gallery.forms import ArtworkForm
+        self.assertIn('layout_image', ArtworkForm.base_fields)

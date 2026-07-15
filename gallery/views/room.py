@@ -49,10 +49,18 @@ def _config_dict(config):
 
 
 def _artwork_json(artwork):
-    try:
-        img_url = artwork.slideshow.url
-    except Exception:
-        img_url = artwork.image.url if artwork.image else ''
+    # Prefer the artist's cropped layout image; fall back to the hero image.
+    img_url = ''
+    if artwork.layout_image:
+        try:
+            img_url = artwork.layout_lg.url
+        except Exception:
+            img_url = artwork.layout_image.url
+    if not img_url:
+        try:
+            img_url = artwork.slideshow.url
+        except Exception:
+            img_url = artwork.image.url if artwork.image else ''
     try:
         thumb_url = artwork.card_sm.url
     except Exception:
