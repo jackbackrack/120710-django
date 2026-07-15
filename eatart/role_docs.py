@@ -208,6 +208,30 @@ HOW_TO_GUIDES = [
         ],
     },
     {
+        'title': 'How to set up art drop-off and pickup times (curator)',
+        'roles': {'curator', 'staff'},
+        'steps': [
+            'From the show detail page, click "Drop-off/Pickup Windows" in the curatorial button row.',
+            'Under "Drop-off windows", add each date/time range when artists may bring their work in: pick a date, a start time, and an end time, then click "Add drop-off window". Add as many ranges as you need.',
+            'Under "Pickup windows", do the same for the ranges when artists may collect their work after the show closes.',
+            'To remove a window, click "remove" next to it. Any artist who had chosen a time in that window will need to pick a new one.',
+            'Artists with accepted work see a "Schedule My Drop-off/Pickup" button on the show page once at least one window exists; they choose a specific time within your ranges.',
+            'To track arrivals, click "Drop-off/Pickup Tracker" on the show detail page. It lists every accepted artist with their chosen drop-off and pickup times (or "not scheduled").',
+            'Tick the "Received" box when an artist drops off their work, and the "Collected" box when they pick it up. The summary at the top shows how many are in and how many are still outstanding, so you know who to follow up with.',
+        ],
+    },
+    {
+        'title': 'How to schedule your art drop-off and pickup',
+        'roles': None,
+        'steps': [
+            'After your work is accepted into a show and the curator has set up drop-off/pickup windows, open the show detail page and click "Schedule My Drop-off/Pickup".',
+            'For Drop-off, choose one of the available windows from the dropdown, enter a specific time within that window\'s range, and click "Set drop-off time".',
+            'For Pickup (used after the show closes), do the same to choose when you will collect your work.',
+            'Your chosen times are shown on the page, and you can come back to update them any time before the window.',
+            'Bring all your accepted pieces at your chosen drop-off time; the curator checks you off once your work arrives.',
+        ],
+    },
+    {
         'title': 'How to configure a site\'s room and walls (staff only)',
         'roles': {'staff'},
         'steps': [
@@ -376,6 +400,7 @@ ROLE_DOCUMENTATION = {
             'Create and edit your own artworks.',
             'Submit artworks to open call shows (or invitation-only shows where you have been invited) via the "Shows Accepting Submissions" section on your Me page.',
             'Track your submission statuses and retract submissions from the show detail page while the deadline is open.',
+            'Once accepted into a show, schedule your art drop-off (before the show) and pickup (after it closes) by picking a specific time within the curator\'s available windows — use the "Schedule My Drop-off/Pickup" button on the show page.',
             'Your artworks and profile become publicly visible once you are part of a show whose status is Published or Closed.',
             'If you have an existing artist record that was created before you had an account, check your artist edit page after signing in — a notice will appear if your profile is empty, with a link to claim your existing record by entering the old email.',
             'If you are unsure which email is on your existing record, email info@120710.art and a staff member can look it up or link it for you.',
@@ -448,6 +473,7 @@ ROLE_DOCUMENTATION = {
             'The total width of selected flat wall artworks (depth = 0) is shown next to the Selected heading on the Submissions page — useful for gauging how much linear wall space the selection requires.',
             'Place artwork in the virtual room using the Layout editor. Access it from the curatorial button row on the show detail page.',
             'View the placed artwork in 3D using the 3D View button on the show detail page. The button is hidden from the public until at least one artwork has been placed.',
+            'Set up art drop-off (before the show) and pickup (after) windows from the "Drop-off/Pickup Windows" button, then use the "Drop-off/Pickup Tracker" to check off which artists have delivered or collected their work and see who is still outstanding.',
             'Edit juror reviews when corrections are needed.',
             'Your artist profile becomes publicly visible when you are added as a curator of a show.',
             'Edit and Delete links appear only for shows and events you are assigned to curate.',
