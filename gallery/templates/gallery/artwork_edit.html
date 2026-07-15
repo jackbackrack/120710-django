@@ -191,6 +191,16 @@
   modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
   window.addEventListener('resize', function () { if (modal.style.display !== 'none') redraw(); });
 
+  // Enter accepts the crop (unless a button is focused, so its own click still works); Escape cancels.
+  document.addEventListener('keydown', function (e) {
+    if (modal.style.display === 'none') return;
+    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+      e.preventDefault();
+      document.getElementById('crop-save').click();
+    }
+  });
+
   undoBtn.addEventListener('click', function () {
     if (fileInput) fileInput.value = '';
     status.textContent = '';
@@ -279,9 +289,19 @@
       var dt = new DataTransfer();
       dt.items.add(new File([blob], 'layout-crop.jpg', { type: 'image/jpeg' }));
       if (fileInput) fileInput.files = dt.files;
-      status.textContent = 'Cropped image ready — click Update to save.';
-      undoBtn.style.display = '';
       close();
+      // Save right away so there's no separate "Update" step. The UpdateView
+      // redirects to the artwork detail page on success — including when the crop
+      // tool was opened from that page (?crop=1).
+      var form = fileInput && fileInput.form;
+      if (form) {
+        status.textContent = 'Saving cropped image…';
+        undoBtn.style.display = '';   // in case validation blocks the submit
+        if (form.requestSubmit) form.requestSubmit(); else form.submit();
+      } else {
+        status.textContent = 'Cropped image ready — click Update to save.';
+        undoBtn.style.display = '';
+      }
     }, 'image/jpeg', 0.92);
   });
 }());
