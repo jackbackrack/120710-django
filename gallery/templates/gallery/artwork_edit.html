@@ -54,10 +54,15 @@
   .crop-handle { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
     border: 2px solid #fff; background: rgba(229,85,85,.85); box-shadow: 0 0 0 1px rgba(0,0,0,.4);
     cursor: grab; touch-action: none; }
+  /* Edge (midpoint) handles: drag to slide a whole edge straight in/out, keeping
+     it parallel — fast for cropping un-skewed images. Square to distinguish from corners. */
+  .crop-edge-handle { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 6px;
+    border: 2px solid #fff; background: rgba(85,130,120,.85); box-shadow: 0 0 0 1px rgba(0,0,0,.4);
+    cursor: grab; touch-action: none; }
 </style>
 <div id="crop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;">
   <div style="background:#fff;padding:12px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:8px;">
-    <p class="text-muted small mb-0">Drag each corner onto a corner of the artwork. The selected shape is straightened to a rectangle.</p>
+    <p class="text-muted small mb-0">Drag each corner onto a corner of the artwork, or drag a square edge handle to slide that whole edge straight in or out. The selected shape is straightened to a rectangle.</p>
     <div id="crop-stage">
       <img id="crop-image">
       <svg id="crop-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
@@ -84,7 +89,8 @@
   var undoBtn = document.getElementById('crop-undo');
   var fileInput = document.getElementById('id_layout_image');
   // Corners in order: top-left, top-right, bottom-right, bottom-left (fractions 0..1).
-  var pts = [], handles = [];
+  var pts = [], handles = [], edgeHandles = [];
+  function clamp01(v) { return Math.min(1, Math.max(0, v)); }
 
   function defaultPts() { return [[0.08, 0.08], [0.92, 0.08], [0.92, 0.92], [0.08, 0.92]]; }
 
@@ -94,6 +100,11 @@
     handles.forEach(function (hn, i) {
       hn.style.left = (pts[i][0] * w) + 'px';
       hn.style.top  = (pts[i][1] * h) + 'px';
+    });
+    edgeHandles.forEach(function (hn, i) {          // midpoint of edge i → i+1
+      var j = (i + 1) % 4;
+      hn.style.left = ((pts[i][0] + pts[j][0]) / 2 * w) + 'px';
+      hn.style.top  = ((pts[i][1] + pts[j][1]) / 2 * h) + 'px';
     });
   }
 
@@ -120,10 +131,54 @@
     });
   }
 
+  // One handle at the midpoint of each edge. Dragging slides both of that edge's
+  // corners along the edge's normal by the same amount, so the edge stays parallel
+  // to its original orientation (top/bottom move up/down, sides move in/out for an
+  // un-skewed crop). Movement is clamped so neither corner leaves the image.
+  function makeEdgeHandles() {
+    edgeHandles.forEach(function (h) { h.remove(); });
+    edgeHandles = pts.map(function (_, i) {
+      var j = (i + 1) % 4;                            // edge from corner i to corner j
+      var hn = document.createElement('div');
+      hn.className = 'crop-edge-handle';
+      hn.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        hn.setPointerCapture(e.pointerId);
+        var last = { x: e.clientX, y: e.clientY };
+        function move(ev) {
+          var W = image.clientWidth, H = image.clientHeight;
+          var ex = (pts[j][0] - pts[i][0]) * W, ey = (pts[j][1] - pts[i][1]) * H;   // edge vector (px)
+          var nlen = Math.hypot(ex, ey) || 1;
+          var nx = -ey / nlen, ny = ex / nlen;         // unit normal (px)
+          var d = (ev.clientX - last.x) * nx + (ev.clientY - last.y) * ny;          // drag along normal (px)
+          last.x = ev.clientX; last.y = ev.clientY;
+          var kx = nx / W, ky = ny / H;                // per-unit-d increment in fraction space
+          // Clamp d so both endpoints stay within [0,1] on both axes (keeps the edge parallel).
+          var lo = -Infinity, hi = Infinity;
+          [[pts[i][0], kx], [pts[i][1], ky], [pts[j][0], kx], [pts[j][1], ky]].forEach(function (ck) {
+            if (ck[1] === 0) return;
+            var a = -ck[0] / ck[1], b = (1 - ck[0]) / ck[1];
+            lo = Math.max(lo, Math.min(a, b));
+            hi = Math.min(hi, Math.max(a, b));
+          });
+          d = Math.min(hi, Math.max(lo, d));
+          pts[i][0] = clamp01(pts[i][0] + d * kx); pts[i][1] = clamp01(pts[i][1] + d * ky);
+          pts[j][0] = clamp01(pts[j][0] + d * kx); pts[j][1] = clamp01(pts[j][1] + d * ky);
+          redraw();
+        }
+        function up() { hn.releasePointerCapture(e.pointerId); hn.removeEventListener('pointermove', move); hn.removeEventListener('pointerup', up); }
+        hn.addEventListener('pointermove', move);
+        hn.addEventListener('pointerup', up);
+      });
+      stage.appendChild(hn);
+      return hn;
+    });
+  }
+
   function open() {
     pts = defaultPts();
     image.crossOrigin = 'anonymous';                 // needed for WebGL texture export (S3 CORS)
-    image.onload = function () { makeHandles(); redraw(); };
+    image.onload = function () { makeHandles(); makeEdgeHandles(); redraw(); };
     image.src = tools.dataset.hero + (tools.dataset.hero.indexOf('?') === -1 ? '?x=1' : '&x=1');
     modal.style.display = 'flex';
   }
