@@ -184,8 +184,12 @@
   }
   function close() { modal.style.display = 'none'; }
 
+  // Opened from the detail page's Crop/Recrop button → crop-only flow: auto-open
+  // and, on accept, save + return to the detail page. Opened while editing → just
+  // stage the crop and let the user keep editing, then hit Update.
+  var openedForCropOnly = /[?&]crop=1(&|$)/.test(location.search);
   openBtn.addEventListener('click', open);
-  if (/[?&]crop=1(&|$)/.test(location.search)) open();   // arrived via the Recrop button
+  if (openedForCropOnly) open();
   document.getElementById('crop-cancel').addEventListener('click', close);
   document.getElementById('crop-reset').addEventListener('click', function () { pts = defaultPts(); redraw(); });
   modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
@@ -289,18 +293,18 @@
       var dt = new DataTransfer();
       dt.items.add(new File([blob], 'layout-crop.jpg', { type: 'image/jpeg' }));
       if (fileInput) fileInput.files = dt.files;
+      undoBtn.style.display = '';
       close();
-      // Save right away so there's no separate "Update" step. The UpdateView
-      // redirects to the artwork detail page on success — including when the crop
-      // tool was opened from that page (?crop=1).
       var form = fileInput && fileInput.form;
-      if (form) {
+      if (form && openedForCropOnly) {
+        // Crop-only flow (opened from the detail page): save now and let the
+        // UpdateView redirect back to the artwork detail page — no Update step.
         status.textContent = 'Saving cropped image…';
-        undoBtn.style.display = '';   // in case validation blocks the submit
         if (form.requestSubmit) form.requestSubmit(); else form.submit();
       } else {
+        // Opened while editing: stage the crop and stay so other edits continue;
+        // the crop is saved when the user hits Update.
         status.textContent = 'Cropped image ready — click Update to save.';
-        undoBtn.style.display = '';
       }
     }, 'image/jpeg', 0.92);
   });
