@@ -544,7 +544,6 @@
         if (movedAny) pushUndo(preDragSnap);
         movers.forEach(function (m) { if (m.p) syncWorldFromDiv(m.div, m.p); });
         if (popoverArtId != null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
-        renderGroupBoxes();
         scheduleSave();
       }
       document.addEventListener('mousemove', onMove);
@@ -563,6 +562,10 @@
     div.style.top  = Math.max(0, Math.min(maxT, parseFloat(div.style.top)))  + 'px';
   }
 
+  // Single choke point for committing a piece's on-screen position to world
+  // coords. Every move path (drag, nudge, popover, center/distribute, rotate)
+  // goes through here, so refreshing the group outlines here means no operation
+  // has to remember to do it.
   function syncWorldFromDiv(div, p) {
     clampDivToWall(div);
     var r  = artStagePx(p);
@@ -571,6 +574,7 @@
     var w  = stageToWorld(currentWall, sx, sy);
     p.x_in = w.x_in; p.y_in = w.y_in; p.z_in = w.z_in;
     updateHangInfo(div);
+    scheduleGroupBoxes();
   }
 
   function syncDivFromWorld(div, p) {
@@ -797,7 +801,6 @@
       selectionOrder = [id];
       openPopover(p);
     }
-    renderGroupBoxes();
     scheduleSave();
   }
   if (posRotate) posRotate.addEventListener('click', function (e) { e.preventDefault(); rotateSelected(); });
@@ -881,6 +884,13 @@
       var div = stageEl.querySelector('.placed-art[data-id="' + mid + '"]');
       if (div) div.classList.add('selected');
     });
+  }
+  // Coalesce repeated position commits (e.g. distributing many pieces) into a
+  // single group-outline refresh on the next frame.
+  var groupBoxRaf = 0;
+  function scheduleGroupBoxes() {
+    if (groupBoxRaf) return;
+    groupBoxRaf = requestAnimationFrame(function () { groupBoxRaf = 0; renderGroupBoxes(); });
   }
   // Draw a dashed colored box around each group's members on the current wall.
   function renderGroupBoxes() {
@@ -1025,7 +1035,6 @@
     pushUndo();
     var refCy = units[0].bbox.top + units[0].bbox.h / 2;
     units.forEach(function (u) { moveUnit(u, 0, refCy - (u.bbox.top + u.bbox.h / 2)); });
-    renderGroupBoxes();
     scheduleSave();
   });
 
@@ -1036,7 +1045,6 @@
     pushUndo();
     var refCx = units[0].bbox.left + units[0].bbox.w / 2;
     units.forEach(function (u) { moveUnit(u, refCx - (u.bbox.left + u.bbox.w / 2), 0); });
-    renderGroupBoxes();
     scheduleSave();
   });
 
@@ -1058,7 +1066,6 @@
       moveUnit(u, targetLeft - u.bbox.left, 0);
       x = targetLeft + u.bbox.w;
     });
-    renderGroupBoxes();
     scheduleSave();
   });
 
@@ -1079,7 +1086,6 @@
       moveUnit(u, 0, targetTop - u.bbox.top);
       y = targetTop + u.bbox.h;
     });
-    renderGroupBoxes();
     scheduleSave();
   });
 
@@ -1187,7 +1193,6 @@
         syncDivFromWorld(div, p);
       });
       if (popoverArtId !== null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
-      renderGroupBoxes();   // keep group outlines with the nudged pieces
       scheduleSave();
       return;
     }
