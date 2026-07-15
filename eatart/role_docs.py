@@ -230,7 +230,7 @@ HOW_TO_GUIDES = [
             'For Pickup (used after the show closes), do the same to choose when you will collect your work.',
             'If the show is self-install, your install time is also your drop-off — you bring and hang your work in one visit. If the curator installs, you only drop the work off at your chosen time.',
             'Your chosen times are shown on the page, and you can come back to update them any time before the window. The curator checks you off once your work arrives.',
-            'After you set a time, an "Add to Google Calendar" link appears next to it — click it to save the appointment (with the gallery address) to your calendar.',
+            'After you set a time, "Add to calendar" links appear next to it: Google opens Google Calendar pre-filled; the Apple / Outlook (.ics) link downloads a calendar file that opens in Apple Calendar, Outlook, or any calendar app. Both include the gallery address.',
         ],
     },
     {

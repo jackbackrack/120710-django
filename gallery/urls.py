@@ -3,7 +3,7 @@ from django.urls import path, re_path
 from gallery.views.placards import placard_html, placard_json
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer
-from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker
+from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker, schedule_ics
 from gallery.views import (
     artwork_autocomplete,
     artist_autocomplete,
@@ -92,6 +92,7 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/schedule-windows/$', show_schedule_windows, name='show_schedule_windows'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/schedule/$', artist_schedule, name='artist_schedule'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/schedule-tracker/$', show_schedule_tracker, name='show_schedule_tracker'),
+    path('schedule/<int:pk>/ics/', schedule_ics, name='schedule_ics'),
     path('submission/<int:pk>/retract/', retract_submission, name='retract_submission'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/remove-artwork/(?P<pk>\d+)/$', remove_artwork_from_show, name='remove_artwork_from_show'),
     path('submission/<int:pk>/status/', update_submission_status, name='update_submission_status'),

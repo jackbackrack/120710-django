@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -98,6 +98,21 @@ def artist_schedule(request, slug):
             'form': ArtistScheduleForm(windows=windows_by_kind[k], prefix=k, initial=initial),
         })
     return render(request, 'gallery/artist_schedule.html', {'show': show, 'artist': artist, 'kinds': kinds_ctx})
+
+
+# ── ICS download (Apple Calendar / Outlook / Google) ──────────────────────────
+@login_required
+def schedule_ics(request, pk):
+    sched = get_object_or_404(
+        ArtistSchedule.objects.select_related('show', 'artist', 'window'), pk=pk)
+    if not (sched.artist.user_id == request.user.id or can_manage_show(request.user, sched.show)):
+        raise Http404
+    ics = sched.ics()
+    if not ics:
+        raise Http404
+    resp = HttpResponse(ics, content_type='text/calendar; charset=utf-8')
+    resp['Content-Disposition'] = f'attachment; filename="{sched.kind}-{sched.show.slug}.ics"'
+    return resp
 
 
 # ── Curator: tracker / check-off ──────────────────────────────────────────────

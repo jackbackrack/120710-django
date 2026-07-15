@@ -2535,6 +2535,28 @@ class ArtScheduleTests(TestCase):
         s2 = ArtistSchedule.objects.create(show=self.show, artist=self.artist, kind='pickup')
         self.assertIsNone(s2.google_calendar_url())
 
+    def test_ics_download(self):
+        from gallery.models import ScheduleWindow, ArtistSchedule
+        w = ScheduleWindow.objects.create(
+            show=self.show, kind='install',
+            date=datetime.date(2025, 6, 7), start=datetime.time(10, 0), end=datetime.time(14, 0))
+        s = ArtistSchedule.objects.create(
+            show=self.show, artist=self.artist, kind='install',
+            window=w, scheduled_time=datetime.time(11, 30))
+        # Owner can download; response is a calendar file with the event
+        self.client.force_login(self.artist_user)
+        r = self.client.get(reverse('gallery:schedule_ics', kwargs={'pk': s.pk}))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('text/calendar', r['Content-Type'])
+        body = r.content.decode()
+        self.assertIn('BEGIN:VEVENT', body)
+        self.assertIn('DTSTART:20250607T113000', body)
+        self.assertIn('SUMMARY:Install', body)
+        # A stranger cannot download it
+        other = User.objects.create_user(username='ics-out@example.com', email='ics-out@example.com', password='pw')
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse('gallery:schedule_ics', kwargs={'pk': s.pk})).status_code, 404)
+
 
 class RemoveArtworkFromShowTests(TestCase):
     """Curator/admin removes an artwork from a published show without deleting it."""

@@ -14,7 +14,9 @@
     <p><strong>Your {{ k.label|lower }} time:</strong>
       {{ k.current.window.date }} at {{ k.current.scheduled_time|time:"g:i A" }}
       {% if k.current.done %}<span class="badge bg-success">received</span>{% endif %}
-      <br><a class="card__link" href="{{ k.current.google_calendar_url }}" target="_blank" rel="noopener">Add to Google Calendar</a></p>
+      <br>Add to calendar:
+      <a class="card__link" href="{{ k.current.google_calendar_url }}" target="_blank" rel="noopener">Google</a> ·
+      <a class="card__link" href="{% url 'gallery:schedule_ics' k.current.pk %}">Apple / Outlook (.ics)</a></p>
     {% else %}
     <p class="text-muted">Not scheduled yet.</p>
     {% endif %}
