@@ -74,6 +74,17 @@ def _artwork_json(artwork):
             thumb_url = artwork.card_sm.url
         except Exception:
             thumb_url = img_url
+    # A guaranteed hero URL used as the last-resort fallback in the editor/viewer,
+    # so a missing crop (or an ungenerated crop thumbnail) degrades to the hero
+    # rather than showing a broken image. The crop only ever *improves* the view.
+    hero_url = ''
+    try:
+        hero_url = artwork.card_sm.url
+    except Exception:
+        try:
+            hero_url = artwork.slideshow.url
+        except Exception:
+            hero_url = artwork.image.url if artwork.image else ''
     artists = ', '.join(str(a) for a in artwork.artists.all())
     return {
         'id':      artwork.pk,
@@ -85,8 +96,9 @@ def _artwork_json(artwork):
         'w_in':    float(artwork.width_inches)  if artwork.width_inches  else 24.0,
         'h_in':    float(artwork.height_inches) if artwork.height_inches else 24.0,
         'd_in':    float(artwork.depth_inches)  if artwork.depth_inches  else 0.0,
-        'img':     img_url,
-        'thumb':   thumb_url,
+        'img':     img_url or hero_url,
+        'thumb':   thumb_url or hero_url,
+        'hero':    hero_url,
     }
 
 

@@ -269,7 +269,10 @@
     div.dataset.id = art.id;
     div.draggable  = true;
     div.title      = art.name + (placed ? ' — click to locate · drag to reposition' : ' — drag onto wall');
-    div.innerHTML  = '<img src="' + (art.thumb || art.img) + '" alt="">' +
+    // thumb prefers a crop thumbnail; if it 404s (e.g. crop present but its small
+    // spec not yet generated) fall back to the guaranteed hero, never a broken img.
+    div.innerHTML  = '<img src="' + (art.thumb || art.hero || art.img) + '"' +
+                     ' onerror="this.onerror=null;this.src=\'' + (art.hero || '') + '\'" alt="">' +
                      '<div class="pool-label">' + art.name + '</div>';
     // Click a placed thumbnail → jump to its wall and center the view on it
     if (placed) {
@@ -280,7 +283,8 @@
       div.classList.add('dragging-src');
       // Use a correctly-proportioned ghost instead of the wide sidebar thumbnail
       var ghost = document.createElement('img');
-      ghost.src = art.thumb || art.img;
+      ghost.onerror = function () { ghost.onerror = null; ghost.src = art.hero || ''; };
+      ghost.src = art.thumb || art.hero || art.img;
       var GHOST_H = 80;
       var ghostW = ghost.naturalWidth ? Math.round(GHOST_H * ghost.naturalWidth / ghost.naturalHeight) : GHOST_H;
       ghost.style.cssText = 'position:fixed;top:-9999px;height:' + GHOST_H + 'px;width:' + ghostW + 'px;object-fit:fill;pointer-events:none;';
@@ -398,7 +402,9 @@
     // Use the high-res image on the wall (thumb is only ~200px → blurry when zoomed).
     // decoding=async keeps image decode off the paint path so it never blocks UI.
     div.innerHTML =
-      '<img src="' + (p.artwork.img || p.artwork.thumb) + '" alt="' + p.artwork.name + '" decoding="async">' +
+      '<img src="' + (p.artwork.img || p.artwork.hero || p.artwork.thumb) + '"' +
+      ' onerror="this.onerror=null;this.src=\'' + (p.artwork.hero || '') + '\'"' +
+      ' alt="' + p.artwork.name + '" decoding="async">' +
       '<div class="placard-bar">' + p.artwork.name + '</div>' +
       '<div class="art-dims">' + fmtIn(footprintDims(p).w) + '×' + fmtIn(footprintDims(p).h) + '"</div>' +
       '<div class="hang-h"></div>' +
