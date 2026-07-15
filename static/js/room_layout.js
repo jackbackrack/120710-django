@@ -493,7 +493,9 @@
     div.addEventListener('mousedown', function (e) {
       if (e.button !== 0 || spaceDown) return;
       e.preventDefault();
-      if (!div.classList.contains('selected')) {
+      // Shift-click is a selection toggle handled by the click handler — don't
+      // let the drag setup clear/replace the selection on mousedown.
+      if (!e.shiftKey && !div.classList.contains('selected')) {
         clearSelection();
         div.classList.add('selected');
         selectionOrder = [String(p.artwork.id)];
