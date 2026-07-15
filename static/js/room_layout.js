@@ -370,6 +370,12 @@
     closePopover();
     selectionOrder = [];
     initStage();
+    redrawPieces();
+  }
+
+  // Re-render every piece on the current wall at the CURRENT zoom/pan (no view
+  // reset). Used after operations that change many pieces (e.g. rotate).
+  function redrawPieces() {
     clearPlacedDivs();
     addCornerDivs();   // z-index 0 — behind everything
     addObstacleDivs(); // z-index 1 — behind artworks
@@ -827,12 +833,10 @@
       });
     });
 
+    redrawPieces();   // re-render all pieces at the current view (one clean pass)
+    // Clamp any piece that a rotation pushed past a wall edge, and persist.
     members.forEach(function (p) {
-      var id  = String(p.artwork.id);
-      var old = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
-      if (old) old.remove();
-      addPlacedDiv(p);
-      var div = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+      var div = stageEl.querySelector('.placed-art[data-id="' + String(p.artwork.id) + '"]');
       if (div) { clampDivToWall(div); syncWorldFromDiv(div, p); }
     });
 
