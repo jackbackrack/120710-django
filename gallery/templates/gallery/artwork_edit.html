@@ -7,9 +7,7 @@
   {% crispy form %}
 
   {% if object.image %}
-  <div class="mb-3" id="crop-tools"
-       data-hero="{{ object.image.url }}"
-       {% if object.width_inches and object.height_inches %}data-w="{{ object.width_inches }}" data-h="{{ object.height_inches }}"{% endif %}>
+  <div class="mb-3" id="crop-tools" data-hero="{{ object.image.url }}">
     <button type="button" id="crop-from-hero" class="btn btn-sm btn-outline-secondary">Crop layout / 3D image from main image</button>
     <span id="crop-status" class="text-muted small ms-2"></span>
     <button type="button" id="crop-undo" class="btn btn-sm btn-link" style="display:none">Undo crop</button>
@@ -79,12 +77,11 @@
   }
 
   openBtn.addEventListener('click', function () {
-    var w = parseFloat(tools.dataset.w), h = parseFloat(tools.dataset.h);
     image.crossOrigin = 'anonymous';                 // needed for canvas export (S3 CORS)
     image.onload = function () {
       if (cropper) cropper.destroy();
       cropper = new Cropper(image, {
-        aspectRatio: (w && h) ? (w / h) : NaN,       // match the piece's proportions
+        aspectRatio: NaN,                            // free crop — corners drag independently
         viewMode: 1, autoCropArea: 1, background: false,
       });
     };
