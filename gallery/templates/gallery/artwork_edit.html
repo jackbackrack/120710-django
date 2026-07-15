@@ -6,6 +6,15 @@
 <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
   {% crispy form %}
 
+  {% if object.image %}
+  <div class="mb-3" id="crop-tools"
+       data-hero="{{ object.image.url }}"
+       {% if object.width_inches and object.height_inches %}data-w="{{ object.width_inches }}" data-h="{{ object.height_inches }}"{% endif %}>
+    <button type="button" id="crop-from-hero" class="btn btn-sm btn-outline-secondary">Crop layout / 3D image from main image</button>
+    <span id="crop-status" class="text-muted small ms-2"></span>
+  </div>
+  {% endif %}
+
   <hr class="my-4">
   <h5>Supplemental Images</h5>
   <p class="text-muted small">Drag to reorder, or focus a card and use ← → arrow keys. Press Delete to remove. Max 50 MB each.</p>
@@ -37,6 +46,67 @@
 {% block extra_js %}
 {% load static %}
 <script src="{% static 'js/artwork_form_validate.js' %}"></script>
+
+<!-- In-browser crop tool for the layout/3D image -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<div id="crop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:12px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;gap:8px;">
+    <div style="max-height:72vh;overflow:hidden;"><img id="crop-image" style="max-width:100%;display:block;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" id="crop-cancel" class="btn btn-sm btn-link">Cancel</button>
+      <button type="button" id="crop-save" class="btn btn-sm btn-primary">Use this crop</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var tools = document.getElementById('crop-tools');
+  if (!tools || typeof Cropper === 'undefined') return;
+  var openBtn = document.getElementById('crop-from-hero');
+  var modal   = document.getElementById('crop-modal');
+  var image   = document.getElementById('crop-image');
+  var status  = document.getElementById('crop-status');
+  var fileInput = document.getElementById('id_layout_image');
+  var cropper = null;
+
+  function close() {
+    if (cropper) { cropper.destroy(); cropper = null; }
+    modal.style.display = 'none';
+  }
+
+  openBtn.addEventListener('click', function () {
+    var w = parseFloat(tools.dataset.w), h = parseFloat(tools.dataset.h);
+    image.crossOrigin = 'anonymous';                 // needed for canvas export (S3 CORS)
+    image.onload = function () {
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(image, {
+        aspectRatio: (w && h) ? (w / h) : NaN,       // match the piece's proportions
+        viewMode: 1, autoCropArea: 1, background: false,
+      });
+    };
+    image.src = tools.dataset.hero + (tools.dataset.hero.indexOf('?') === -1 ? '?x=1' : '&x=1');
+    modal.style.display = 'flex';
+  });
+
+  document.getElementById('crop-cancel').addEventListener('click', close);
+  modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+
+  document.getElementById('crop-save').addEventListener('click', function () {
+    if (!cropper) return;
+    var canvas = cropper.getCroppedCanvas({ maxWidth: 2000, maxHeight: 2000 });
+    if (!canvas) { close(); return; }
+    canvas.toBlob(function (blob) {
+      if (!blob) { status.textContent = 'Could not crop (image blocked by CORS?).'; close(); return; }
+      var dt = new DataTransfer();
+      dt.items.add(new File([blob], 'layout-crop.jpg', { type: 'image/jpeg' }));
+      if (fileInput) fileInput.files = dt.files;
+      status.textContent = 'Cropped image ready — click Update to save.';
+      close();
+    }, 'image/jpeg', 0.9);
+  });
+}());
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>

@@ -437,7 +437,7 @@ ROLE_DOCUMENTATION = {
                     {'name': 'medium', 'input_type': 'text input', 'purpose': 'Primary materials or medium.'},
                     {'name': 'width × height × depth', 'input_type': 'numeric inputs', 'purpose': 'Physical dimensions in inches. Depth is optional — omit for flat wall pieces, enter for 3-D works.'},
                     {'name': 'image', 'input_type': 'file upload', 'purpose': 'Primary artwork image. Required when creating a new artwork.'},
-                    {'name': 'layout_image', 'input_type': 'file upload', 'purpose': 'Optional cropped image of just the artwork, used only in the room layout editor and 3D viewer. Best matched to the piece’s proportions. Defaults to the main image if left blank; not shown in cards.'},
+    {'name': 'layout_image', 'input_type': 'file upload', 'purpose': 'Optional cropped image of just the artwork, used only in the room layout editor and 3D viewer. Upload your own, or use the "Crop layout / 3D image from main image" button on the edit page to crop it in-browser (the crop is locked to the piece’s width:height proportions). Defaults to the main image if left blank; not shown in cards.'},
                     {'name': 'pricing_type', 'input_type': 'dropdown select', 'purpose': 'Pricing type: For Sale (requires a price), Price on Request, Best Offer (optionally set a minimum), or Not For Sale.'},
                     {'name': 'price', 'input_type': 'numeric input', 'purpose': 'Required for For Sale; optional minimum for Best Offer. Hidden for Price on Request and Not For Sale.'},
                     {'name': 'replacement_cost', 'input_type': 'numeric input', 'purpose': 'Insurance or replacement value.'},
