@@ -799,8 +799,6 @@
       .filter(function (p) { return p && (p.wall === 'floor' || p.wall === 'ceiling'); });
     if (!members.length) return;
     pushUndo();
-    var newRot = (members[0].rotation === 90) ? 0 : 90;
-    var sign   = (newRot === 90) ? 1 : -1;   // +90° to apply, -90° to undo
 
     // Partition into units: one per group, plus each ungrouped piece on its own.
     var byGroup = {}, units = [];
@@ -818,6 +816,11 @@
     }
 
     units.forEach(function (unit) {
+      // Toggle each unit from its OWN current rotation, so every selected piece
+      // flips regardless of whether the others are in sync.
+      var wasRotated = (unit[0].rotation === 90);
+      var newRot = wasRotated ? 0 : 90;
+      var sign   = wasRotated ? -1 : 1;   // +90° to apply, -90° to undo
       var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
       unit.forEach(function (p) {
         var e = extents(p);
