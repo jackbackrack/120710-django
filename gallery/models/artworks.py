@@ -89,6 +89,34 @@ class Artwork(models.Model):
         ordering = ['-created_at']
 
     @property
+    def layout_display_url(self):
+        """Large image for the room layout wall + 3D view: the artist's cropped
+        layout image if set, otherwise the hero. A crop only ever improves it."""
+        if self.layout_image:
+            try:
+                return self.layout_lg.url
+            except Exception:
+                pass
+        try:
+            return self.slideshow.url
+        except Exception:
+            return self.image.url if self.image else ''
+
+    @property
+    def layout_thumb_url(self):
+        """Small image for the layout sidebar: a crop thumbnail if set, else the
+        hero thumbnail. Falls back to the display image if a spec is missing."""
+        if self.layout_image:
+            try:
+                return self.layout_sm.url
+            except Exception:
+                pass
+        try:
+            return self.card_sm.url
+        except Exception:
+            return self.layout_display_url
+
+    @property
     def placard_dimensions(self):
         """W × H (× D) in — formatted dimension string."""
         def fmt(v):

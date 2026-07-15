@@ -136,14 +136,14 @@ function wallQuaternion(wall) {
 // Placard data for hover
 const artworkMeshes = [];
 
-function loadTex(url, onLoad, fallbackUrl) {
+function loadTex(url, onLoad) {
+  // url comes from Artwork.layout_display_url, which already resolves to the crop
+  // or the hero — a guaranteed-valid image — so no extra fallback is needed here.
   textureLoader.load(url, function (tex) {
     tex.colorSpace = THREE.SRGBColorSpace;
     onLoad(tex);
   }, undefined, function () {
     console.warn('3D viewer: failed to load texture', url);
-    // Degrade to the guaranteed hero image so a missing crop never shows blank.
-    if (fallbackUrl && fallbackUrl !== url) loadTex(fallbackUrl, onLoad);
   });
 }
 
@@ -179,7 +179,7 @@ function buildFlatPlane(p, art, aw, ah, norm) {
       var fr = mesh.children[0];
       if (fr) { fr.geometry.dispose(); fr.geometry = new THREE.EdgesGeometry(mesh.geometry); }
       mesh.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-    }, art.hero);
+    });
   }
   mesh.userData = { art: art, wall: p.wall };
   scene.add(mesh);
@@ -239,7 +239,7 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
         plane.rotation.set(f.rot[0], f.rot[1], f.rot[2]);
         box.add(plane);
       });
-    }, art.hero);
+    });
   }
 }
 

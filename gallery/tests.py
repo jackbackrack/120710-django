@@ -2683,6 +2683,18 @@ class ArtworkLayoutImageTests(TestCase):
         self.assertNotEqual(crop['img'], hero['img'])       # wall/3D uses the crop
         self.assertNotEqual(crop['thumb'], hero['thumb'])   # sidebar pool uses the crop thumbnail
 
+    def test_layout_url_properties_fall_back_to_hero(self):
+        a = Artwork.objects.create(name='LP', end_year=2025)
+        a.image.name = 'artwork_images/hero.jpg'
+        a.save()
+        hero_display, hero_thumb = a.layout_display_url, a.layout_thumb_url
+        self.assertTrue(hero_display)   # no crop -> hero
+        self.assertTrue(hero_thumb)
+        a.layout_image.name = 'artwork_images/crop.jpg'
+        a.save()
+        self.assertNotEqual(a.layout_display_url, hero_display)   # crop overrides hero
+        self.assertNotEqual(a.layout_thumb_url, hero_thumb)
+
     def test_form_includes_layout_image(self):
         from gallery.forms import ArtworkForm
         self.assertIn('layout_image', ArtworkForm.base_fields)

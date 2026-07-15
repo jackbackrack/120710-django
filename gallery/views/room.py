@@ -49,42 +49,8 @@ def _config_dict(config):
 
 
 def _artwork_json(artwork):
-    # Prefer the artist's cropped layout image; fall back to the hero image.
-    img_url = ''
-    if artwork.layout_image:
-        try:
-            img_url = artwork.layout_lg.url
-        except Exception:
-            img_url = artwork.layout_image.url
-    if not img_url:
-        try:
-            img_url = artwork.slideshow.url
-        except Exception:
-            img_url = artwork.image.url if artwork.image else ''
-    # Sidebar thumbnail: prefer a small crop thumbnail so the layout pool shows
-    # the cropped image too, not just the hero.
-    thumb_url = ''
-    if artwork.layout_image:
-        try:
-            thumb_url = artwork.layout_sm.url
-        except Exception:
-            thumb_url = img_url
-    if not thumb_url:
-        try:
-            thumb_url = artwork.card_sm.url
-        except Exception:
-            thumb_url = img_url
-    # A guaranteed hero URL used as the last-resort fallback in the editor/viewer,
-    # so a missing crop (or an ungenerated crop thumbnail) degrades to the hero
-    # rather than showing a broken image. The crop only ever *improves* the view.
-    hero_url = ''
-    try:
-        hero_url = artwork.card_sm.url
-    except Exception:
-        try:
-            hero_url = artwork.slideshow.url
-        except Exception:
-            hero_url = artwork.image.url if artwork.image else ''
+    # "Prefer the crop, else the hero" lives on the model (Artwork.layout_*_url),
+    # so the layout editor, 3D viewer, and detail page share one source of truth.
     artists = ', '.join(str(a) for a in artwork.artists.all())
     return {
         'id':      artwork.pk,
@@ -96,9 +62,8 @@ def _artwork_json(artwork):
         'w_in':    float(artwork.width_inches)  if artwork.width_inches  else 24.0,
         'h_in':    float(artwork.height_inches) if artwork.height_inches else 24.0,
         'd_in':    float(artwork.depth_inches)  if artwork.depth_inches  else 0.0,
-        'img':     img_url or hero_url,
-        'thumb':   thumb_url or hero_url,
-        'hero':    hero_url,
+        'img':     artwork.layout_display_url,
+        'thumb':   artwork.layout_thumb_url,
     }
 
 
