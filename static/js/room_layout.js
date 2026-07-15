@@ -976,83 +976,108 @@
   }
   if (undoBtn) undoBtn.addEventListener('click', undo);
 
-  // Center H: align all selected to first-selected's vertical centre
+  // ── Group-aware Center / Distribute ───────────────────────────────────────
+  // These operate on UNITS: each group is one unit (its members move together);
+  // each ungrouped piece is its own unit. That is what makes a group behave as a
+  // single block for alignment/distribution rather than N loose pieces.
+  function unitBBox(members) {
+    var minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+    members.forEach(function (div) {
+      var l = parseFloat(div.style.left), t = parseFloat(div.style.top);
+      minL = Math.min(minL, l); minT = Math.min(minT, t);
+      maxR = Math.max(maxR, l + parseFloat(div.style.width));
+      maxB = Math.max(maxB, t + parseFloat(div.style.height));
+    });
+    return { left: minL, top: minT, right: maxR, bottom: maxB, w: maxR - minL, h: maxB - minT };
+  }
+  function selectionUnits() {
+    var byGroup = {}, units = [];
+    getSelected().forEach(function (div) {
+      if (div.classList.contains('obstacle') || div.classList.contains('corner')) return;
+      var p = placementMap[parseInt(div.dataset.id, 10)];
+      var gid = (p && p.group != null) ? p.group : null;
+      if (gid == null) {
+        units.push({ members: [div] });
+      } else {
+        var k = 'g' + gid;
+        if (!byGroup[k]) { byGroup[k] = { members: [] }; units.push(byGroup[k]); }
+        byGroup[k].members.push(div);
+      }
+    });
+    units.forEach(function (u) { u.bbox = unitBBox(u.members); });
+    return units;
+  }
+  function moveUnit(u, dx, dy) {
+    if (!dx && !dy) return;
+    u.members.forEach(function (div) {
+      div.style.left = (parseFloat(div.style.left) + dx) + 'px';
+      div.style.top  = (parseFloat(div.style.top)  + dy) + 'px';
+      clampDivToWall(div);
+      var p = placementMap[parseInt(div.dataset.id, 10)];
+      if (p) syncWorldFromDiv(div, p);
+    });
+  }
+
+  // Center H: align each unit's vertical centre to the first unit's.
   document.getElementById('btn-align-h').addEventListener('click', function () {
-    var sel = getSelected();
-    if (sel.length < 2) return;
+    var units = selectionUnits();
+    if (units.length < 2) return;
     pushUndo();
-    var ref_cy = parseFloat(sel[0].style.top) + parseFloat(sel[0].style.height) / 2;
-    sel.forEach(function (div) {
-      div.style.top = (ref_cy - parseFloat(div.style.height) / 2) + 'px';
-      var p = placementMap[parseInt(div.dataset.id, 10)];
-      if (p) syncWorldFromDiv(div, p);
-    });
+    var refCy = units[0].bbox.top + units[0].bbox.h / 2;
+    units.forEach(function (u) { moveUnit(u, 0, refCy - (u.bbox.top + u.bbox.h / 2)); });
     renderGroupBoxes();
     scheduleSave();
   });
 
-  // Center V: align all selected to first-selected's horizontal centre
+  // Center V: align each unit's horizontal centre to the first unit's.
   document.getElementById('btn-align-v').addEventListener('click', function () {
-    var sel = getSelected();
-    if (sel.length < 2) return;
+    var units = selectionUnits();
+    if (units.length < 2) return;
     pushUndo();
-    var ref_cx = parseFloat(sel[0].style.left) + parseFloat(sel[0].style.width) / 2;
-    sel.forEach(function (div) {
-      div.style.left = (ref_cx - parseFloat(div.style.width) / 2) + 'px';
-      var p = placementMap[parseInt(div.dataset.id, 10)];
-      if (p) syncWorldFromDiv(div, p);
-    });
+    var refCx = units[0].bbox.left + units[0].bbox.w / 2;
+    units.forEach(function (u) { moveUnit(u, refCx - (u.bbox.left + u.bbox.w / 2), 0); });
     renderGroupBoxes();
     scheduleSave();
   });
 
-  // Dist H: first & last selected are immovable anchors; place the middle items
-  // so every adjacent edge-to-edge GAP is equal (independent of piece widths).
-  // gap = (span between anchors' inner edges − total middle width) / (#gaps).
+  // Dist H: first & last units are anchors; space the middle units so every
+  // adjacent edge-to-edge gap between unit bounding boxes is equal.
   document.getElementById('btn-dist-h').addEventListener('click', function () {
-    var sel = getSelected();
-    if (sel.length < 3) return;
+    var units = selectionUnits();
+    if (units.length < 3) return;
     pushUndo();
-    var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.left) - parseFloat(b.style.left); });
-    var first = sorted[0], last = sorted[sorted.length - 1];
-    var E0 = parseFloat(first.style.left) + parseFloat(first.style.width);  // right edge of first anchor
-    var R  = parseFloat(last.style.left);                                   // left edge of last anchor
+    var sorted = units.slice().sort(function (a, b) { return a.bbox.left - b.bbox.left; });
+    var E0 = sorted[0].bbox.right;                     // right edge of first anchor
+    var R  = sorted[sorted.length - 1].bbox.left;      // left edge of last anchor
     var middle = sorted.slice(1, sorted.length - 1);
-    var totalW = middle.reduce(function (s, div) { return s + parseFloat(div.style.width); }, 0);
-    var gap = (R - E0 - totalW) / (sorted.length - 1);                      // equal edge-to-edge gap
+    var totalW = middle.reduce(function (s, u) { return s + u.bbox.w; }, 0);
+    var gap = (R - E0 - totalW) / (sorted.length - 1);
     var x = E0;
-    middle.forEach(function (div) {
-      var left = x + gap;
-      if (!div.classList.contains('corner') && !div.classList.contains('obstacle')) {
-        div.style.left = left + 'px';
-        var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
-      }
-      x = left + parseFloat(div.style.width);
+    middle.forEach(function (u) {
+      var targetLeft = x + gap;
+      moveUnit(u, targetLeft - u.bbox.left, 0);
+      x = targetLeft + u.bbox.w;
     });
     renderGroupBoxes();
     scheduleSave();
   });
 
-  // Dist V: same as Dist H but vertical (top/height).
+  // Dist V: same as Dist H but vertical.
   document.getElementById('btn-dist-v').addEventListener('click', function () {
-    var sel = getSelected();
-    if (sel.length < 3) return;
+    var units = selectionUnits();
+    if (units.length < 3) return;
     pushUndo();
-    var sorted = sel.slice().sort(function (a, b) { return parseFloat(a.style.top) - parseFloat(b.style.top); });
-    var first = sorted[0], last = sorted[sorted.length - 1];
-    var E0 = parseFloat(first.style.top) + parseFloat(first.style.height);  // bottom edge of first anchor
-    var B  = parseFloat(last.style.top);                                    // top edge of last anchor
+    var sorted = units.slice().sort(function (a, b) { return a.bbox.top - b.bbox.top; });
+    var E0 = sorted[0].bbox.bottom;                    // bottom edge of first anchor
+    var B  = sorted[sorted.length - 1].bbox.top;       // top edge of last anchor
     var middle = sorted.slice(1, sorted.length - 1);
-    var totalH = middle.reduce(function (s, div) { return s + parseFloat(div.style.height); }, 0);
-    var gap = (B - E0 - totalH) / (sorted.length - 1);                      // equal edge-to-edge gap
+    var totalH = middle.reduce(function (s, u) { return s + u.bbox.h; }, 0);
+    var gap = (B - E0 - totalH) / (sorted.length - 1);
     var y = E0;
-    middle.forEach(function (div) {
-      var top = y + gap;
-      if (!div.classList.contains('corner') && !div.classList.contains('obstacle')) {
-        div.style.top = top + 'px';
-        var p = placementMap[parseInt(div.dataset.id, 10)]; if (p) syncWorldFromDiv(div, p);
-      }
-      y = top + parseFloat(div.style.height);
+    middle.forEach(function (u) {
+      var targetTop = y + gap;
+      moveUnit(u, 0, targetTop - u.bbox.top);
+      y = targetTop + u.bbox.h;
     });
     renderGroupBoxes();
     scheduleSave();
