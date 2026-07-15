@@ -187,10 +187,20 @@
     return p;
   }
 
+  // The second (vertical-on-screen) dimension of a placed piece: height on the
+  // vertical walls, but DEPTH on the floor/ceiling (a top-down footprint of
+  // width × depth). Flat pieces (depth 0) fall back to height so they still show.
+  function artSecondDim(art) {
+    if (currentWall === 'floor' || currentWall === 'ceiling') {
+      return (art.d_in && art.d_in > 0) ? art.d_in : art.h_in;
+    }
+    return art.h_in;
+  }
+
   function artStagePx(p) {
     var sc  = worldToStage(currentWall, p);
     var aw  = p.artwork.w_in * baseScale;
-    var ah  = p.artwork.h_in * baseScale;
+    var ah  = artSecondDim(p.artwork) * baseScale;
     return { left: sc.x - aw / 2, top: sc.y - ah / 2, w: aw, h: ah };
   }
 
@@ -378,7 +388,7 @@
     div.innerHTML =
       '<img src="' + (p.artwork.img || p.artwork.thumb) + '" alt="' + p.artwork.name + '" decoding="async">' +
       '<div class="placard-bar">' + p.artwork.name + '</div>' +
-      '<div class="art-dims">' + fmtIn(p.artwork.w_in) + '×' + fmtIn(p.artwork.h_in) + '"</div>' +
+      '<div class="art-dims">' + fmtIn(p.artwork.w_in) + '×' + fmtIn(artSecondDim(p.artwork)) + '"</div>' +
       '<div class="hang-h"></div>' +
       '<div class="hang-v"></div>';
 

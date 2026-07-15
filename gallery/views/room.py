@@ -67,6 +67,7 @@ def _artwork_json(artwork):
         'dims':    artwork.placard_dimensions if hasattr(artwork, 'placard_dimensions') else '',
         'w_in':    float(artwork.width_inches)  if artwork.width_inches  else 24.0,
         'h_in':    float(artwork.height_inches) if artwork.height_inches else 24.0,
+        'd_in':    float(artwork.depth_inches)  if artwork.depth_inches  else 0.0,
         'img':     img_url,
         'thumb':   thumb_url,
     }

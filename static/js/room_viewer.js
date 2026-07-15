@@ -136,46 +136,105 @@ function wallQuaternion(wall) {
 // Placard data for hover
 const artworkMeshes = [];
 
-placements.forEach(function (p) {
-  var art = p.artwork;
-  var aw = art.w_in * IN2M;
-  var ah = art.h_in * IN2M;
-  var geo = new THREE.PlaneGeometry(aw, ah);
+function loadTex(url, onLoad) {
+  textureLoader.load(url, function (tex) {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    onLoad(tex);
+  }, undefined, function () {
+    console.warn('3D viewer: failed to load texture', url);
+  });
+}
 
-  var mat = new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.DoubleSide });
-  var mesh = new THREE.Mesh(geo, mat);
+// A plane sized to best-fit (contain) the image within a w×h face — the image
+// keeps its aspect ratio and is letterboxed against whatever is behind it.
+function bestFitImagePlane(tex, w, h) {
+  var ia = (tex.image && tex.image.width && tex.image.height)
+    ? tex.image.width / tex.image.height : (w / h);
+  var fa = w / h, pw, ph;
+  if (!isFinite(ia) || ia <= 0) { pw = w; ph = h; }
+  else if (ia > fa)             { pw = w; ph = w / ia; }
+  else                          { ph = h; pw = h * ia; }
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(pw, ph),
+    new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })
+  );
+}
 
-  var pos = placementPosition(p);
-  var norm = wallNormal(p.wall);
+// Flat piece (depth 0): a single plane on the wall/floor/ceiling.
+function buildFlatPlane(p, art, aw, ah, norm) {
+  var geo  = new THREE.PlaneGeometry(aw, ah);
+  var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.DoubleSide }));
+  var pos  = placementPosition(p);
   pos.addScaledVector(norm, WALL_OFFSET);
   mesh.position.copy(pos);
   mesh.quaternion.copy(wallQuaternion(p.wall));
-
-  // Load texture — resize plane to match image pixel aspect ratio (keeping height)
   if (art.img) {
-    textureLoader.load(art.img, function (tex) {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      var imgAspect = tex.image.width / tex.image.height;
-      if (!isFinite(imgAspect) || imgAspect <= 0) return;
+    loadTex(art.img, function (tex) {
+      var ia = tex.image.width / tex.image.height;
+      if (!isFinite(ia) || ia <= 0) return;
       mesh.geometry.dispose();
-      mesh.geometry = new THREE.PlaneGeometry(ah * imgAspect, ah);
-      var frame = mesh.children[0];
-      if (frame) { frame.geometry.dispose(); frame.geometry = new THREE.EdgesGeometry(mesh.geometry); }
+      mesh.geometry = new THREE.PlaneGeometry(ah * ia, ah);
+      var fr = mesh.children[0];
+      if (fr) { fr.geometry.dispose(); fr.geometry = new THREE.EdgesGeometry(mesh.geometry); }
       mesh.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-    }, undefined, function () {
-      console.warn('3D viewer: failed to load texture', art.img);
     });
   }
-
   mesh.userData = { art: art, wall: p.wall };
   scene.add(mesh);
   artworkMeshes.push(mesh);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+                                  new THREE.MeshBasicMaterial({ color: 0x333333 })));
+}
 
-  // Frame (thin border)
-  var frameMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
-  var frameGeo = new THREE.EdgesGeometry(geo);
-  var frame = new THREE.LineSegments(frameGeo, frameMat);
-  mesh.add(frame);
+// 3D piece (depth > 0): a cuboid (w × h × d). The image goes on the w×h face(s):
+// the inner face for wall pieces; BOTH faces for floor/ceiling pieces (so it
+// reads from either approach). Local axes: X = width, Y = height, Z = depth.
+function buildCuboid(p, art, aw, ah, ad, norm) {
+  var box = new THREE.Mesh(
+    new THREE.BoxGeometry(aw, ah, ad),
+    new THREE.MeshBasicMaterial({ color: 0xdddddd })
+  );
+  var base = placementPosition(p);
+  var imageZ;   // local-Z offsets of faces that receive the image
+  if (p.wall === 'floor' || p.wall === 'ceiling') {
+    // Stand upright: footprint w×d on the surface, height h; identity orientation.
+    var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (ah / 2);
+    box.position.set(base.x, cy, base.z);
+    imageZ = [ad / 2, -ad / 2];        // both w×h faces
+  } else {
+    // Depth extends inward from the wall; back face flush with the wall surface.
+    box.position.copy(base.clone().addScaledVector(norm, WALL_OFFSET + ad / 2));
+    box.quaternion.copy(wallQuaternion(p.wall));
+    imageZ = [ad / 2];                 // inner (room-facing) face only
+  }
+  box.userData = { art: art, wall: p.wall };
+  scene.add(box);
+  artworkMeshes.push(box);
+  box.add(new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry),
+                                 new THREE.MeshBasicMaterial({ color: 0x333333 })));
+  if (art.img) {
+    loadTex(art.img, function (tex) {
+      imageZ.forEach(function (z) {
+        var plane = bestFitImagePlane(tex, aw, ah);
+        plane.position.z = z + (z >= 0 ? 0.004 : -0.004);  // sit just off the face
+        if (z < 0) plane.rotation.y = Math.PI;             // back face → orient outward
+        box.add(plane);
+      });
+    });
+  }
+}
+
+placements.forEach(function (p) {
+  var art  = p.artwork;
+  var aw   = art.w_in * IN2M;
+  var ah   = art.h_in * IN2M;
+  var ad   = (art.d_in || 0) * IN2M;
+  var norm = wallNormal(p.wall);
+  if (ad > 0.0025) {   // > ~0.1" of depth → render as a 3D cuboid
+    buildCuboid(p, art, aw, ah, ad, norm);
+  } else {
+    buildFlatPlane(p, art, aw, ah, norm);
+  }
 });
 
 // ── Obstacle planes ───────────────────────────────────────────────────────────
