@@ -186,26 +186,25 @@ function buildFlatPlane(p, art, aw, ah, norm) {
                                   new THREE.MeshBasicMaterial({ color: 0x333333 })));
 }
 
-// 3D piece (depth > 0): a cuboid (w × h × d). The image goes on the w×h face(s):
-// the inner face for wall pieces; BOTH faces for floor/ceiling pieces (so it
-// reads from either approach). Local axes: X = width, Y = height, Z = depth.
+// 3D piece (depth > 0): a cuboid (w × h × d). The image goes on BOTH w×h faces
+// so it reads regardless of orientation (for a wall piece the rear face just
+// ends up inside the wall, which is harmless). Local axes: X=width, Y=height,
+// Z=depth.
 function buildCuboid(p, art, aw, ah, ad, norm) {
   var box = new THREE.Mesh(
     new THREE.BoxGeometry(aw, ah, ad),
     new THREE.MeshBasicMaterial({ color: 0xdddddd })
   );
   var base = placementPosition(p);
-  var imageZ;   // local-Z offsets of faces that receive the image
+  var imageZ = [ad / 2, -ad / 2];   // both w×h faces
   if (p.wall === 'floor' || p.wall === 'ceiling') {
     // Stand upright: footprint w×d on the surface, height h; identity orientation.
     var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (ah / 2);
     box.position.set(base.x, cy, base.z);
-    imageZ = [ad / 2, -ad / 2];        // both w×h faces
   } else {
     // Depth extends inward from the wall; back face flush with the wall surface.
     box.position.copy(base.clone().addScaledVector(norm, WALL_OFFSET + ad / 2));
     box.quaternion.copy(wallQuaternion(p.wall));
-    imageZ = [ad / 2];                 // inner (room-facing) face only
   }
   box.userData = { art: art, wall: p.wall };
   scene.add(box);
