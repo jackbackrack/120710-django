@@ -82,7 +82,6 @@
   var posDepth      = document.getElementById('pos-depth');
   var posHorizLabel = document.getElementById('pos-horiz-label');
   var posDepthLabel = document.getElementById('pos-depth-label');
-  var posRotate     = document.getElementById('pos-rotate');
 
   // ── Wall dimensions ───────────────────────────────────────────────────────
   function wallDims(wall) {
@@ -765,7 +764,6 @@
     posHorizLabel.textContent = isCF ? 'East from center (in)' : 'Horiz from center (in, + = right)';
     posDepthLabel.style.display = isCF ? 'inline' : 'none';
     posDepth.style.display      = isCF ? 'inline' : 'none';
-    if (posRotate) posRotate.style.display = isCF ? 'inline' : 'none';
     updatePopoverValues(p);
     posPanel.classList.add('active');
   }
@@ -785,27 +783,69 @@
 
   // Toggle a floor/ceiling piece between 0° and 90° yaw, re-rendering just that
   // piece so the current view/zoom is preserved.
-  function rotateSelected() {
-    if (selectionOrder.length !== 1) return;
-    var p = placementMap[selectionOrder[0]];
-    if (!p || (p.wall !== 'floor' && p.wall !== 'ceiling')) return;
+  // Rotate the selected floor/ceiling pieces 90°. Operates per UNIT: each group
+  // rotates as a rigid body about its group centre; each ungrouped piece rotates
+  // about its own centre. Reversible: rotating again returns to 0°.
+  function rotateSelection() {
+    var members = getSelected()
+      .filter(function (d) { return !d.classList.contains('obstacle') && !d.classList.contains('corner'); })
+      .map(function (d) { return placementMap[parseInt(d.dataset.id, 10)]; })
+      .filter(function (p) { return p && (p.wall === 'floor' || p.wall === 'ceiling'); });
+    if (!members.length) return;
     pushUndo();
-    p.rotation = (p.rotation === 90) ? 0 : 90;
-    var id  = String(p.artwork.id);
-    var old = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
-    if (old) old.remove();
-    addPlacedDiv(p);
-    var div = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
-    if (div) {
-      clampDivToWall(div);
-      syncWorldFromDiv(div, p);
-      div.classList.add('selected');
-      selectionOrder = [id];
-      openPopover(p);
+    var newRot = (members[0].rotation === 90) ? 0 : 90;
+    var sign   = (newRot === 90) ? 1 : -1;   // +90° to apply, -90° to undo
+
+    // Partition into units: one per group, plus each ungrouped piece on its own.
+    var byGroup = {}, units = [];
+    members.forEach(function (p) {
+      if (p.group == null) { units.push([p]); return; }
+      var k = 'g' + p.group;
+      if (!byGroup[k]) { byGroup[k] = []; units.push(byGroup[k]); }
+      byGroup[k].push(p);
+    });
+
+    function extents(p) {   // world footprint extents (x = east, z = north/south)
+      var depth = (p.artwork.d_in && p.artwork.d_in > 0) ? p.artwork.d_in : p.artwork.h_in;
+      return { ex: (p.rotation === 90 ? depth : p.artwork.w_in),
+               ez: (p.rotation === 90 ? p.artwork.w_in : depth) };
     }
+
+    units.forEach(function (unit) {
+      var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      unit.forEach(function (p) {
+        var e = extents(p);
+        minX = Math.min(minX, p.x_in - e.ex / 2); maxX = Math.max(maxX, p.x_in + e.ex / 2);
+        minZ = Math.min(minZ, p.z_in - e.ez / 2); maxZ = Math.max(maxZ, p.z_in + e.ez / 2);
+      });
+      var Cx = (minX + maxX) / 2, Cz = (minZ + maxZ) / 2;   // unit centre (own centre if single)
+      unit.forEach(function (p) {
+        var dx = p.x_in - Cx, dz = p.z_in - Cz;
+        if (sign === 1) { p.x_in = Cx - dz; p.z_in = Cz + dx; }   // +90°
+        else            { p.x_in = Cx + dz; p.z_in = Cz - dx; }   // -90° (inverse)
+        p.rotation = newRot;
+      });
+    });
+
+    members.forEach(function (p) {
+      var id  = String(p.artwork.id);
+      var old = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+      if (old) old.remove();
+      addPlacedDiv(p);
+      var div = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+      if (div) { clampDivToWall(div); syncWorldFromDiv(div, p); }
+    });
+
+    selectionOrder = members.map(function (p) { return String(p.artwork.id); });
+    selectionOrder.forEach(function (id) {
+      var div = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+      if (div) div.classList.add('selected');
+    });
+    if (selectionOrder.length === 1) openPopover(members[0]); else closePopover();
+    renderGroupBoxes();
     scheduleSave();
   }
-  if (posRotate) posRotate.addEventListener('click', function (e) { e.preventDefault(); rotateSelected(); });
+  document.getElementById('btn-rotate').addEventListener('click', rotateSelection);
 
   function applyPopoverInputs() {
     if (popoverArtId === null) return;
