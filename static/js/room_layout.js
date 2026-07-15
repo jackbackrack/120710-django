@@ -160,6 +160,7 @@
       fitLabel(el);
       updateHangInfo(el);   // text auto-scales with zoom via fitTextEl
     });
+    renderGroupBoxes();     // group outlines must follow the rescaled pieces
   }
 
   // ── World ↔ stage-pixel conversions ──────────────────────────────────────

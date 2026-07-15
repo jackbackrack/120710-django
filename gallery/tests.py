@@ -2366,3 +2366,59 @@ class SiteFeatureTests(TestCase):
         response = self.client.get(reverse('gallery:site_artwork_list', kwargs={'slug': self.published_site.slug}))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(self.other_artwork, response.context['artworks'])
+
+
+class WallPlacementRotationGroupTests(TestCase):
+    """Persistence of rotation and group through the layout save endpoint."""
+
+    def setUp(self):
+        import json
+        self.json = json
+        self.staff_user = User.objects.create_user(
+            username='staff2@example.com', email='staff2@example.com', password='pw'
+        )
+        add_staff_role(self.staff_user)
+        self.show = Show.objects.create(
+            name='Layout Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+        )
+        self.artwork = Artwork.objects.create(
+            name='Sculpture', created_by=self.staff_user, end_year=2025,
+            width_inches=20, height_inches=30, depth_inches=12,
+        )
+        self.show.artworks.add(self.artwork)
+        self.client.force_login(self.staff_user)
+
+    def _save(self, rotation, group):
+        return self.client.post(
+            reverse('gallery:room_layout_save', kwargs={'slug': self.show.slug}),
+            data=self.json.dumps({'placements': [{
+                'artwork_id': self.artwork.pk, 'wall': 'floor',
+                'x_in': 5.0, 'y_in': 0.0, 'z_in': 3.0,
+                'rotation': rotation, 'group': group,
+            }]}),
+            content_type='application/json',
+        )
+
+    def test_rotation_and_group_persist(self):
+        from gallery.models import WallPlacement
+        resp = self._save(rotation=90, group=7)
+        self.assertEqual(resp.status_code, 200)
+        wp = WallPlacement.objects.get(show=self.show, artwork=self.artwork)
+        self.assertEqual(wp.rotation, 90)
+        self.assertEqual(wp.group, 7)
+
+    def test_rotation_clamped_and_group_null(self):
+        from gallery.models import WallPlacement
+        # rotation other than 90 collapses to 0; missing/blank group → None
+        self._save(rotation=45, group=None)
+        wp = WallPlacement.objects.get(show=self.show, artwork=self.artwork)
+        self.assertEqual(wp.rotation, 0)
+        self.assertIsNone(wp.group)
+
+    def test_viewer_serializes_depth(self):
+        # depth_inches flows through to the placement JSON used by the viewers
+        from gallery.views.room import _artwork_json
+        data = _artwork_json(self.artwork)
+        self.assertEqual(data['d_in'], 12.0)
