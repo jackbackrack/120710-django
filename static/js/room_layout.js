@@ -82,6 +82,7 @@
   var posDepth      = document.getElementById('pos-depth');
   var posHorizLabel = document.getElementById('pos-horiz-label');
   var posDepthLabel = document.getElementById('pos-depth-label');
+  var posRotate     = document.getElementById('pos-rotate');
 
   // ── Wall dimensions ───────────────────────────────────────────────────────
   function wallDims(wall) {
@@ -187,20 +188,23 @@
     return p;
   }
 
-  // The second (vertical-on-screen) dimension of a placed piece: height on the
-  // vertical walls, but DEPTH on the floor/ceiling (a top-down footprint of
-  // width × depth). Flat pieces (depth 0) fall back to height so they still show.
-  function artSecondDim(art) {
+  // On-screen footprint of a placed piece, in inches. Vertical walls: width ×
+  // height. Floor/ceiling: a top-down width × depth footprint, with width and
+  // depth swapped when the piece is rotated 90°. Flat pieces (depth 0) fall back
+  // to height so they stay visible.
+  function footprintDims(p) {
+    var a = p.artwork;
     if (currentWall === 'floor' || currentWall === 'ceiling') {
-      return (art.d_in && art.d_in > 0) ? art.d_in : art.h_in;
+      var depth = (a.d_in && a.d_in > 0) ? a.d_in : a.h_in;
+      return (p.rotation === 90) ? { w: depth, h: a.w_in } : { w: a.w_in, h: depth };
     }
-    return art.h_in;
+    return { w: a.w_in, h: a.h_in };
   }
 
   function artStagePx(p) {
-    var sc  = worldToStage(currentWall, p);
-    var aw  = p.artwork.w_in * baseScale;
-    var ah  = artSecondDim(p.artwork) * baseScale;
+    var sc = worldToStage(currentWall, p);
+    var d  = footprintDims(p);
+    var aw = d.w * baseScale, ah = d.h * baseScale;
     return { left: sc.x - aw / 2, top: sc.y - ah / 2, w: aw, h: ah };
   }
 
@@ -388,7 +392,7 @@
     div.innerHTML =
       '<img src="' + (p.artwork.img || p.artwork.thumb) + '" alt="' + p.artwork.name + '" decoding="async">' +
       '<div class="placard-bar">' + p.artwork.name + '</div>' +
-      '<div class="art-dims">' + fmtIn(p.artwork.w_in) + '×' + fmtIn(artSecondDim(p.artwork)) + '"</div>' +
+      '<div class="art-dims">' + fmtIn(footprintDims(p).w) + '×' + fmtIn(footprintDims(p).h) + '"</div>' +
       '<div class="hang-h"></div>' +
       '<div class="hang-v"></div>';
 
@@ -722,6 +726,7 @@
     posHorizLabel.textContent = isCF ? 'East from center (in)' : 'Horiz from center (in, + = right)';
     posDepthLabel.style.display = isCF ? 'inline' : 'none';
     posDepth.style.display      = isCF ? 'inline' : 'none';
+    if (posRotate) posRotate.style.display = isCF ? 'inline' : 'none';
     updatePopoverValues(p);
     posPanel.classList.add('active');
   }
@@ -738,6 +743,30 @@
     posPanel.classList.remove('active');
     popoverArtId = null;
   }
+
+  // Toggle a floor/ceiling piece between 0° and 90° yaw, re-rendering just that
+  // piece so the current view/zoom is preserved.
+  function rotateSelected() {
+    if (selectionOrder.length !== 1) return;
+    var p = placementMap[selectionOrder[0]];
+    if (!p || (p.wall !== 'floor' && p.wall !== 'ceiling')) return;
+    pushUndo();
+    p.rotation = (p.rotation === 90) ? 0 : 90;
+    var id  = String(p.artwork.id);
+    var old = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+    if (old) old.remove();
+    addPlacedDiv(p);
+    var div = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+    if (div) {
+      clampDivToWall(div);
+      syncWorldFromDiv(div, p);
+      div.classList.add('selected');
+      selectionOrder = [id];
+      openPopover(p);
+    }
+    scheduleSave();
+  }
+  if (posRotate) posRotate.addEventListener('click', function (e) { e.preventDefault(); rotateSelected(); });
 
   function applyPopoverInputs() {
     if (popoverArtId === null) return;
@@ -793,7 +822,7 @@
   var undoBtn = document.getElementById('btn-undo');
   function snapshotPlacements() {
     return placements.map(function (p) {
-      return { id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in };
+      return { id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0 };
     });
   }
   function pushUndo(snap) {
@@ -808,7 +837,7 @@
     snap.forEach(function (s) {
       var art = findArtwork(s.id);
       if (!art) return;
-      var p = { artwork: art, wall: s.wall, x_in: s.x_in, y_in: s.y_in, z_in: s.z_in };
+      var p = { artwork: art, wall: s.wall, x_in: s.x_in, y_in: s.y_in, z_in: s.z_in, rotation: s.rotation || 0 };
       newPlacements.push(p);
       newMap[s.id] = p;
     });
@@ -1027,7 +1056,7 @@
       body: JSON.stringify({
         room: { width_in: cfg.width_in, depth_in: cfg.depth_in, height_in: cfg.height_in },
         placements: placements.map(function (p) {
-          return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in };
+          return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0 };
         }),
       }),
     })

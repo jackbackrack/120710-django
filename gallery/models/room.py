@@ -69,6 +69,9 @@ class WallPlacement(models.Model):
     y_in = models.FloatField()
     z_in = models.FloatField()
 
+    # Yaw rotation in degrees for floor/ceiling pieces: 0 or 90.
+    rotation = models.IntegerField(default=0)
+
     class Meta:
         unique_together = [('show', 'artwork')]
 
