@@ -46,3 +46,29 @@ class ArtistSchedule(models.Model):
 
     def __str__(self):
         return f'{self.artist} {self.get_kind_display()} for {self.show.name}'
+
+    def google_calendar_url(self, duration_minutes=30):
+        """A pre-filled 'Add to Google Calendar' link for this scheduled time.
+        Returns None if not yet scheduled. Uses floating local time (the gallery
+        clock time), which is what a local drop-off/install/pickup wants."""
+        if not (self.window and self.scheduled_time):
+            return None
+        import datetime
+        from urllib.parse import urlencode
+        start = datetime.datetime.combine(self.window.date, self.scheduled_time)
+        end = start + datetime.timedelta(minutes=duration_minutes)
+        fmt = '%Y%m%dT%H%M%S'
+        site = self.show.sites.first()
+        location = ''
+        if site:
+            parts = [site.street, site.city, site.state, site.postal_code, site.country]
+            location = ', '.join([p for p in parts if p]) or site.name
+        label = self.get_kind_display()
+        params = {
+            'action': 'TEMPLATE',
+            'text': f'{label}: {self.show.name}',
+            'dates': f'{start.strftime(fmt)}/{end.strftime(fmt)}',
+            'details': f'{label} for the show "{self.show.name}".',
+            'location': location,
+        }
+        return 'https://calendar.google.com/calendar/render?' + urlencode(params)

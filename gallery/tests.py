@@ -2518,6 +2518,23 @@ class ArtScheduleTests(TestCase):
         self.assertTrue(ArtistSchedule.objects.filter(
             show=self.show, artist=self.artist, kind='pickup').exists())
 
+    def test_google_calendar_url(self):
+        from gallery.models import ScheduleWindow, ArtistSchedule
+        w = ScheduleWindow.objects.create(
+            show=self.show, kind='install',
+            date=datetime.date(2025, 6, 7), start=datetime.time(10, 0), end=datetime.time(14, 0))
+        s = ArtistSchedule.objects.create(
+            show=self.show, artist=self.artist, kind='install',
+            window=w, scheduled_time=datetime.time(11, 30))
+        url = s.google_calendar_url()
+        self.assertIn('calendar.google.com', url)
+        self.assertIn('20250607T113000', url)   # start
+        self.assertIn('20250607T120000', url)   # +30 min end
+        self.assertIn('Install', url)
+        # Not-yet-scheduled → no URL
+        s2 = ArtistSchedule.objects.create(show=self.show, artist=self.artist, kind='pickup')
+        self.assertIsNone(s2.google_calendar_url())
+
 
 class RemoveArtworkFromShowTests(TestCase):
     """Curator/admin removes an artwork from a published show without deleting it."""
