@@ -1187,6 +1187,7 @@
         syncDivFromWorld(div, p);
       });
       if (popoverArtId !== null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
+      renderGroupBoxes();   // keep group outlines with the nudged pieces
       scheduleSave();
       return;
     }
