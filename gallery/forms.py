@@ -379,6 +379,7 @@ class ShowForm(UserAwareModelForm):
             'image',
             'status',
             'blind_review',
+            'self_install',
             'submission_type',
             'submission_deadline',
             'review_deadline',

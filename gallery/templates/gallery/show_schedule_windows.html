@@ -1,43 +1,36 @@
 {% extends 'base.html' %}
-{% block title %}Drop-off / Pickup Windows — {{ show.name }}{% endblock %}
-{% block block_title %}{{ show.name }} — Drop-off / Pickup Windows{% endblock %}
+{% block title %}Schedule Windows — {{ show.name }}{% endblock %}
+{% block block_title %}{{ show.name }} — Schedule Windows{% endblock %}
 
 {% block content %}
 {% if messages %}{% for m in messages %}<div class="alert alert-{{ m.tags }} mx-3">{{ m }}</div>{% endfor %}{% endif %}
 
 <div style="max-width:640px;margin:1rem auto;">
-  <p class="text-muted">Define the date/time ranges when artists may drop off work before the show and pick it up afterward. Artists then choose a specific time within one of these ranges.</p>
+  <p class="text-muted">
+    {% if show.self_install %}
+    Artists install their own work, so their arrival event is an <strong>install</strong> time (which is also when they bring the work). Define the ranges below; artists then pick a specific time within one of them.
+    {% else %}
+    The curator installs the work, so artists schedule a <strong>drop-off</strong> time. Define the ranges below; artists then pick a specific time within one of them.
+    {% endif %}
+    You can change who installs on the show's Edit page.
+  </p>
 
-  <h3 class="mt-4">Drop-off windows</h3>
+  {% for s in sections %}
+  <h3 class="mt-4">{{ s.label }} windows</h3>
   <ul class="list-unstyled">
-    {% for w in dropoff_windows %}
+    {% for w in s.windows %}
     <li class="mb-1">{{ w.date }} · {{ w.start|time:"g:i A" }}–{{ w.end|time:"g:i A" }}
       <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="window_id" value="{{ w.pk }}"><button class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this window?')">remove</button></form>
     </li>
     {% empty %}<li class="text-muted">None yet.</li>{% endfor %}
   </ul>
   <form method="post" class="d-flex gap-2 align-items-end flex-wrap mb-4">{% csrf_token %}
-    <input type="hidden" name="action" value="add"><input type="hidden" name="kind" value="dropoff">
+    <input type="hidden" name="action" value="add"><input type="hidden" name="kind" value="{{ s.kind }}">
     <div><label class="d-block small">Date</label><input type="date" name="date" required></div>
     <div><label class="d-block small">Start</label><input type="time" name="start" required></div>
     <div><label class="d-block small">End</label><input type="time" name="end" required></div>
-    <button class="btn btn-sm btn-primary" type="submit">Add drop-off window</button>
+    <button class="btn btn-sm btn-primary" type="submit">Add {{ s.label|lower }} window</button>
   </form>
-
-  <h3 class="mt-4">Pickup windows</h3>
-  <ul class="list-unstyled">
-    {% for w in pickup_windows %}
-    <li class="mb-1">{{ w.date }} · {{ w.start|time:"g:i A" }}–{{ w.end|time:"g:i A" }}
-      <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="window_id" value="{{ w.pk }}"><button class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this window?')">remove</button></form>
-    </li>
-    {% empty %}<li class="text-muted">None yet.</li>{% endfor %}
-  </ul>
-  <form method="post" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
-    <input type="hidden" name="action" value="add"><input type="hidden" name="kind" value="pickup">
-    <div><label class="d-block small">Date</label><input type="date" name="date" required></div>
-    <div><label class="d-block small">Start</label><input type="time" name="start" required></div>
-    <div><label class="d-block small">End</label><input type="time" name="end" required></div>
-    <button class="btn btn-sm btn-primary" type="submit">Add pickup window</button>
-  </form>
+  {% endfor %}
 </div>
 {% endblock %}

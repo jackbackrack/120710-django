@@ -2452,17 +2452,17 @@ class ArtScheduleTests(TestCase):
 
     def test_window_schedule_and_checkoff_flow(self):
         from gallery.models import ScheduleWindow, ArtistSchedule
-        # Curator creates a drop-off window
+        # Default show is self-install → the arrival kind is 'install'.
         self.client.force_login(self.staff)
         self.client.post(reverse('gallery:show_schedule_windows', kwargs={'slug': self.show.slug}),
-                         {'action': 'add', 'kind': 'dropoff', 'date': '2025-06-07', 'start': '10:00', 'end': '14:00'})
-        window = ScheduleWindow.objects.get(show=self.show, kind='dropoff')
+                         {'action': 'add', 'kind': 'install', 'date': '2025-06-07', 'start': '10:00', 'end': '14:00'})
+        window = ScheduleWindow.objects.get(show=self.show, kind='install')
 
         # Artist schedules a time within the window
         self.client.force_login(self.artist_user)
         self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
-                         {'kind': 'dropoff', 'window_id': window.pk, 'time': '11:30'})
-        sched = ArtistSchedule.objects.get(show=self.show, artist=self.artist, kind='dropoff')
+                         {'kind': 'install', 'window_id': window.pk, 'time': '11:30'})
+        sched = ArtistSchedule.objects.get(show=self.show, artist=self.artist, kind='install')
         self.assertEqual(sched.window_id, window.pk)
         self.assertEqual(sched.scheduled_time.strftime('%H:%M'), '11:30')
         self.assertFalse(sched.done)
@@ -2470,18 +2470,34 @@ class ArtScheduleTests(TestCase):
         # Curator checks it off
         self.client.force_login(self.staff)
         self.client.post(reverse('gallery:show_schedule_tracker', kwargs={'slug': self.show.slug}),
-                         {'artist_id': self.artist.id, 'kind': 'dropoff', 'done': '1'})
+                         {'artist_id': self.artist.id, 'kind': 'install', 'done': '1'})
         sched.refresh_from_db()
         self.assertTrue(sched.done)
         self.assertEqual(sched.done_by, self.staff)
 
-    def test_time_outside_window_rejected(self):
+    def test_curator_install_uses_dropoff(self):
         from gallery.models import ScheduleWindow, ArtistSchedule
+        self.show.self_install = False   # curator installs → artists drop off
+        self.show.save(update_fields=['self_install'])
         window = ScheduleWindow.objects.create(
             show=self.show, kind='dropoff', date='2025-06-07', start='10:00', end='14:00')
         self.client.force_login(self.artist_user)
+        # 'install' is not a valid kind for a curator-install show → rejected
         self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
-                         {'kind': 'dropoff', 'window_id': window.pk, 'time': '16:00'})
+                         {'kind': 'install', 'window_id': window.pk, 'time': '11:00'})
+        self.assertFalse(ArtistSchedule.objects.filter(show=self.show, artist=self.artist, kind='install').exists())
+        # 'dropoff' works
+        self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
+                         {'kind': 'dropoff', 'window_id': window.pk, 'time': '11:00'})
+        self.assertTrue(ArtistSchedule.objects.filter(show=self.show, artist=self.artist, kind='dropoff').exists())
+
+    def test_time_outside_window_rejected(self):
+        from gallery.models import ScheduleWindow, ArtistSchedule
+        window = ScheduleWindow.objects.create(
+            show=self.show, kind='install', date='2025-06-07', start='10:00', end='14:00')
+        self.client.force_login(self.artist_user)
+        self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
+                         {'kind': 'install', 'window_id': window.pk, 'time': '16:00'})
         self.assertFalse(ArtistSchedule.objects.filter(show=self.show, artist=self.artist).exists())
 
     def test_non_participant_cannot_schedule(self):

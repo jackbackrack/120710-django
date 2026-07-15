@@ -1,45 +1,37 @@
 {% extends 'base.html' %}
-{% block title %}Drop-off / Pickup Tracker — {{ show.name }}{% endblock %}
-{% block block_title %}{{ show.name }} — Drop-off / Pickup Tracker{% endblock %}
+{% block title %}Schedule Tracker — {{ show.name }}{% endblock %}
+{% block block_title %}{{ show.name }} — Schedule Tracker{% endblock %}
 
 {% block content %}
 <div style="max-width:820px;margin:1rem auto;">
   <p class="text-muted">
-    Drop-off: <strong>{{ dropoff_counts.done }}/{{ dropoff_counts.total }}</strong> received
-    ({{ dropoff_counts.left }} outstanding) ·
-    Pickup: <strong>{{ pickup_counts.done }}/{{ pickup_counts.total }}</strong> collected
-    ({{ pickup_counts.left }} outstanding)
+    {% for c in columns %}{% if not forloop.first %} · {% endif %}{{ c.label }}: <strong>{{ c.done }}/{{ c.total }}</strong> done ({{ c.left }} outstanding){% endfor %}
   </p>
 
   <table class="table">
     <thead>
-      <tr><th>Artist</th><th>Drop-off time</th><th>Received</th><th>Pickup time</th><th>Collected</th></tr>
+      <tr>
+        <th>Artist</th>
+        {% for c in columns %}<th>{{ c.label }} time</th><th>Done</th>{% endfor %}
+      </tr>
     </thead>
     <tbody>
       {% for row in rows %}
       <tr>
         <td>{{ row.artist.name }}</td>
-
-        <td>{% if row.dropoff and row.dropoff.window %}{{ row.dropoff.window.date }} {{ row.dropoff.scheduled_time|time:"g:i A" }}{% else %}<span class="text-muted">not scheduled</span>{% endif %}</td>
+        {% for cell in row.cells %}
+        <td>{% if cell.sched and cell.sched.window %}{{ cell.sched.window.date }} {{ cell.sched.scheduled_time|time:"g:i A" }}{% else %}<span class="text-muted">not scheduled</span>{% endif %}</td>
         <td>
           <form method="post" style="display:inline">{% csrf_token %}
             <input type="hidden" name="artist_id" value="{{ row.artist.id }}">
-            <input type="hidden" name="kind" value="dropoff">
-            <input type="checkbox" name="done" value="1" onchange="this.form.submit()" {% if row.dropoff and row.dropoff.done %}checked{% endif %}>
+            <input type="hidden" name="kind" value="{{ cell.kind }}">
+            <input type="checkbox" name="done" value="1" onchange="this.form.submit()" {% if cell.sched and cell.sched.done %}checked{% endif %}>
           </form>
         </td>
-
-        <td>{% if row.pickup and row.pickup.window %}{{ row.pickup.window.date }} {{ row.pickup.scheduled_time|time:"g:i A" }}{% else %}<span class="text-muted">not scheduled</span>{% endif %}</td>
-        <td>
-          <form method="post" style="display:inline">{% csrf_token %}
-            <input type="hidden" name="artist_id" value="{{ row.artist.id }}">
-            <input type="hidden" name="kind" value="pickup">
-            <input type="checkbox" name="done" value="1" onchange="this.form.submit()" {% if row.pickup and row.pickup.done %}checked{% endif %}>
-          </form>
-        </td>
+        {% endfor %}
       </tr>
       {% empty %}
-      <tr><td colspan="5" class="text-muted">No accepted artists yet.</td></tr>
+      <tr><td colspan="{{ colspan }}" class="text-muted">No accepted artists yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

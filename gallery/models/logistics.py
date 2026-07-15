@@ -3,8 +3,9 @@ from django.db import models
 
 
 DROPOFF = 'dropoff'
+INSTALL = 'install'
 PICKUP = 'pickup'
-KIND_CHOICES = [(DROPOFF, 'Drop-off'), (PICKUP, 'Pickup')]
+KIND_CHOICES = [(DROPOFF, 'Drop-off'), (INSTALL, 'Install'), (PICKUP, 'Pickup')]
 
 
 class ScheduleWindow(models.Model):
