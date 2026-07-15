@@ -987,6 +987,7 @@
       var p = placementMap[parseInt(div.dataset.id, 10)];
       if (p) syncWorldFromDiv(div, p);
     });
+    renderGroupBoxes();
     scheduleSave();
   });
 
@@ -1001,6 +1002,7 @@
       var p = placementMap[parseInt(div.dataset.id, 10)];
       if (p) syncWorldFromDiv(div, p);
     });
+    renderGroupBoxes();
     scheduleSave();
   });
 
@@ -1027,6 +1029,7 @@
       }
       x = left + parseFloat(div.style.width);
     });
+    renderGroupBoxes();
     scheduleSave();
   });
 
@@ -1051,6 +1054,7 @@
       }
       y = top + parseFloat(div.style.height);
     });
+    renderGroupBoxes();
     scheduleSave();
   });
 
