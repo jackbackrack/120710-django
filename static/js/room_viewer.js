@@ -201,7 +201,7 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
     // Stand upright: footprint w×d on the surface, height h; identity orientation.
     var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (ah / 2);
     box.position.set(base.x, cy, base.z);
-    if (p.rotation === 90) box.rotation.y = Math.PI / 2;   // yaw the piece 90°
+    if (p.rotation) box.rotation.y = ((p.rotation % 360) * Math.PI) / 180;   // yaw 0/90/180/270
   } else {
     // Depth extends inward from the wall; back face flush with the wall surface.
     box.position.copy(base.clone().addScaledVector(norm, WALL_OFFSET + ad / 2));

@@ -2411,11 +2411,18 @@ class WallPlacementRotationGroupTests(TestCase):
 
     def test_rotation_clamped_and_group_null(self):
         from gallery.models import WallPlacement
-        # rotation other than 90 collapses to 0; missing/blank group → None
+        # rotation not a multiple of 90 collapses to 0; missing/blank group → None
         self._save(rotation=45, group=None)
         wp = WallPlacement.objects.get(show=self.show, artwork=self.artwork)
         self.assertEqual(wp.rotation, 0)
         self.assertIsNone(wp.group)
+
+    def test_rotation_allows_full_quarter_turns(self):
+        from gallery.models import WallPlacement
+        for r in (0, 90, 180, 270):
+            self._save(rotation=r, group=None)
+            wp = WallPlacement.objects.get(show=self.show, artwork=self.artwork)
+            self.assertEqual(wp.rotation, r)
 
     def test_viewer_serializes_depth(self):
         # depth_inches flows through to the placement JSON used by the viewers

@@ -133,7 +133,7 @@ def room_layout_save(request, slug):
                 x_in=float(item['x_in']),
                 y_in=float(item['y_in']),
                 z_in=float(item['z_in']),
-                rotation=90 if int(item.get('rotation', 0) or 0) == 90 else 0,
+                rotation=(int(item.get('rotation', 0) or 0) % 360) if (int(item.get('rotation', 0) or 0) % 360) in (0, 90, 180, 270) else 0,
                 group=(int(item['group']) if item.get('group') not in (None, '') else None),
             )
         except (Artwork.DoesNotExist, KeyError, ValueError) as e:

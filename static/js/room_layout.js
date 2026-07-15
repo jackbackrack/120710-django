@@ -196,7 +196,8 @@
     var a = p.artwork;
     if (currentWall === 'floor' || currentWall === 'ceiling') {
       var depth = (a.d_in && a.d_in > 0) ? a.d_in : a.h_in;
-      return (p.rotation === 90) ? { w: depth, h: a.w_in } : { w: a.w_in, h: depth };
+      var swapped = (((p.rotation || 0) % 180) === 90);   // 90° or 270° swaps w/d
+      return swapped ? { w: depth, h: a.w_in } : { w: a.w_in, h: depth };
     }
     return { w: a.w_in, h: a.h_in };
   }
@@ -811,16 +812,14 @@
 
     function extents(p) {   // world footprint extents (x = east, z = north/south)
       var depth = (p.artwork.d_in && p.artwork.d_in > 0) ? p.artwork.d_in : p.artwork.h_in;
-      return { ex: (p.rotation === 90 ? depth : p.artwork.w_in),
-               ez: (p.rotation === 90 ? p.artwork.w_in : depth) };
+      var swapped = (((p.rotation || 0) % 180) === 90);
+      return { ex: (swapped ? depth : p.artwork.w_in),
+               ez: (swapped ? p.artwork.w_in : depth) };
     }
 
+    // Each click advances every unit by +90° (cycling 0→90→180→270→0), rotating
+    // group members about the group centre and cycling each piece's own rotation.
     units.forEach(function (unit) {
-      // Toggle each unit from its OWN current rotation, so every selected piece
-      // flips regardless of whether the others are in sync.
-      var wasRotated = (unit[0].rotation === 90);
-      var newRot = wasRotated ? 0 : 90;
-      var sign   = wasRotated ? -1 : 1;   // +90° to apply, -90° to undo
       var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
       unit.forEach(function (p) {
         var e = extents(p);
@@ -830,9 +829,8 @@
       var Cx = (minX + maxX) / 2, Cz = (minZ + maxZ) / 2;   // unit centre (own centre if single)
       unit.forEach(function (p) {
         var dx = p.x_in - Cx, dz = p.z_in - Cz;
-        if (sign === 1) { p.x_in = Cx - dz; p.z_in = Cz + dx; }   // +90°
-        else            { p.x_in = Cx + dz; p.z_in = Cz - dx; }   // -90° (inverse)
-        p.rotation = newRot;
+        p.x_in = Cx - dz; p.z_in = Cz + dx;                 // +90°
+        p.rotation = (((p.rotation || 0) + 90) % 360);
       });
     });
 
