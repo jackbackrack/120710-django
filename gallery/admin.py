@@ -1,7 +1,7 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 
-from gallery.models import Artist, Artwork, ArtworkImage, Event, LinkTreeEntry, Show, ShowInvitation, Tag
+from gallery.models import Artist, ArtistSchedule, Artwork, ArtworkImage, Event, LinkTreeEntry, ScheduleWindow, Show, ShowInvitation, Tag
 from gallery.models.collection import CollectionPiece, SavedArtwork
 from gallery.models.room import RoomConfig, WallObstacle, WallPlacement
 from reviews.models import ShowJuror
@@ -46,6 +46,8 @@ admin.site.register(Show, ShowAdmin)
 admin.site.register(ShowInvitation)
 admin.site.register(Event, ImportExportAdmin)
 admin.site.register(Tag, ImportExportAdmin)
+admin.site.register(ScheduleWindow)
+admin.site.register(ArtistSchedule)
 
 
 @admin.register(CollectionPiece)

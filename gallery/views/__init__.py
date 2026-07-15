@@ -55,6 +55,7 @@ from gallery.views.collection import (
 from gallery.views.open_call import artwork_submit, invite_artists, show_submissions, promote_artworks, show_artist_emails, send_selection_emails, update_submission_status, bulk_update_submission_status, renumber_artworks, retract_submission, send_submission_reminders
 from gallery.views.search import SearchResultsListView
 from gallery.views.room import room_layout, room_layout_save, room_viewer
+from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker
 from gallery.views.sites import (
     SiteListView,
     SiteDetailView,
@@ -67,6 +68,9 @@ from gallery.views.sites import (
 )
 
 __all__ = [
+    'show_schedule_windows',
+    'artist_schedule',
+    'show_schedule_tracker',
     'artwork_autocomplete',
     'artist_autocomplete',
     'artwork_add_to_collection',

@@ -65,6 +65,14 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['can_delete_artist_ids'] = {a.id for a in artists if can_delete_artist(self.request.user, a)}
         context['can_view_reviews'] = can_view_reviews(self.request.user, show)
         context['can_manage_show'] = can_manage_show(self.request.user, show)
+        # Artist may schedule drop-off/pickup if they have work in the show and
+        # the curator has defined any windows.
+        context['can_schedule_dropoff'] = (
+            self.request.user.is_authenticated
+            and show.schedule_windows.exists()
+            and Artist.objects.filter(user=self.request.user, artworks__shows=show).exists()
+        )
+        context['has_schedule_windows'] = show.schedule_windows.exists()
         context['can_delete_show'] = can_delete_show(self.request.user, show)
         has_placements = show.wall_placements.exists()
         context['has_placements'] = has_placements

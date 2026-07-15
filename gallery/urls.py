@@ -3,6 +3,7 @@ from django.urls import path, re_path
 from gallery.views.placards import placard_html, placard_json
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer
+from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker
 from gallery.views import (
     artwork_autocomplete,
     artist_autocomplete,
@@ -87,6 +88,9 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artist-emails/$', show_artist_emails, name='show_artist_emails'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/send-emails/$', send_selection_emails, name='send_selection_emails'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/renumber/$', renumber_artworks, name='renumber_artworks'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/schedule-windows/$', show_schedule_windows, name='show_schedule_windows'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/schedule/$', artist_schedule, name='artist_schedule'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/schedule-tracker/$', show_schedule_tracker, name='show_schedule_tracker'),
     path('submission/<int:pk>/retract/', retract_submission, name='retract_submission'),
     path('submission/<int:pk>/status/', update_submission_status, name='update_submission_status'),
     path('submissions/bulk-status/', bulk_update_submission_status, name='bulk_submission_status'),

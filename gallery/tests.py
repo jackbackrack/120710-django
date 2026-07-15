@@ -2429,3 +2429,74 @@ class WallPlacementRotationGroupTests(TestCase):
         from gallery.views.room import _artwork_json
         data = _artwork_json(self.artwork)
         self.assertEqual(data['d_in'], 12.0)
+
+
+class ArtScheduleTests(TestCase):
+    """Drop-off / pickup windows, artist scheduling, and curator check-off."""
+
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            username='sched-staff@example.com', email='sched-staff@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.artist_user = User.objects.create_user(
+            username='sched-artist@example.com', email='sched-artist@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            user=self.artist_user, name='Sched Artist', first_name='Sched', last_name='Artist',
+            email='sched-artist@example.com', phone='')
+        self.show = Show.objects.create(
+            name='Sched Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7))
+        self.artwork = Artwork.objects.create(name='Piece', created_by=self.artist_user, end_year=2025)
+        self.artwork.artists.add(self.artist)
+        self.show.artworks.add(self.artwork)
+
+    def test_window_schedule_and_checkoff_flow(self):
+        from gallery.models import ScheduleWindow, ArtistSchedule
+        # Curator creates a drop-off window
+        self.client.force_login(self.staff)
+        self.client.post(reverse('gallery:show_schedule_windows', kwargs={'slug': self.show.slug}),
+                         {'action': 'add', 'kind': 'dropoff', 'date': '2025-06-07', 'start': '10:00', 'end': '14:00'})
+        window = ScheduleWindow.objects.get(show=self.show, kind='dropoff')
+
+        # Artist schedules a time within the window
+        self.client.force_login(self.artist_user)
+        self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
+                         {'kind': 'dropoff', 'window_id': window.pk, 'time': '11:30'})
+        sched = ArtistSchedule.objects.get(show=self.show, artist=self.artist, kind='dropoff')
+        self.assertEqual(sched.window_id, window.pk)
+        self.assertEqual(sched.scheduled_time.strftime('%H:%M'), '11:30')
+        self.assertFalse(sched.done)
+
+        # Curator checks it off
+        self.client.force_login(self.staff)
+        self.client.post(reverse('gallery:show_schedule_tracker', kwargs={'slug': self.show.slug}),
+                         {'artist_id': self.artist.id, 'kind': 'dropoff', 'done': '1'})
+        sched.refresh_from_db()
+        self.assertTrue(sched.done)
+        self.assertEqual(sched.done_by, self.staff)
+
+    def test_time_outside_window_rejected(self):
+        from gallery.models import ScheduleWindow, ArtistSchedule
+        window = ScheduleWindow.objects.create(
+            show=self.show, kind='dropoff', date='2025-06-07', start='10:00', end='14:00')
+        self.client.force_login(self.artist_user)
+        self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
+                         {'kind': 'dropoff', 'window_id': window.pk, 'time': '16:00'})
+        self.assertFalse(ArtistSchedule.objects.filter(show=self.show, artist=self.artist).exists())
+
+    def test_non_participant_cannot_schedule(self):
+        other = User.objects.create_user(
+            username='outsider@example.com', email='outsider@example.com', password='pw')
+        self.client.force_login(other)
+        r = self.client.get(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}))
+        self.assertEqual(r.status_code, 404)
+
+    def test_pickup_uses_same_mechanism(self):
+        from gallery.models import ScheduleWindow, ArtistSchedule
+        window = ScheduleWindow.objects.create(
+            show=self.show, kind='pickup', date='2025-07-01', start='12:00', end='16:00')
+        self.client.force_login(self.artist_user)
+        self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
+                         {'kind': 'pickup', 'window_id': window.pk, 'time': '13:00'})
+        self.assertTrue(ArtistSchedule.objects.filter(
+            show=self.show, artist=self.artist, kind='pickup').exists())
