@@ -506,6 +506,15 @@
         return { div: d, startL: parseFloat(d.style.left), startT: parseFloat(d.style.top),
                  p: placementMap[parseInt(d.dataset.id, 10)] };
       });
+      // Group outline(s) of the pieces being dragged — translate them rigidly too.
+      var draggedGids = {};
+      movers.forEach(function (m) { if (m.p && m.p.group != null) draggedGids[m.p.group] = true; });
+      var boxMovers = [];
+      stageEl.querySelectorAll('.group-box').forEach(function (b) {
+        if (draggedGids[b.dataset.gid]) {
+          boxMovers.push({ el: b, startL: parseFloat(b.style.left), startT: parseFloat(b.style.top) });
+        }
+      });
       var startMx = e.clientX, startMy = e.clientY;
       var preDragSnap = snapshotPlacements();
       var dragMx = e.clientX, dragMy = e.clientY, dragRaf = 0, movedAny = false;
@@ -519,7 +528,10 @@
           clampDivToWall(m.div);   // don't let a piece leave the wall
           updateHangInfo(m.div);
         });
-        renderGroupBoxes();
+        boxMovers.forEach(function (bm) {   // move the group outline with the pieces
+          bm.el.style.left = (bm.startL + dx) + 'px';
+          bm.el.style.top  = (bm.startT + dy) + 'px';
+        });
       }
       function onMove(ev) {
         dragMx = ev.clientX; dragMy = ev.clientY;
@@ -894,6 +906,7 @@
       var pad = 6;
       var box = document.createElement('div');
       box.className = 'group-box';
+      box.dataset.gid = gid;
       box.style.left        = (minL - pad) + 'px';
       box.style.top         = (minT - pad) + 'px';
       box.style.width       = (maxR - minL + 2 * pad) + 'px';
