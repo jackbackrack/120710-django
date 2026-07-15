@@ -634,6 +634,7 @@
   // artwork it touches. (Panning uses space-drag / middle-mouse, so there's no
   // conflict.)  Shift adds to the current selection instead of replacing it.
   var marqueeEl = null, marqueeStartX = 0, marqueeStartY = 0, marqueeShift = false, marqueeActive = false;
+  var marqueeEndT = 0;   // timestamp of last completed marquee (suppresses the trailing click-to-deselect)
 
   function onMarqueeMove(e) {
     if (!marqueeActive) return;
@@ -678,6 +679,7 @@
       closePopover();
     }
     if (measureDisplay) measureDisplay.textContent = '';
+    marqueeEndT = performance.now();   // the browser fires a click right after; ignore it
   }
 
   canvasWrap.addEventListener('mousedown', function (e) {
@@ -747,6 +749,7 @@
   // Click empty stage/canvas → deselect + close popover
   [canvasWrap, stageEl].forEach(function (el) {
     el.addEventListener('click', function (e) {
+      if (performance.now() - marqueeEndT < 300) return;   // don't clear a fresh marquee selection
       if (e.target === el) { clearSelection(); closePopover(); }
     });
   });
