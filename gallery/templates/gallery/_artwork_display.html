@@ -98,7 +98,10 @@
       <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}?crop=1">Recrop</a>
     </div>
     {% else %}
-    <div class="card__content"><p class="text-gray-500 text-sm mb-0" style="padding:0.4rem">No cropped layout image set — the main image is used in the room layout and 3D view. Add one on the <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}">edit page</a>.</p></div>
+    <div class="card__content"><p class="text-gray-500 text-sm mb-0" style="padding:0.4rem">No cropped layout image set — the main image is used in the room layout and 3D view.</p></div>
+    <div class="card__info">
+      <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}?crop=1">Crop</a>
+    </div>
     {% endif %}
   </div>
 </div>
