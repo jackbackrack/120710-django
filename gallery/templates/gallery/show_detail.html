@@ -138,14 +138,11 @@
       {% if artwork.id in can_manage_artwork_ids %}
       <a class="card__link" href="{% url 'gallery:artwork_edit' artwork.pk %}">Edit</a>
       {% endif %}
-      {% if artwork.id in can_delete_artwork_ids %}
-      <a class="card__link" href="{% url 'gallery:artwork_delete' artwork.pk %}">Delete</a>
-      {% endif %}
       {% if sub and can_submit %}
       <form method="post" action="{% url 'gallery:retract_submission' sub.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this submission from the show? This permanently deletes the submission — you can resubmit while the show is still accepting work.')">Retract</button></form>
       {% endif %}
       {% if can_manage_show %}
-      <form method="post" action="{% url 'gallery:remove_artwork_from_show' show.slug artwork.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this artwork from the show? The artwork and artist are kept — it is only pulled from this show.')">Remove from show</button></form>
+      <form method="post" action="{% url 'gallery:remove_artwork_from_show' show.slug artwork.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 text-danger" onclick="return confirm('Remove this artwork from the show? The artwork and artist are kept — it is only pulled from this show.')">Remove</button></form>
       {% endif %}
     </div>
   </div>
