@@ -2455,13 +2455,14 @@ class ArtScheduleTests(TestCase):
         # Default show is self-install → the arrival kind is 'install'.
         self.client.force_login(self.staff)
         self.client.post(reverse('gallery:show_schedule_windows', kwargs={'slug': self.show.slug}),
-                         {'action': 'add', 'kind': 'install', 'date': '2025-06-07', 'start': '10:00', 'end': '14:00'})
+                         {'action': 'add', 'kind': 'install',
+                          'install-date': '2025-06-07', 'install-start': '10:00', 'install-end': '14:00'})
         window = ScheduleWindow.objects.get(show=self.show, kind='install')
 
         # Artist schedules a time within the window
         self.client.force_login(self.artist_user)
         self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
-                         {'kind': 'install', 'window_id': window.pk, 'time': '11:30'})
+                         {'kind': 'install', 'install-window': window.pk, 'install-time': '11:30'})
         sched = ArtistSchedule.objects.get(show=self.show, artist=self.artist, kind='install')
         self.assertEqual(sched.window_id, window.pk)
         self.assertEqual(sched.scheduled_time.strftime('%H:%M'), '11:30')
@@ -2484,11 +2485,11 @@ class ArtScheduleTests(TestCase):
         self.client.force_login(self.artist_user)
         # 'install' is not a valid kind for a curator-install show → rejected
         self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
-                         {'kind': 'install', 'window_id': window.pk, 'time': '11:00'})
+                         {'kind': 'install', 'install-window': window.pk, 'install-time': '11:00'})
         self.assertFalse(ArtistSchedule.objects.filter(show=self.show, artist=self.artist, kind='install').exists())
         # 'dropoff' works
         self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
-                         {'kind': 'dropoff', 'window_id': window.pk, 'time': '11:00'})
+                         {'kind': 'dropoff', 'dropoff-window': window.pk, 'dropoff-time': '11:00'})
         self.assertTrue(ArtistSchedule.objects.filter(show=self.show, artist=self.artist, kind='dropoff').exists())
 
     def test_time_outside_window_rejected(self):
@@ -2497,7 +2498,7 @@ class ArtScheduleTests(TestCase):
             show=self.show, kind='install', date='2025-06-07', start='10:00', end='14:00')
         self.client.force_login(self.artist_user)
         self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
-                         {'kind': 'install', 'window_id': window.pk, 'time': '16:00'})
+                         {'kind': 'install', 'install-window': window.pk, 'install-time': '16:00'})
         self.assertFalse(ArtistSchedule.objects.filter(show=self.show, artist=self.artist).exists())
 
     def test_non_participant_cannot_schedule(self):
@@ -2513,6 +2514,6 @@ class ArtScheduleTests(TestCase):
             show=self.show, kind='pickup', date='2025-07-01', start='12:00', end='16:00')
         self.client.force_login(self.artist_user)
         self.client.post(reverse('gallery:artist_schedule', kwargs={'slug': self.show.slug}),
-                         {'kind': 'pickup', 'window_id': window.pk, 'time': '13:00'})
+                         {'kind': 'pickup', 'pickup-window': window.pk, 'pickup-time': '13:00'})
         self.assertTrue(ArtistSchedule.objects.filter(
             show=self.show, artist=self.artist, kind='pickup').exists())

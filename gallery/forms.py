@@ -444,3 +444,45 @@ class EventForm(UserAwareModelForm):
             self.fields['show'].queryset = Show.objects.all().distinct()
         elif is_curator_user(self.user):
             self.fields['show'].queryset = Show.objects.filter(curators__user=self.user).distinct()
+
+
+class ScheduleWindowForm(forms.Form):
+    """Curator: add a drop-off/install or pickup window (date + time range)."""
+    date  = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    start = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'step': '900'}))
+    end   = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'step': '900'}))
+
+    def clean(self):
+        cleaned = super().clean()
+        s, e = cleaned.get('start'), cleaned.get('end')
+        if s and e and s >= e:
+            raise forms.ValidationError('Start time must be before end time.')
+        return cleaned
+
+
+class ArtistScheduleForm(forms.Form):
+    """Artist: pick a window and a specific time within it."""
+    def __init__(self, *args, windows=None, **kwargs):
+        windows = list(windows or [])
+        self._windows = {w.pk: w for w in windows}
+        super().__init__(*args, **kwargs)
+        self.fields['window'] = forms.ChoiceField(
+            label='Window',
+            choices=[(w.pk, '%s · %s–%s' % (
+                w.date, w.start.strftime('%I:%M %p').lstrip('0'),
+                w.end.strftime('%I:%M %p').lstrip('0'))) for w in windows],
+        )
+        self.fields['time'] = forms.TimeField(
+            label='Time', widget=forms.TimeInput(attrs={'type': 'time', 'step': '900'}))
+
+    def clean(self):
+        cleaned = super().clean()
+        wid, t = cleaned.get('window'), cleaned.get('time')
+        if wid and t:
+            w = self._windows.get(int(wid))
+            if not w:
+                raise forms.ValidationError('Please choose a valid window.')
+            if not (w.start <= t <= w.end):
+                raise forms.ValidationError('Please pick a time within the selected window.')
+            cleaned['window_obj'] = w
+        return cleaned

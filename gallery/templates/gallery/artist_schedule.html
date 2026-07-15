@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load crispy_forms_tags %}
 {% block title %}Schedule Install / Pickup — {{ show.name }}{% endblock %}
 {% block block_title %}{{ show.name }} — Schedule your times{% endblock %}
 
@@ -17,20 +18,9 @@
     <p class="text-muted">Not scheduled yet.</p>
     {% endif %}
 
-    <form method="post" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+    <form method="post">{% csrf_token %}
       <input type="hidden" name="kind" value="{{ k.kind }}">
-      <div>
-        <label class="d-block small">Window</label>
-        <select name="window_id" required>
-          {% for w in k.windows %}
-          <option value="{{ w.pk }}" {% if k.current and k.current.window_id == w.pk %}selected{% endif %}>{{ w.date }} · {{ w.start|time:"g:i A" }}–{{ w.end|time:"g:i A" }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="d-block small">Time</label>
-        <input type="time" name="time" required {% if k.current.scheduled_time %}value="{{ k.current.scheduled_time|time:'H:i' }}"{% endif %}>
-      </div>
+      {{ k.form|crispy }}
       <button class="btn btn-sm btn-primary" type="submit">{% if k.current and k.current.window %}Update{% else %}Set{% endif %} {{ k.label|lower }} time</button>
     </form>
   </div>

@@ -1,5 +1,3 @@
-import datetime
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
@@ -8,6 +6,7 @@ from django.utils import timezone
 
 from gallery.models import ArtistSchedule, Artist, ScheduleWindow, Show
 from gallery.models.logistics import DROPOFF, INSTALL, PICKUP, KIND_CHOICES
+from gallery.forms import ScheduleWindowForm, ArtistScheduleForm
 from gallery.permissions import can_manage_show
 
 _KIND_LABEL = dict(KIND_CHOICES)
@@ -27,15 +26,6 @@ def _accepted_artists(show):
     return Artist.objects.filter(artworks__shows=show).distinct().order_by('name')
 
 
-def _parse_time(value):
-    for fmt in ('%H:%M', '%H:%M:%S'):
-        try:
-            return datetime.datetime.strptime(value, fmt).time()
-        except (ValueError, TypeError):
-            continue
-    return None
-
-
 # ── Curator: define drop-off/install + pickup windows ─────────────────────────
 @login_required
 def show_schedule_windows(request, slug):
@@ -48,13 +38,12 @@ def show_schedule_windows(request, slug):
         action = request.POST.get('action')
         if action == 'add':
             kind = request.POST.get('kind')
-            date = request.POST.get('date')
-            start = _parse_time(request.POST.get('start'))
-            end = _parse_time(request.POST.get('end'))
-            if kind in kinds and date and start and end and start < end:
-                ScheduleWindow.objects.create(show=show, kind=kind, date=date, start=start, end=end)
+            form = ScheduleWindowForm(request.POST, prefix=kind)
+            if kind in kinds and form.is_valid():
+                cd = form.cleaned_data
+                ScheduleWindow.objects.create(show=show, kind=kind, date=cd['date'], start=cd['start'], end=cd['end'])
             else:
-                messages.error(request, 'Please provide a date and a valid start/end time.')
+                messages.error(request, 'Please provide a date and a valid start/end time (start before end).')
         elif action == 'delete':
             ScheduleWindow.objects.filter(show=show, pk=request.POST.get('window_id')).delete()
         return redirect('gallery:show_schedule_windows', slug=show.slug)
@@ -63,7 +52,9 @@ def show_schedule_windows(request, slug):
     context = {
         'show': show,
         'sections': [
-            {'kind': k, 'label': _KIND_LABEL[k], 'windows': [w for w in windows if w.kind == k]}
+            {'kind': k, 'label': _KIND_LABEL[k],
+             'windows': [w for w in windows if w.kind == k],
+             'form': ScheduleWindowForm(prefix=k)}
             for k in kinds
         ],
     }
@@ -84,12 +75,11 @@ def artist_schedule(request, slug):
     if request.method == 'POST':
         kind = request.POST.get('kind')
         if kind in kinds:
-            window = show.schedule_windows.filter(kind=kind, pk=request.POST.get('window_id')).first()
-            t = _parse_time(request.POST.get('time'))
-            if window and t and window.start <= t <= window.end:
+            form = ArtistScheduleForm(request.POST, windows=windows_by_kind[kind], prefix=kind)
+            if form.is_valid():
                 sched, _ = ArtistSchedule.objects.get_or_create(show=show, artist=artist, kind=kind)
-                sched.window = window
-                sched.scheduled_time = t
+                sched.window = form.cleaned_data['window_obj']
+                sched.scheduled_time = form.cleaned_data['time']
                 sched.save(update_fields=['window', 'scheduled_time'])
                 messages.success(request, f'Your {_KIND_LABEL[kind].lower()} time is set.')
             else:
@@ -97,15 +87,17 @@ def artist_schedule(request, slug):
         return redirect('gallery:artist_schedule', slug=show.slug)
 
     existing = {s.kind: s for s in ArtistSchedule.objects.filter(show=show, artist=artist)}
-    context = {
-        'show': show,
-        'artist': artist,
-        'kinds': [
-            {'kind': k, 'label': _KIND_LABEL[k], 'windows': windows_by_kind[k], 'current': existing.get(k)}
-            for k in kinds if windows_by_kind[k]
-        ],
-    }
-    return render(request, 'gallery/artist_schedule.html', context)
+    kinds_ctx = []
+    for k in kinds:
+        if not windows_by_kind[k]:
+            continue
+        cur = existing.get(k)
+        initial = {'window': cur.window_id, 'time': cur.scheduled_time} if cur and cur.window_id else None
+        kinds_ctx.append({
+            'kind': k, 'label': _KIND_LABEL[k], 'current': cur,
+            'form': ArtistScheduleForm(windows=windows_by_kind[k], prefix=k, initial=initial),
+        })
+    return render(request, 'gallery/artist_schedule.html', {'show': show, 'artist': artist, 'kinds': kinds_ctx})
 
 
 # ── Curator: tracker / check-off ──────────────────────────────────────────────
