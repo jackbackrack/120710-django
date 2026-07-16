@@ -20,10 +20,12 @@ class ArtworkSubmission(models.Model):
     UNDECIDED = 'undecided'
     CURATOR_SELECTED = 'selected'
     CURATOR_REJECTED = 'rejected'
+    WITHDRAWN = 'withdrawn'   # pulled from the show after being selected (e.g. artist withdrew)
     DECISION_CHOICES = [
         (UNDECIDED, 'Undecided'),
         (CURATOR_SELECTED, 'Selected'),
         (CURATOR_REJECTED, 'Rejected'),
+        (WITHDRAWN, 'Withdrawn'),
     ]
 
     show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='submissions')

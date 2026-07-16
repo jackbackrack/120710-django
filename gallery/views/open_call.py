@@ -502,6 +502,7 @@ def show_submissions(request, slug):
         'undecided_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED],
         'selected_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED],
         'rejected_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED],
+        'withdrawn_submissions': [s for s in submissions if s.curator_decision == ArtworkSubmission.WITHDRAWN],
         'n_selected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED),
         'n_rejected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED),
         'n_undecided': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED),
@@ -531,7 +532,7 @@ def update_submission_status(request, pk):
         raise Http404
     if request.method == 'POST':
         new_decision = request.POST.get('decision')
-        if new_decision in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}:
+        if new_decision in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED, ArtworkSubmission.WITHDRAWN}:
             submission.curator_decision = new_decision
             submission.save(update_fields=['curator_decision'])
             _sync_show_artworks(submission.show, submission.artwork, new_decision)
@@ -689,8 +690,11 @@ def remove_artwork_from_show(request, slug, pk):
         from gallery.models import WallPlacement
         WallPlacement.objects.filter(show=show, artwork=artwork).delete()
         ArtworkSubmission.objects.filter(show=show, artwork=artwork).update(
-            curator_decision=ArtworkSubmission.UNDECIDED)
-        messages.success(request, f'Removed "{artwork.name}" from {show.name}.')
+            curator_decision=ArtworkSubmission.WITHDRAWN)
+        messages.success(
+            request,
+            f'Removed "{artwork.name}" from {show.name}. It\'s in the Withdrawn '
+            f'section of the Submissions page if you need to re-add it.')
     return redirect(show)
 
 

@@ -63,6 +63,7 @@
 {% include 'gallery/_submission_group.html' with label="Undecided" group=undecided_submissions row_class="" decision="undecided" %}
 {% include 'gallery/_submission_group.html' with label="Selected" group=selected_submissions row_class="table-success" decision="selected" extra_width=selected_flat_width %}
 {% include 'gallery/_submission_group.html' with label="Rejected" group=rejected_submissions row_class="table-danger" decision="rejected" %}
+{% include 'gallery/_submission_group.html' with label="Withdrawn" group=withdrawn_submissions row_class="table-secondary" decision="withdrawn" %}
 
 {% else %}
 <p class="text-center">No submissions yet.</p>

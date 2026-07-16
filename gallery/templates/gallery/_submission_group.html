@@ -34,6 +34,13 @@
   </div>
   <div class="card__info" style="flex-direction:column;align-items:stretch;gap:3px">
     <a class="card__link" style="font-size:0.8em" href="{% url 'reviews:artwork_review' show_slug=show.slug artwork_slug=sub.artwork.slug %}">Review</a>
+    {% if decision == 'withdrawn' and can_manage %}
+    <form method="post" action="{% url 'gallery:update_submission_status' sub.pk %}" style="margin:0">
+      {% csrf_token %}
+      <input type="hidden" name="decision" value="selected">
+      <button type="submit" class="card__link" style="background:none;border:none;padding:0;cursor:pointer;font-size:0.8em;color:#198754">Re-add to show</button>
+    </form>
+    {% endif %}
   </div>
 </div>
 {% endfor %}

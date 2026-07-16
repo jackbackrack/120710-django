@@ -2792,9 +2792,33 @@ class RemoveArtworkFromShowTests(TestCase):
         # Artwork and artist still exist
         self.assertTrue(Artwork.objects.filter(pk=self.artwork.pk).exists())
         self.assertTrue(Artist.objects.filter(pk=self.artist.pk).exists())
-        # Submission neutralized so a later sync won't re-add it
+        # Marked withdrawn (not undecided) so it's findable/restorable and a later
+        # sync won't re-add it
         self.sub.refresh_from_db()
-        self.assertEqual(self.sub.curator_decision, ArtworkSubmission.UNDECIDED)
+        self.assertEqual(self.sub.curator_decision, ArtworkSubmission.WITHDRAWN)
+
+    def test_withdrawn_piece_can_be_re_added(self):
+        self.client.force_login(self.staff)
+        # withdraw it
+        self.client.post(reverse('gallery:remove_artwork_from_show',
+                                 kwargs={'slug': self.show.slug, 'pk': self.artwork.pk}))
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork.pk).exists())
+        # re-add via the Withdrawn section's "Re-add to show" (decision=selected)
+        r = self.client.post(reverse('gallery:update_submission_status', kwargs={'pk': self.sub.pk}),
+                             data={'decision': 'selected'})
+        self.assertEqual(r.status_code, 302)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.curator_decision, ArtworkSubmission.CURATOR_SELECTED)
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
+
+    def test_withdrawn_shows_in_submissions_page(self):
+        self.client.force_login(self.staff)
+        self.sub.curator_decision = ArtworkSubmission.WITHDRAWN
+        self.sub.save()
+        body = self.client.get(reverse('gallery:show_submissions',
+                                       kwargs={'slug': self.show.slug})).content.decode()
+        self.assertIn('Withdrawn', body)
+        self.assertIn('Re-add to show', body)
 
     def test_non_manager_cannot_remove(self):
         self.client.force_login(self.artist_user)
