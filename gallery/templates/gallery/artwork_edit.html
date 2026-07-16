@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags crispy_forms_filters %}
 
 {% block content %}
 <h1>Edit</h1>
@@ -7,14 +7,22 @@
 <form action="" method="post" enctype="multipart/form-data" data-has-image="{% if object.image %}1{% endif %}">{% csrf_token %}
   {% crispy form %}
 
-  {% if object.image %}
-  <div class="mb-3" id="crop-tools"
-       data-hero="{{ object.slideshow.url }}">
-    <button type="button" id="crop-from-hero" class="btn btn-sm btn-outline-secondary">Crop layout / 3D image from main image</button>
-    <span id="crop-status" class="text-muted small ms-2"></span>
-    <button type="button" id="crop-undo" class="btn btn-sm btn-link" style="display:none">Undo crop</button>
-  </div>
-  {% endif %}
+  <fieldset class="mb-4">
+    <legend>Layout / 3D image <span class="text-muted fw-normal fs-6">(optional)</span></legend>
+    <p class="text-muted small mb-2">
+      A cropped image of just the artwork, used in the room layout and 3D view.
+      Leave it blank to use the main image. You can set it two ways —
+      <strong>upload one</strong>, or <strong>crop it from the main image</strong>:
+    </p>
+    {{ form.layout_image|as_crispy_field }}
+    {% if object.image %}
+    <div class="mb-1" id="crop-tools" data-hero="{{ object.slideshow.url }}">
+      <button type="button" id="crop-from-hero" class="btn btn-sm btn-outline-secondary">…or crop it from the main image</button>
+      <span id="crop-status" class="text-muted small ms-2"></span>
+      <button type="button" id="crop-undo" class="btn btn-sm btn-link" style="display:none">Undo crop</button>
+    </div>
+    {% endif %}
+  </fieldset>
 
   <hr class="my-4">
   <h5>Supplemental Images</h5>

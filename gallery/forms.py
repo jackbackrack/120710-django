@@ -235,6 +235,10 @@ class ArtworkForm(UserAwareModelForm):
         self.fields['width_inches'].label = 'Width (in)'
         self.fields['height_inches'].label = 'Height (in)'
         self.fields['depth_inches'].label = 'Depth (in, optional)'
+        # Rendered manually in the edit template next to the "crop from main image"
+        # button, so its label reads as one of two ways to set the layout image.
+        self.fields['layout_image'].label = 'Upload a cropped image'
+        self.fields['layout_image'].help_text = ''
 
         for f in ('width_inches', 'height_inches', 'depth_inches'):
             self.fields[f].widget.attrs.update({'class': 'dim-input', 'step': 'any', 'min': '0'})
@@ -274,9 +278,8 @@ class ArtworkForm(UserAwareModelForm):
                 'is_sold',
             ),
             Fieldset(
-                'Additional details',
+                'Additional details (optional)',
                 'start_year',
-                'layout_image',
                 'description',
                 'url',
                 'installation',
