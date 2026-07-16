@@ -252,7 +252,8 @@
       // Insert " (N)" right after the first non-empty text (the noun) in a heading,
       // so buttons/links in the heading stay after it.
       function appendCount(container, n) {
-        var suffix = ' (' + n + ')';
+        // Trailing space so a Slideshow button placed after the count isn't glued to it.
+        var suffix = ' (' + n + ') ';
         for (var i = 0; i < container.childNodes.length; i++) {
           var node = container.childNodes[i];
           if (node.nodeType === 3 && node.textContent.trim()) {
