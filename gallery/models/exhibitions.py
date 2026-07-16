@@ -69,6 +69,7 @@ class Show(models.Model):
 
     class Meta:
         ordering = ['-start']
+        indexes = [models.Index(fields=['-start'])]
 
     def save(self, *args, **kwargs):
         self.name = (self.name or '').strip()

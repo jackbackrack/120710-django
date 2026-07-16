@@ -87,6 +87,7 @@ class Artwork(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [models.Index(fields=['-created_at'])]
 
     @property
     def layout_display_url(self):

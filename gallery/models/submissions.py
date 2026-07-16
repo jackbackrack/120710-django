@@ -44,6 +44,10 @@ class ArtworkSubmission(models.Model):
     class Meta:
         unique_together = ('show', 'artwork')
         ordering = ['submitted_at']
+        indexes = [
+            models.Index(fields=['show', 'curator_decision']),
+            models.Index(fields=['show', 'status']),
+        ]
 
     def __str__(self):
         return f'{self.artwork.name} → {self.show.name} ({self.status})'
