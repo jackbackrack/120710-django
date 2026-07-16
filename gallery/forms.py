@@ -106,7 +106,13 @@ class ArtistForm(UserAwareModelForm):
             HTML('<p class="text-muted small mb-3">Fields marked '
                  '<span class="text-danger">*</span> are required.</p>'),
             Fieldset('Required', *required),
-            Fieldset('Optional', *optional),
+            Fieldset(
+                'Optional',
+                HTML('<p class="text-muted small mb-3">These help people learn more '
+                     'about you and get in touch — add a phone number, your website '
+                     'and social links, and a short bio or artist statement.</p>'),
+                *optional,
+            ),
         )
         if 'user' in self.fields:
             layout.append(Fieldset('Admin', 'user'))
