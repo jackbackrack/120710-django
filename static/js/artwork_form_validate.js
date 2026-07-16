@@ -110,6 +110,22 @@
     ok(el, fb); return true;
   }
 
+  // Image is required on the New form, optional on Edit (an existing image counts).
+  // data-image-required="1" marks the required (New) case; data-has-image="1" marks
+  // an existing image on Edit.
+  function validateImage(el, fb) {
+    var f = el.closest('form');
+    var hasNew = el.files && el.files.length > 0;
+    var hasExisting = f && f.dataset.hasImage === '1';
+    var required = f && f.dataset.imageRequired === '1';
+    var clearBox = document.getElementById('id_image-clear');
+    var cleared = clearBox && clearBox.checked;
+    if (hasNew) { ok(el, fb, '✓'); return true; }
+    if (hasExisting && !cleared) { neutral(el, fb); return true; }
+    if (required) { bad(el, fb, 'An image is required'); return false; }
+    neutral(el, fb); return true;
+  }
+
   // ── Wire fields ────────────────────────────────────────────────────────────
 
   var fields = [
@@ -120,6 +136,7 @@
     { id: 'id_width_inches',     fn: validateDimRequired },
     { id: 'id_height_inches',    fn: validateDimRequired },
     { id: 'id_depth_inches',     fn: validateDimOptional },
+    { id: 'id_image',            fn: validateImage, event: 'change' },
     { id: 'id_price',            fn: validatePrice },
     { id: 'id_replacement_cost', fn: validatePositiveOptional },
   ];
@@ -128,9 +145,9 @@
     var el = document.getElementById(f.id);
     if (!el) return;
     var fb = hint(el);
-    el.addEventListener('input', function () { f.fn(el, fb); });
     f._el = el;
     f._fb = fb;
+    el.addEventListener(f.event || 'input', function () { f.fn(el, fb); refreshBanner(); });
   });
 
   // Re-validate price when pricing type changes
@@ -192,22 +209,54 @@
     });
   });
 
-  // ── Submit: validate all, block + scroll to first error ───────────────────
+  // ── Loud error summary at the top of the form ─────────────────────────────
   // Find the form that owns the artwork name field (handles pages with multiple forms).
   var nameEl = document.getElementById('id_name');
   var form = nameEl ? nameEl.closest('form') : null;
+
+  function countBad() {
+    var n = 0;
+    fields.forEach(function (f) { if (f._el && !f.fn(f._el, f._fb)) n++; });
+    return n;
+  }
+  function banner() {
+    if (!form) return null;
+    var b = document.getElementById('artwork-form-error');
+    if (!b) {
+      b = document.createElement('div');
+      b.id = 'artwork-form-error';
+      b.className = 'alert alert-danger';
+      b.style.display = 'none';
+      form.insertBefore(b, form.firstChild);
+    }
+    return b;
+  }
+  // Only update an already-shown banner (don't pop one up while still typing).
+  function refreshBanner() {
+    var b = document.getElementById('artwork-form-error');
+    if (!b || b.style.display === 'none') return;
+    var n = countBad();
+    if (n === 0) { b.style.display = 'none'; return; }
+    b.textContent = 'Please fix the ' + n + ' highlighted field' + (n === 1 ? '' : 's') + ' below.';
+  }
+
+  // ── Submit: validate all; if anything is wrong, block + show the summary ───
   if (form) {
     form.addEventListener('submit', function (e) {
-      var firstBad = null;
+      var firstBad = null, n = 0;
       fields.forEach(function (f) {
         if (!f._el) return;
-        var valid = f.fn(f._el, f._fb);
-        if (!valid && !firstBad) firstBad = f._el;
+        if (!f.fn(f._el, f._fb)) { n++; if (!firstBad) firstBad = f._el; }
       });
-      if (firstBad) {
+      if (n > 0) {
         e.preventDefault();
-        firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        firstBad.focus();
+        var b = banner();
+        if (b) {
+          b.textContent = 'Please fix the ' + n + ' highlighted field' + (n === 1 ? '' : 's') + ' below.';
+          b.style.display = '';
+          b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (firstBad) firstBad.focus({ preventScroll: true });
       }
     });
   }

@@ -3,7 +3,8 @@
 
 {% block content %}
 <h1>New Artwork</h1>
-<form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+{% if form.errors %}<div class="alert alert-danger">Please correct the highlighted fields below.</div>{% endif %}
+<form action="" method="post" enctype="multipart/form-data" data-image-required="1">{% csrf_token %}
   {% crispy form %}
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>

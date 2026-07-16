@@ -2475,6 +2475,27 @@ class ArtistFormRequiredTests(TestCase):
         self.assertFalse(artist.bio)                     # nothing partially saved
 
 
+class ArtworkFormFeedbackTests(TestCase):
+    """Invalid artwork save returns to the form with data + a visible error."""
+
+    def test_invalid_new_artwork_returns_to_form(self):
+        u = User.objects.create_user(
+            username='awf@example.com', email='awf@example.com', password='pw'
+        )
+        add_staff_role(u)
+        self.client.force_login(u)
+        before = Artwork.objects.count()
+        resp = self.client.post(reverse('gallery:artwork_new'), data={
+            'name': 'Untitled test piece', 'end_year': '2025', 'pricing_type': 'nfs',
+            # deliberately missing required medium / width / height / image
+        })
+        self.assertEqual(resp.status_code, 200)                 # not a redirect
+        body = resp.content.decode()
+        self.assertIn('Untitled test piece', body)             # entered data preserved
+        self.assertIn('Please correct the highlighted fields', body)
+        self.assertEqual(Artwork.objects.count(), before)      # nothing saved
+
+
 class SanitizeFilterTests(TestCase):
     """The |sanitize filter must strip XSS but keep safe formatting."""
 

@@ -239,6 +239,8 @@ class ArtworkForm(UserAwareModelForm):
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
+            HTML('<p class="text-muted small mb-3">Fields marked '
+                 '<span class="text-danger">*</span> are required.</p>'),
             'name',
             *((['artists'] if 'artists' in self.fields else [])),
             'end_year',
