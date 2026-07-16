@@ -154,6 +154,7 @@
     '<button class="bulk-btn" data-decision="undecided">→ Undecided</button>' +
     '<button class="bulk-btn bulk-btn-sel" data-decision="selected">→ Selected</button>' +
     '<button class="bulk-btn bulk-btn-rej" data-decision="rejected">→ Rejected</button>' +
+    '<button class="bulk-btn" data-decision="withdrawn">→ Withdrawn</button>' +
     '<button class="bulk-btn bulk-btn-clr" id="bulk-clear">✕ Clear</button>';
   document.body.appendChild(bar);
 

@@ -2820,6 +2820,18 @@ class RemoveArtworkFromShowTests(TestCase):
         self.assertIn('Withdrawn', body)
         self.assertIn('Re-add to show', body)
 
+    def test_bulk_withdraw_from_submissions_page(self):
+        import json
+        self.client.force_login(self.staff)
+        r = self.client.post(
+            reverse('gallery:bulk_submission_status'),
+            data=json.dumps({'pks': [self.sub.pk], 'decision': 'withdrawn'}),
+            content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.curator_decision, ArtworkSubmission.WITHDRAWN)
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork.pk).exists())
+
     def test_non_manager_cannot_remove(self):
         self.client.force_login(self.artist_user)
         r = self.client.post(reverse('gallery:remove_artwork_from_show',

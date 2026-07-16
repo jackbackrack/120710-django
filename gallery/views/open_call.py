@@ -652,7 +652,7 @@ def bulk_update_submission_status(request):
         return _JR({'ok': False, 'error': 'bad json'}, status=400)
     pks = data.get('pks', [])
     decision = data.get('decision')
-    if decision not in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}:
+    if decision not in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED, ArtworkSubmission.WITHDRAWN}:
         return _JR({'ok': False, 'error': 'invalid decision'}, status=400)
     subs = list(ArtworkSubmission.objects.filter(pk__in=pks).select_related('show', 'artwork'))
     for sub in subs:
