@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}{% if query %}Search "{{ query }}"{% else %}Search{% endif %}{% endblock %}
-{% block block_title %}Search{% if query %} "{{ query }}" <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>{% endif %}{% endblock %}
+{% block block_title %}Search{% if query %} "{{ query }}" <button class="card__link" data-ss-first-cards type="button">Slideshow</button>{% endif %}{% endblock %}
 
 {% block content %}
 {% if not query %}
@@ -36,15 +36,15 @@
   <p class="text-center text-gray-500">No results for &ldquo;{{ query }}&rdquo;.</p>
   {% else %}
   {% if show_list %}
-  <div class="text-center section-label"><h2>Shows</h2></div>
+  <div class="text-center section-label"><h2>Shows <button class="card__link" data-ss-section type="button">Slideshow</button></h2></div>
   <div class="cards" data-grid-count="shows">{% for show in show_list %}{% include 'gallery/_show_card.html' %}{% endfor %}</div>
   {% endif %}
   {% if artist_list %}
-  <div class="text-center section-label"><h2>Artists</h2></div>
+  <div class="text-center section-label"><h2>Artists <button class="card__link" data-ss-section type="button">Slideshow</button></h2></div>
   <div class="cards" data-grid-count="artists">{% for artist in artist_list %}{% include 'gallery/_artist_card.html' %}{% endfor %}</div>
   {% endif %}
   {% if artwork_list %}
-  <div class="text-center section-label"><h2>Artworks</h2></div>
+  <div class="text-center section-label"><h2>Artworks <button class="card__link" data-ss-section type="button">Slideshow</button></h2></div>
   <div class="cards" data-grid-count="artworks">{% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}</div>
   {% endif %}
   {% endif %}

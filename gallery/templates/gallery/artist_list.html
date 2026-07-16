@@ -2,10 +2,10 @@
 
 {% block title %}Artists{% endblock %}
 {% block block_title %}Artists{% if paginator.count %} ({{ paginator.count }}){% endif %}
+<button class="card__link" data-ss-first-cards type="button">Slideshow</button>
 {% if user.is_authenticated and not user.artists.all %}
   <a class="card__link new-button" href="{% url 'gallery:artist_new' %}">New</a>
 {% endif %}
-<button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>
 {% endblock %}
 
 {% block content %}

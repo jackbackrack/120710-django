@@ -2,7 +2,7 @@
 {% block title %}Artists — {{ site.name }}{% endblock %}
 {% block block_title %}{{ site.name }}{% endblock %}
 {% block content %}
-<div class="text-center section-label"><h2>Artists at {{ site.name }}</h2></div>
+<div class="text-center section-label"><h2>Artists at {{ site.name }}{% if artists %} <button class="card__link" data-ss-section type="button">Slideshow</button>{% endif %}</h2></div>
 {% if artists %}
 <div class="cards" data-grid-count="artists">
   {% for artist in artists %}
