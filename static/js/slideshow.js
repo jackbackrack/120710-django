@@ -427,16 +427,21 @@
     return result;
   }
 
+  // Collect items from every .cards container on the page (computed fresh each
+  // call so infinite-scroll–appended cards are always included).
+  function collectAllItems() {
+    var all = [];
+    document.querySelectorAll('.cards').forEach(function (c) {
+      all = all.concat(collectItems(c));
+    });
+    return all;
+  }
+
   // ── Wire pre-placed [data-ss-first-cards] buttons (in status bar / block_title)
-  // Collects items from ALL .cards containers on the page into one slideshow.
   function wireStatusBarButtons() {
     document.querySelectorAll('[data-ss-first-cards]').forEach(function (btn) {
-      var allItems = [];
-      document.querySelectorAll('.cards').forEach(function (c) {
-        allItems = allItems.concat(collectItems(c));
-      });
-      if (allItems.length < 2) { btn.style.display = 'none'; return; }
-      btn.addEventListener('click', function () { open(allItems, 0); });
+      if (collectAllItems().length < 2) { btn.style.display = 'none'; return; }
+      btn.addEventListener('click', function () { open(collectAllItems(), 0); });
     });
   }
 
@@ -446,34 +451,36 @@
     document.querySelectorAll('[data-ss-section]').forEach(function (btn) {
       var label = btn.closest('.section-label');
       if (!label) { btn.style.display = 'none'; return; }
-      var sib = label.nextElementSibling;
+      var sib = label.nextElementSibling, grid = null;
       while (sib) {
-        if (sib.classList.contains('cards')) {
-          var si = collectItems(sib);
-          if (si.length < 1) { btn.style.display = 'none'; return; }
-          btn.addEventListener('click', (function (items) {
-            return function () { open(items, 0); };
-          })(si));
-          return;
-        }
+        if (sib.classList.contains('cards')) { grid = sib; break; }
         if (sib.classList.contains('section-label')) break; // reached next section
         sib = sib.nextElementSibling;
       }
-      btn.style.display = 'none';
+      if (!grid || collectItems(grid).length < 1) { btn.style.display = 'none'; return; }
+      // Recompute at click time (cards may be appended after wiring).
+      btn.addEventListener('click', function () { open(collectItems(grid), 0); });
     });
   }
 
   // ── Wire per-card ▶ play buttons ───────────────────────────────────────────
-  // Inserts a small play button into each card that has an image.
-  // Clicking it opens the section slideshow starting at that card's index.
+  // Idempotent: skips cards that already have a play button, so it can be re-run
+  // after infinite scroll appends more cards. Items + start index are computed
+  // at click time so the slideshow always covers everything currently loaded.
+  function openContainerAt(container, card) {
+    var items = collectItems(container);
+    var cards = Array.prototype.filter.call(
+      container.querySelectorAll('.card'),
+      function (c) { return c.querySelector('img.card__image'); });
+    var idx = cards.indexOf(card);
+    open(items, idx < 0 ? 0 : idx);
+  }
+
   function wireCardPlayButtons() {
     document.querySelectorAll('.cards').forEach(function (container) {
-      var containerItems = collectItems(container);
-      if (!containerItems.length) return;
-      var slideIdx = 0;
       container.querySelectorAll('.card').forEach(function (card) {
         if (!card.querySelector('img.card__image')) return;
-        var myIdx = slideIdx++;
+        if (card.querySelector(':scope > .ss-card-play')) return;   // already wired
         var btn = document.createElement('button');
         btn.className = 'ss-card-play';
         btn.setAttribute('aria-label', 'Open slideshow');
@@ -482,7 +489,7 @@
         btn.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
-          open(containerItems, myIdx);
+          openContainerAt(container, card);
         });
         card.appendChild(btn);
       });
@@ -496,5 +503,7 @@
     wireSectionButtons();
     wireCardPlayButtons();
   });
+  // Infinite scroll appended new cards → wire play buttons on the new ones.
+  document.addEventListener('cards:appended', wireCardPlayButtons);
 
 })();

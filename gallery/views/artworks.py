@@ -39,7 +39,13 @@ class ArtworkListView(ListView):
     model = Artwork
     context_object_name = 'artwork_list'
     template_name = 'gallery/artwork_list.html'
-    paginate_by = 5000
+    paginate_by = 48
+
+    def get_template_names(self):
+        # Infinite scroll fetches subsequent pages and appends just the cards.
+        if self.request.GET.get('partial'):
+            return ['gallery/_artwork_cards.html']
+        return [self.template_name]
 
     def get_queryset(self):
         queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists', 'shows', 'shows__curators').distinct()

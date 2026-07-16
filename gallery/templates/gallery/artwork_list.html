@@ -1,17 +1,21 @@
 {% extends 'base.html' %}
 
 {% block title %}Artworks{% endblock %}
-{% block block_title %}Artworks
+{% block block_title %}Artworks{% if paginator.count %} ({{ paginator.count }}){% endif %}
 {% if user.is_authenticated %}
   <a class="card__link new-button" href="{% url 'gallery:artwork_new' %}">New</a>
 {% endif %}
 <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>
 {% endblock %}
 {% block content %}
-<div class="cards" data-grid-count="artworks">
-{% for artwork in artwork_list %}
-  {% include 'gallery/_artwork_card.html' %}
-{% endfor %}
+<div class="cards" data-infinite-grid id="artwork-grid">
+  {% include 'gallery/_artwork_cards.html' %}
 </div>
-{% include 'includes/pagination.html' %}
+<div id="infinite-sentinel" style="height:1px"></div>
+<noscript>{% include 'includes/pagination.html' %}</noscript>
 {% endblock content %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/infinite_scroll.js' %}"></script>
+{% endblock %}

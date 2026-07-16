@@ -29,7 +29,12 @@ from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 class ArtistListView(ListView):
     model = Artist
     template_name = 'gallery/artist_list.html'
-    paginate_by = 5000
+    paginate_by = 48
+
+    def get_template_names(self):
+        if self.request.GET.get('partial'):
+            return ['gallery/_artist_cards.html']
+        return [self.template_name]
 
     def get_queryset(self):
         queryset = Artist.objects.filter(visible_artist_queryset(self.request.user)).prefetch_related('tags')

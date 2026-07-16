@@ -1,0 +1,2 @@
+{% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}
+<span class="infinite-meta" data-page="{{ page_obj.number }}" data-has-next="{{ page_obj.has_next|yesno:'1,0' }}" hidden></span>
