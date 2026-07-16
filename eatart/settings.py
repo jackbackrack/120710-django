@@ -306,10 +306,19 @@ if USE_S3_STATIC or USE_S3_MEDIA:
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
     AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
     AWS_S3_REGION_NAME = 'us-west-1'
-    AWS_S3_CUSTOM_DOMAIN = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
-    AWS_S3_FILE_OVERWRITE = False  
-    # AWS_DEFAULT_ACL = None  
+    # Serve through CloudFront when configured (edge caching + faster global
+    # delivery); otherwise straight from the bucket's S3 domain.
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('CLOUDFRONT_DOMAIN') or (
+        '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME))
+    AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = 'public-read'
+    # Objects are public-read, so don't sign URLs — clean, permanent URLs that
+    # browsers and CDNs can actually cache (default AWS_QUERYSTRING_AUTH=True adds
+    # an expiring signature that defeats caching and churns the URL each render).
+    AWS_QUERYSTRING_AUTH = False
+    # Generated/uploaded files are content-addressed (hashed names, never
+    # overwritten), so they can be cached indefinitely.
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'public, max-age=31536000, immutable'}
     AWS_STATIC_LOCATION = 'static'
     AWS_MEDIA_LOCATION = 'media'
 
