@@ -786,6 +786,20 @@ class OpenCallJuryWorkflowTests(TestCase):
         self.sub2.refresh_from_db()
         self.assertEqual(self.sub2.curator_decision, ArtworkSubmission.CURATOR_REJECTED)
 
+    def test_save_decision_marks_submission_withdrawn(self):
+        self.client.force_login(self.curator_user)
+        response = self.client.post(
+            self.save_decision_url,
+            data=json.dumps({
+                'submission_id': self.sub1.pk,
+                'decision': ArtworkSubmission.WITHDRAWN,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.sub1.refresh_from_db()
+        self.assertEqual(self.sub1.curator_decision, ArtworkSubmission.WITHDRAWN)
+
     def test_non_curator_cannot_save_decision(self):
         self.client.force_login(self.juror1)
         response = self.client.post(

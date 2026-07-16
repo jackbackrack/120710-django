@@ -35,6 +35,7 @@
 #cs-decision-counts { font-size: 0.9em; }
 .cs-count-selected  { color: #198754; font-weight: 600; }
 .cs-count-rejected  { color: #c0392b; font-weight: 600; }
+.cs-count-withdrawn { color: #b8860b; font-weight: 600; }
 .cs-count-undecided { color: #888; }
 .cs-count-sep       { color: #444; }
 
@@ -206,9 +207,11 @@
 .cs-btn-undecided.cs-decision-active { background: #3a3a3a; border-color: #666; color: #ccc; }
 .cs-btn-selected.cs-decision-active  { background: #1a4a2e; border-color: #198754; color: #4caf7d; }
 .cs-btn-rejected.cs-decision-active  { background: #4a1a1a; border-color: #c0392b; color: #e57373; }
+.cs-btn-withdrawn.cs-decision-active { background: #3a3320; border-color: #b8860b; color: #d4af5a; }
 
-.cs-btn-selected:hover { border-color: #198754; color: #4caf7d; }
-.cs-btn-rejected:hover { border-color: #c0392b; color: #e57373; }
+.cs-btn-selected:hover  { border-color: #198754; color: #4caf7d; }
+.cs-btn-rejected:hover  { border-color: #c0392b; color: #e57373; }
+.cs-btn-withdrawn:hover { border-color: #b8860b; color: #d4af5a; }
 
 /* ── Footer: thumbnails ─────────────────────────────────────────────────── */
 #cs-footer {
@@ -238,6 +241,7 @@
 }
 .cs-thumb.cs-thumb-selected  { border-color: #198754; }
 .cs-thumb.cs-thumb-rejected  { border-color: #c0392b; }
+.cs-thumb.cs-thumb-withdrawn { border-color: #b8860b; }
 .cs-thumb.cs-thumb-undecided { border-color: #3a3a3a; }
 .cs-thumb.cs-thumb-current   { outline: 2px solid #64968c; }
 

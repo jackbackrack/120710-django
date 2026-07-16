@@ -51,6 +51,7 @@
             '<button class="cs-decision-btn cs-btn-undecided" data-decision="undecided">Undecided</button>' +
             '<button class="cs-decision-btn cs-btn-selected" data-decision="selected">Selected</button>' +
             '<button class="cs-decision-btn cs-btn-rejected" data-decision="rejected">Rejected</button>' +
+            '<button class="cs-decision-btn cs-btn-withdrawn" data-decision="withdrawn">Withdrawn</button>' +
           '</div>' +
         '</div>' +
         '<button id="cs-next" aria-label="Next">&#8250;</button>' +
@@ -377,6 +378,7 @@
       t.classList.toggle('cs-thumb-current',   i === current);
       t.classList.toggle('cs-thumb-selected',  aw && aw.decision === 'selected');
       t.classList.toggle('cs-thumb-rejected',  aw && aw.decision === 'rejected');
+      t.classList.toggle('cs-thumb-withdrawn', aw && aw.decision === 'withdrawn');
       t.classList.toggle('cs-thumb-undecided', aw && aw.decision === 'undecided');
     });
     var active = thumbs[current];
@@ -384,16 +386,19 @@
   }
 
   function updateDecisionCounts() {
-    var sel = 0, rej = 0, und = 0;
+    var sel = 0, rej = 0, wd = 0, und = 0;
     artworks.forEach(function (a) {
       if (a.decision === 'selected') sel++;
       else if (a.decision === 'rejected') rej++;
+      else if (a.decision === 'withdrawn') wd++;
       else und++;
     });
     decisionCountsEl.innerHTML =
       '<span class="cs-count-selected">Selected: ' + sel + '</span>' +
       '<span class="cs-count-sep"> • </span>' +
       '<span class="cs-count-rejected">Rejected: ' + rej + '</span>' +
+      (wd ? '<span class="cs-count-sep"> • </span>' +
+            '<span class="cs-count-withdrawn">Withdrawn: ' + wd + '</span>' : '') +
       '<span class="cs-count-sep"> • </span>' +
       '<span class="cs-count-undecided">Undecided: ' + und + '</span>';
   }

@@ -506,6 +506,7 @@ def show_submissions(request, slug):
         'n_selected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_SELECTED),
         'n_rejected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED),
         'n_undecided': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED),
+        'n_withdrawn': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.WITHDRAWN),
         'can_manage': can_manage_show(request.user, show),
         'invited_submitted': invited_submitted,
         'invited_not_submitted': invited_not_submitted,

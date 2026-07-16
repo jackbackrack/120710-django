@@ -57,6 +57,7 @@
   <span><strong>{{ n_undecided }}</strong> undecided</span>
   <span class="text-success"><strong>{{ n_selected }}</strong> selected</span>
   <span class="text-danger"><strong>{{ n_rejected }}</strong> rejected</span>
+  {% if n_withdrawn %}<span class="text-secondary"><strong>{{ n_withdrawn }}</strong> withdrawn</span>{% endif %}
   <span class="text-muted">{{ submissions|length }} total</span>
 </div>
 

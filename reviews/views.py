@@ -543,7 +543,7 @@ def save_decision(request, show_slug):
         return JsonResponse({'ok': False, 'error': 'Invalid JSON'}, status=400)
 
     from gallery.models.submissions import ArtworkSubmission
-    valid = {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED}
+    valid = {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED, ArtworkSubmission.WITHDRAWN}
     decision = data.get('decision', ArtworkSubmission.UNDECIDED)
     if decision not in valid:
         return JsonResponse({'ok': False, 'error': 'Invalid decision'}, status=400)
