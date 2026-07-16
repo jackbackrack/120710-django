@@ -238,31 +238,43 @@ class ArtworkForm(UserAwareModelForm):
 
         self.helper = FormHelper()
         self.helper.form_tag = False
+        dims_row = Row(
+            Column(Field('width_inches'), css_class='col-auto'),
+            Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
+            Column(Field('height_inches'), css_class='col-auto'),
+            Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
+            Column(Field('depth_inches'), css_class='col-auto'),
+            css_class='align-items-end g-2',
+        )
+        # Required fields grouped first (with asterisks), then pricing, then the
+        # rest — so it's obvious what must be filled in.
         self.helper.layout = Layout(
             HTML('<p class="text-muted small mb-3">Fields marked '
                  '<span class="text-danger">*</span> are required.</p>'),
-            'name',
-            *((['artists'] if 'artists' in self.fields else [])),
-            'end_year',
-            'start_year',
-            'medium',
-            Row(
-                Column(Field('width_inches'), css_class='col-auto'),
-                Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
-                Column(Field('height_inches'), css_class='col-auto'),
-                Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
-                Column(Field('depth_inches'), css_class='col-auto'),
-                css_class='align-items-end g-2',
+            Fieldset(
+                'Required',
+                'name',
+                *((['artists'] if 'artists' in self.fields else [])),
+                'end_year',
+                'medium',
+                dims_row,
+                'image',
             ),
-            'image',
-            'layout_image',
-            'pricing_type',
-            Field('price', wrapper_id='div_id_price'),
-            'replacement_cost',
-            'is_sold',
-            'description',
-            'url',
-            'installation',
+            Fieldset(
+                'Pricing',
+                'pricing_type',
+                Field('price', wrapper_id='div_id_price'),
+                'replacement_cost',
+                'is_sold',
+            ),
+            Fieldset(
+                'Additional details',
+                'start_year',
+                'layout_image',
+                'description',
+                'url',
+                'installation',
+            ),
         )
 
     def clean(self):

@@ -2495,6 +2495,17 @@ class ArtworkFormFeedbackTests(TestCase):
         self.assertIn('Please correct the highlighted fields', body)
         self.assertEqual(Artwork.objects.count(), before)      # nothing saved
 
+    def test_form_groups_required_first(self):
+        from gallery.forms import ArtworkForm
+        from crispy_forms.layout import Fieldset
+        u = User.objects.create_user(
+            username='awg@example.com', email='awg@example.com', password='pw'
+        )
+        add_staff_role(u)
+        legends = [f.legend for f in ArtworkForm(user=u).helper.layout.fields
+                   if isinstance(f, Fieldset)]
+        self.assertEqual(legends, ['Required', 'Pricing', 'Additional details'])
+
 
 class SanitizeFilterTests(TestCase):
     """The |sanitize filter must strip XSS but keep safe formatting."""
