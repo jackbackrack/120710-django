@@ -64,6 +64,7 @@ class ArtworkListView(ListView):
         context['can_delete_artwork'] = {
             a.id for a in artworks if can_delete_artwork(user, a)
         }
+        context['anon_grid_cache_seconds'] = settings.ANON_GRID_CACHE_SECONDS
         return context
 
 

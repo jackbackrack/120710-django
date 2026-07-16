@@ -1,2 +1,9 @@
+{% load cache %}
+{% if user.is_authenticated %}
 {% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}
+{% else %}
+{% cache anon_grid_cache_seconds artwork_cards active_tag page_obj.number %}
+{% for artwork in artwork_list %}{% include 'gallery/_artwork_card.html' %}{% endfor %}
+{% endcache %}
+{% endif %}
 <span class="infinite-meta" data-page="{{ page_obj.number }}" data-has-next="{{ page_obj.has_next|yesno:'1,0' }}" hidden></span>

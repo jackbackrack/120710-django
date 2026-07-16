@@ -199,6 +199,18 @@ DATABASES = {
     }
 }
 
+# Cache backend. LocMemCache is per-process (fine for a small number of workers);
+# set REDIS_URL to share a cache across workers/instances.
+_redis_url = os.environ.get('REDIS_URL')
+if _redis_url:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': _redis_url}}
+else:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'TIMEOUT': 300}}
+
+# How long anonymous card grids are cached (seconds). Logged-in users always see
+# fresh content. 0 disables the grid cache.
+ANON_GRID_CACHE_SECONDS = int(os.environ.get('ANON_GRID_CACHE_SECONDS', '120'))
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
