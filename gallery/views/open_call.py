@@ -44,11 +44,24 @@ def _send_selection_email(submission, accepted):
         'artwork': submission.artwork,
         'schedule_url': schedule_url,
     })
+    # CC the configured gallery address if set, otherwise the show's curator(s),
+    # so someone at the gallery has a copy of every acceptance/rejection.
+    gallery_cc = getattr(settings, 'GALLERY_SELECTION_CC_EMAIL', None)
+    if gallery_cc:
+        cc = [gallery_cc]
+    else:
+        cc = [
+            addr for addr in (
+                (c.user.email if c.user_id else '') or (c.email or '')
+                for c in submission.show.curators.all()
+            ) if addr
+        ]
     msg = EmailMultiAlternatives(
         subject=subject,
         body=subject,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[email],
+        cc=cc or None,
     )
     msg.attach_alternative(html, 'text/html')
     try:
@@ -712,6 +725,11 @@ def send_selection_emails(request, slug):
         ).count()
         if pending_count == 0:
             messages.info(request, 'No unsent emails — all artists have already been notified.')
+        elif 'locmem' in settings.EMAIL_BACKEND:
+            # Test runner forces the in-memory backend; send synchronously so tests
+            # (and mail.outbox) are deterministic.
+            send_submission_emails(show)
+            messages.success(request, f'Sent {pending_count} email(s).')
         else:
             import threading
             from django.db import connection

@@ -2328,6 +2328,15 @@ class SiteFeatureTests(TestCase):
             'status': Site.STATUS_DRAFT,
             'latitude': '',
             'longitude': '',
+            # Room dimensions (RoomConfigMixin form) are required to save.
+            'width_in': '384',
+            'depth_in': '576',
+            'height_in': '120',
+            # Obstacle inline formset management form (empty).
+            'obstacles-TOTAL_FORMS': '0',
+            'obstacles-INITIAL_FORMS': '0',
+            'obstacles-MIN_NUM_FORMS': '0',
+            'obstacles-MAX_NUM_FORMS': '1000',
         })
         self.assertTrue(Site.objects.filter(name='New Test Site').exists())
         new_site = Site.objects.get(name='New Test Site')
@@ -2504,7 +2513,7 @@ class ArtworkFormFeedbackTests(TestCase):
         add_staff_role(u)
         legends = [f.legend for f in ArtworkForm(user=u).helper.layout.fields
                    if isinstance(f, Fieldset)]
-        self.assertEqual(legends, ['Required', 'Pricing', 'Additional details'])
+        self.assertEqual(legends, ['Required', 'Pricing', 'Additional details (optional)'])
 
 
 class SubmissionsArtistFilterTests(TestCase):

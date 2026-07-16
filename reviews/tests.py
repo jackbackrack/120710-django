@@ -126,13 +126,13 @@ class ReviewPermissionsAndWorkflowTests(TestCase):
 
         post_response = self.client.post(
             self.artwork_review_url,
-            {'rating': '75', 'body': 'Strong work with clean presentation.'},
+            {'rating': '70', 'body': 'Strong work with clean presentation.'},
             follow=True,
         )
 
         self.assertEqual(post_response.status_code, 200)
         review = ArtworkReview.objects.get(show=self.show, artwork=self.artwork, juror=self.juror_user)
-        self.assertEqual(review.rating, 75)
+        self.assertEqual(review.rating, 70)
         self.assertIn('clean presentation', review.body)
 
     def test_curator_not_on_show_cannot_view_artwork_reviews(self):
@@ -431,7 +431,7 @@ class RubricCriteriaTests(TestCase):
             reverse('reviews:artwork_review',
                     kwargs={'show_slug': self.show.slug, 'artwork_slug': self.artwork.slug}),
             {
-                f'criterion_{criterion.pk}': '8',
+                f'criterion_{criterion.pk}': '70',
                 'rating': '',
                 'body': 'Great work.',
             },
@@ -440,7 +440,7 @@ class RubricCriteriaTests(TestCase):
 
         review = ArtworkReview.objects.get(show=self.show, artwork=self.artwork, juror=self.juror_user)
         score = CriterionScore.objects.get(review=review, criterion=criterion)
-        self.assertEqual(score.score, 8)
+        self.assertEqual(score.score, 70)
 
     def test_juror_can_update_criterion_score(self):
         criterion = RubricCriterion.objects.create(
@@ -449,18 +449,18 @@ class RubricCriteriaTests(TestCase):
         review = ArtworkReview.objects.create(
             show=self.show, artwork=self.artwork, juror=self.juror_user, body='first'
         )
-        CriterionScore.objects.create(review=review, criterion=criterion, score=5)
+        CriterionScore.objects.create(review=review, criterion=criterion, score=30)
 
         self.client.force_login(self.juror_user)
         self.client.post(
             reverse('reviews:artwork_review',
                     kwargs={'show_slug': self.show.slug, 'artwork_slug': self.artwork.slug}),
-            {f'criterion_{criterion.pk}': '9', 'rating': '', 'body': 'updated'},
+            {f'criterion_{criterion.pk}': '90', 'rating': '', 'body': 'updated'},
             follow=True,
         )
 
         score = CriterionScore.objects.get(review=review, criterion=criterion)
-        self.assertEqual(score.score, 9)
+        self.assertEqual(score.score, 90)
 
     def test_criterion_score_is_required_when_rubric_defined(self):
         criterion = RubricCriterion.objects.create(
@@ -538,7 +538,7 @@ class RubricCriteriaTests(TestCase):
         review = ArtworkReview.objects.create(
             show=self.show, artwork=self.artwork, juror=self.juror_user, body='initial'
         )
-        CriterionScore.objects.create(review=review, criterion=criterion, score=4)
+        CriterionScore.objects.create(review=review, criterion=criterion, score=30)
 
         edit_url = reverse('reviews:curator_edit_review', kwargs={
             'show_slug': self.show.slug,
@@ -547,13 +547,13 @@ class RubricCriteriaTests(TestCase):
         })
         self.client.force_login(self.manager_user)
         self.client.post(edit_url, {
-            f'criterion_{criterion.pk}': '9',
+            f'criterion_{criterion.pk}': '90',
             'rating': '',
             'body': 'curator adjusted',
         }, follow=True)
 
         score = CriterionScore.objects.get(review=review, criterion=criterion)
-        self.assertEqual(score.score, 9)
+        self.assertEqual(score.score, 90)
 
     # --- Dashboard criterion columns ---
 
@@ -921,6 +921,7 @@ class OpenCallJuryWorkflowTests(TestCase):
         mail.outbox.clear()
 
         self.client.post(self.promote_url)
+        self.client.post(reverse('gallery:send_selection_emails', kwargs={'slug': self.show.slug}))
 
         self.show.refresh_from_db()
         self.assertEqual(self.show.status, Show.STATUS_PUBLISHED)
@@ -1017,6 +1018,8 @@ class OpenCallJuryWorkflowTests(TestCase):
         mail.outbox.clear()
         self.client.force_login(self.curator_user)
         self.client.post(self.promote_url)
+        # Emails are a separate explicit step now (the "Send Emails" action).
+        self.client.post(reverse('gallery:send_selection_emails', kwargs={'slug': self.show.slug}))
 
     def test_acceptance_email_subject_contains_show_name(self):
         self._promote_all_decided(
