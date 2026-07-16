@@ -2454,6 +2454,26 @@ class ArtistFormRequiredTests(TestCase):
                    if isinstance(f, Fieldset)]
         self.assertEqual(legends[:2], ['Required', 'Optional'])
 
+    def test_invalid_save_returns_to_form_with_data(self):
+        """An invalid profile save must re-render the form (not redirect), keep the
+        entered data, show the error, and save nothing."""
+        u = User.objects.create_user(
+            username='af3@example.com', email='af3@example.com', password='pw'
+        )
+        artist = Artist.objects.create(user=u, first_name='Pat', last_name='V', email='af3@example.com')
+        self.client.force_login(u)
+        url = reverse('gallery:artist_edit', kwargs={'pk': artist.pk})
+        resp = self.client.post(url, data={
+            'first_name': 'Pat', 'last_name': 'V', 'email': 'af3@example.com',
+            'bio': 'My new bio text', 'zipcode': '',  # missing zip + photo
+        })
+        self.assertEqual(resp.status_code, 200)          # not a redirect
+        body = resp.content.decode()
+        self.assertIn('<form', body)                     # back on the form
+        self.assertIn('My new bio text', body)           # entered data preserved
+        artist.refresh_from_db()
+        self.assertFalse(artist.bio)                     # nothing partially saved
+
 
 class SanitizeFilterTests(TestCase):
     """The |sanitize filter must strip XSS but keep safe formatting."""
