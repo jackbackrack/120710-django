@@ -2507,6 +2507,42 @@ class ArtworkFormFeedbackTests(TestCase):
         self.assertEqual(legends, ['Required', 'Pricing', 'Additional details'])
 
 
+class SubmissionsArtistFilterTests(TestCase):
+    """The Submissions page can be filtered to one artist (invite-page links)."""
+
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            username='subf@example.com', email='subf@example.com', password='pw'
+        )
+        add_staff_role(self.staff)
+        self.show = Show.objects.create(
+            name='Filter Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+        )
+        self.a1 = Artist.objects.create(first_name='Ann', last_name='One')
+        self.a2 = Artist.objects.create(first_name='Bob', last_name='Two')
+        self.w1 = Artwork.objects.create(name='Alpha Piece', end_year=2025)
+        self.w1.artists.add(self.a1)
+        self.w2 = Artwork.objects.create(name='Beta Piece', end_year=2025)
+        self.w2.artists.add(self.a2)
+        for w in (self.w1, self.w2):
+            ArtworkSubmission.objects.create(show=self.show, artwork=w, submitted_by=self.staff)
+        self.client.force_login(self.staff)
+
+    def test_artist_param_filters_to_one_artist(self):
+        url = reverse('gallery:show_submissions', kwargs={'slug': self.show.slug})
+        body = self.client.get(url, {'artist': self.a1.pk}).content.decode()
+        self.assertIn('Alpha Piece', body)
+        self.assertNotIn('Beta Piece', body)
+
+    def test_no_param_shows_all(self):
+        url = reverse('gallery:show_submissions', kwargs={'slug': self.show.slug})
+        body = self.client.get(url).content.decode()
+        self.assertIn('Alpha Piece', body)
+        self.assertIn('Beta Piece', body)
+
+
 class SanitizeFilterTests(TestCase):
     """The |sanitize filter must strip XSS but keep safe formatting."""
 

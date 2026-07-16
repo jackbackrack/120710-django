@@ -62,8 +62,16 @@
         <td class="py-2 text-center">
           {% if row.info_complete %}<span class="text-success">✓</span>{% else %}<span class="text-muted">—</span>{% endif %}
         </td>
-        <td class="py-2 text-center">{% if row.artworks_count %}{{ row.artworks_count }}{% else %}<span class="text-muted">0</span>{% endif %}</td>
-        <td class="py-2 text-center">{% if row.submitted_count %}<span class="text-success fw-semibold">{{ row.submitted_count }}</span>{% else %}<span class="text-muted">0</span>{% endif %}</td>
+        <td class="py-2 text-center">
+          {% if row.artworks_count and row.artist %}
+            <a class="card__link" href="{{ row.artist.get_absolute_url }}" title="View this artist's artworks">{{ row.artworks_count }}</a>
+          {% elif row.artworks_count %}{{ row.artworks_count }}{% else %}<span class="text-muted">0</span>{% endif %}
+        </td>
+        <td class="py-2 text-center">
+          {% if row.submitted_count and row.artist %}
+            <a class="card__link fw-semibold text-success" href="{% url 'gallery:show_submissions' show.slug %}?artist={{ row.artist.pk }}" title="Review this artist's submissions to this show">{{ row.submitted_count }}</a>
+          {% elif row.submitted_count %}<span class="text-success fw-semibold">{{ row.submitted_count }}</span>{% else %}<span class="text-muted">0</span>{% endif %}
+        </td>
         <td class="py-2 text-muted">{{ row.invitation.sent_at|date:"M d, Y" }}</td>
         <td class="py-2">
           <form method="post" style="display:inline">

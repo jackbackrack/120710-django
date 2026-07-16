@@ -445,6 +445,11 @@ def show_submissions(request, slug):
             Q(artwork__artists__last_name__icontains=query)
         ).distinct()
 
+    # Exact filter to one artist (used by the "Submitted" links on the invite page).
+    artist_filter = request.GET.get('artist')
+    if artist_filter:
+        submissions = submissions.filter(artwork__artists__id=artist_filter).distinct()
+
     submissions = list(submissions)
     criteria = list(show.rubric_criteria.all())
     weighted_scores = _compute_weighted_scores(show, criteria) if criteria else {}
