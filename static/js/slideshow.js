@@ -483,8 +483,8 @@
         if (card.querySelector(':scope > .ss-card-play')) return;   // already wired
         var btn = document.createElement('button');
         btn.className = 'ss-card-play';
-        btn.setAttribute('aria-label', 'Open slideshow');
-        btn.title = 'Slideshow';
+        btn.setAttribute('aria-label', 'Play slideshow starting here');
+        btn.setAttribute('data-tip', 'Play slideshow from here');
         btn.innerHTML = '&#9654;';
         btn.addEventListener('click', function (e) {
           e.preventDefault();
