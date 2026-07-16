@@ -22,8 +22,8 @@
       {% if artist.instagram %}<br><strong>Instagram: </strong><a class="card__link" href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a>{% endif %}
       {% if artist.venmo %}<br><strong>Venmo: </strong><a class="card__link" href="https://venmo.com/{{ artist.venmo|cut:"@" }}">{{ artist.venmo }}</a>{% endif %}
       {% if artist.website %}<br><strong>Website: </strong><a class="card__link" href="{{ artist.website }}">{{ artist.website }}</a>{% endif %}
-      {% if artist.bio %}<br><strong>Bio: </strong>{{ artist.bio|safe }}{% endif %}
-      {% if artist.statement %}<br><strong>Statement: </strong>{{ artist.statement|safe }}{% endif %}
+      {% if artist.bio %}<br><strong>Bio: </strong>{{ artist.bio|sanitize }}{% endif %}
+      {% if artist.statement %}<br><strong>Statement: </strong>{{ artist.statement|sanitize }}{% endif %}
     </p>
   </div>
   <div class="card__info">

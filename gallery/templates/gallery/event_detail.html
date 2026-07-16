@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load site_tags %}
 
 {% block title %}{{ event.show.name }} / {{ event.name }}{% endblock %}
 {% block block_title %}{{ event.show.name }} / {{ event.name }}{% endblock %}
@@ -13,7 +14,7 @@
     <h1 class="mb-6 text-3xl"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }} of {{ event.show.name }}</a></h1>
     <p class="mb-6 text-3xl">{{ event.date }}: {{ event.time_range }}</p>
     {% if event.description %}
-    <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ event.description|safe }}</p>
+    <p class="text-gray-500 text-sm"><strong>Description: </strong>{{ event.description|sanitize }}</p>
     {% endif %}
   </div>
   <div class="card__info">

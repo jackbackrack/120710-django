@@ -8,6 +8,15 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 const IN2M = 0.0254;           // 1 inch in metres (Three uses metres by default; we work in inches and convert)
 
+// Escape user-controlled text (artwork title/medium/dims/artist names) before it
+// goes into the placard innerHTML. This viewer is public, so an unescaped title
+// like `<img src=x onerror=…>` would be stored XSS.
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 const cfg        = window.ROOM_CONFIG;   // { width_in, depth_in, height_in }
 const placements = window.PLACEMENTS;   // [{ artwork, wall, x_in, y_in, z_in }]
 
@@ -432,13 +441,13 @@ function updatePlacard(art, screenX, screenY) {
   }
   if (lastHovered === art.id) return;
   lastHovered = art.id;
-  var year = art.year ? ' (' + art.year + ')' : '';
-  var medium = art.medium ? '<br>' + art.medium : '';
-  var dims = art.dims ? '<br>' + art.dims : '';
+  var year = art.year ? ' (' + esc(art.year) + ')' : '';
+  var medium = art.medium ? '<br>' + esc(art.medium) : '';
+  var dims = art.dims ? '<br>' + esc(art.dims) : '';
   placardOverlay.innerHTML =
     '<div style="position:absolute;left:' + (screenX + 12) + 'px;top:' + (screenY - 10) + 'px;' +
     'background:rgba(255,255,255,.92);padding:6px 10px;border-radius:4px;font-size:.75rem;max-width:200px;pointer-events:none">' +
-    '<strong>' + art.name + '</strong>' + year + '<br>' + (art.artists || '') + medium + dims +
+    '<strong>' + esc(art.name) + '</strong>' + year + '<br>' + esc(art.artists || '') + medium + dims +
     '</div>';
 }
 

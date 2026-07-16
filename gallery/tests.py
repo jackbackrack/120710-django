@@ -2431,6 +2431,32 @@ class WallPlacementRotationGroupTests(TestCase):
         self.assertEqual(data['d_in'], 12.0)
 
 
+class SanitizeFilterTests(TestCase):
+    """The |sanitize filter must strip XSS but keep safe formatting."""
+
+    def _s(self, v):
+        from gallery.templatetags.site_tags import sanitize
+        return sanitize(v)
+
+    def test_strips_script_and_handlers(self):
+        out = self._s('<b>hi</b><script>alert(1)</script><img src=x onerror=alert(1)>')
+        self.assertIn('<b>hi</b>', out)
+        self.assertNotIn('<script', out)
+        self.assertNotIn('onerror', out)
+
+    def test_strips_dangerous_url_scheme(self):
+        out = self._s('<a href="javascript:alert(1)">x</a>')
+        self.assertNotIn('javascript:', out)
+
+    def test_keeps_safe_link(self):
+        out = self._s('<a href="https://ok.com">ok</a>')
+        self.assertIn('href="https://ok.com"', out)
+
+    def test_empty(self):
+        self.assertEqual(self._s(''), '')
+        self.assertEqual(self._s(None), '')
+
+
 class RoomTwoDViewTests(TestCase):
     """Read-only 2D layout viewer (artists checking where to install)."""
 

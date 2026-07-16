@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load site_tags %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -166,8 +166,8 @@
       <p class="artwork-name">{{ artist.full_name }}</p>
       {% if artist.instagram %}<p class="artwork-medium"><strong>Instagram:</strong> {{ artist.instagram }}</p>{% endif %}
       {% if artist.website %}<p class="artwork-medium"><strong>Website:</strong> {{ artist.website }}</p>{% endif %}
-      {% if artist.bio %}<p class="artwork-desc"><strong>Bio:</strong> {{ artist.bio|safe }}</p>{% endif %}
-      {% if artist.statement %}<p class="artwork-desc"><strong>Statement:</strong> {{ artist.statement|safe }}</p>{% endif %}
+      {% if artist.bio %}<p class="artwork-desc"><strong>Bio:</strong> {{ artist.bio|sanitize }}</p>{% endif %}
+      {% if artist.statement %}<p class="artwork-desc"><strong>Statement:</strong> {{ artist.statement|sanitize }}</p>{% endif %}
     </div>
   </div>
   {% endfor %}

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load site_tags %}
 
 {% block title %}{{ show.name }}{% endblock %}
 
@@ -13,7 +14,7 @@
   {{ curator.name }} blah
 {% endfor %}
 </h2>
-<p class="text-sm">{{ show.description|safe }}</p>
+<p class="text-sm">{{ show.description|sanitize }}</p>
 {% for event in events %}
 <h2 class="mb-6">{{ event.name }} {{ event.time_range }}</h2>
 {% endfor %}

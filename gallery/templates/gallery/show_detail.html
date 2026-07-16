@@ -30,7 +30,7 @@
     </h3>
     {% endif %}
     {% if show.description %}
-    <p class="text-gray-500 text-sm mt-3"><strong>Description: </strong>{{ show.description|safe }}</p>
+    <p class="text-gray-500 text-sm mt-3"><strong>Description: </strong>{{ show.description|sanitize }}</p>
     {% endif %}
     {% if show.status == show.STATUS_OPEN_CALL or show.status == show.STATUS_IN_REVIEW %}
     <div class="mt-3">

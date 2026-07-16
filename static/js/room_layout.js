@@ -27,6 +27,15 @@
   var csrfToken  = window.CSRF_TOKEN;
   var READONLY   = !!window.LAYOUT_READONLY;   // 2D viewer mode: navigation only, no editing
 
+  // Escape user-controlled text (artwork titles etc.) before it goes into innerHTML.
+  // Artwork names are set by artists and these views are public, so an unescaped
+  // title like `<img src=x onerror=…>` would be stored XSS.
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   var currentWall = 'N';
   var placementMap = {};
   placements.forEach(function (p) { placementMap[p.artwork.id] = p; });
@@ -274,7 +283,7 @@
     // spec was never generated) fall back to the display image, never a broken img.
     div.innerHTML  = '<img src="' + (art.thumb || art.img) + '"' +
                      ' onerror="this.onerror=null;this.src=\'' + (art.img || '') + '\'" alt="">' +
-                     '<div class="pool-label">' + art.name + '</div>';
+                     '<div class="pool-label">' + esc(art.name) + '</div>';
     // Click a placed thumbnail → jump to its wall and center the view on it
     if (placed) {
       div.addEventListener('click', function () { focusPlacement(art); });
@@ -406,8 +415,8 @@
     div.innerHTML =
       '<img src="' + (p.artwork.img || p.artwork.thumb) + '"' +
       ' onerror="this.onerror=null;this.src=\'' + (p.artwork.thumb || '') + '\'"' +
-      ' alt="' + p.artwork.name + '" decoding="async">' +
-      '<div class="placard-bar">' + p.artwork.name + '</div>' +
+      ' alt="' + esc(p.artwork.name) + '" decoding="async">' +
+      '<div class="placard-bar">' + esc(p.artwork.name) + '</div>' +
       '<div class="art-dims">' + fmtIn(footprintDims(p).w) + '×' + fmtIn(footprintDims(p).h) + '"</div>' +
       '<div class="hang-h"></div>' +
       '<div class="hang-v"></div>';

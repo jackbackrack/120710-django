@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load site_tags %}
 {% block title %}{{ site.name }}{% endblock %}
 {% block block_title %}{{ site.name }}{% endblock %}
 {% block content %}
@@ -14,7 +15,7 @@
     {% if site.email %}<p class="text-gray-500 text-sm"><strong>Email:</strong> <a class="card__link" href="mailto:{{ site.email }}">{{ site.email }}</a></p>{% endif %}
     {% if site.instagram %}<p class="text-gray-500 text-sm"><strong>Instagram:</strong> <a class="card__link" href="https://instagram.com/{{ site.instagram|cut:'@' }}" target="_blank" rel="noopener">{{ site.instagram }}</a></p>{% endif %}
     {% if site.website %}<p class="text-gray-500 text-sm"><strong>Website:</strong> <a class="card__link" href="{{ site.website }}" target="_blank" rel="noopener">{{ site.website }}</a></p>{% endif %}
-    {% if site.description %}<p class="text-gray-500 text-sm mt-3">{{ site.description|safe }}</p>{% endif %}
+    {% if site.description %}<p class="text-gray-500 text-sm mt-3">{{ site.description|sanitize }}</p>{% endif %}
     {% if site.status == 'draft' %}<p><span class="badge bg-secondary">Draft — not publicly visible</span></p>{% endif %}
   </div>
   <div class="card__info" style="flex-wrap:wrap">
