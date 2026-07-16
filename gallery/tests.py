@@ -2431,6 +2431,30 @@ class WallPlacementRotationGroupTests(TestCase):
         self.assertEqual(data['d_in'], 12.0)
 
 
+class ArtistFormRequiredTests(TestCase):
+    """The artist profile form enforces the fields shown under 'Required'."""
+
+    def test_missing_required_fields_flagged(self):
+        from gallery.forms import ArtistForm
+        u = User.objects.create_user(
+            username='af@example.com', email='af@example.com', password='pw'
+        )
+        form = ArtistForm(data={'first_name': 'A', 'last_name': 'B'}, user=u)
+        self.assertFalse(form.is_valid())
+        for f in ('email', 'zipcode', 'image'):
+            self.assertIn(f, form.errors)
+
+    def test_form_groups_required_first(self):
+        from gallery.forms import ArtistForm
+        from crispy_forms.layout import Fieldset
+        u = User.objects.create_user(
+            username='af2@example.com', email='af2@example.com', password='pw'
+        )
+        legends = [f.legend for f in ArtistForm(user=u).helper.layout.fields
+                   if isinstance(f, Fieldset)]
+        self.assertEqual(legends[:2], ['Required', 'Optional'])
+
+
 class SanitizeFilterTests(TestCase):
     """The |sanitize filter must strip XSS but keep safe formatting."""
 

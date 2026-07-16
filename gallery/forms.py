@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Field, Row, Column, HTML
+from crispy_forms.layout import Layout, Field, Row, Column, HTML, Fieldset
 
 from gallery.models import Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show, Site, Tag
 from gallery.permissions import is_curator_user, is_staff_user
@@ -93,6 +93,24 @@ class ArtistForm(UserAwareModelForm):
             'A photo of you (the artist), not your artwork. '
             'Appears on your public profile. Required to submit artwork to shows.'
         )
+        self.fields['email'].required = True
+        self.fields['email'].help_text = 'Used to contact you and to link your account.'
+
+        # Group the form so it's obvious what's required: required fields (with
+        # asterisks) come first under a "Required" heading, optional ones after.
+        self.helper = FormHelper()
+        self.helper.form_tag = False   # the template supplies <form> + submit button
+        required = ['first_name', 'last_name', 'email', 'zipcode', 'image']
+        optional = ['phone', 'website', 'instagram', 'venmo', 'bio', 'statement']
+        layout = Layout(
+            HTML('<p class="text-muted small mb-3">Fields marked '
+                 '<span class="text-danger">*</span> are required.</p>'),
+            Fieldset('Required', *required),
+            Fieldset('Optional', *optional),
+        )
+        if 'user' in self.fields:
+            layout.append(Fieldset('Admin', 'user'))
+        self.helper.layout = layout
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()
