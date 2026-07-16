@@ -396,8 +396,26 @@
   });
 
   var fileInput = document.getElementById('image-file-input');
-  document.getElementById('add-image-card').addEventListener('click', function () {
+  var addImageCard = document.getElementById('add-image-card');
+  addImageCard.addEventListener('click', function () {
     fileInput.click();
+  });
+
+  // Drag & drop images onto the "+" card to add them as supplemental images.
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    addImageCard.addEventListener(ev, function (e) { e.preventDefault(); addImageCard.classList.add('dz-over'); });
+  });
+  ['dragleave', 'dragend'].forEach(function (ev) {
+    addImageCard.addEventListener(ev, function (e) { e.preventDefault(); addImageCard.classList.remove('dz-over'); });
+  });
+  addImageCard.addEventListener('drop', function (e) {
+    e.preventDefault();
+    addImageCard.classList.remove('dz-over');
+    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+    var dt = new DataTransfer();
+    Array.prototype.forEach.call(e.dataTransfer.files, function (f) { dt.items.add(f); });
+    fileInput.files = dt.files;
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
   fileInput.addEventListener('change', function () {

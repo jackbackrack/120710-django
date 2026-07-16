@@ -160,6 +160,11 @@ body {
     text-decoration: underline;
 }
 
+/* Drag-and-drop file inputs (image_dropzone.js) */
+.dz-hint { font-size: 0.8rem; color: #999; margin-top: 0.25rem; }
+.dz-file { font-size: 0.82rem; color: #198754; margin-top: 0.15rem; }
+.dz-over { outline: 2px dashed #64968c; outline-offset: 4px; background: rgba(100,150,140,0.06); border-radius: 4px; }
+
 /* A <button> styled as a card link: strip the default button chrome so it looks
    like the plain highlighted text links used elsewhere in cards. */
 button.card__link {
