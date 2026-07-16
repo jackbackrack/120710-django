@@ -13,6 +13,7 @@ PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
-# Quieter, faster: no debug overhead, simple in-process cache for rate-limit tests.
+# Quieter, faster: no debug overhead. (Caching is disabled during test runs by the
+# base settings — 'test' in sys.argv → DummyCache — so cached fragments don't leak
+# between tests.)
 DEBUG = False
-CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}

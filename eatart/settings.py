@@ -207,6 +207,10 @@ if _redis_url:
 else:
     CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'TIMEOUT': 300}}
 
+# Disable caching during test runs so cached fragments don't leak between tests.
+if 'test' in sys.argv:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.dummy.DummyCache'}}
+
 # How long anonymous card grids are cached (seconds). Logged-in users always see
 # fresh content. 0 disables the grid cache.
 ANON_GRID_CACHE_SECONDS = int(os.environ.get('ANON_GRID_CACHE_SECONDS', '120'))
