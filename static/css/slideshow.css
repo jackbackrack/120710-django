@@ -35,16 +35,10 @@
 }
 .card:hover .ss-card-play .ss-play-txt { display: inline; }
 
-/* Touch devices have no hover: keep it visible, expanded, and always labelled. */
+/* Touch devices have no hover: just keep the compact circle visible (tapping it
+   plays the slideshow). No expanded label — that made the whole pill show. */
 @media (hover: none) {
-  .ss-card-play {
-    opacity: 0.9;
-    width: auto;
-    height: auto;
-    border-radius: 14px;
-    padding: 5px 9px;
-  }
-  .ss-card-play .ss-play-txt { display: inline; }
+  .ss-card-play { opacity: 0.9; }
 }
 
 /* ── Slideshow Overlay ──────────────────────────────────────────────────── */
