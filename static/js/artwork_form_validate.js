@@ -40,6 +40,13 @@
     ok(el, fb); return true;
   }
 
+  // Only present for staff without a linked artist; required when shown.
+  function validateArtists(el, fb) {
+    var has = el.selectedOptions ? el.selectedOptions.length > 0 : !!el.value;
+    if (has) { ok(el, fb); return true; }
+    bad(el, fb, 'Select at least one artist'); return false;
+  }
+
   function validateEndYear(el, fb) {
     var v = el.value.trim();
     if (!v) { bad(el, fb, 'Year completed is required'); return false; }
@@ -130,6 +137,7 @@
 
   var fields = [
     { id: 'id_name',             fn: validateName },
+    { id: 'id_artists',          fn: validateArtists, event: 'change' },
     { id: 'id_end_year',         fn: validateEndYear },
     { id: 'id_start_year',       fn: validateStartYear },
     { id: 'id_medium',           fn: validateMedium },
