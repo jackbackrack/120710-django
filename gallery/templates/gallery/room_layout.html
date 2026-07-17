@@ -133,6 +133,8 @@
 #layout-root.readonly #save-status { display: none !important; }
 /* Measure + Hang Info stay available in read-only — they don't change anything. */
 #layout-root.readonly .placed-art { cursor: pointer; }
+/* Let JS own touch gestures (pan/pinch) instead of the browser's native scroll/zoom. */
+#layout-root.readonly #canvas-wrap { touch-action: none; }
 </style>
 {% endblock %}
 

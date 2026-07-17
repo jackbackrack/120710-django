@@ -710,6 +710,68 @@
     if (e.code === 'Space') { spaceDown = false; if (!isPanning) canvasWrap.style.cursor = ''; }
   });
 
+  // ── Touch pan / pinch-zoom for the read-only 2D viewer ────────────────────
+  // The editor is hidden on touch; the 2D viewer needs finger navigation. Pan
+  // with one finger, pinch to zoom (toward the pinch centre), double-tap to fit.
+  if (READONLY) {
+    var tPan = null, tPinch = null, tMoved = false, lastTapT = 0;
+    function tdist(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+
+    // Stop iOS Safari's native pinch page-zoom over the canvas.
+    canvasWrap.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+
+    canvasWrap.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 1) {
+        tPinch = null; tMoved = false;
+        tPan = { x: e.touches[0].clientX, y: e.touches[0].clientY, px: panX, py: panY };
+      } else if (e.touches.length === 2) {
+        tPan = null;
+        tPinch = {
+          d: tdist(e.touches), scale: baseScale,
+          mx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          my: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        };
+      }
+    }, { passive: true });
+
+    canvasWrap.addEventListener('touchmove', function (e) {
+      if (tPan && e.touches.length === 1) {
+        var dx = e.touches[0].clientX - tPan.x, dy = e.touches[0].clientY - tPan.y;
+        if (Math.abs(dx) + Math.abs(dy) > 4) tMoved = true;
+        e.preventDefault();
+        panX = tPan.px + dx; panY = tPan.py + dy;
+        applyTransform();
+      } else if (tPinch && e.touches.length === 2) {
+        e.preventDefault();
+        tMoved = true;
+        var d = tdist(e.touches);
+        var newScale = Math.max(fitScale * MIN_ZOOM, Math.min(fitScale * MAX_ZOOM, tPinch.scale * (d / tPinch.d)));
+        var ratio = newScale / baseScale;
+        if (ratio !== 1) {
+          var r = canvasWrap.getBoundingClientRect();
+          var mx = tPinch.mx - r.left, my = tPinch.my - r.top;
+          panX = mx - stageLeft - (mx - (stageLeft + panX)) * ratio;
+          panY = my - stageTop  - (my - (stageTop  + panY)) * ratio;
+          rescaleStage(ratio, newScale);
+          applyTransform();
+        }
+      }
+    }, { passive: false });
+
+    canvasWrap.addEventListener('touchend', function (e) {
+      if (e.touches.length === 0) {
+        if (!tMoved) {                         // a tap → double-tap resets to fit
+          var now = Date.now();
+          if (now - lastTapT < 300) { renderWall(); lastTapT = 0; } else lastTapT = now;
+        }
+        tPan = null; tPinch = null;
+      } else if (e.touches.length === 1) {     // lifted one finger of a pinch
+        tPinch = null;
+        tPan = { x: e.touches[0].clientX, y: e.touches[0].clientY, px: panX, py: panY };
+      }
+    });
+  }
+
   // ── Marquee (rubber-band) multi-select ────────────────────────────────────
   // A plain left-drag over empty canvas draws a rectangle and selects every
   // artwork it touches. (Panning uses space-drag / middle-mouse, so there's no
