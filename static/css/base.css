@@ -11,6 +11,12 @@ html {
   }
 }
 
+/* One place to tune the wood-grain wash used by the body, navbar, and status bar.
+   Higher alpha = lighter/more washed out (more readable); lower = more grain. */
+:root {
+    --wood-wash: rgba(255, 255, 255, 0.1);
+}
+
 header {
     margin: 0;
 }
@@ -19,8 +25,26 @@ header {
     padding: 3px 12px;
     font-size: 0.82em;
     color: #666;
-    background: #f8f8f8;
+    background-color: #f8f8f8;   /* fallback shown under the texture */
+    background-image:
+        linear-gradient(var(--wood-wash), var(--wood-wash)),
+        url('../img/fine-wood-grain-3.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
     border-bottom: 1px solid #e8e8e8;
+}
+
+/* Navbar shares the same fixed texture so nav + status + body read as one surface. */
+#site-nav {
+    background-image:
+        linear-gradient(var(--wood-wash), var(--wood-wash)),
+        url('../img/fine-wood-grain-3.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
 }
 
 #status-bar .status-sep {
@@ -31,10 +55,10 @@ header {
 body {
     margin: 8px;
     margin-bottom: 60px; /* Margin bottom by footer height */
-    /* Wood-grain page background, lightened with a translucent white wash so text
-       stays readable. Raise the two rgba alphas toward 1 to lighten further. */
+    /* Wood-grain page background, lightened by the shared --wood-wash (defined
+       above) so text stays readable. Tune it in that one place. */
     background-image:
-        linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)),
+        linear-gradient(var(--wood-wash), var(--wood-wash)),
         url('../img/fine-wood-grain-3.png');
     background-size: cover;
     background-position: center;
