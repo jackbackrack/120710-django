@@ -15,7 +15,7 @@ html {
    Higher alpha = lighter/more washed out (more readable); lower = more grain. */
 :root {
     --wood-wash: rgba(255, 255, 255, 0.1);
-    --wood-line: #888;   /* divider lines under the navbar and status bar */
+    --wood-line: transparent;   /* divider lines under the navbar and status bar (set a grey like #888 to show them) */
 }
 
 header {
