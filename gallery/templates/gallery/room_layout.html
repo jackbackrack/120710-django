@@ -214,6 +214,7 @@ window.POOL_ARTWORKS  = {{ pool_json|safe }};
 window.SAVE_URL       = "{% url 'gallery:room_layout_save' show.slug %}";
 window.CSRF_TOKEN     = "{{ csrf_token }}";
 window.LAYOUT_READONLY = {% if readonly %}true{% else %}false{% endif %};
+window.ROOM_SLUG      = "{{ show.slug }}";
 </script>
 <script src="{% static 'js/room_layout.js' %}"></script>
 {% endblock %}

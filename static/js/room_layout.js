@@ -27,6 +27,21 @@
   var csrfToken  = window.CSRF_TOKEN;
   var READONLY   = !!window.LAYOUT_READONLY;   // 2D viewer mode: navigation only, no editing
 
+  // Live sync to any open 3D viewer of the same show (same browser). The 3D
+  // viewer listens on this channel and repositions/rebuilds pieces as they move.
+  var roomChan = (window.BroadcastChannel && window.ROOM_SLUG)
+    ? new BroadcastChannel('room-layout-' + window.ROOM_SLUG) : null;
+  function broadcastPlacements() {
+    if (!roomChan) return;
+    roomChan.postMessage({
+      type: 'placements',
+      placements: placements.map(function (p) {
+        return { artwork: p.artwork, wall: p.wall, x_in: p.x_in, y_in: p.y_in,
+                 z_in: p.z_in, rotation: p.rotation || 0, group: p.group };
+      }),
+    });
+  }
+
   // Escape user-controlled text (artwork titles etc.) before it goes into innerHTML.
   // Artwork names are set by artists and these views are public, so an unescaped
   // title like `<img src=x onerror=…>` would be stored XSS.
@@ -560,6 +575,11 @@
           bm.el.style.left = (bm.startL + dx) + 'px';
           bm.el.style.top  = (bm.startT + dy) + 'px';
         });
+        // Live-sync to the 3D viewer while dragging (commit world coords first).
+        if (roomChan) {
+          movers.forEach(function (m) { if (m.p) syncWorldFromDiv(m.div, m.p); });
+          broadcastPlacements();
+        }
       }
       function onMove(ev) {
         dragMx = ev.clientX; dragMy = ev.clientY;
@@ -1362,6 +1382,7 @@
   }
 
   function scheduleSave() {
+    broadcastPlacements();   // push the change to any open 3D viewer immediately
     saveStatus.textContent = 'Unsaved…';
     clearTimeout(saveTimer);
     saveTimer = setTimeout(doSave, 1500);

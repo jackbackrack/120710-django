@@ -190,7 +190,7 @@ function buildFlatPlane(p, art, aw, ah, norm) {
       mesh.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
     });
   }
-  mesh.userData = { art: art, wall: p.wall };
+  mesh.userData = { art: art, wall: p.wall, rotation: p.rotation || 0 };
   scene.add(mesh);
   artworkMeshes.push(mesh);
   mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
@@ -218,7 +218,7 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
     box.position.copy(base.clone().addScaledVector(norm, WALL_OFFSET + ad / 2));
     box.quaternion.copy(wallQuaternion(p.wall));
   }
-  box.userData = { art: art, wall: p.wall };
+  box.userData = { art: art, wall: p.wall, rotation: p.rotation || 0 };
   scene.add(box);
   artworkMeshes.push(box);
   box.add(new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry),
@@ -252,7 +252,7 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
   }
 }
 
-placements.forEach(function (p) {
+function buildArtwork(p) {
   var art  = p.artwork;
   var aw   = art.w_in * IN2M;
   var ah   = art.h_in * IN2M;
@@ -263,7 +263,70 @@ placements.forEach(function (p) {
   } else {
     buildFlatPlane(p, art, aw, ah, norm);
   }
-});
+}
+
+placements.forEach(buildArtwork);
+
+// Final world position of a piece's mesh (matches what buildFlatPlane/buildCuboid
+// set), so a plain move can be applied in place without reloading textures.
+function artworkWorldPos(p) {
+  var art = p.artwork;
+  var ah = art.h_in * IN2M, ad = (art.d_in || 0) * IN2M;
+  var base = placementPosition(p);
+  var norm = wallNormal(p.wall);
+  var isFloorCeil = (p.wall === 'floor' || p.wall === 'ceiling');
+  var isCuboid = ad > 0.0025;
+  if (isFloorCeil && isCuboid) {
+    var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (ah / 2);
+    return new THREE.Vector3(base.x, cy, base.z);
+  }
+  if (isCuboid) return base.clone().addScaledVector(norm, WALL_OFFSET + ad / 2);
+  return base.clone().addScaledVector(norm, WALL_OFFSET);
+}
+
+function removeArtworkMesh(mesh) {
+  scene.remove(mesh);
+  var i = artworkMeshes.indexOf(mesh);
+  if (i !== -1) artworkMeshes.splice(i, 1);
+  mesh.traverse(function (o) {
+    if (o.geometry) o.geometry.dispose();
+    var mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    mats.forEach(function (m) { if (m.map) m.map.dispose(); if (m.dispose) m.dispose(); });
+  });
+}
+
+// Live sync from the layout editor (BroadcastChannel): reposition unchanged pieces
+// in place (no texture reload), rebuild those whose wall/rotation changed, add new
+// ones, and remove any that are gone.
+function applyPlacements(list) {
+  var byId = {};
+  artworkMeshes.forEach(function (m) { if (m.userData && m.userData.art) byId[m.userData.art.id] = m; });
+  var seen = {};
+  list.forEach(function (p) {
+    var id = p.artwork.id;
+    seen[id] = true;
+    var mesh = byId[id];
+    var samePlace = mesh && mesh.userData.wall === p.wall && (mesh.userData.rotation || 0) === (p.rotation || 0);
+    if (samePlace) {
+      mesh.position.copy(artworkWorldPos(p));   // plain move — no texture reload
+    } else {
+      if (mesh) removeArtworkMesh(mesh);
+      buildArtwork(p);
+    }
+  });
+  artworkMeshes.slice().forEach(function (m) {
+    if (m.userData && m.userData.art && !seen[m.userData.art.id]) removeArtworkMesh(m);
+  });
+}
+
+if (window.BroadcastChannel && window.ROOM_SLUG) {
+  var _roomChan = new BroadcastChannel('room-layout-' + window.ROOM_SLUG);
+  _roomChan.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'placements' && Array.isArray(e.data.placements)) {
+      applyPlacements(e.data.placements);
+    }
+  });
+}
 
 // ── Obstacle planes ───────────────────────────────────────────────────────────
 const obstacleMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
