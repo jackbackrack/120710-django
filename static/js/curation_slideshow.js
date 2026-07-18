@@ -11,6 +11,7 @@
   var artworks = [];
   var current = 0;
   var activeSlot = 'a';
+  var loadSeq = 0;      // guards against out-of-order image loads during fast nav
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
   var overlay, imgA, imgB, titleEl, artistsEl, yearEl, mediumEl, dimsEl,
@@ -223,14 +224,24 @@
     current = idx;
     var aw = artworks[current];
 
+    // Crossfade — reveal the incoming slot only once its image has loaded, so
+    // navigating to a not-yet-loaded image keeps the current one on screen instead
+    // of the stale image the slot held two slides ago. Sequence-guarded for fast nav.
     var incoming = activeSlot === 'a' ? imgB : imgA;
     var outgoing  = activeSlot === 'a' ? imgA : imgB;
+    var seq = ++loadSeq;
     if (aw.img) {
-      incoming.src = aw.img;
+      var reveal = function () {
+        if (seq !== loadSeq) return;
+        incoming.classList.remove('cs-hidden-img');
+        outgoing.classList.add('cs-hidden-img');
+        activeSlot = (incoming === imgA) ? 'a' : 'b';
+      };
       incoming.alt = aw.name;
-      incoming.classList.remove('cs-hidden-img');
-      outgoing.classList.add('cs-hidden-img');
-      activeSlot = activeSlot === 'a' ? 'b' : 'a';
+      incoming.onload = reveal;
+      incoming.onerror = reveal;
+      incoming.src = aw.img;
+      if (incoming.complete && incoming.naturalWidth > 0) reveal();
     } else {
       imgA.classList.add('cs-hidden-img');
       imgB.classList.add('cs-hidden-img');

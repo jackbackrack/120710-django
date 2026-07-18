@@ -17,6 +17,7 @@
   var artworks = [];    // [{slug, name, artists, img, thumb, detail_url, scores, rating, body, reviewed}]
   var current = 0;
   var activeSlot = 'a';
+  var loadSeq = 0;      // guards against out-of-order image loads during fast nav
   var focusedCritIdx = 0;
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -257,15 +258,24 @@
     current = idx;
     var aw = artworks[current];
 
-    // Crossfade
+    // Crossfade — reveal the incoming slot only once its image has loaded, so
+    // navigating to a not-yet-loaded image keeps the current one on screen instead
+    // of the stale image the slot held two slides ago. Sequence-guarded for fast nav.
     var incoming = activeSlot === 'a' ? imgB : imgA;
     var outgoing  = activeSlot === 'a' ? imgA : imgB;
+    var seq = ++loadSeq;
     if (aw.img) {
-      incoming.src = aw.img;
+      var reveal = function () {
+        if (seq !== loadSeq) return;
+        incoming.classList.remove('rs-hidden-img');
+        outgoing.classList.add('rs-hidden-img');
+        activeSlot = (incoming === imgA) ? 'a' : 'b';
+      };
       incoming.alt = aw.name;
-      incoming.classList.remove('rs-hidden-img');
-      outgoing.classList.add('rs-hidden-img');
-      activeSlot = activeSlot === 'a' ? 'b' : 'a';
+      incoming.onload = reveal;
+      incoming.onerror = reveal;
+      incoming.src = aw.img;
+      if (incoming.complete && incoming.naturalWidth > 0) reveal();
     } else {
       imgA.classList.add('rs-hidden-img');
       imgB.classList.add('rs-hidden-img');

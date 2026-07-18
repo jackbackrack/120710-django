@@ -6,6 +6,7 @@
   var items = [];       // [{img, thumb, title, sub, meta, url}]
   var current = 0;
   var activeSlot = 'a'; // which <img> tag is currently visible
+  var loadSeq = 0;      // guards against out-of-order image loads during fast nav
   var infoVisible = true;
   var autoHideTimer = null;
 
@@ -226,14 +227,25 @@
     current = idx;
     var item = items[current];
 
-    // Crossfade: load new image into the inactive slot, then swap visibility
+    // Crossfade: load the new image into the inactive slot and only reveal it once
+    // it has actually loaded — otherwise the inactive slot still shows the image it
+    // held two slides ago. A sequence guard drops out-of-order loads so quick
+    // navigation always lands on the requested image, and the current image stays
+    // on screen until the requested one is ready.
     var incoming = activeSlot === 'a' ? imgB : imgA;
     var outgoing  = activeSlot === 'a' ? imgA : imgB;
-    incoming.src = item.img;
+    var seq = ++loadSeq;
+    function reveal() {
+      if (seq !== loadSeq) return;                         // a newer slide was requested
+      incoming.classList.remove('ss-hidden-img');
+      outgoing.classList.add('ss-hidden-img');
+      activeSlot = (incoming === imgA) ? 'a' : 'b';
+    }
     incoming.alt = item.title;
-    incoming.classList.remove('ss-hidden-img');
-    outgoing.classList.add('ss-hidden-img');
-    activeSlot = activeSlot === 'a' ? 'b' : 'a';
+    incoming.onload = reveal;
+    incoming.onerror = reveal;                             // reveal rather than stick on a stale slot
+    incoming.src = item.img;
+    if (incoming.complete && incoming.naturalWidth > 0) reveal();   // already cached → now
 
     titleEl.textContent  = item.title;
     subEl.textContent    = item.sub    || '';
