@@ -647,8 +647,10 @@ function setupTouchControls() {
 
 // ── Movement ──────────────────────────────────────────────────────────────────
 const keys = {};
+let pendingLock = false;   // set when returning from a detail page; lock on first key
 document.addEventListener('keydown', function (e) {
   keys[e.code] = true;
+  if (pendingLock && !controls.isLocked) { pendingLock = false; relock(); }
   if (e.code === 'KeyR' && controls.isLocked) resetCamera();
 });
 document.addEventListener('keyup',   function (e) { keys[e.code] = false; });
@@ -709,7 +711,16 @@ function openPlacardFullscreen(art) {
     (art.price ? '<div class="pfs-price">' + esc(art.price) + (art.sold ? ' — sold' : '') + '</div>' : '');
   placardFS.style.display = 'flex';
 }
-function closePlacardFullscreen() { if (placardFS) placardFS.style.display = 'none'; }
+function closePlacardFullscreen() {
+  if (placardFS) placardFS.style.display = 'none';
+  relock();   // stay in navigation mode — no extra click needed
+}
+// Re-enter pointer-lock navigation. Works from a user gesture (e.g. closing the
+// placard); on a page Back it's best-effort since browsers require activation.
+function relock() {
+  if (TOUCH || controls.isLocked) return;
+  try { controls.lock(); } catch (e) {}
+}
 if (placardFS) {
   placardFS.addEventListener('click', function (e) {
     // Click the backdrop or the × to close; clicks inside the card do nothing.
@@ -759,6 +770,8 @@ function restoreCameraState() {
     if (s.p) camera.position.fromArray(s.p);
     if (TOUCH) { yaw = s.yaw || 0; pitch = s.pitch || 0; applyLook(); }
     else if (s.q) camera.quaternion.fromArray(s.q);
+    relock();          // try to resume navigation without a click…
+    pendingLock = true; // …and if the browser blocked it, lock on the first key press
   } catch (e) {}
 }
 // If the browser restores this page from the back/forward cache, the live camera
