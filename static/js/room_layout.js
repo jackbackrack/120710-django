@@ -582,6 +582,9 @@
       movers.forEach(function (m) { if (m.p) moverIds[m.p.artwork.id] = true; });
       var carriedSids = {};
       movers.forEach(function (m) { if (m.p && m.p.support != null) carriedSids[m.p.support] = true; });
+      // Also carry any marquee-selected supports (a rectangle around a piece and
+      // its shelf moves both, even if it isn't formally attached).
+      stageEl.querySelectorAll('.support.selected').forEach(function (sd) { carriedSids[normSid(sd.dataset.sid)] = true; });
       var supMovers = [];
       Object.keys(carriedSids).forEach(function (sidKey) {
         var sid = normSid(sidKey);
@@ -919,17 +922,31 @@
   function supportUnderArt(ad) {
     var l0 = parseFloat(ad.style.left), t0 = parseFloat(ad.style.top);
     var w0 = parseFloat(ad.style.width), h0 = parseFloat(ad.style.height);
-    var acx = l0 + w0 / 2, abot = t0 + h0, acy = t0 + h0 / 2;
+    var acx = l0 + w0 / 2, acy = t0 + h0 / 2, abot = t0 + h0;
     var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
-    var found = null;
+    var best = null, bestD = Infinity;
     stageEl.querySelectorAll('.support').forEach(function (sd) {
       var l = parseFloat(sd.style.left), t = parseFloat(sd.style.top),
           w = parseFloat(sd.style.width), h = parseFloat(sd.style.height);
-      if (acx < l || acx > l + w) return;                     // must be over it horizontally
-      if (onFloor) { if (acy >= t && acy <= t + h) found = sd; }   // footprint contains centre
-      else if (abot >= t - h0 && abot <= t + h) found = sd;        // base rests on / near the top
+      var scx = l + w / 2, scy = t + h / 2;
+      var hOverlap = (l0 < l + w) && (l0 + w0 > l);   // any horizontal overlap
+      var match, d;
+      if (onFloor) {
+        // Footprint contains the piece's centre, or the two footprints overlap.
+        var vOverlap = (t0 < t + h) && (t0 + h0 > t);
+        match = (acx >= l && acx <= l + w && acy >= t && acy <= t + h) || (hOverlap && vOverlap);
+        d = Math.hypot(acx - scx, acy - scy);
+      } else {
+        // A shelf is thin, so be generous: the piece just has to overlap it
+        // horizontally and have its base resting on / near the shelf top. The
+        // band is a full piece-height above the top down to below the shelf.
+        var nearTop = (abot >= t - h0) && (abot <= t + h + h0 * 0.5);
+        match = hOverlap && nearTop;
+        d = Math.abs(abot - t);                       // closest base-to-shelf-top wins
+      }
+      if (match && d < bestD) { bestD = d; best = sd; }
     });
-    return found;
+    return best;
   }
 
   // After moving a free piece, attach it to the support it's over (centre it, rest
@@ -1201,9 +1218,27 @@
       if (selectionOrder.indexOf(id) === -1) selectionOrder.push(id);
     });
     expandSelectionToGroups();   // a marquee touching one group member selects the whole group
-    // One artwork → show its position bar; several/none → keep it hidden.
+    // Supports inside the marquee are selected too (so you can rectangle around a
+    // piece and its shelf and move both). Also pull in supports under selected art.
+    var supHit = [];
+    stageEl.querySelectorAll('.support').forEach(function (sd) {
+      var r = sd.getBoundingClientRect();
+      var hit = !(r.right < box.left || r.left > box.right || r.bottom < box.top || r.top > box.bottom);
+      if (hit) { sd.classList.add('selected'); supHit.push(normSid(sd.dataset.sid)); }
+    });
+    selectionOrder.forEach(function (id) {
+      var p = placementMap[id];
+      if (p && p.support != null) {
+        var sd = stageEl.querySelector('.support[data-sid="' + p.support + '"]');
+        if (sd && !sd.classList.contains('selected')) { sd.classList.add('selected'); supHit.push(p.support); }
+      }
+    });
+    // One artwork → show its position bar; one bare support → its panel; else hidden.
     if (selectionOrder.length === 1 && placementMap[selectionOrder[0]]) {
       openPopover(placementMap[selectionOrder[0]]);
+    } else if (selectionOrder.length === 0 && supHit.length === 1) {
+      selectedSupportId = supHit[0];
+      if (supportMap[selectedSupportId]) openSupportPanel(supportMap[selectedSupportId]);
     } else {
       closePopover();
     }
