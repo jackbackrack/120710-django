@@ -996,6 +996,45 @@
       box.appendChild(tag);
       stageEl.appendChild(box);
     });
+    renderPlacards();   // placards are derived overlays too — refresh with the boxes
+  }
+
+  // ── Placards (5"×3" wall labels) ───────────────────────────────────────────
+  // A physical label to the right of each wall-hung piece: 2" gap, bottoms
+  // aligned. Non-interactive in 2D; it follows the piece and scales with zoom.
+  var PLACARD_W_IN = 5, PLACARD_H_IN = 3, PLACARD_GAP_IN = 2;
+  function placardHTML(a) {
+    var out = '<div class="pl-name">' + esc(a.name || '') + '</div>';
+    if (a.artists) out += '<div class="pl-artist">' + esc(a.artists) + '</div>';
+    var meta = [];
+    if (a.year)   meta.push(esc(String(a.year)));
+    if (a.medium) meta.push(esc(a.medium));
+    if (a.dims)   meta.push(esc(a.dims));
+    if (meta.length) out += '<div class="pl-meta">' + meta.join(', ') + '</div>';
+    if (a.price) out += '<div class="pl-price">' + esc(a.price) + (a.sold ? ' — sold' : '') + '</div>';
+    return out;
+  }
+  function renderPlacards() {
+    stageEl.querySelectorAll('.placard-card').forEach(function (el) { el.remove(); });
+    if (currentWall === 'floor' || currentWall === 'ceiling') return;  // wall labels only
+    Object.values(placementMap).forEach(function (p) {
+      if (p.wall !== currentWall) return;
+      var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+      if (!ad) return;
+      var artL = parseFloat(ad.style.left), artT = parseFloat(ad.style.top),
+          artW = parseFloat(ad.style.width), artH = parseFloat(ad.style.height);
+      var pw = PLACARD_W_IN * baseScale, ph = PLACARD_H_IN * baseScale, gap = PLACARD_GAP_IN * baseScale;
+      var card = document.createElement('div');
+      card.className = 'placard-card';
+      card.dataset.id = p.artwork.id;
+      card.style.left   = (artL + artW + gap) + 'px';
+      card.style.top    = (artT + artH - ph) + 'px';   // bottoms aligned
+      card.style.width  = pw + 'px';
+      card.style.height = ph + 'px';
+      card.style.fontSize = Math.max(3, ph * 0.13) + 'px';
+      card.innerHTML = placardHTML(p.artwork);
+      stageEl.appendChild(card);
+    });
   }
 
   // ── Drop from sidebar ─────────────────────────────────────────────────────

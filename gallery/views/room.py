@@ -64,6 +64,9 @@ def _artwork_json(artwork):
         'd_in':    float(artwork.depth_inches)  if artwork.depth_inches  else 0.0,
         'img':     artwork.layout_display_url,
         'thumb':   artwork.layout_thumb_url,
+        # Placard (wall-label) content — shared by the 2D tool and 3D viewer.
+        'price':   artwork.formatted_price or '',
+        'sold':    bool(artwork.is_sold),
     }
 
 

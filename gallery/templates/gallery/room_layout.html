@@ -108,6 +108,16 @@
   background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center; }
 .support.selected { border-color: #e55; box-shadow: 0 0 0 2px #e5522244; }
+/* 5"×3" wall label to the right of each wall-hung piece (non-interactive in 2D) */
+.placard-card { position: absolute; box-sizing: border-box; z-index: 2; pointer-events: none;
+  background: #fff; border: 1px solid #333; padding: 4% 5%; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: flex-start; line-height: 1.15;
+  color: #222; font-family: sans-serif; }
+.placard-card .pl-name   { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.placard-card .pl-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.placard-card .pl-meta,
+.placard-card .pl-price  { color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.placard-card .pl-price  { margin-top: auto; }
 .support.drop-target { border-color: #2f9e6f; box-shadow: 0 0 0 3px rgba(47,158,111,.45); }  /* piece hovering to attach */
 .support-label { font-size: .5rem; color: #2e2113; text-transform: uppercase; letter-spacing: .5px;
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px;
