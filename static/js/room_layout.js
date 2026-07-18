@@ -1874,8 +1874,7 @@
     [spW, spH, spD, spHoriz, spVert].forEach(function (inp) {
       if (inp) inp.addEventListener('input', function () { applySupportPanel(); });
     });
-    var spRemove = document.getElementById('sp-remove');
-    if (spRemove) spRemove.addEventListener('click', function () { removeSupport(selectedSupportId); });
+    // Removal is the toolbar Remove button / Delete key (unified for pieces + supports).
     var spSaveCat = document.getElementById('sp-save-catalog');
     if (spSaveCat) spSaveCat.addEventListener('click', saveSupportToCatalog);
     // Rotation is the toolbar Rotate button (unified for pieces + supports).
