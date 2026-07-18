@@ -97,6 +97,22 @@
 #pos-panel label { color: #555; margin: 0 2px 0 10px; }
 #pos-panel input[type=number] { width: 80px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 3px; }
 
+/* ── Supports (pedestals/shelves): cuboids drawn behind artworks ── */
+.support { position: absolute; box-sizing: border-box; z-index: 1; cursor: grab;
+  background: rgba(150, 111, 66, 0.5); border: 2px solid #7a5a3a;
+  display: flex; align-items: center; justify-content: center; }
+.support.selected { border-color: #e55; box-shadow: 0 0 0 2px #e5522244; }
+.support-label { font-size: .5rem; color: #2e2113; text-transform: uppercase; letter-spacing: .5px;
+  pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }
+#support-panel { display: none; align-items: center; flex-wrap: wrap; gap: 4px 6px;
+  padding: 6px 10px; background: #f3eee4; border-top: 1px solid #ddd; font-size: .8rem; }
+#support-panel.active { display: flex; }
+#support-panel .pos-title { font-weight: 600; margin-right: 10px; }
+#support-panel label { color: #555; margin: 0 2px 0 10px; }
+#support-panel input[type=number] { width: 64px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 3px; }
+#support-list .support-row { font-size: .8rem; padding: 3px 4px; cursor: pointer; border-radius: 3px; }
+#support-list .support-row:hover { background: #eee; }
+
 /* The layout editor needs a mouse + keyboard (drag-and-drop, wheel-zoom,
    Delete key), none of which work on touch. Show a notice on touch devices. */
 #layout-touch-note { display: none; }
@@ -130,6 +146,7 @@
 #layout-root.readonly #btn-rotate,
 #layout-root.readonly #btn-undo,
 #layout-root.readonly #btn-save,
+#layout-root.readonly #support-panel,
 #layout-root.readonly #save-status { display: none !important; }
 /* Measure + Hang Info stay available in read-only — they don't change anything. */
 #layout-root.readonly .placed-art { cursor: pointer; }
@@ -155,6 +172,12 @@
     <div id="pool-list" class="thumb-grid"></div>
     <h6 style="margin-top:16px">Placed</h6>
     <div id="placed-list" class="thumb-grid"></div>
+    <h6 style="margin-top:16px">Supports</h6>
+    <div id="support-add" class="edit-only" style="display:flex;gap:6px;margin-bottom:6px">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-add-support="pedestal">＋ Pedestal</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-add-support="shelf">＋ Shelf</button>
+    </div>
+    <div id="support-list"></div>
   </div>
 
   <!-- Drag to resize sidebar -->
@@ -183,6 +206,16 @@
       <input type="number" id="pos-vert" step="0.5" min="0">
       <label id="pos-depth-label" for="pos-depth" style="display:none">Depth from center (in)</label>
       <input type="number" id="pos-depth" step="0.5" style="display:none">
+    </div>
+    <!-- Support size/position controls — shown when a support is selected -->
+    <div id="support-panel" class="edit-only">
+      <span class="pos-title" id="sp-title"></span>
+      <label for="sp-w">W (in)</label><input type="number" id="sp-w" step="0.5" min="1">
+      <label for="sp-h">H (in)</label><input type="number" id="sp-h" step="0.5" min="1">
+      <label for="sp-d">D (in)</label><input type="number" id="sp-d" step="0.5" min="1">
+      <label id="sp-horiz-label" for="sp-horiz">Horiz (in)</label><input type="number" id="sp-horiz" step="0.5">
+      <label for="sp-vert">Height (in)</label><input type="number" id="sp-vert" step="0.5" min="0">
+      <button type="button" id="sp-remove" class="btn btn-sm btn-outline-danger ms-2">Remove support</button>
     </div>
     <div id="toolbar">
       <button id="btn-align-h" title="Center selected on wall horizontally">Center H</button>
@@ -215,6 +248,7 @@ window.SAVE_URL       = "{% url 'gallery:room_layout_save' show.slug %}";
 window.CSRF_TOKEN     = "{{ csrf_token }}";
 window.LAYOUT_READONLY = {% if readonly %}true{% else %}false{% endif %};
 window.ROOM_SLUG      = "{{ show.slug }}";
+window.SUPPORTS       = {{ supports_json|default:"[]"|safe }};
 </script>
 <script src="{% static 'js/room_layout.js' %}"></script>
 {% endblock %}

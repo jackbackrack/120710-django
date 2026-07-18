@@ -37,7 +37,12 @@
       type: 'placements',
       placements: placements.map(function (p) {
         return { artwork: p.artwork, wall: p.wall, x_in: p.x_in, y_in: p.y_in,
-                 z_in: p.z_in, rotation: p.rotation || 0, group: p.group };
+                 z_in: p.z_in, rotation: p.rotation || 0, group: p.group,
+                 support: p.support == null ? null : p.support };
+      }),
+      supports: supports.map(function (s) {
+        return { id: s.id, kind: s.kind, wall: s.wall, x_in: s.x_in, y_in: s.y_in,
+                 z_in: s.z_in, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, rotation: s.rotation || 0 };
       }),
     });
   }
@@ -62,6 +67,10 @@
     selectionOrder = [];
     if (measureDisplay) measureDisplay.textContent = '';
     closePopover();   // hide inline position controls when selection is cleared
+    // also drop any support selection
+    stageEl.querySelectorAll('.support.selected').forEach(function (el) { el.classList.remove('selected'); });
+    selectedSupportId = null;
+    if (supportPanel) supportPanel.classList.remove('active');
   }
 
   // Immutable master list of all artworks (pool + any server-placed artworks not in pool)
@@ -107,6 +116,17 @@
   var posDepth      = document.getElementById('pos-depth');
   var posHorizLabel = document.getElementById('pos-horiz-label');
   var posDepthLabel = document.getElementById('pos-depth-label');
+
+  // ── Supports (pedestals / shelves) state + DOM ────────────────────────────
+  var supports = window.SUPPORTS || [];
+  var supportMap = {};
+  supports.forEach(function (s) { supportMap[s.id] = s; });
+  var nextSupportTmp = -1;          // temp negative ids for supports added this session
+  var selectedSupportId = null;
+  var supportPanel = document.getElementById('support-panel');
+  var supportList  = document.getElementById('support-list');
+  var spW = document.getElementById('sp-w'), spH = document.getElementById('sp-h'), spD = document.getElementById('sp-d');
+  var spHoriz = document.getElementById('sp-horiz'), spVert = document.getElementById('sp-vert');
 
   // ── Wall dimensions ───────────────────────────────────────────────────────
   function wallDims(wall) {
@@ -323,7 +343,7 @@
 
   // ── Wall rendering ────────────────────────────────────────────────────────
   function clearPlacedDivs() {
-    stageEl.querySelectorAll('.placed-art').forEach(function (el) { el.remove(); });
+    stageEl.querySelectorAll('.placed-art, .support').forEach(function (el) { el.remove(); });
   }
 
   var CORNER_T = 6;  // corner strip thickness in inches
@@ -410,6 +430,7 @@
     clearPlacedDivs();
     addCornerDivs();   // z-index 0 — behind everything
     addObstacleDivs(); // z-index 1 — behind artworks
+    redrawSupports();  // z-index 1 — behind artworks (art sits in front)
     Object.values(placementMap).forEach(function (p) {
       if (p.wall === currentWall) addPlacedDiv(p);
     });
@@ -591,6 +612,7 @@
         if (dragRaf) { cancelAnimationFrame(dragRaf); applyDrag(); }
         if (movedAny) pushUndo(preDragSnap);
         movers.forEach(function (m) { if (m.p) syncWorldFromDiv(m.div, m.p); });
+        if (movedAny) attachDroppedArt(movers);   // attach to / detach from a support
         if (popoverArtId != null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
         scheduleSave();
       }
@@ -632,6 +654,181 @@
     div.style.top  = r.top + 'px';
     clampDivToWall(div);
     syncWorldFromDiv(div, p);   // reflect any clamp back into world coords + hang info
+  }
+
+  // ══ Supports (pedestals / shelves) ═════════════════════════════════════════
+  // Cuboid objects a piece can sit on. Drawn behind artworks; excluded from the
+  // artwork align/center/distribute ops; an attached piece centers on the support
+  // and moves with it. Supports added this session get temporary negative ids.
+  function supportFootprint(s) {
+    if (currentWall === 'floor' || currentWall === 'ceiling') {
+      var swapped = (((s.rotation || 0) % 180) === 90);
+      return swapped ? { w: s.d_in, h: s.w_in } : { w: s.w_in, h: s.d_in };
+    }
+    return { w: s.w_in, h: s.h_in };
+  }
+  function supportStagePx(s) {
+    var sc = worldToStage(currentWall, s);
+    var d  = supportFootprint(s);
+    var w = d.w * baseScale, h = d.h * baseScale;
+    return { left: sc.x - w / 2, top: sc.y - h / 2, w: w, h: h };
+  }
+  function attachedPlacements(sid) {
+    return Object.values(placementMap).filter(function (p) { return p.support === sid; });
+  }
+  function redrawSupports() {
+    supports.forEach(function (s) { if (s.wall === currentWall) addSupportDiv(s); });
+  }
+  function addSupportDiv(s) {
+    var r = supportStagePx(s);
+    var div = document.createElement('div');
+    div.className = 'support support-' + s.kind + (s.id === selectedSupportId ? ' selected' : '');
+    div.dataset.sid = s.id;
+    div.style.left = r.left + 'px'; div.style.top = r.top + 'px';
+    div.style.width = r.w + 'px'; div.style.height = r.h + 'px';
+    div.innerHTML = '<span class="support-label">' + esc(s.label || (s.kind === 'shelf' ? 'Shelf' : 'Pedestal')) + '</span>';
+    makeSupportDraggable(div, s);
+    div.addEventListener('click', function (e) { e.stopPropagation(); selectSupport(s); });
+    stageEl.appendChild(div);
+  }
+  function syncSupportFromDiv(div, s) {
+    clampDivToWall(div);
+    var sx = parseFloat(div.style.left) + parseFloat(div.style.width) / 2;
+    var sy = parseFloat(div.style.top)  + parseFloat(div.style.height) / 2;
+    var w  = stageToWorld(currentWall, sx, sy);
+    s.x_in = w.x_in; s.y_in = w.y_in; s.z_in = w.z_in;
+  }
+  function makeSupportDraggable(div, s) {
+    if (READONLY) return;
+    div.addEventListener('mousedown', function (e) {
+      if (e.button !== 0 || spaceDown) return;
+      e.preventDefault();
+      selectSupport(s);
+      var startL = parseFloat(div.style.left), startT = parseFloat(div.style.top);
+      var carried = attachedPlacements(s.id).map(function (p) {
+        var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+        return ad ? { div: ad, p: p, startL: parseFloat(ad.style.left), startT: parseFloat(ad.style.top) } : null;
+      }).filter(Boolean);
+      var smx = e.clientX, smy = e.clientY, mx = e.clientX, my = e.clientY, raf = 0, moved = false;
+      function apply() {
+        raf = 0;
+        var dx = mx - smx, dy = my - smy;
+        if (dx || dy) moved = true;
+        div.style.left = (startL + dx) + 'px'; div.style.top = (startT + dy) + 'px';
+        clampDivToWall(div);
+        carried.forEach(function (c) { c.div.style.left = (c.startL + dx) + 'px'; c.div.style.top = (c.startT + dy) + 'px'; clampDivToWall(c.div); });
+      }
+      function onMove(ev) { mx = ev.clientX; my = ev.clientY; if (!raf) raf = requestAnimationFrame(apply); }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+        if (raf) { cancelAnimationFrame(raf); apply(); }
+        if (moved) {
+          syncSupportFromDiv(div, s);
+          carried.forEach(function (c) { syncWorldFromDiv(c.div, c.p); });
+          scheduleSave();
+        }
+      }
+      document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+    });
+  }
+  function selectSupport(s) {
+    clearSelection();                       // drop any artwork/other-support selection
+    selectedSupportId = s ? s.id : null;
+    stageEl.querySelectorAll('.support').forEach(function (d) {
+      d.classList.toggle('selected', !!s && String(d.dataset.sid) === String(s.id));
+    });
+    if (s) openSupportPanel(s);
+  }
+  function openSupportPanel(s) {
+    if (READONLY || !supportPanel) return;
+    supportPanel.classList.add('active');
+    document.getElementById('sp-title').textContent = (s.kind === 'shelf' ? 'Shelf' : 'Pedestal');
+    spW.value = round1(s.w_in); spH.value = round1(s.h_in); spD.value = round1(s.d_in);
+    spHoriz.value = round1(worldHoriz(currentWall, s));
+    spVert.value  = round1(s.y_in);
+  }
+  function applySupportPanel() {
+    var s = supportMap[selectedSupportId]; if (!s) return;
+    s.w_in = Math.max(1, parseFloat(spW.value) || s.w_in);
+    s.h_in = Math.max(1, parseFloat(spH.value) || s.h_in);
+    s.d_in = Math.max(1, parseFloat(spD.value) || s.d_in);
+    if (spHoriz.value !== '') applyHoriz(currentWall, s, parseFloat(spHoriz.value));
+    if (spVert.value  !== '') s.y_in = Math.max(0, parseFloat(spVert.value));
+    stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
+    redrawSupports();
+    scheduleSave();
+  }
+  function addSupport(kind) {
+    var isShelf = kind === 'shelf';
+    var dims = wallDims(currentWall);
+    var center = stageToWorld(currentWall, dims[0] * baseScale / 2, dims[1] * baseScale / 2);
+    var s = { id: nextSupportTmp--, kind: kind, wall: currentWall, label: '',
+              w_in: isShelf ? 36 : 16, h_in: isShelf ? 2 : 40, d_in: isShelf ? 8 : 16,
+              rotation: 0, x_in: center.x_in, y_in: center.y_in, z_in: center.z_in };
+    supports.push(s); supportMap[s.id] = s;
+    addSupportDiv(s); renderSupportList(); selectSupport(s); scheduleSave();
+  }
+  function removeSupport(sid) {
+    if (sid == null || !supportMap[sid]) return;
+    attachedPlacements(sid).forEach(function (p) { p.support = null; });   // detach its art
+    supports = supports.filter(function (x) { return String(x.id) !== String(sid); });
+    delete supportMap[sid];
+    var d = stageEl.querySelector('.support[data-sid="' + sid + '"]'); if (d) d.remove();
+    selectedSupportId = null;
+    if (supportPanel) supportPanel.classList.remove('active');
+    renderSupportList(); scheduleSave();
+  }
+  function renderSupportList() {
+    if (!supportList) return;
+    supportList.innerHTML = '';
+    supports.forEach(function (s) {
+      var row = document.createElement('div'); row.className = 'support-row';
+      row.textContent = (s.kind === 'shelf' ? 'Shelf' : 'Pedestal') + ' (' + s.wall + ')';
+      row.addEventListener('click', function () {
+        if (s.wall !== currentWall) {
+          var tab = document.querySelector('.wall-tab[data-wall="' + s.wall + '"]');
+          if (tab) tab.click();
+        }
+        selectSupport(s);
+      });
+      supportList.appendChild(row);
+    });
+  }
+  // Coerce a support id (data attr) back to the type stored on placements.
+  function normSid(v) { var n = parseInt(v, 10); return isNaN(n) ? v : n; }
+  // After dropping an artwork, attach it to a support it was released over (center
+  // on the support, base on its top), or detach if released off all supports.
+  function attachDroppedArt(movers) {
+    movers.forEach(function (m) {
+      if (!m.p) return;
+      var ad = m.div;
+      var acx = parseFloat(ad.style.left) + parseFloat(ad.style.width) / 2;
+      var acy = parseFloat(ad.style.top)  + parseFloat(ad.style.height) / 2;
+      var target = null;
+      stageEl.querySelectorAll('.support').forEach(function (sd) {
+        var l = parseFloat(sd.style.left), t = parseFloat(sd.style.top),
+            w = parseFloat(sd.style.width), h = parseFloat(sd.style.height);
+        // over the support horizontally, and on/just-above it vertically
+        if (acx >= l && acx <= l + w && acy >= t - h * 4 && acy <= t + h) target = sd;
+      });
+      if (target) { m.p.support = normSid(target.dataset.sid); snapArtToSupport(m.p, ad); }
+      else { m.p.support = null; }
+    });
+  }
+  function snapArtToSupport(p, div) {
+    var s = supportMap[p.support]; if (!s) return;
+    var sc = worldToStage(currentWall, s);
+    var f  = supportFootprint(s);
+    div.style.left = (sc.x - parseFloat(div.style.width) / 2) + 'px';    // center on the support
+    if (currentWall === 'floor' || currentWall === 'ceiling') {
+      div.style.top = (sc.y - parseFloat(div.style.height) / 2) + 'px';  // center footprints
+      clampDivToWall(div); syncWorldFromDiv(div, p);
+      p.y_in = s.y_in + s.h_in;   // rest the base on the support top (height matters in 3D)
+    } else {
+      var supTopY = sc.y - (f.h * baseScale) / 2;
+      div.style.top = (supTopY - parseFloat(div.style.height)) + 'px';   // base rests on support top
+      clampDivToWall(div); syncWorldFromDiv(div, p);
+    }
   }
 
   // ── Drop from sidebar ─────────────────────────────────────────────────────
@@ -1368,8 +1565,13 @@
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
       body: JSON.stringify({
         room: { width_in: cfg.width_in, depth_in: cfg.depth_in, height_in: cfg.height_in },
+        supports: supports.map(function (s) {
+          return { key: s.id, kind: s.kind, wall: s.wall, label: s.label || '',
+                   x_in: s.x_in, y_in: s.y_in, z_in: s.z_in,
+                   w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, rotation: s.rotation || 0 };
+        }),
         placements: placements.map(function (p) {
-          return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0, group: (p.group == null ? null : p.group) };
+          return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0, group: (p.group == null ? null : p.group), support: (p.support == null ? null : p.support) };
         }),
       }),
     })
@@ -1432,8 +1634,21 @@
     });
   }());
 
+  // ── Supports: wire the sidebar buttons + size panel ───────────────────────
+  if (!READONLY) {
+    document.querySelectorAll('[data-add-support]').forEach(function (btn) {
+      btn.addEventListener('click', function () { addSupport(btn.dataset.addSupport); });
+    });
+    [spW, spH, spD, spHoriz, spVert].forEach(function (inp) {
+      if (inp) inp.addEventListener('input', function () { applySupportPanel(); });
+    });
+    var spRemove = document.getElementById('sp-remove');
+    if (spRemove) spRemove.addEventListener('click', function () { removeSupport(selectedSupportId); });
+  }
+
   // ── Init ─────────────────────────────────────────────────────────────────
   renderSidebar();
+  renderSupportList();
   renderWall();
   applyHangInfoState();
 
