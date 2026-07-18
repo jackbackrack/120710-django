@@ -711,6 +711,14 @@ if (placardFS) {
     // Click the backdrop or the × to close; clicks inside the card do nothing.
     if (e.target === placardFS || e.target.classList.contains('pfs-close')) closePlacardFullscreen();
   });
+  // Dismiss the enlarged placard with Return (or Escape).
+  document.addEventListener('keydown', function (e) {
+    if (placardFS.style.display === 'none') return;
+    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Escape') {
+      e.preventDefault();
+      closePlacardFullscreen();
+    }
+  });
 }
 
 // Raycast at NDC coords; a placard wins over a piece behind it. Returns true if
