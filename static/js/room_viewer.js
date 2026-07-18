@@ -671,13 +671,17 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 let lastTime = null;
 
-// ── Raycaster (used for click picking) ────────────────────────────────────────
+// ── Raycaster (click picking + crosshair hover cue) ───────────────────────────
 const raycaster = new THREE.Raycaster();
+let hoverAccum = 0;               // seconds since last hover raycast (throttled)
+const HOVER_INTERVAL = 0.08;      // ~12×/s is plenty for a crosshair cue
+let crosshairHot = false;
 
 // Reusable scratch objects — avoid per-frame allocation (GC pressure → stutter)
 const _vel      = new THREE.Vector3();
 const _turnAxis = new THREE.Vector3(0, 1, 0);
 const _turnQ    = new THREE.Quaternion();
+const _center   = new THREE.Vector2(0, 0);
 
 // ── Click interactions: open a piece's detail page, or enlarge a placard ───────
 const _ndc = new THREE.Vector2();
@@ -798,8 +802,19 @@ function animate(now) {
     camera.position.z = clamp(camera.position.z, -HD + MARGIN, HD - MARGIN);
     camera.position.y = EYE_H;  // no vertical movement / gravity
 
-    // Hover descriptions are intentionally disabled — use click (piece → detail,
-    // placard → enlarge) instead.
+    // No hover descriptions — but light up the crosshair when it's over a piece
+    // or placard, so it's clear you can click. (Throttled.)
+    hoverAccum += dt;
+    if (hoverAccum >= HOVER_INTERVAL) {
+      hoverAccum = 0;
+      raycaster.setFromCamera(_center, camera);
+      var over = raycaster.intersectObjects(placardMeshes, false).length > 0 ||
+                 raycaster.intersectObjects(artworkMeshes, false).length > 0;
+      if (over !== crosshairHot) {
+        crosshairHot = over;
+        crosshair.classList.toggle('hot', over);
+      }
+    }
   }
 
   renderer.render(scene, camera);
