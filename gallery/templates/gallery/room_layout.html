@@ -36,6 +36,11 @@
 /* Group outline (drawn around the members of a group; color set inline) */
 .group-box { position: absolute; border: 2px dashed; border-radius: 4px; pointer-events: none; z-index: 0; }
 .group-box .group-tag { position: absolute; top: -0.9em; left: 4px; font-size: .6rem; font-weight: 700; padding: 0 3px; background: #fff; }
+/* Box around a support and the piece(s) on it: they're grouped and move together. */
+.support-box { position: absolute; border: 2px solid #2f9e6f; border-radius: 5px; pointer-events: none;
+  z-index: 1; box-shadow: 0 0 0 2px rgba(47,158,111,.18); }
+.support-box .support-box-tag { position: absolute; top: -0.9em; left: 4px; font-size: .55rem; font-weight: 700;
+  letter-spacing: .3px; color: #2f9e6f; padding: 0 3px; background: #fff; text-transform: uppercase; }
 
 /* The wall itself — sized to real aspect ratio, transformed for pan/zoom */
 #wall-stage {
@@ -103,6 +108,7 @@
   background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center; }
 .support.selected { border-color: #e55; box-shadow: 0 0 0 2px #e5522244; }
+.support.drop-target { border-color: #2f9e6f; box-shadow: 0 0 0 3px rgba(47,158,111,.45); }  /* piece hovering to attach */
 .support-label { font-size: .5rem; color: #2e2113; text-transform: uppercase; letter-spacing: .5px;
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px;
   text-shadow: 0 0 2px #fff, 0 0 2px #fff; }  /* stay legible over a photo texture */
@@ -228,7 +234,7 @@
       <button id="btn-dist-v" title="Distribute selected evenly vertical">Dist V</button>
       <button id="btn-remove" title="Return selected to unplaced pool">Remove</button>
       <button id="btn-group" title="Group selected artworks (move &amp; arrange together)">Group</button>
-      <button id="btn-ungroup" title="Ungroup selected artworks">Ungroup</button>
+      <button id="btn-ungroup" title="Ungroup selected artworks, or detach a selected piece from its support (so it can move on its own)">Ungroup</button>
       <button id="btn-rotate" title="Rotate selected floor/ceiling pieces 90° (a group rotates about its centre; ungrouped pieces about their own)">Rotate</button>
       <button id="btn-undo" title="Undo the last change (Ctrl/Cmd+Z)" disabled>Undo</button>
       <button id="btn-measure" title="Measure distance between two selected artworks (M)">Measure</button>

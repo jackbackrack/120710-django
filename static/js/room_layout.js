@@ -436,6 +436,7 @@
       if (p.wall === currentWall) addPlacedDiv(p);
     });
     renderGroupBoxes();
+    renderSupportBoxes();
   }
 
   function addPlacedDiv(p) {
@@ -571,6 +572,26 @@
         return { div: d, startL: parseFloat(d.style.left), startT: parseFloat(d.style.top),
                  p: placementMap[parseInt(d.dataset.id, 10)] };
       });
+      // A piece on a support drags the support (and its siblings) with it, so an
+      // art+support group stays locked together and moves as one.
+      var moverIds = {};
+      movers.forEach(function (m) { if (m.p) moverIds[m.p.artwork.id] = true; });
+      var carriedSids = {};
+      movers.forEach(function (m) { if (m.p && m.p.support != null) carriedSids[m.p.support] = true; });
+      var supMovers = [];
+      Object.keys(carriedSids).forEach(function (sidKey) {
+        var sid = normSid(sidKey);
+        var sd = stageEl.querySelector('.support[data-sid="' + sidKey + '"]');
+        if (sd) supMovers.push({ div: sd, s: supportMap[sid],
+                                 startL: parseFloat(sd.style.left), startT: parseFloat(sd.style.top) });
+        attachedPlacements(sid).forEach(function (p) {       // pull in un-selected siblings
+          if (moverIds[p.artwork.id]) return;
+          var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+          if (ad) { movers.push({ div: ad, startL: parseFloat(ad.style.left),
+                                  startT: parseFloat(ad.style.top), p: p });
+                    moverIds[p.artwork.id] = true; }
+        });
+      });
       // Group outline(s) of the pieces being dragged — translate them rigidly too.
       var draggedGids = {};
       movers.forEach(function (m) { if (m.p && m.p.group != null) draggedGids[m.p.group] = true; });
@@ -593,13 +614,25 @@
           clampDivToWall(m.div);   // don't let a piece leave the wall
           updateHangInfo(m.div);
         });
+        supMovers.forEach(function (m) {    // carried supports translate rigidly with the art
+          m.div.style.left = (m.startL + dx) + 'px';
+          m.div.style.top  = (m.startT + dy) + 'px';
+        });
         boxMovers.forEach(function (bm) {   // move the group outline with the pieces
           bm.el.style.left = (bm.startL + dx) + 'px';
           bm.el.style.top  = (bm.startT + dy) + 'px';
         });
+        renderSupportBoxes();               // keep the art+support box around the pair
+        // Highlight the support a free piece is hovering over — a live cue that it
+        // will attach on drop (before the confirmation box appears).
+        stageEl.querySelectorAll('.support.drop-target').forEach(function (sd) { sd.classList.remove('drop-target'); });
+        movers.forEach(function (m) {
+          if (m.p && m.p.support == null) { var tgt = supportUnderArt(m.div); if (tgt) tgt.classList.add('drop-target'); }
+        });
         // Live-sync to the 3D viewer while dragging (commit world coords first).
         if (roomChan) {
           movers.forEach(function (m) { if (m.p) syncWorldFromDiv(m.div, m.p); });
+          supMovers.forEach(function (m) { if (m.s) syncSupportFromDiv(m.div, m.s); });
           broadcastPlacements();
         }
       }
@@ -611,9 +644,20 @@
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         if (dragRaf) { cancelAnimationFrame(dragRaf); applyDrag(); }
+        stageEl.querySelectorAll('.support.drop-target').forEach(function (sd) { sd.classList.remove('drop-target'); });
         if (movedAny) pushUndo(preDragSnap);
+        supMovers.forEach(function (m) { if (m.s) syncSupportFromDiv(m.div, m.s); });
         movers.forEach(function (m) { if (m.p) syncWorldFromDiv(m.div, m.p); });
-        if (movedAny) attachDroppedArt(movers);   // attach to / detach from a support
+        if (movedAny) {
+          // Free pieces may attach to a support they were dropped on; pieces already
+          // on a carried support stay attached and just re-center on it.
+          var free = movers.filter(function (m) { return !(m.p && m.p.support != null); });
+          attachDroppedArt(free);
+          movers.forEach(function (m) {
+            if (m.p && m.p.support != null && supportMap[m.p.support]) snapArtToSupport(m.p, m.div);
+          });
+          renderSupportBoxes();
+        }
         if (popoverArtId != null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
         scheduleSave();
       }
@@ -721,6 +765,12 @@
         div.style.left = (startL + dx) + 'px'; div.style.top = (startT + dy) + 'px';
         clampDivToWall(div);
         carried.forEach(function (c) { c.div.style.left = (c.startL + dx) + 'px'; c.div.style.top = (c.startT + dy) + 'px'; clampDivToWall(c.div); });
+        renderSupportBoxes();               // keep the box around the support + its art
+        if (roomChan) {                      // live-sync the moving support/art to 3D
+          syncSupportFromDiv(div, s);
+          carried.forEach(function (c) { syncWorldFromDiv(c.div, c.p); });
+          broadcastPlacements();
+        }
       }
       function onMove(ev) { mx = ev.clientX; my = ev.clientY; if (!raf) raf = requestAnimationFrame(apply); }
       function onUp() {
@@ -729,6 +779,7 @@
         if (moved) {
           syncSupportFromDiv(div, s);
           carried.forEach(function (c) { syncWorldFromDiv(c.div, c.p); });
+          renderSupportBoxes();
           scheduleSave();
         }
       }
@@ -764,6 +815,7 @@
       if (ad) snapArtToSupport(p, ad);
     });
     selectSupport(s);
+    renderSupportBoxes();
     scheduleSave();
   }
   function applySupportPanel() {
@@ -775,6 +827,11 @@
     if (spVert.value  !== '') s.y_in = Math.max(0, parseFloat(spVert.value));
     stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
     redrawSupports();
+    attachedPlacements(s.id).forEach(function (p) {           // re-center art after a resize/move
+      var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+      if (ad) snapArtToSupport(p, ad);
+    });
+    renderSupportBoxes();
     scheduleSave();
   }
   function addSupport(opts) {
@@ -831,7 +888,7 @@
     var d = stageEl.querySelector('.support[data-sid="' + sid + '"]'); if (d) d.remove();
     selectedSupportId = null;
     if (supportPanel) supportPanel.classList.remove('active');
-    renderSupportList(); scheduleSave();
+    renderSupportList(); renderSupportBoxes(); scheduleSave();
   }
   function renderSupportList() {
     if (!supportList) return;
@@ -851,24 +908,37 @@
   }
   // Coerce a support id (data attr) back to the type stored on placements.
   function normSid(v) { var n = parseInt(v, 10); return isNaN(n) ? v : n; }
-  // After dropping an artwork, attach it to a support it was released over (center
-  // on the support, base on its top), or detach if released off all supports.
+
+  // Which support (if any) is the art div resting on? Its centre-x must be over
+  // the support; vertically its footprint must sit within the support (floor /
+  // ceiling) or its base must rest on/just above the top (a shelf on a wall).
+  function supportUnderArt(ad) {
+    var l0 = parseFloat(ad.style.left), t0 = parseFloat(ad.style.top);
+    var w0 = parseFloat(ad.style.width), h0 = parseFloat(ad.style.height);
+    var acx = l0 + w0 / 2, abot = t0 + h0, acy = t0 + h0 / 2;
+    var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
+    var found = null;
+    stageEl.querySelectorAll('.support').forEach(function (sd) {
+      var l = parseFloat(sd.style.left), t = parseFloat(sd.style.top),
+          w = parseFloat(sd.style.width), h = parseFloat(sd.style.height);
+      if (acx < l || acx > l + w) return;                     // must be over it horizontally
+      if (onFloor) { if (acy >= t && acy <= t + h) found = sd; }   // footprint contains centre
+      else if (abot >= t - h0 && abot <= t + h) found = sd;        // base rests on / near the top
+    });
+    return found;
+  }
+
+  // After moving a free piece, attach it to the support it's over (centre it, rest
+  // it on top → auto-grouped) or detach it if released off every support. A piece
+  // and its support then move together and show a box until it is detached.
   function attachDroppedArt(movers) {
     movers.forEach(function (m) {
       if (!m.p) return;
-      var ad = m.div;
-      var acx = parseFloat(ad.style.left) + parseFloat(ad.style.width) / 2;
-      var acy = parseFloat(ad.style.top)  + parseFloat(ad.style.height) / 2;
-      var target = null;
-      stageEl.querySelectorAll('.support').forEach(function (sd) {
-        var l = parseFloat(sd.style.left), t = parseFloat(sd.style.top),
-            w = parseFloat(sd.style.width), h = parseFloat(sd.style.height);
-        // over the support horizontally, and on/just-above it vertically
-        if (acx >= l && acx <= l + w && acy >= t - h * 4 && acy <= t + h) target = sd;
-      });
-      if (target) { m.p.support = normSid(target.dataset.sid); snapArtToSupport(m.p, ad); }
+      var target = supportUnderArt(m.div);
+      if (target) { m.p.support = normSid(target.dataset.sid); snapArtToSupport(m.p, m.div); }
       else { m.p.support = null; }
     });
+    renderSupportBoxes();
   }
   function snapArtToSupport(p, div) {
     var s = supportMap[p.support]; if (!s) return;
@@ -884,6 +954,43 @@
       div.style.top = (supTopY - parseFloat(div.style.height)) + 'px';   // base rests on support top
       clampDivToWall(div); syncWorldFromDiv(div, p);
     }
+  }
+
+  // Draw a box around each support (on this wall) that holds art, enclosing the
+  // support and the piece(s) on it — the visual confirmation that they are grouped
+  // and move together until detached (ungrouped).
+  function renderSupportBoxes() {
+    stageEl.querySelectorAll('.support-box').forEach(function (el) { el.remove(); });
+    supports.forEach(function (s) {
+      if (s.wall !== currentWall) return;
+      var arts = attachedPlacements(s.id);
+      if (!arts.length) return;
+      var sd = stageEl.querySelector('.support[data-sid="' + s.id + '"]');
+      if (!sd) return;
+      var minL = parseFloat(sd.style.left), minT = parseFloat(sd.style.top);
+      var maxR = minL + parseFloat(sd.style.width), maxB = minT + parseFloat(sd.style.height);
+      arts.forEach(function (p) {
+        var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+        if (!ad) return;
+        var l = parseFloat(ad.style.left), t = parseFloat(ad.style.top);
+        minL = Math.min(minL, l); minT = Math.min(minT, t);
+        maxR = Math.max(maxR, l + parseFloat(ad.style.width));
+        maxB = Math.max(maxB, t + parseFloat(ad.style.height));
+      });
+      var pad = 5;
+      var box = document.createElement('div');
+      box.className = 'support-box';
+      box.dataset.sid = s.id;
+      box.style.left   = (minL - pad) + 'px';
+      box.style.top    = (minT - pad) + 'px';
+      box.style.width  = (maxR - minL + 2 * pad) + 'px';
+      box.style.height = (maxB - minT + 2 * pad) + 'px';
+      var tag = document.createElement('span');
+      tag.className = 'support-box-tag';
+      tag.textContent = 'grouped';
+      box.appendChild(tag);
+      stageEl.appendChild(box);
+    });
   }
 
   // ── Drop from sidebar ─────────────────────────────────────────────────────
@@ -911,9 +1018,11 @@
     addPlacedDiv(p);
     renderSidebar();
     renderGroupBoxes();
+    // Dropping straight onto a support attaches (auto-groups) the piece too.
+    var newDiv = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+    if (newDiv) attachDroppedArt([{ p: p, div: newDiv }]);
     // Select just the freshly-placed piece so it can be adjusted right away.
     clearSelection();
-    var newDiv = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
     if (newDiv) {
       newDiv.classList.add('selected');
       selectionOrder = [String(id)];
@@ -1340,13 +1449,23 @@
     scheduleSave();
   }
   function ungroupSelected() {
-    var targets = getSelected()
+    var sel = getSelected()
       .map(function (d) { return placementMap[parseInt(d.dataset.id, 10)]; })
-      .filter(function (p) { return p && p.group != null; });
-    if (!targets.length) return;
+      .filter(Boolean);
+    var grouped = sel.filter(function (p) { return p.group != null; });
+    var attached = sel.filter(function (p) { return p.support != null; });
+    // Ungrouping a selected support detaches every piece on it.
+    if (selectedSupportId != null) {
+      attachedPlacements(selectedSupportId).forEach(function (p) {
+        if (attached.indexOf(p) === -1) attached.push(p);
+      });
+    }
+    if (!grouped.length && !attached.length) return;
     pushUndo();
-    targets.forEach(function (p) { p.group = null; });
+    grouped.forEach(function (p) { p.group = null; });        // artwork↔artwork group
+    attached.forEach(function (p) { p.support = null; });     // artwork↔support group
     renderGroupBoxes();
+    renderSupportBoxes();
     scheduleSave();
   }
   document.getElementById('btn-group').addEventListener('click', groupSelected);
