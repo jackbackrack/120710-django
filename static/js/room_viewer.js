@@ -210,7 +210,7 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
   var isFloorCeil = (p.wall === 'floor' || p.wall === 'ceiling');
   if (isFloorCeil) {
     // Stand upright: footprint w×d on the surface, height h; identity orientation.
-    var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (ah / 2);
+    var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (p.y_in * IN2M + ah / 2);  // base at y_in (raised on a pedestal)
     box.position.set(base.x, cy, base.z);
     if (p.rotation) box.rotation.y = ((p.rotation % 360) * Math.PI) / 180;   // yaw 0/90/180/270
   } else {
@@ -277,7 +277,7 @@ function artworkWorldPos(p) {
   var isFloorCeil = (p.wall === 'floor' || p.wall === 'ceiling');
   var isCuboid = ad > 0.0025;
   if (isFloorCeil && isCuboid) {
-    var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (ah / 2);
+    var cy = (p.wall === 'ceiling') ? (H - ah / 2) : (p.y_in * IN2M + ah / 2);  // base at y_in (raised on a pedestal)
     return new THREE.Vector3(base.x, cy, base.z);
   }
   if (isCuboid) return base.clone().addScaledVector(norm, WALL_OFFSET + ad / 2);
@@ -319,12 +319,57 @@ function applyPlacements(list) {
   });
 }
 
+// ── Supports (pedestals / shelves): plain boxes ──────────────────────────────
+var supportMeshes = [];
+var SUPPORT_COLOR = 0x8a6a44;
+
+function buildSupport(s) {
+  var w = s.w_in * IN2M, h = s.h_in * IN2M, d = s.d_in * IN2M;
+  var mat = new THREE.MeshStandardMaterial({ color: SUPPORT_COLOR, roughness: 0.9 });
+  var isFloorCeil = (s.wall === 'floor' || s.wall === 'ceiling');
+  var geo, mesh;
+  var pos = new THREE.Vector3(s.x_in * IN2M, s.y_in * IN2M, s.z_in * IN2M);
+  if (isFloorCeil) {
+    geo = new THREE.BoxGeometry(w, h, d);
+    mesh = new THREE.Mesh(geo, mat);
+    var cy = (s.wall === 'ceiling') ? (H - h / 2) : (s.y_in * IN2M + h / 2);
+    mesh.position.set(pos.x, cy, pos.z);
+    if (s.rotation) mesh.rotation.y = ((s.rotation % 360) * Math.PI) / 180;
+  } else {
+    // Back flush with the wall, extending inward by its depth.
+    var alongZ = (s.wall === 'E' || s.wall === 'W');   // along-wall dimension runs on Z
+    geo = alongZ ? new THREE.BoxGeometry(d, h, w) : new THREE.BoxGeometry(w, h, d);
+    mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(pos.clone().addScaledVector(wallNormal(s.wall), d / 2));
+  }
+  mesh.userData = { support: s };
+  scene.add(mesh);
+  supportMeshes.push(mesh);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+                                  new THREE.MeshBasicMaterial({ color: 0x4a3521 })));
+}
+
+function clearSupports() {
+  supportMeshes.forEach(function (m) {
+    scene.remove(m);
+    m.traverse(function (o) {
+      if (o.geometry) o.geometry.dispose();
+      var mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      mats.forEach(function (mm) { if (mm.dispose) mm.dispose(); });
+    });
+  });
+  supportMeshes = [];
+}
+function applySupports(list) { clearSupports(); (list || []).forEach(buildSupport); }
+
+(window.SUPPORTS || []).forEach(buildSupport);
+
 if (window.BroadcastChannel && window.ROOM_SLUG) {
   var _roomChan = new BroadcastChannel('room-layout-' + window.ROOM_SLUG);
   _roomChan.addEventListener('message', function (e) {
-    if (e.data && e.data.type === 'placements' && Array.isArray(e.data.placements)) {
-      applyPlacements(e.data.placements);
-    }
+    if (!e.data || e.data.type !== 'placements') return;
+    if (Array.isArray(e.data.supports)) applySupports(e.data.supports);      // rebuild boxes
+    if (Array.isArray(e.data.placements)) applyPlacements(e.data.placements);
   });
 }
 

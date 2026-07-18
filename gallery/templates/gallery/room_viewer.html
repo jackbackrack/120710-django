@@ -59,6 +59,7 @@
 window.ROOM_CONFIG   = {{ config_json|safe }};
 window.PLACEMENTS    = {{ placements_json|safe }};
 window.ROOM_SLUG     = "{{ show.slug }}";
+window.SUPPORTS      = {{ supports_json|default:"[]"|safe }};
 </script>
 <script type="module" src="{% static 'js/room_viewer.js' %}"></script>
 {% endblock %}
