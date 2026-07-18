@@ -42,7 +42,8 @@
       }),
       supports: supports.map(function (s) {
         return { id: s.id, wall: s.wall, x_in: s.x_in, y_in: s.y_in,
-                 z_in: s.z_in, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, rotation: s.rotation || 0 };
+                 z_in: s.z_in, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in,
+                 rotation: s.rotation || 0, texture: s.texture || null };
       }),
     });
   }
@@ -688,6 +689,7 @@
     div.dataset.sid = s.id;
     div.style.left = r.left + 'px'; div.style.top = r.top + 'px';
     div.style.width = r.w + 'px'; div.style.height = r.h + 'px';
+    div.style.backgroundImage = s.texture ? ('url("' + s.texture + '")') : '';
     div.innerHTML = '<span class="support-label">' + esc(s.label || supportTerm(s.wall)) + '</span>';
     makeSupportDraggable(div, s);
     div.addEventListener('click', function (e) { e.stopPropagation(); selectSupport(s); });
@@ -784,6 +786,7 @@
               w_in: opts.w_in || (onFloor ? 16 : 36),   // pedestal-ish on floor, shelf-ish on a wall
               h_in: opts.h_in || (onFloor ? 40 : 2),
               d_in: opts.d_in || (onFloor ? 16 : 8),
+              texture: opts.texture || null,
               rotation: 0, x_in: center.x_in, y_in: center.y_in, z_in: center.z_in };
     supports.push(s); supportMap[s.id] = s;
     addSupportDiv(s); renderSupportList(); selectSupport(s); scheduleSave();
@@ -803,7 +806,7 @@
         ' (' + cat.w_in + '×' + cat.h_in + '×' + cat.d_in + '")';
       b.title = 'Add a copy of this catalog support to the show';
       b.addEventListener('click', function () {
-        addSupport({ w_in: cat.w_in, h_in: cat.h_in, d_in: cat.d_in, label: cat.label });
+        addSupport({ w_in: cat.w_in, h_in: cat.h_in, d_in: cat.d_in, label: cat.label, texture: cat.texture });
       });
       el.appendChild(b);
     });
@@ -1620,7 +1623,8 @@
         supports: supports.map(function (s) {
           return { key: s.id, wall: s.wall, label: s.label || '',
                    x_in: s.x_in, y_in: s.y_in, z_in: s.z_in,
-                   w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, rotation: s.rotation || 0 };
+                   w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, rotation: s.rotation || 0,
+                   texture: s.texture || null };
         }),
         placements: placements.map(function (p) {
           return { artwork_id: p.artwork.id, wall: p.wall, x_in: p.x_in, y_in: p.y_in, z_in: p.z_in, rotation: p.rotation || 0, group: (p.group == null ? null : p.group), support: (p.support == null ? null : p.support) };

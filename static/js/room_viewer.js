@@ -321,11 +321,23 @@ function applyPlacements(list) {
 
 // ── Supports (pedestals / shelves): plain boxes ──────────────────────────────
 var supportMeshes = [];
-var SUPPORT_COLOR = 0x8a6a44;
+var SUPPORT_COLOR = 0xffffff;   // default: white, black outline (see below)
 
 function buildSupport(s) {
   var w = s.w_in * IN2M, h = s.h_in * IN2M, d = s.d_in * IN2M;
   var mat = new THREE.MeshStandardMaterial({ color: SUPPORT_COLOR, roughness: 0.9 });
+  if (s.texture) {
+    // One texture mapped onto all six faces (single material on the BoxGeometry).
+    textureLoader.load(s.texture, function (tex) {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      mat.map = tex;
+      mat.color.set(0xffffff);
+      mat.needsUpdate = true;
+    }, undefined, function () {
+      console.warn('3D viewer: failed to load support texture', s.texture);
+    });
+  }
   var isFloorCeil = (s.wall === 'floor' || s.wall === 'ceiling');
   var geo, mesh;
   var pos = new THREE.Vector3(s.x_in * IN2M, s.y_in * IN2M, s.z_in * IN2M);
@@ -346,7 +358,7 @@ function buildSupport(s) {
   scene.add(mesh);
   supportMeshes.push(mesh);
   mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
-                                  new THREE.MeshBasicMaterial({ color: 0x4a3521 })));
+                                  new THREE.MeshBasicMaterial({ color: 0x000000 })));
 }
 
 function clearSupports() {

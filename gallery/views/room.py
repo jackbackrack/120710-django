@@ -79,7 +79,8 @@ def _placements_json(placed):
 def _support_json(s):
     return {'id': s.pk, 'wall': s.wall, 'label': s.label,
             'x_in': s.x_in, 'y_in': s.y_in, 'z_in': s.z_in,
-            'w_in': s.w_in, 'h_in': s.h_in, 'd_in': s.d_in, 'rotation': s.rotation}
+            'w_in': s.w_in, 'h_in': s.h_in, 'd_in': s.d_in, 'rotation': s.rotation,
+            'texture': s.texture_url or None}
 
 
 def _supports_json(show):
@@ -92,7 +93,8 @@ def _site_supports_json(config):
         return '[]'
     return json.dumps([
         {'id': c.pk, 'label': c.label,
-         'w_in': c.w_in, 'h_in': c.h_in, 'd_in': c.d_in}
+         'w_in': c.w_in, 'h_in': c.h_in, 'd_in': c.d_in,
+         'texture': c.texture.url if c.texture else None}
         for c in config.supports.all()
     ])
 
@@ -182,6 +184,7 @@ def room_layout_save(request, slug):
                 x_in=float(item['x_in']), y_in=float(item['y_in']), z_in=float(item['z_in']),
                 w_in=float(item['w_in']), h_in=float(item['h_in']), d_in=float(item['d_in']),
                 rotation=(int(item.get('rotation', 0) or 0) % 360) if (int(item.get('rotation', 0) or 0) % 360) in (0, 90, 180, 270) else 0,
+                texture_url=(item.get('texture') or '')[:500],
             )
             if item.get('key') is not None:
                 support_by_key[str(item['key'])] = s

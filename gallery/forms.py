@@ -384,13 +384,15 @@ class SiteSupportForm(forms.ModelForm):
     class Meta:
         from gallery.models.room import SiteSupport
         model = SiteSupport
-        fields = ('label', 'w_in', 'h_in', 'd_in')
-        labels = {'w_in': 'Width (in)', 'h_in': 'Height (in)', 'd_in': 'Depth (in)'}
+        fields = ('label', 'w_in', 'h_in', 'd_in', 'texture')
+        labels = {'w_in': 'Width (in)', 'h_in': 'Height (in)', 'd_in': 'Depth (in)',
+                  'texture': 'Texture'}
         widgets = {
             'label': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Plinth A'}),
             'w_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
             'h_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
             'd_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
+            'texture': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
         }
 
 

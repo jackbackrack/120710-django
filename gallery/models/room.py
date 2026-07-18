@@ -110,6 +110,12 @@ class Support(models.Model):
 
     rotation = models.IntegerField(default=0)  # yaw for floor/ceiling supports
 
+    # Snapshot of the texture applied to all six faces, copied from the catalog
+    # SiteSupport when the support was placed. A plain URL (not a file) so the
+    # show stays independent of later catalog edits. Blank = white with a black
+    # outline.
+    texture_url = models.CharField(max_length=500, blank=True, default='')
+
     class Meta:
         ordering = ['wall', 'x_in']
 
@@ -125,6 +131,10 @@ class SiteSupport(models.Model):
     w_in  = models.FloatField(default=16)
     h_in  = models.FloatField(default=40)
     d_in  = models.FloatField(default=16)
+
+    # Optional image applied to all six faces of the support in 2D/3D. Blank =
+    # white with a black outline.
+    texture = models.ImageField(upload_to='support_textures/', blank=True, null=True)
 
     class Meta:
         ordering = ['label']

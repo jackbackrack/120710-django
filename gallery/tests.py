@@ -2618,6 +2618,21 @@ class SupportSaveTests(TestCase):
         wp = WallPlacement.objects.get(show=self.show)
         self.assertEqual(wp.support_id, s.pk)
 
+    def test_support_texture_persists(self):
+        from gallery.models import Support
+        payload = {
+            'supports': [{'key': 's1', 'wall': 'floor', 'x_in': 0, 'y_in': 0, 'z_in': 0,
+                          'w_in': 16, 'h_in': 40, 'd_in': 16, 'rotation': 0,
+                          'label': 'Plinth', 'texture': '/media/support_textures/marble.jpg'}],
+            'placements': [],
+        }
+        r = self.client.post(
+            reverse('gallery:room_layout_save', kwargs={'slug': self.show.slug}),
+            data=self.json.dumps(payload), content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        s = Support.objects.get(show=self.show)
+        self.assertEqual(s.texture_url, '/media/support_textures/marble.jpg')
+
     def test_save_support_to_catalog(self):
         from gallery.models import Site, SiteSupport
         site = Site.objects.create(name='Cat Site', status=Site.STATUS_PUBLISHED)

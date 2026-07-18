@@ -51,7 +51,8 @@
 <p class="text-muted small">
   Reusable pedestal / shelf definitions for this site. In a show's layout you add
   copies from this catalog and position them; the copies are independent, so
-  editing the catalog here never changes past shows.
+  editing the catalog here never changes past shows. An optional texture is applied
+  to all six faces; leave it blank for a white support with a black outline.
 </p>
 
 {{ support_formset.management_form }}
@@ -62,7 +63,7 @@
 <div class="table-responsive">
   <table class="table table-sm align-middle" id="support-table">
     <thead>
-      <tr><th>Name</th><th>Width</th><th>Height</th><th>Depth</th><th>Delete</th></tr>
+      <tr><th>Name</th><th>Width</th><th>Height</th><th>Depth</th><th>Texture</th><th>Delete</th></tr>
     </thead>
     <tbody>
       {% for sform in support_formset %}
@@ -72,6 +73,7 @@
         <td>{{ sform.w_in }}</td>
         <td>{{ sform.h_in }}</td>
         <td>{{ sform.d_in }}</td>
+        <td>{{ sform.texture }}</td>
         <td class="text-center">{{ sform.DELETE }}</td>
       </tr>
       {% endfor %}

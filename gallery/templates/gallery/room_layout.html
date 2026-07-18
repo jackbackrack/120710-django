@@ -99,11 +99,13 @@
 
 /* ── Supports (pedestals/shelves): cuboids drawn behind artworks ── */
 .support { position: absolute; box-sizing: border-box; z-index: 1; cursor: grab;
-  background: rgba(150, 111, 66, 0.5); border: 2px solid #7a5a3a;
+  background: #fff; border: 2px solid #000;
+  background-size: cover; background-position: center;
   display: flex; align-items: center; justify-content: center; }
 .support.selected { border-color: #e55; box-shadow: 0 0 0 2px #e5522244; }
 .support-label { font-size: .5rem; color: #2e2113; text-transform: uppercase; letter-spacing: .5px;
-  pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }
+  pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff; }  /* stay legible over a photo texture */
 #support-panel { display: none; align-items: center; flex-wrap: wrap; gap: 4px 6px;
   padding: 6px 10px; background: #f3eee4; border-top: 1px solid #ddd; font-size: .8rem; }
 #support-panel.active { display: flex; }
