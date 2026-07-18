@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
 from gallery.models import Artwork, Show, WallPlacement
-from gallery.models.room import RoomConfig, Support
+from gallery.models.room import RoomConfig, SiteSupport, Support
 from gallery.permissions import can_manage_show
 
 _DEFAULT_CONFIG = {'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0,
@@ -86,6 +86,17 @@ def _supports_json(show):
     return json.dumps([_support_json(s) for s in show.supports.all()])
 
 
+def _site_supports_json(config):
+    """The site's reusable support catalog (definitions), for the layout palette."""
+    if config is None:
+        return '[]'
+    return json.dumps([
+        {'id': c.pk, 'kind': c.kind, 'label': c.label,
+         'w_in': c.w_in, 'h_in': c.h_in, 'd_in': c.d_in}
+        for c in config.supports.all()
+    ])
+
+
 @login_required
 def room_layout(request, slug):
     show = get_object_or_404(Show, slug=slug)
@@ -107,6 +118,7 @@ def room_layout(request, slug):
         'placements_json': placements_json,
         'pool_json': pool_json,
         'supports_json': _supports_json(show),
+        'site_supports_json': _site_supports_json(config),
     })
 
 
@@ -197,6 +209,33 @@ def room_layout_save(request, slug):
             errors.append(str(e))
 
     return JsonResponse({'ok': True, 'errors': errors})
+
+
+@login_required
+@require_POST
+def save_support_to_catalog(request, slug):
+    """Create a reusable SiteSupport (catalog entry) on the show's site from a
+    support built in the layout tool."""
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    config, _site = _room_config(show)
+    if config is None:
+        return JsonResponse({'ok': False, 'error': 'This show has no site/room configured.'}, status=400)
+    try:
+        data = json.loads(request.body)
+        kind = data.get('kind')
+        if kind not in (Support.PEDESTAL, Support.SHELF):
+            kind = Support.PEDESTAL
+        cat = SiteSupport.objects.create(
+            room_config=config, kind=kind, label=(data.get('label') or '').strip(),
+            w_in=float(data['w_in']), h_in=float(data['h_in']), d_in=float(data['d_in']),
+        )
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'ok': False, 'error': 'invalid data'}, status=400)
+    return JsonResponse({'ok': True, 'item': {
+        'id': cat.pk, 'kind': cat.kind, 'label': cat.label,
+        'w_in': cat.w_in, 'h_in': cat.h_in, 'd_in': cat.d_in}})
 
 
 def room_viewer(request, slug):

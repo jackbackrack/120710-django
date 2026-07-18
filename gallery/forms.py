@@ -371,6 +371,39 @@ def _make_obstacle_formset(**kwargs):
     )
 
 
+class SiteSupportForm(forms.ModelForm):
+    """A reusable pedestal/shelf definition (catalog) for a site."""
+    def has_changed(self):
+        # A blank new row is skipped, like the obstacle formset.
+        if not self.instance.pk:
+            label = (self.data.get(self.add_prefix('label')) or '').strip()
+            if not label:
+                return False
+        return super().has_changed()
+
+    class Meta:
+        from gallery.models.room import SiteSupport
+        model = SiteSupport
+        fields = ('kind', 'label', 'w_in', 'h_in', 'd_in')
+        labels = {'w_in': 'Width (in)', 'h_in': 'Height (in)', 'd_in': 'Depth (in)'}
+        widgets = {
+            'kind':  forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'label': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Pedestal A'}),
+            'w_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
+            'h_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
+            'd_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
+        }
+
+
+def _make_support_formset(**kwargs):
+    from django.forms import inlineformset_factory
+    from gallery.models.room import RoomConfig, SiteSupport
+    return inlineformset_factory(
+        RoomConfig, SiteSupport, form=SiteSupportForm,
+        extra=kwargs.pop('extra', 2), can_delete=True,
+    )
+
+
 class SiteForm(UserAwareModelForm):
     class Meta:
         model = Site

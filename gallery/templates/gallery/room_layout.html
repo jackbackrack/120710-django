@@ -177,6 +177,7 @@
       <button type="button" class="btn btn-sm btn-outline-secondary" data-add-support="pedestal">＋ Pedestal</button>
       <button type="button" class="btn btn-sm btn-outline-secondary" data-add-support="shelf">＋ Shelf</button>
     </div>
+    <div id="support-catalog" class="edit-only"></div>
     <div id="support-list"></div>
   </div>
 
@@ -215,7 +216,8 @@
       <label for="sp-d">D (in)</label><input type="number" id="sp-d" step="0.5" min="1">
       <label id="sp-horiz-label" for="sp-horiz">Horiz (in)</label><input type="number" id="sp-horiz" step="0.5">
       <label for="sp-vert">Height (in)</label><input type="number" id="sp-vert" step="0.5" min="0">
-      <button type="button" id="sp-remove" class="btn btn-sm btn-outline-danger ms-2">Remove support</button>
+      <button type="button" id="sp-save-catalog" class="btn btn-sm btn-outline-secondary ms-2">Save to site catalog</button>
+      <button type="button" id="sp-remove" class="btn btn-sm btn-outline-danger">Remove support</button>
     </div>
     <div id="toolbar">
       <button id="btn-align-h" title="Center selected on wall horizontally">Center H</button>
@@ -249,6 +251,8 @@ window.CSRF_TOKEN     = "{{ csrf_token }}";
 window.LAYOUT_READONLY = {% if readonly %}true{% else %}false{% endif %};
 window.ROOM_SLUG      = "{{ show.slug }}";
 window.SUPPORTS       = {{ supports_json|default:"[]"|safe }};
+window.SITE_SUPPORTS  = {{ site_supports_json|default:"[]"|safe }};
+window.SUPPORT_CATALOG_URL = "{% url 'gallery:save_support_to_catalog' show.slug %}";
 </script>
 <script src="{% static 'js/room_layout.js' %}"></script>
 {% endblock %}

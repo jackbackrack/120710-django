@@ -119,3 +119,20 @@ class Support(models.Model):
 
     def __str__(self):
         return f'{self.get_kind_display()} on {self.get_wall_display()} of {self.show}'
+
+
+class SiteSupport(models.Model):
+    """A reusable pedestal/shelf definition for a site. Copied into a show (as a
+    Support) when placed, so later edits to the catalog never change past shows."""
+    room_config = models.ForeignKey(RoomConfig, on_delete=models.CASCADE, related_name='supports')
+    kind  = models.CharField(max_length=12, choices=Support.KIND_CHOICES, default=Support.PEDESTAL)
+    label = models.CharField(max_length=100, blank=True)
+    w_in  = models.FloatField(default=16)
+    h_in  = models.FloatField(default=40)
+    d_in  = models.FloatField(default=16)
+
+    class Meta:
+        ordering = ['label', 'kind']
+
+    def __str__(self):
+        return f'{self.get_kind_display()} "{self.label}" ({self.room_config.site})'

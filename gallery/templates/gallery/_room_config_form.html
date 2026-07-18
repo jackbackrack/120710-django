@@ -47,6 +47,65 @@
 </div>
 <button type="button" class="btn btn-outline-secondary btn-sm" id="add-obstacle">+ Add obstacle row</button>
 
+<h5 class="mt-4">Supports (catalog)</h5>
+<p class="text-muted small">
+  Reusable pedestal / shelf definitions for this site. In a show's layout you add
+  copies from this catalog and position them; the copies are independent, so
+  editing the catalog here never changes past shows.
+</p>
+
+{{ support_formset.management_form }}
+{% if support_formset.non_form_errors %}
+  <div class="alert alert-danger py-1 px-2 small">{{ support_formset.non_form_errors }}</div>
+{% endif %}
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle" id="support-table">
+    <thead>
+      <tr><th>Kind</th><th>Name</th><th>Width</th><th>Height</th><th>Depth</th><th>Delete</th></tr>
+    </thead>
+    <tbody>
+      {% for sform in support_formset %}
+      <tr class="support-row">
+        {{ sform.id }}
+        <td>{{ sform.kind }}{% if sform.kind.errors %}<div class="text-danger small">{{ sform.kind.errors }}</div>{% endif %}</td>
+        <td>{{ sform.label }}</td>
+        <td>{{ sform.w_in }}</td>
+        <td>{{ sform.h_in }}</td>
+        <td>{{ sform.d_in }}</td>
+        <td class="text-center">{{ sform.DELETE }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<button type="button" class="btn btn-outline-secondary btn-sm" id="add-support">+ Add support row</button>
+
+<script>
+// Clone the last (blank) support row and bump the supports formset TOTAL_FORMS.
+(function () {
+  var addBtn = document.getElementById('add-support');
+  if (!addBtn) return;
+  addBtn.addEventListener('click', function () {
+    var tbody = document.querySelector('#support-table tbody');
+    var totalInput = document.querySelector('input[name="supports-TOTAL_FORMS"]');
+    if (!tbody || !totalInput) return;
+    var count = parseInt(totalInput.value, 10);
+    var rows = tbody.querySelectorAll('tr.support-row');
+    var clone = rows[rows.length - 1].cloneNode(true);
+    clone.querySelectorAll('input, select').forEach(function (el) {
+      if (el.name) el.name = el.name.replace(/-\d+-/, '-' + count + '-');
+      if (el.id)   el.id   = el.id.replace(/-\d+-/, '-' + count + '-');
+      if (el.type === 'checkbox') el.checked = false;
+      else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    });
+    tbody.appendChild(clone);
+    totalInput.value = count + 1;
+  });
+}());
+</script>
+
 <script>
 // Clone the last (blank) obstacle row and bump the formset TOTAL_FORMS count.
 (function () {

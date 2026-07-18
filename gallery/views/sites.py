@@ -11,7 +11,7 @@ from django.urls import reverse_lazy
 
 from gallery.models import Site, Show, Artist, Artwork
 from gallery.models.room import RoomConfig
-from gallery.forms import SiteForm, RoomConfigForm, _make_obstacle_formset
+from gallery.forms import SiteForm, RoomConfigForm, _make_obstacle_formset, _make_support_formset
 from gallery.permissions import is_staff_user
 
 ROOM_DEFAULTS = {'width_in': 384, 'depth_in': 576, 'height_in': 120}
@@ -29,12 +29,15 @@ class RoomConfigMixin:
         # self.object is None on create (site not yet saved); use an unsaved RoomConfig.
         room_config = self._get_room_config(self.object) if self.object else RoomConfig(**ROOM_DEFAULTS)
         ObstacleFormSet = _make_obstacle_formset()
+        SupportFormSet = _make_support_formset()
         if self.request.method == 'POST':
             context.setdefault('room_form', RoomConfigForm(self.request.POST, self.request.FILES, instance=room_config))
             context.setdefault('obstacle_formset', ObstacleFormSet(self.request.POST, instance=room_config))
+            context.setdefault('support_formset', SupportFormSet(self.request.POST, instance=room_config, prefix='supports'))
         else:
             context.setdefault('room_form', RoomConfigForm(instance=room_config))
             context.setdefault('obstacle_formset', ObstacleFormSet(instance=room_config))
+            context.setdefault('support_formset', SupportFormSet(instance=room_config, prefix='supports'))
         return context
 
     def form_valid(self, form):
@@ -42,16 +45,20 @@ class RoomConfigMixin:
         room_config = self._get_room_config(self.object)
         room_form = RoomConfigForm(self.request.POST, self.request.FILES, instance=room_config)
         ObstacleFormSet = _make_obstacle_formset()
+        SupportFormSet = _make_support_formset()
         obstacle_formset = ObstacleFormSet(self.request.POST, instance=room_config)
+        support_formset = SupportFormSet(self.request.POST, instance=room_config, prefix='supports')
 
-        if room_form.is_valid() and obstacle_formset.is_valid():
+        if room_form.is_valid() and obstacle_formset.is_valid() and support_formset.is_valid():
             room_form.save()
             obstacle_formset.save()
+            support_formset.save()
             return response
 
         # Re-render with errors (Site is already saved; that's acceptable here).
         return self.render_to_response(self.get_context_data(
             form=form, room_form=room_form, obstacle_formset=obstacle_formset,
+            support_formset=support_formset,
         ))
 
 

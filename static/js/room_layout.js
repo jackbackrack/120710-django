@@ -758,15 +758,50 @@
     redrawSupports();
     scheduleSave();
   }
-  function addSupport(kind) {
+  function addSupport(kind, opts) {
+    opts = opts || {};
     var isShelf = kind === 'shelf';
     var dims = wallDims(currentWall);
     var center = stageToWorld(currentWall, dims[0] * baseScale / 2, dims[1] * baseScale / 2);
-    var s = { id: nextSupportTmp--, kind: kind, wall: currentWall, label: '',
-              w_in: isShelf ? 36 : 16, h_in: isShelf ? 2 : 40, d_in: isShelf ? 8 : 16,
+    var s = { id: nextSupportTmp--, kind: kind, wall: currentWall, label: opts.label || '',
+              w_in: opts.w_in || (isShelf ? 36 : 16),
+              h_in: opts.h_in || (isShelf ? 2 : 40),
+              d_in: opts.d_in || (isShelf ? 8 : 16),
               rotation: 0, x_in: center.x_in, y_in: center.y_in, z_in: center.z_in };
     supports.push(s); supportMap[s.id] = s;
     addSupportDiv(s); renderSupportList(); selectSupport(s); scheduleSave();
+  }
+
+  // Site support catalog (definitions copied into the show when placed).
+  var siteSupports = window.SITE_SUPPORTS || [];
+  function renderSupportCatalog() {
+    var el = document.getElementById('support-catalog');
+    if (!el) return;
+    el.innerHTML = '';
+    siteSupports.forEach(function (cat) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-sm btn-outline-secondary';
+      b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:4px;font-size:.72rem';
+      b.textContent = '＋ ' + (cat.label || (cat.kind === 'shelf' ? 'Shelf' : 'Pedestal')) +
+        ' (' + cat.w_in + '×' + cat.h_in + '×' + cat.d_in + '")';
+      b.title = 'Add a copy of this catalog support to the show';
+      b.addEventListener('click', function () {
+        addSupport(cat.kind, { w_in: cat.w_in, h_in: cat.h_in, d_in: cat.d_in, label: cat.label });
+      });
+      el.appendChild(b);
+    });
+  }
+  function saveSupportToCatalog() {
+    var s = supportMap[selectedSupportId]; if (!s || !window.SUPPORT_CATALOG_URL) return;
+    var name = window.prompt('Name for this catalog support:', s.label || (s.kind === 'shelf' ? 'Shelf' : 'Pedestal'));
+    if (name === null) return;
+    fetch(window.SUPPORT_CATALOG_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ kind: s.kind, label: name, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in }),
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data && data.ok && data.item) { siteSupports.push(data.item); renderSupportCatalog(); }
+    }).catch(function () {});
   }
   function removeSupport(sid) {
     if (sid == null || !supportMap[sid]) return;
@@ -1644,11 +1679,14 @@
     });
     var spRemove = document.getElementById('sp-remove');
     if (spRemove) spRemove.addEventListener('click', function () { removeSupport(selectedSupportId); });
+    var spSaveCat = document.getElementById('sp-save-catalog');
+    if (spSaveCat) spSaveCat.addEventListener('click', saveSupportToCatalog);
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────
   renderSidebar();
   renderSupportList();
+  renderSupportCatalog();
   renderWall();
   applyHangInfoState();
 

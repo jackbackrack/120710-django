@@ -2337,6 +2337,11 @@ class SiteFeatureTests(TestCase):
             'obstacles-INITIAL_FORMS': '0',
             'obstacles-MIN_NUM_FORMS': '0',
             'obstacles-MAX_NUM_FORMS': '1000',
+            # Support (catalog) inline formset management form (empty).
+            'supports-TOTAL_FORMS': '0',
+            'supports-INITIAL_FORMS': '0',
+            'supports-MIN_NUM_FORMS': '0',
+            'supports-MAX_NUM_FORMS': '1000',
         })
         self.assertTrue(Site.objects.filter(name='New Test Site').exists())
         new_site = Site.objects.get(name='New Test Site')
@@ -2612,6 +2617,17 @@ class SupportSaveTests(TestCase):
         self.assertEqual(s.w_in, 36.0)
         wp = WallPlacement.objects.get(show=self.show)
         self.assertEqual(wp.support_id, s.pk)
+
+    def test_save_support_to_catalog(self):
+        from gallery.models import Site, SiteSupport
+        site = Site.objects.create(name='Cat Site', status=Site.STATUS_PUBLISHED)
+        self.show.sites.add(site)
+        r = self.client.post(
+            reverse('gallery:save_support_to_catalog', kwargs={'slug': self.show.slug}),
+            data=self.json.dumps({'kind': 'shelf', 'label': 'Shelf X', 'w_in': 40, 'h_in': 2, 'd_in': 10}),
+            content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(SiteSupport.objects.filter(label='Shelf X', room_config__site=site).exists())
 
 
 class RoomTwoDViewTests(TestCase):
