@@ -1499,11 +1499,17 @@
     });
   }
   // Coalesce repeated position commits (e.g. distributing many pieces) into a
-  // single group-outline refresh on the next frame.
+  // single overlay refresh on the next frame — group outlines, support boxes, and
+  // placards all follow the moved pieces (placards derive from piece positions, so
+  // they trail after center/distribute without being part of those ops).
   var groupBoxRaf = 0;
   function scheduleGroupBoxes() {
     if (groupBoxRaf) return;
-    groupBoxRaf = requestAnimationFrame(function () { groupBoxRaf = 0; renderGroupBoxes(); });
+    groupBoxRaf = requestAnimationFrame(function () {
+      groupBoxRaf = 0;
+      renderGroupBoxes();
+      renderSupportBoxes();   // also refreshes placards (called at its end)
+    });
   }
   // Draw a dashed colored box around each group's members on the current wall.
   function renderGroupBoxes() {
@@ -1649,6 +1655,7 @@
       var p = placementMap[parseInt(div.dataset.id, 10)];
       if (p) syncWorldFromDiv(div, p);
     });
+    scheduleGroupBoxes();   // group outlines, support boxes, and placards follow
   }
 
   // Center H: align each unit's vertical centre to the first unit's.
