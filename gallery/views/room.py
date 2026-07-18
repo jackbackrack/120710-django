@@ -77,7 +77,7 @@ def _placements_json(placed):
 
 
 def _support_json(s):
-    return {'id': s.pk, 'kind': s.kind, 'wall': s.wall, 'label': s.label,
+    return {'id': s.pk, 'wall': s.wall, 'label': s.label,
             'x_in': s.x_in, 'y_in': s.y_in, 'z_in': s.z_in,
             'w_in': s.w_in, 'h_in': s.h_in, 'd_in': s.d_in, 'rotation': s.rotation}
 
@@ -91,7 +91,7 @@ def _site_supports_json(config):
     if config is None:
         return '[]'
     return json.dumps([
-        {'id': c.pk, 'kind': c.kind, 'label': c.label,
+        {'id': c.pk, 'label': c.label,
          'w_in': c.w_in, 'h_in': c.h_in, 'd_in': c.d_in}
         for c in config.supports.all()
     ])
@@ -177,11 +177,8 @@ def room_layout_save(request, slug):
     support_by_key = {}
     for item in data.get('supports', []):
         try:
-            kind = item.get('kind')
-            if kind not in (Support.PEDESTAL, Support.SHELF):
-                kind = Support.PEDESTAL
             s = Support.objects.create(
-                show=show, kind=kind, wall=item['wall'], label=item.get('label', '') or '',
+                show=show, wall=item['wall'], label=item.get('label', '') or '',
                 x_in=float(item['x_in']), y_in=float(item['y_in']), z_in=float(item['z_in']),
                 w_in=float(item['w_in']), h_in=float(item['h_in']), d_in=float(item['d_in']),
                 rotation=(int(item.get('rotation', 0) or 0) % 360) if (int(item.get('rotation', 0) or 0) % 360) in (0, 90, 180, 270) else 0,
@@ -224,17 +221,14 @@ def save_support_to_catalog(request, slug):
         return JsonResponse({'ok': False, 'error': 'This show has no site/room configured.'}, status=400)
     try:
         data = json.loads(request.body)
-        kind = data.get('kind')
-        if kind not in (Support.PEDESTAL, Support.SHELF):
-            kind = Support.PEDESTAL
         cat = SiteSupport.objects.create(
-            room_config=config, kind=kind, label=(data.get('label') or '').strip(),
+            room_config=config, label=(data.get('label') or '').strip(),
             w_in=float(data['w_in']), h_in=float(data['h_in']), d_in=float(data['d_in']),
         )
     except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'ok': False, 'error': 'invalid data'}, status=400)
     return JsonResponse({'ok': True, 'item': {
-        'id': cat.pk, 'kind': cat.kind, 'label': cat.label,
+        'id': cat.pk, 'label': cat.label,
         'w_in': cat.w_in, 'h_in': cat.h_in, 'd_in': cat.d_in}})
 
 

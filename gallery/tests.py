@@ -2603,8 +2603,8 @@ class SupportSaveTests(TestCase):
     def test_support_and_link_persist(self):
         from gallery.models import Support, WallPlacement
         payload = {
-            'supports': [{'key': 's1', 'kind': 'shelf', 'wall': 'N', 'x_in': 0, 'y_in': 48,
-                          'z_in': 0, 'w_in': 36, 'h_in': 2, 'd_in': 8, 'rotation': 0, 'label': 'Shelf A'}],
+            'supports': [{'key': 's1', 'wall': 'N', 'x_in': 0, 'y_in': 48,
+                          'z_in': 0, 'w_in': 36, 'h_in': 2, 'd_in': 8, 'rotation': 90, 'label': 'Shelf A'}],
             'placements': [{'artwork_id': self.artwork.pk, 'wall': 'N', 'x_in': 0, 'y_in': 50,
                             'z_in': 0, 'rotation': 0, 'group': None, 'support': 's1'}],
         }
@@ -2613,8 +2613,8 @@ class SupportSaveTests(TestCase):
             data=self.json.dumps(payload), content_type='application/json')
         self.assertEqual(r.status_code, 200)
         s = Support.objects.get(show=self.show)
-        self.assertEqual(s.kind, 'shelf')
         self.assertEqual(s.w_in, 36.0)
+        self.assertEqual(s.rotation, 90)   # rotation persists
         wp = WallPlacement.objects.get(show=self.show)
         self.assertEqual(wp.support_id, s.pk)
 
@@ -2624,7 +2624,7 @@ class SupportSaveTests(TestCase):
         self.show.sites.add(site)
         r = self.client.post(
             reverse('gallery:save_support_to_catalog', kwargs={'slug': self.show.slug}),
-            data=self.json.dumps({'kind': 'shelf', 'label': 'Shelf X', 'w_in': 40, 'h_in': 2, 'd_in': 10}),
+            data=self.json.dumps({'label': 'Shelf X', 'w_in': 40, 'h_in': 2, 'd_in': 10}),
             content_type='application/json')
         self.assertEqual(r.status_code, 200)
         self.assertTrue(SiteSupport.objects.filter(label='Shelf X', room_config__site=site).exists())

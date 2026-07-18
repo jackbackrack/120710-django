@@ -62,13 +62,12 @@
 <div class="table-responsive">
   <table class="table table-sm align-middle" id="support-table">
     <thead>
-      <tr><th>Kind</th><th>Name</th><th>Width</th><th>Height</th><th>Depth</th><th>Delete</th></tr>
+      <tr><th>Name</th><th>Width</th><th>Height</th><th>Depth</th><th>Delete</th></tr>
     </thead>
     <tbody>
       {% for sform in support_formset %}
       <tr class="support-row">
         {{ sform.id }}
-        <td>{{ sform.kind }}{% if sform.kind.errors %}<div class="text-danger small">{{ sform.kind.errors }}</div>{% endif %}</td>
         <td>{{ sform.label }}</td>
         <td>{{ sform.w_in }}</td>
         <td>{{ sform.h_in }}</td>

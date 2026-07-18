@@ -92,13 +92,9 @@ class WallPlacement(models.Model):
 
 
 class Support(models.Model):
-    """A pedestal or shelf a piece can sit on — a plain cuboid in the layout."""
-    PEDESTAL = 'pedestal'
-    SHELF    = 'shelf'
-    KIND_CHOICES = [(PEDESTAL, 'Pedestal'), (SHELF, 'Shelf')]
-
+    """A plain cuboid a piece can sit on — a pedestal when on the floor/ceiling,
+    a shelf when on a vertical wall (the term is derived from the wall)."""
     show   = models.ForeignKey('gallery.Show', on_delete=models.CASCADE, related_name='supports')
-    kind   = models.CharField(max_length=12, choices=KIND_CHOICES, default=PEDESTAL)
     wall   = models.CharField(max_length=8, choices=WALL_CHOICES)
     label  = models.CharField(max_length=100, blank=True)
 
@@ -118,21 +114,20 @@ class Support(models.Model):
         ordering = ['wall', 'x_in']
 
     def __str__(self):
-        return f'{self.get_kind_display()} on {self.get_wall_display()} of {self.show}'
+        return f'Support on {self.get_wall_display()} of {self.show}'
 
 
 class SiteSupport(models.Model):
-    """A reusable pedestal/shelf definition for a site. Copied into a show (as a
-    Support) when placed, so later edits to the catalog never change past shows."""
+    """A reusable support definition (named cuboid) for a site. Copied into a show
+    (as a Support) when placed, so later edits never change past shows."""
     room_config = models.ForeignKey(RoomConfig, on_delete=models.CASCADE, related_name='supports')
-    kind  = models.CharField(max_length=12, choices=Support.KIND_CHOICES, default=Support.PEDESTAL)
     label = models.CharField(max_length=100, blank=True)
     w_in  = models.FloatField(default=16)
     h_in  = models.FloatField(default=40)
     d_in  = models.FloatField(default=16)
 
     class Meta:
-        ordering = ['label', 'kind']
+        ordering = ['label']
 
     def __str__(self):
-        return f'{self.get_kind_display()} "{self.label}" ({self.room_config.site})'
+        return f'Support "{self.label}" ({self.room_config.site})'

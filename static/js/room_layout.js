@@ -41,7 +41,7 @@
                  support: p.support == null ? null : p.support };
       }),
       supports: supports.map(function (s) {
-        return { id: s.id, kind: s.kind, wall: s.wall, x_in: s.x_in, y_in: s.y_in,
+        return { id: s.id, wall: s.wall, x_in: s.x_in, y_in: s.y_in,
                  z_in: s.z_in, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, rotation: s.rotation || 0 };
       }),
     });
@@ -676,17 +676,19 @@
   function attachedPlacements(sid) {
     return Object.values(placementMap).filter(function (p) { return p.support === sid; });
   }
+  // A support is a "pedestal" on the floor/ceiling, a "shelf" on a vertical wall.
+  function supportTerm(wall) { return (wall === 'floor' || wall === 'ceiling') ? 'Pedestal' : 'Shelf'; }
   function redrawSupports() {
     supports.forEach(function (s) { if (s.wall === currentWall) addSupportDiv(s); });
   }
   function addSupportDiv(s) {
     var r = supportStagePx(s);
     var div = document.createElement('div');
-    div.className = 'support support-' + s.kind + (s.id === selectedSupportId ? ' selected' : '');
+    div.className = 'support' + (s.id === selectedSupportId ? ' selected' : '');
     div.dataset.sid = s.id;
     div.style.left = r.left + 'px'; div.style.top = r.top + 'px';
     div.style.width = r.w + 'px'; div.style.height = r.h + 'px';
-    div.innerHTML = '<span class="support-label">' + esc(s.label || (s.kind === 'shelf' ? 'Shelf' : 'Pedestal')) + '</span>';
+    div.innerHTML = '<span class="support-label">' + esc(s.label || supportTerm(s.wall)) + '</span>';
     makeSupportDraggable(div, s);
     div.addEventListener('click', function (e) { e.stopPropagation(); selectSupport(s); });
     stageEl.appendChild(div);
@@ -742,10 +744,25 @@
   function openSupportPanel(s) {
     if (READONLY || !supportPanel) return;
     supportPanel.classList.add('active');
-    document.getElementById('sp-title').textContent = (s.kind === 'shelf' ? 'Shelf' : 'Pedestal');
+    document.getElementById('sp-title').textContent = supportTerm(s.wall);
     spW.value = round1(s.w_in); spH.value = round1(s.h_in); spD.value = round1(s.d_in);
     spHoriz.value = round1(worldHoriz(currentWall, s));
     spVert.value  = round1(s.y_in);
+    var spRotate = document.getElementById('sp-rotate');   // yaw only makes sense on floor/ceiling
+    if (spRotate) spRotate.style.display = (s.wall === 'floor' || s.wall === 'ceiling') ? '' : 'none';
+  }
+  function rotateSupport() {
+    var s = supportMap[selectedSupportId]; if (!s) return;
+    if (s.wall !== 'floor' && s.wall !== 'ceiling') return;   // yaw only for floor/ceiling
+    s.rotation = ((s.rotation || 0) + 90) % 360;
+    stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
+    redrawSupports();
+    attachedPlacements(s.id).forEach(function (p) {           // keep attached art centered on top
+      var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+      if (ad) snapArtToSupport(p, ad);
+    });
+    selectSupport(s);
+    scheduleSave();
   }
   function applySupportPanel() {
     var s = supportMap[selectedSupportId]; if (!s) return;
@@ -758,15 +775,15 @@
     redrawSupports();
     scheduleSave();
   }
-  function addSupport(kind, opts) {
+  function addSupport(opts) {
     opts = opts || {};
-    var isShelf = kind === 'shelf';
+    var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
     var dims = wallDims(currentWall);
     var center = stageToWorld(currentWall, dims[0] * baseScale / 2, dims[1] * baseScale / 2);
-    var s = { id: nextSupportTmp--, kind: kind, wall: currentWall, label: opts.label || '',
-              w_in: opts.w_in || (isShelf ? 36 : 16),
-              h_in: opts.h_in || (isShelf ? 2 : 40),
-              d_in: opts.d_in || (isShelf ? 8 : 16),
+    var s = { id: nextSupportTmp--, wall: currentWall, label: opts.label || '',
+              w_in: opts.w_in || (onFloor ? 16 : 36),   // pedestal-ish on floor, shelf-ish on a wall
+              h_in: opts.h_in || (onFloor ? 40 : 2),
+              d_in: opts.d_in || (onFloor ? 16 : 8),
               rotation: 0, x_in: center.x_in, y_in: center.y_in, z_in: center.z_in };
     supports.push(s); supportMap[s.id] = s;
     addSupportDiv(s); renderSupportList(); selectSupport(s); scheduleSave();
@@ -782,23 +799,23 @@
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'btn btn-sm btn-outline-secondary';
       b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:4px;font-size:.72rem';
-      b.textContent = '＋ ' + (cat.label || (cat.kind === 'shelf' ? 'Shelf' : 'Pedestal')) +
+      b.textContent = '＋ ' + (cat.label || 'Support') +
         ' (' + cat.w_in + '×' + cat.h_in + '×' + cat.d_in + '")';
       b.title = 'Add a copy of this catalog support to the show';
       b.addEventListener('click', function () {
-        addSupport(cat.kind, { w_in: cat.w_in, h_in: cat.h_in, d_in: cat.d_in, label: cat.label });
+        addSupport({ w_in: cat.w_in, h_in: cat.h_in, d_in: cat.d_in, label: cat.label });
       });
       el.appendChild(b);
     });
   }
   function saveSupportToCatalog() {
     var s = supportMap[selectedSupportId]; if (!s || !window.SUPPORT_CATALOG_URL) return;
-    var name = window.prompt('Name for this catalog support:', s.label || (s.kind === 'shelf' ? 'Shelf' : 'Pedestal'));
+    var name = window.prompt('Name for this catalog support:', s.label || supportTerm(s.wall));
     if (name === null) return;
     fetch(window.SUPPORT_CATALOG_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ kind: s.kind, label: name, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in }),
+      body: JSON.stringify({ label: name, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in }),
     }).then(function (r) { return r.json(); }).then(function (data) {
       if (data && data.ok && data.item) { siteSupports.push(data.item); renderSupportCatalog(); }
     }).catch(function () {});
@@ -818,7 +835,7 @@
     supportList.innerHTML = '';
     supports.forEach(function (s) {
       var row = document.createElement('div'); row.className = 'support-row';
-      row.textContent = (s.kind === 'shelf' ? 'Shelf' : 'Pedestal') + ' (' + s.wall + ')';
+      row.textContent = (s.label || supportTerm(s.wall)) + ' (' + s.wall + ')';
       row.addEventListener('click', function () {
         if (s.wall !== currentWall) {
           var tab = document.querySelector('.wall-tab[data-wall="' + s.wall + '"]');
@@ -1601,7 +1618,7 @@
       body: JSON.stringify({
         room: { width_in: cfg.width_in, depth_in: cfg.depth_in, height_in: cfg.height_in },
         supports: supports.map(function (s) {
-          return { key: s.id, kind: s.kind, wall: s.wall, label: s.label || '',
+          return { key: s.id, wall: s.wall, label: s.label || '',
                    x_in: s.x_in, y_in: s.y_in, z_in: s.z_in,
                    w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, rotation: s.rotation || 0 };
         }),
@@ -1671,9 +1688,8 @@
 
   // ── Supports: wire the sidebar buttons + size panel ───────────────────────
   if (!READONLY) {
-    document.querySelectorAll('[data-add-support]').forEach(function (btn) {
-      btn.addEventListener('click', function () { addSupport(btn.dataset.addSupport); });
-    });
+    var addSupBtn = document.getElementById('add-support-btn');
+    if (addSupBtn) addSupBtn.addEventListener('click', function () { addSupport(); });
     [spW, spH, spD, spHoriz, spVert].forEach(function (inp) {
       if (inp) inp.addEventListener('input', function () { applySupportPanel(); });
     });
@@ -1681,6 +1697,8 @@
     if (spRemove) spRemove.addEventListener('click', function () { removeSupport(selectedSupportId); });
     var spSaveCat = document.getElementById('sp-save-catalog');
     if (spSaveCat) spSaveCat.addEventListener('click', saveSupportToCatalog);
+    var spRotate = document.getElementById('sp-rotate');
+    if (spRotate) spRotate.addEventListener('click', rotateSupport);
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────

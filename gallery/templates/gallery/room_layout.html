@@ -173,9 +173,8 @@
     <h6 style="margin-top:16px">Placed</h6>
     <div id="placed-list" class="thumb-grid"></div>
     <h6 style="margin-top:16px">Supports</h6>
-    <div id="support-add" class="edit-only" style="display:flex;gap:6px;margin-bottom:6px">
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-add-support="pedestal">＋ Pedestal</button>
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-add-support="shelf">＋ Shelf</button>
+    <div id="support-add" class="edit-only" style="margin-bottom:6px">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="add-support-btn" title="Add a support to the current wall (a pedestal on the floor, a shelf on a wall)">＋ Add support</button>
     </div>
     <div id="support-catalog" class="edit-only"></div>
     <div id="support-list"></div>
@@ -216,7 +215,8 @@
       <label for="sp-d">D (in)</label><input type="number" id="sp-d" step="0.5" min="1">
       <label id="sp-horiz-label" for="sp-horiz">Horiz (in)</label><input type="number" id="sp-horiz" step="0.5">
       <label for="sp-vert">Height (in)</label><input type="number" id="sp-vert" step="0.5" min="0">
-      <button type="button" id="sp-save-catalog" class="btn btn-sm btn-outline-secondary ms-2">Save to site catalog</button>
+      <button type="button" id="sp-rotate" class="btn btn-sm btn-outline-secondary ms-2" title="Rotate 90° (floor/ceiling only)">Rotate 90°</button>
+      <button type="button" id="sp-save-catalog" class="btn btn-sm btn-outline-secondary">Save to site catalog</button>
       <button type="button" id="sp-remove" class="btn btn-sm btn-outline-danger">Remove support</button>
     </div>
     <div id="toolbar">
