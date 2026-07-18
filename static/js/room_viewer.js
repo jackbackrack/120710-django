@@ -671,36 +671,13 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 let lastTime = null;
 
-// ── Raycaster for placard overlay ─────────────────────────────────────────────
+// ── Raycaster (used for click picking) ────────────────────────────────────────
 const raycaster = new THREE.Raycaster();
-const placardOverlay = document.getElementById('placard-overlay');
-let lastHovered = null;
-let raycastAccum = 0;              // seconds since last raycast (throttled)
-const RAYCAST_INTERVAL = 0.1;     // raycast at most ~10×/s, not every frame
 
 // Reusable scratch objects — avoid per-frame allocation (GC pressure → stutter)
 const _vel      = new THREE.Vector3();
 const _turnAxis = new THREE.Vector3(0, 1, 0);
 const _turnQ    = new THREE.Quaternion();
-const _center   = new THREE.Vector2(0, 0);
-
-function updatePlacard(art, screenX, screenY) {
-  if (!art) {
-    placardOverlay.innerHTML = '';
-    lastHovered = null;
-    return;
-  }
-  if (lastHovered === art.id) return;
-  lastHovered = art.id;
-  var year = art.year ? ' (' + esc(art.year) + ')' : '';
-  var medium = art.medium ? '<br>' + esc(art.medium) : '';
-  var dims = art.dims ? '<br>' + esc(art.dims) : '';
-  placardOverlay.innerHTML =
-    '<div style="position:absolute;left:' + (screenX + 12) + 'px;top:' + (screenY - 10) + 'px;' +
-    'background:rgba(255,255,255,.92);padding:6px 10px;border-radius:4px;font-size:.75rem;max-width:200px;pointer-events:none">' +
-    '<strong>' + esc(art.name) + '</strong>' + year + '<br>' + esc(art.artists || '') + medium + dims +
-    '</div>';
-}
 
 // ── Click interactions: open a piece's detail page, or enlarge a placard ───────
 const _ndc = new THREE.Vector2();
@@ -813,19 +790,8 @@ function animate(now) {
     camera.position.z = clamp(camera.position.z, -HD + MARGIN, HD - MARGIN);
     camera.position.y = EYE_H;  // no vertical movement / gravity
 
-    // Raycast from centre of screen — throttled; non-recursive (meshes' children are frames)
-    raycastAccum += dt;
-    if (raycastAccum >= RAYCAST_INTERVAL) {
-      raycastAccum = 0;
-      raycaster.setFromCamera(_center, camera);
-      var hits = raycaster.intersectObjects(artworkMeshes, false);
-      if (hits.length && hits[0].distance < 3) {
-        var rect = canvas.getBoundingClientRect();
-        updatePlacard(hits[0].object.userData.art, rect.width / 2, rect.height / 2);
-      } else {
-        updatePlacard(null);
-      }
-    }
+    // Hover descriptions are intentionally disabled — use click (piece → detail,
+    // placard → enlarge) instead.
   }
 
   renderer.render(scene, camera);
