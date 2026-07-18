@@ -808,30 +808,6 @@
     spW.value = round1(s.w_in); spH.value = round1(s.h_in); spD.value = round1(s.d_in);
     spHoriz.value = round1(worldHoriz(currentWall, s));
     spVert.value  = round1(s.y_in);
-    var spRotate = document.getElementById('sp-rotate');   // available for every support
-    if (spRotate) spRotate.style.display = '';
-  }
-  // Rotate a support and everything on it about the vertical (height) axis by 90°.
-  // On the floor/ceiling this also yaws the pedestal's own footprint; on a wall the
-  // shelf stays put but the 3D object(s) on it turn.
-  function rotateSupport() {
-    var s = supportMap[selectedSupportId]; if (!s) return;
-    pushUndo();
-    if (s.wall === 'floor' || s.wall === 'ceiling') {
-      s.rotation = ((s.rotation || 0) + 90) % 360;            // yaw the pedestal footprint
-    }
-    attachedPlacements(s.id).forEach(function (p) {           // turn the piece(s) on it too
-      p.rotation = ((p.rotation || 0) + 90) % 360;
-    });
-    redrawPieces();                                           // re-render art at its new footprint
-    attachedPlacements(s.id).forEach(function (p) {
-      var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
-      if (ad) snapArtToSupport(p, ad);
-    });
-    selectSupport(s);
-    renderSupportBoxes();
-    if (roomChan) broadcastPlacements();                     // live-update the 3D view
-    scheduleSave();
   }
   function applySupportPanel() {
     var s = supportMap[selectedSupportId]; if (!s) return;
@@ -1304,33 +1280,54 @@
   // Rotate the selected floor/ceiling pieces 90°. Operates per UNIT: each group
   // rotates as a rigid body about its group centre; each ungrouped piece rotates
   // about its own centre. Reversible: rotating again returns to 0°.
+  // The one Rotate command: turns whatever is selected 90° about the vertical
+  // (height) axis — loose pieces, a support, or an art+support group. A support
+  // rotates its own footprint (floor/ceiling) and everything on it turns with it.
   function rotateSelection() {
     if (READONLY) return;                     // read-only 2D viewer: no rotation
-    var members = getSelected()
+    var selArt = getSelected()
       .filter(function (d) { return !d.classList.contains('obstacle') && !d.classList.contains('corner'); })
       .map(function (d) { return placementMap[parseInt(d.dataset.id, 10)]; })
-      .filter(function (p) { return p && (p.wall === 'floor' || p.wall === 'ceiling'); });
-    if (!members.length) return;
+      .filter(Boolean);
+
+    // Supports to turn: an explicitly selected support + those under selected art.
+    var supIds = {};
+    if (selectedSupportId != null && supportMap[selectedSupportId]) supIds[selectedSupportId] = true;
+    selArt.forEach(function (p) { if (p.support != null) supIds[p.support] = true; });
+    var supList = Object.keys(supIds).map(function (k) { return supportMap[normSid(k)]; }).filter(Boolean);
+
+    // Pieces to turn = selected art ∪ every piece on an involved support (deduped).
+    var seen = {}, pieces = [];
+    function addPiece(p) { if (p && !seen[p.artwork.id]) { seen[p.artwork.id] = true; pieces.push(p); } }
+    selArt.forEach(addPiece);
+    supList.forEach(function (s) { attachedPlacements(s.id).forEach(addPiece); });
+
+    if (!pieces.length && !supList.length) return;
     pushUndo();
 
-    // Partition into units: one per group, plus each ungrouped piece on its own.
+    // 1. Turn each support's own footprint (only meaningful on the floor/ceiling).
+    supList.forEach(function (s) {
+      if (s.wall === 'floor' || s.wall === 'ceiling') s.rotation = ((s.rotation || 0) + 90) % 360;
+    });
+
+    // 2. Turn the pieces. Floor/ceiling pieces rotate about their group centre
+    //    (a piece on a support is a single unit → rotates in place); wall pieces
+    //    on a shelf just cycle rotation (yaw for the 3D object).
+    var floorPieces = pieces.filter(function (p) { return p.wall === 'floor' || p.wall === 'ceiling'; });
+    var wallShelfPieces = pieces.filter(function (p) { return p.wall !== 'floor' && p.wall !== 'ceiling' && p.support != null; });
+
     var byGroup = {}, units = [];
-    members.forEach(function (p) {
+    floorPieces.forEach(function (p) {
       if (p.group == null) { units.push([p]); return; }
       var k = 'g' + p.group;
       if (!byGroup[k]) { byGroup[k] = []; units.push(byGroup[k]); }
       byGroup[k].push(p);
     });
-
     function extents(p) {   // world footprint extents (x = east, z = north/south)
       var depth = (p.artwork.d_in && p.artwork.d_in > 0) ? p.artwork.d_in : p.artwork.h_in;
       var swapped = (((p.rotation || 0) % 180) === 90);
-      return { ex: (swapped ? depth : p.artwork.w_in),
-               ez: (swapped ? p.artwork.w_in : depth) };
+      return { ex: (swapped ? depth : p.artwork.w_in), ez: (swapped ? p.artwork.w_in : depth) };
     }
-
-    // Each click advances every unit by +90° (cycling 0→90→180→270→0), rotating
-    // group members about the group centre and cycling each piece's own rotation.
     units.forEach(function (unit) {
       var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
       unit.forEach(function (p) {
@@ -1338,28 +1335,39 @@
         minX = Math.min(minX, p.x_in - e.ex / 2); maxX = Math.max(maxX, p.x_in + e.ex / 2);
         minZ = Math.min(minZ, p.z_in - e.ez / 2); maxZ = Math.max(maxZ, p.z_in + e.ez / 2);
       });
-      var Cx = (minX + maxX) / 2, Cz = (minZ + maxZ) / 2;   // unit centre (own centre if single)
+      var Cx = (minX + maxX) / 2, Cz = (minZ + maxZ) / 2;
       unit.forEach(function (p) {
         var dx = p.x_in - Cx, dz = p.z_in - Cz;
         p.x_in = Cx - dz; p.z_in = Cz + dx;                 // +90°
         p.rotation = (((p.rotation || 0) + 90) % 360);
       });
     });
+    wallShelfPieces.forEach(function (p) { p.rotation = ((p.rotation || 0) + 90) % 360; });
 
     redrawPieces();   // re-render all pieces at the current view (one clean pass)
-    // Clamp any piece that a rotation pushed past a wall edge, and persist.
-    members.forEach(function (p) {
+    // Attached pieces re-centre on their (possibly turned) support; loose floor
+    // pieces just get clamped to the wall and persisted.
+    supList.forEach(function (s) {
+      attachedPlacements(s.id).forEach(function (p) {
+        var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
+        if (ad) snapArtToSupport(p, ad);
+      });
+    });
+    floorPieces.forEach(function (p) {
+      if (p.support != null) return;
       var div = stageEl.querySelector('.placed-art[data-id="' + String(p.artwork.id) + '"]');
       if (div) { clampDivToWall(div); syncWorldFromDiv(div, p); }
     });
 
-    selectionOrder = members.map(function (p) { return String(p.artwork.id); });
+    selectionOrder = selArt.map(function (p) { return String(p.artwork.id); });
     selectionOrder.forEach(function (id) {
       var div = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
       if (div) div.classList.add('selected');
     });
-    if (selectionOrder.length === 1) openPopover(members[0]); else closePopover();
+    if (selectionOrder.length === 1) openPopover(selArt[0]); else closePopover();
     renderGroupBoxes();
+    renderSupportBoxes();
+    if (roomChan) broadcastPlacements();
     scheduleSave();
   }
   document.getElementById('btn-rotate').addEventListener('click', rotateSelection);
@@ -1870,8 +1878,7 @@
     if (spRemove) spRemove.addEventListener('click', function () { removeSupport(selectedSupportId); });
     var spSaveCat = document.getElementById('sp-save-catalog');
     if (spSaveCat) spSaveCat.addEventListener('click', saveSupportToCatalog);
-    var spRotate = document.getElementById('sp-rotate');
-    if (spRotate) spRotate.addEventListener('click', rotateSupport);
+    // Rotation is the toolbar Rotate button (unified for pieces + supports).
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────
