@@ -193,19 +193,23 @@
     baseScale = newScale;
     stageEl.style.width  = (parseFloat(stageEl.style.width)  * ratio) + 'px';
     stageEl.style.height = (parseFloat(stageEl.style.height) * ratio) + 'px';
-    var els = stageEl.querySelectorAll('.placed-art');
+    // Scale every positioned child — pieces AND supports — so they stay glued to
+    // the wall/floor as the zoom changes (supports were being left behind, making
+    // them look like they floated above the floor while zooming).
+    var els = stageEl.querySelectorAll('.placed-art, .support');
     els.forEach(function (el) {
       el.style.left   = (parseFloat(el.style.left)   * ratio) + 'px';
       el.style.top    = (parseFloat(el.style.top)    * ratio) + 'px';
       el.style.width  = (parseFloat(el.style.width)  * ratio) + 'px';
       el.style.height = (parseFloat(el.style.height) * ratio) + 'px';
     });
-    els.forEach(function (el) {
+    stageEl.querySelectorAll('.placed-art').forEach(function (el) {
       if (el.classList.contains('corner') || el.classList.contains('obstacle')) return;
       fitLabel(el);
       updateHangInfo(el);   // text auto-scales with zoom via fitTextEl
     });
     renderGroupBoxes();     // group outlines must follow the rescaled pieces
+    renderSupportBoxes();   // support boxes derive from positions — rebuild at new zoom
   }
 
   // ── World ↔ stage-pixel conversions ──────────────────────────────────────
