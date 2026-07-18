@@ -98,20 +98,29 @@ print('West wall:  2 doors (40\"x7\\', 44\" from each end)')
 
 # Support catalog (reusable pedestal / shelf definitions). A support is a plain
 # cuboid W x H x D (inches); it reads as a pedestal on the floor and a shelf on a
-# vertical wall. Curators add copies from this catalog in a show's layout tool.
+# vertical wall. An optional texture maps onto all six faces; blank = white with a
+# black outline. Curators add copies from this catalog in a show's layout tool.
+import os
+from django.core.files import File
 SiteSupport.objects.filter(room_config=cfg).delete()
 supports = [
+    # (label, W, H, D, textured?)  — W x H x D in inches
     # Pedestals: standing cuboids, tall H, square-ish footprint
-    ('Pedestal - Small',  12, 36, 12),   # W x H x D
-    ('Pedestal - Medium', 16, 40, 16),
-    ('Pedestal - Large',  20, 44, 20),
+    ('Pedestal - Small',  12, 36, 12, False),
+    ('Pedestal - Medium', 16, 40, 16, True),   # wood texture, to show a textured support
+    ('Pedestal - Large',  20, 44, 20, False),
     # Shelves: wide along the wall, thin H (thickness), shallow D (projection)
-    ('Shelf - Narrow',    24,  2,  8),
-    ('Shelf - Wide',      48,  2, 10),
+    ('Shelf - Narrow',    24,  2,  8, False),
+    ('Shelf - Wide',      48,  2, 10, True),    # wood texture
 ]
-for label, w, h, d in supports:
-    SiteSupport.objects.create(room_config=cfg, label=label, w_in=w, h_in=h, d_in=d)
-print(f'Support catalog: {len(supports)} entries (3 pedestals, 2 shelves)')
+wood = 'static/img/fine-wood-grain-3.png'
+for label, w, h, d, textured in supports:
+    ss = SiteSupport.objects.create(room_config=cfg, label=label, w_in=w, h_in=h, d_in=d)
+    if textured and os.path.exists(wood):
+        with open(wood, 'rb') as f:
+            ss.texture.save(os.path.basename(wood), File(f), save=True)
+n_tex = sum(1 for s in supports if s[4])
+print(f'Support catalog: {len(supports)} entries (3 pedestals, 2 shelves; {n_tex} textured)')
 "
 
 echo "=== Creating artists ==="
