@@ -1494,6 +1494,9 @@
 
   function removeSelected() {
     if (READONLY) return;                     // read-only 2D viewer: no deletion
+    // A support is selected on its own (selection is mutually exclusive with
+    // artworks), so the shared Remove button / Delete key can drop it too.
+    if (selectedSupportId != null) { removeSupport(selectedSupportId); return; }
     var snap = snapshotPlacements();
     var removed = 0;
     getSelected().forEach(function (div) {
