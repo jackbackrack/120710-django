@@ -171,23 +171,21 @@ function bestFitImagePlane(tex, w, h) {
   );
 }
 
-// Flat piece (depth 0): a single plane on the wall/floor/ceiling.
+// Flat piece (depth 0): a single plane at the artwork's real w×h. The artwork
+// dimensions dominate; the image is best-fit (contain) inside them and letterboxed
+// — same as the 2D layout tool (object-fit: contain), not stretched to the image.
 function buildFlatPlane(p, art, aw, ah, norm) {
   var geo  = new THREE.PlaneGeometry(aw, ah);
-  var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.DoubleSide }));
+  var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
   var pos  = placementPosition(p);
   pos.addScaledVector(norm, WALL_OFFSET);
   mesh.position.copy(pos);
   mesh.quaternion.copy(wallQuaternion(p.wall));
   if (art.img) {
     loadTex(art.img, function (tex) {
-      var ia = tex.image.width / tex.image.height;
-      if (!isFinite(ia) || ia <= 0) return;
-      mesh.geometry.dispose();
-      mesh.geometry = new THREE.PlaneGeometry(ah * ia, ah);
-      var fr = mesh.children[0];
-      if (fr) { fr.geometry.dispose(); fr.geometry = new THREE.EdgesGeometry(mesh.geometry); }
-      mesh.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+      var plane = bestFitImagePlane(tex, aw, ah);   // contain within the w×h frame
+      plane.position.set(0, 0, 0.004);              // just in front of the frame
+      mesh.add(plane);
     });
   }
   mesh.userData = { art: art, wall: p.wall, rotation: p.rotation || 0 };
