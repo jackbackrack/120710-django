@@ -56,7 +56,7 @@ echo "=== Creating room config and obstacles for 120710 ==="
 
 python manage.py shell -c "
 from gallery.models import Site
-from gallery.models.room import RoomConfig, WallObstacle
+from gallery.models.room import RoomConfig, WallObstacle, SiteSupport
 
 site = Site.objects.get(slug='120710')
 cfg, _ = RoomConfig.objects.get_or_create(
@@ -95,6 +95,23 @@ WallObstacle.objects.create(
 print('Room config: 384\" x 576\" x 120\"')
 print('North wall: 1 door (9\\'x8\\', centered)')
 print('West wall:  2 doors (40\"x7\\', 44\" from each end)')
+
+# Support catalog (reusable pedestal / shelf definitions). A support is a plain
+# cuboid W x H x D (inches); it reads as a pedestal on the floor and a shelf on a
+# vertical wall. Curators add copies from this catalog in a show's layout tool.
+SiteSupport.objects.filter(room_config=cfg).delete()
+supports = [
+    # Pedestals: standing cuboids, tall H, square-ish footprint
+    ('Pedestal - Small',  12, 36, 12),   # W x H x D
+    ('Pedestal - Medium', 16, 40, 16),
+    ('Pedestal - Large',  20, 44, 20),
+    # Shelves: wide along the wall, thin H (thickness), shallow D (projection)
+    ('Shelf - Narrow',    24,  2,  8),
+    ('Shelf - Wide',      48,  2, 10),
+]
+for label, w, h, d in supports:
+    SiteSupport.objects.create(room_config=cfg, label=label, w_in=w, h_in=h, d_in=d)
+print(f'Support catalog: {len(supports)} entries (3 pedestals, 2 shelves)')
 "
 
 echo "=== Creating artists ==="
