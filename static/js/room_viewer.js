@@ -286,6 +286,7 @@ function artworkWorldPos(p) {
 }
 
 function removeArtworkMesh(mesh) {
+  if (hovered === mesh) hovered = null;
   scene.remove(mesh);
   var i = artworkMeshes.indexOf(mesh);
   if (i !== -1) artworkMeshes.splice(i, 1);
@@ -388,6 +389,7 @@ function buildPlacard(p) {
                                   new THREE.MeshBasicMaterial({ color: 0x333333 })));
 }
 function removePlacardMesh(mesh) {
+  if (hovered === mesh) hovered = null;
   scene.remove(mesh);
   var i = placardMeshes.indexOf(mesh);
   if (i !== -1) placardMeshes.splice(i, 1);
@@ -671,17 +673,33 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 let lastTime = null;
 
-// ── Raycaster (click picking + crosshair hover cue) ───────────────────────────
+// ── Raycaster (click picking + hover highlight) ───────────────────────────────
 const raycaster = new THREE.Raycaster();
 let hoverAccum = 0;               // seconds since last hover raycast (throttled)
-const HOVER_INTERVAL = 0.08;      // ~12×/s is plenty for a crosshair cue
-let crosshairHot = false;
+const HOVER_INTERVAL = 0.1;       // ~10×/s, and only when the camera actually moved
+let hovered = null;               // currently highlighted mesh
 
 // Reusable scratch objects — avoid per-frame allocation (GC pressure → stutter)
-const _vel      = new THREE.Vector3();
-const _turnAxis = new THREE.Vector3(0, 1, 0);
-const _turnQ    = new THREE.Quaternion();
-const _center   = new THREE.Vector2(0, 0);
+const _vel        = new THREE.Vector3();
+const _turnAxis   = new THREE.Vector3(0, 1, 0);
+const _turnQ      = new THREE.Quaternion();
+const _center     = new THREE.Vector2(0, 0);
+const _lastRayPos = new THREE.Vector3(Infinity, 0, 0);
+const _lastRayQuat = new THREE.Quaternion(2, 0, 0, 0);   // impossible → forces first raycast
+
+const HL_COLOR = 0x2f9e6f, EDGE_COLOR = 0x333333;
+function edgeMatOf(mesh) {
+  for (var i = 0; i < mesh.children.length; i++) if (mesh.children[i].isLineSegments) return mesh.children[i].material;
+  return null;
+}
+// Highlight the mesh the crosshair is on (outline it + light the crosshair).
+function setHover(mesh) {
+  if (hovered === mesh) return;
+  if (hovered) { var m = edgeMatOf(hovered); if (m) m.color.setHex(EDGE_COLOR); }
+  hovered = mesh;
+  if (hovered) { var m2 = edgeMatOf(hovered); if (m2) m2.color.setHex(HL_COLOR); }
+  crosshair.classList.toggle('hot', !!mesh);
+}
 
 // ── Click interactions: open a piece's detail page, or enlarge a placard ───────
 const _ndc = new THREE.Vector2();
@@ -813,17 +831,19 @@ function animate(now) {
     camera.position.z = clamp(camera.position.z, -HD + MARGIN, HD - MARGIN);
     camera.position.y = EYE_H;  // no vertical movement / gravity
 
-    // No hover descriptions — but light up the crosshair when it's over a piece
-    // or placard, so it's clear you can click. (Throttled.)
+    // Highlight the piece/placard under the crosshair so it's clearly clickable.
+    // Throttled, and skipped entirely while the camera is stationary.
     hoverAccum += dt;
     if (hoverAccum >= HOVER_INTERVAL) {
       hoverAccum = 0;
-      raycaster.setFromCamera(_center, camera);
-      var over = raycaster.intersectObjects(placardMeshes, false).length > 0 ||
-                 raycaster.intersectObjects(artworkMeshes, false).length > 0;
-      if (over !== crosshairHot) {
-        crosshairHot = over;
-        crosshair.classList.toggle('hot', over);
+      var still = camera.position.distanceToSquared(_lastRayPos) < 1e-6 &&
+                  Math.abs(camera.quaternion.dot(_lastRayQuat)) > 0.99999;
+      if (!still) {
+        _lastRayPos.copy(camera.position);
+        _lastRayQuat.copy(camera.quaternion);
+        raycaster.setFromCamera(_center, camera);
+        var hits = raycaster.intersectObjects(artworkMeshes.concat(placardMeshes), false);
+        setHover(hits.length ? hits[0].object : null);
       }
     }
   }
