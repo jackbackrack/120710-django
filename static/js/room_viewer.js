@@ -304,6 +304,10 @@ function removeArtworkMesh(mesh) {
 var placardMeshes = [];
 var PLACARD_W_IN = 5, PLACARD_H_IN = 3, PLACARD_GAP_IN = 2;
 
+// Support lookup so a piece on a pedestal can size its placard to the pedestal.
+var supportsById = {};
+(window.SUPPORTS || []).forEach(function (s) { supportsById[s.id] = s; });
+
 // "Right of the piece" in world space, matching the 2D layout's per-wall mapping.
 function wallRightDir(wall) {
   if (wall === 'N' || wall === 'S') return new THREE.Vector3(1, 0, 0);
@@ -313,12 +317,35 @@ function wallRightDir(wall) {
 
 function placardWorldPos(p) {
   var art = p.artwork;
-  var aw = art.w_in * IN2M, ah = art.h_in * IN2M;
-  var base = placementPosition(p);                    // piece centre on the wall
   var pw = PLACARD_W_IN * IN2M, ph = PLACARD_H_IN * IN2M, gap = PLACARD_GAP_IN * IN2M;
-  var pos = base.clone().addScaledVector(wallRightDir(p.wall), aw / 2 + gap + pw / 2);
-  pos.y = base.y - ah / 2 + ph / 2;                   // bottoms aligned
-  return pos.addScaledVector(wallNormal(p.wall), WALL_OFFSET);
+  if (p.wall !== 'floor' && p.wall !== 'ceiling') {
+    // Vertical wall: on the wall to the right, bottom aligned with the piece's
+    // bottom (which equals the shelf top when the piece rests on a shelf).
+    var aw = art.w_in * IN2M, ah = art.h_in * IN2M;
+    var base = placementPosition(p);
+    var pos = base.clone().addScaledVector(wallRightDir(p.wall), aw / 2 + gap + pw / 2);
+    pos.y = base.y - ah / 2 + ph / 2;
+    return pos.addScaledVector(wallNormal(p.wall), WALL_OFFSET);
+  }
+  // Floor / ceiling: a flat card lying on the surface, to the +x side of the
+  // pedestal (or the piece if none), its far (+z) edge aligned with the
+  // reference's far edge — read from above.
+  var cx, cz, ex, ez;
+  var s = (p.support != null) ? supportsById[p.support] : null;
+  if (s) {
+    cx = s.x_in; cz = s.z_in;
+    var sw = (((s.rotation || 0) % 180) === 90);
+    ex = sw ? s.d_in : s.w_in; ez = sw ? s.w_in : s.d_in;
+  } else {
+    cx = p.x_in; cz = p.z_in;
+    var depth = (art.d_in && art.d_in > 0) ? art.d_in : art.h_in;
+    var pr = (((p.rotation || 0) % 180) === 90);
+    ex = pr ? depth : art.w_in; ez = pr ? art.w_in : depth;
+  }
+  var px = (cx + ex / 2 + PLACARD_GAP_IN + PLACARD_W_IN / 2) * IN2M;
+  var pz = (cz + ez / 2 - PLACARD_H_IN / 2) * IN2M;
+  var py = (p.wall === 'ceiling') ? (H - WALL_OFFSET) : WALL_OFFSET;
+  return new THREE.Vector3(px, py, pz);
 }
 
 function _plTrunc(g, text, maxW) {
@@ -352,7 +379,6 @@ function makePlacardTexture(art) {
   return tex;
 }
 function buildPlacard(p) {
-  if (p.wall === 'floor' || p.wall === 'ceiling') return;   // wall labels only
   var geo = new THREE.PlaneGeometry(PLACARD_W_IN * IN2M, PLACARD_H_IN * IN2M);
   var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: makePlacardTexture(p.artwork), side: THREE.DoubleSide }));
   mesh.position.copy(placardWorldPos(p));
@@ -378,7 +404,6 @@ function syncPlacards(list) {
   placardMeshes.forEach(function (m) { if (m.userData.placard) byId[m.userData.placard.id] = m; });
   var seen = {};
   list.forEach(function (p) {
-    if (p.wall === 'floor' || p.wall === 'ceiling') return;
     var id = p.artwork.id; seen[id] = true;
     var mesh = byId[id];
     if (mesh && mesh.userData.wall === p.wall) mesh.position.copy(placardWorldPos(p));  // plain move
@@ -469,7 +494,11 @@ function clearSupports() {
   });
   supportMeshes = [];
 }
-function applySupports(list) { clearSupports(); (list || []).forEach(buildSupport); }
+function applySupports(list) {
+  clearSupports();
+  supportsById = {};
+  (list || []).forEach(function (s) { supportsById[s.id] = s; buildSupport(s); });
+}
 
 (window.SUPPORTS || []).forEach(buildSupport);
 

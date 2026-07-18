@@ -1016,19 +1016,26 @@
   }
   function renderPlacards() {
     stageEl.querySelectorAll('.placard-card').forEach(function (el) { el.remove(); });
-    if (currentWall === 'floor' || currentWall === 'ceiling') return;  // wall labels only
+    var onFloorView = (currentWall === 'floor' || currentWall === 'ceiling');
     Object.values(placementMap).forEach(function (p) {
       if (p.wall !== currentWall) return;
       var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
       if (!ad) return;
-      var artL = parseFloat(ad.style.left), artT = parseFloat(ad.style.top),
-          artW = parseFloat(ad.style.width), artH = parseFloat(ad.style.height);
+      // Reference rect: on the floor/ceiling a piece on a pedestal aligns to the
+      // pedestal footprint; otherwise (or on a wall) it aligns to the piece.
+      var ref = ad;
+      if (onFloorView && p.support != null) {
+        var sd = stageEl.querySelector('.support[data-sid="' + p.support + '"]');
+        if (sd) ref = sd;
+      }
+      var rL = parseFloat(ref.style.left), rT = parseFloat(ref.style.top),
+          rW = parseFloat(ref.style.width), rH = parseFloat(ref.style.height);
       var pw = PLACARD_W_IN * baseScale, ph = PLACARD_H_IN * baseScale, gap = PLACARD_GAP_IN * baseScale;
       var card = document.createElement('div');
       card.className = 'placard-card';
       card.dataset.id = p.artwork.id;
-      card.style.left   = (artL + artW + gap) + 'px';
-      card.style.top    = (artT + artH - ph) + 'px';   // bottoms aligned
+      card.style.left   = (rL + rW + gap) + 'px';    // 2" to the right
+      card.style.top    = (rT + rH - ph) + 'px';     // bottoms aligned
       card.style.width  = pw + 'px';
       card.style.height = ph + 'px';
       card.style.fontSize = Math.max(3, ph * 0.13) + 'px';
