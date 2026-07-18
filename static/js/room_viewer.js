@@ -217,6 +217,9 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
     // Depth extends inward from the wall; back face flush with the wall surface.
     box.position.copy(base.clone().addScaledVector(norm, WALL_OFFSET + ad / 2));
     box.quaternion.copy(wallQuaternion(p.wall));
+    // A 3D object resting on a shelf can be turned about the vertical axis. The
+    // wall quaternion is itself a yaw, so an extra rotateY composes cleanly.
+    if (p.support != null && p.rotation) box.rotateY(((p.rotation % 360) * Math.PI) / 180);
   }
   box.userData = { art: art, wall: p.wall, rotation: p.rotation || 0 };
   scene.add(box);

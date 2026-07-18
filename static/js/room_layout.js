@@ -808,21 +808,29 @@
     spW.value = round1(s.w_in); spH.value = round1(s.h_in); spD.value = round1(s.d_in);
     spHoriz.value = round1(worldHoriz(currentWall, s));
     spVert.value  = round1(s.y_in);
-    var spRotate = document.getElementById('sp-rotate');   // yaw only makes sense on floor/ceiling
-    if (spRotate) spRotate.style.display = (s.wall === 'floor' || s.wall === 'ceiling') ? '' : 'none';
+    var spRotate = document.getElementById('sp-rotate');   // available for every support
+    if (spRotate) spRotate.style.display = '';
   }
+  // Rotate a support and everything on it about the vertical (height) axis by 90°.
+  // On the floor/ceiling this also yaws the pedestal's own footprint; on a wall the
+  // shelf stays put but the 3D object(s) on it turn.
   function rotateSupport() {
     var s = supportMap[selectedSupportId]; if (!s) return;
-    if (s.wall !== 'floor' && s.wall !== 'ceiling') return;   // yaw only for floor/ceiling
-    s.rotation = ((s.rotation || 0) + 90) % 360;
-    stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
-    redrawSupports();
-    attachedPlacements(s.id).forEach(function (p) {           // keep attached art centered on top
+    pushUndo();
+    if (s.wall === 'floor' || s.wall === 'ceiling') {
+      s.rotation = ((s.rotation || 0) + 90) % 360;            // yaw the pedestal footprint
+    }
+    attachedPlacements(s.id).forEach(function (p) {           // turn the piece(s) on it too
+      p.rotation = ((p.rotation || 0) + 90) % 360;
+    });
+    redrawPieces();                                           // re-render art at its new footprint
+    attachedPlacements(s.id).forEach(function (p) {
       var ad = stageEl.querySelector('.placed-art[data-id="' + p.artwork.id + '"]');
       if (ad) snapArtToSupport(p, ad);
     });
     selectSupport(s);
     renderSupportBoxes();
+    if (roomChan) broadcastPlacements();                     // live-update the 3D view
     scheduleSave();
   }
   function applySupportPanel() {
