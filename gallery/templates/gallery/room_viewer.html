@@ -11,6 +11,19 @@
 #hud { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.75); font-size: .8rem; text-align: center; pointer-events: none; padding: 0 12px; }
 #placard-overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
 
+/* Full-screen placard shown when a placard is clicked in 3D. */
+#placard-fullscreen { position: absolute; inset: 0; display: none; z-index: 20;
+  background: rgba(20,20,20,.72); align-items: center; justify-content: center; cursor: zoom-out; }
+#placard-fullscreen .pfs-card { position: relative; background: #fff; color: #1a1a1a; border: 3px solid #333;
+  width: min(680px, 86%); padding: 40px 44px; border-radius: 4px; box-shadow: 0 12px 48px rgba(0,0,0,.5);
+  font-family: sans-serif; cursor: auto; }
+#placard-fullscreen .pfs-name   { font-size: 2rem; font-weight: 700; line-height: 1.15; margin-bottom: 8px; }
+#placard-fullscreen .pfs-artist { font-size: 1.25rem; margin-bottom: 14px; }
+#placard-fullscreen .pfs-meta   { font-size: 1rem; color: #555; margin-bottom: 6px; }
+#placard-fullscreen .pfs-price  { font-size: 1.05rem; font-weight: 700; margin-top: 14px; }
+#placard-fullscreen .pfs-close  { position: absolute; top: 10px; right: 16px; color: #999;
+  font-size: 1.6rem; line-height: 1; cursor: pointer; }
+
 /* On-screen walk + reset controls for touch devices (no keyboard/pointer-lock).
    Looking around (all directions) is done by dragging on the view. A single
    horizontal row hugging the bottom edge keeps the view as clear as possible. */
@@ -36,8 +49,9 @@
 <div id="viewer-root">
   <canvas id="viewer-canvas"></canvas>
   <div id="crosshair">+</div>
-  <div id="hud">Click to enter · WASD / arrows to move · Q/E to turn · R to reset · Mouse to look · ESC to exit</div>
+  <div id="hud">Click to enter · WASD / arrows to move · Q/E to turn · R to reset · Mouse to look · click a piece to open it, a placard to enlarge · ESC to exit</div>
   <div id="placard-overlay"></div>
+  <div id="placard-fullscreen"><div class="pfs-card"><span class="pfs-close">×</span></div></div>
   <div id="touch-controls">
     <button id="tc-fwd" class="tc-btn" aria-label="Walk forward">▲</button>
     <button id="tc-back" class="tc-btn" aria-label="Walk back">▼</button>
@@ -60,6 +74,7 @@ window.ROOM_CONFIG   = {{ config_json|safe }};
 window.PLACEMENTS    = {{ placements_json|safe }};
 window.ROOM_SLUG     = "{{ show.slug }}";
 window.SUPPORTS      = {{ supports_json|default:"[]"|safe }};
+window.ARTWORK_URL   = "{% url 'gallery:artwork_detail' 0 %}";   // '0' placeholder → replaced with the piece id
 </script>
 <script type="module" src="{% static 'js/room_viewer.js' %}"></script>
 {% endblock %}

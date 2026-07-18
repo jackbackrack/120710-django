@@ -298,6 +298,99 @@ function removeArtworkMesh(mesh) {
   });
 }
 
+// ── Placards (5"×3" wall labels) ─────────────────────────────────────────────
+// A physical label to the right of each wall-hung piece (2" gap, bottoms aligned),
+// facing the same way as the piece. Click it in 3D to expand it full screen.
+var placardMeshes = [];
+var PLACARD_W_IN = 5, PLACARD_H_IN = 3, PLACARD_GAP_IN = 2;
+
+// "Right of the piece" in world space, matching the 2D layout's per-wall mapping.
+function wallRightDir(wall) {
+  if (wall === 'N' || wall === 'S') return new THREE.Vector3(1, 0, 0);
+  if (wall === 'E') return new THREE.Vector3(0, 0, 1);
+  return new THREE.Vector3(0, 0, -1);   // W
+}
+
+function placardWorldPos(p) {
+  var art = p.artwork;
+  var aw = art.w_in * IN2M, ah = art.h_in * IN2M;
+  var base = placementPosition(p);                    // piece centre on the wall
+  var pw = PLACARD_W_IN * IN2M, ph = PLACARD_H_IN * IN2M, gap = PLACARD_GAP_IN * IN2M;
+  var pos = base.clone().addScaledVector(wallRightDir(p.wall), aw / 2 + gap + pw / 2);
+  pos.y = base.y - ah / 2 + ph / 2;                   // bottoms aligned
+  return pos.addScaledVector(wallNormal(p.wall), WALL_OFFSET);
+}
+
+function _plTrunc(g, text, maxW) {
+  if (g.measureText(text).width <= maxW) return text;
+  var s = text;
+  while (s.length > 1 && g.measureText(s + '…').width > maxW) s = s.slice(0, -1);
+  return s + '…';
+}
+function makePlacardTexture(art) {
+  var cw = 500, ch = 300, pad = 26;
+  var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+  var g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch);
+  g.strokeStyle = '#333'; g.lineWidth = 6; g.strokeRect(3, 3, cw - 6, ch - 6);
+  g.textBaseline = 'top';
+  var x = pad, y = pad, maxW = cw - pad * 2;
+  g.fillStyle = '#111'; g.font = 'bold 36px sans-serif';
+  g.fillText(_plTrunc(g, art.name || '', maxW), x, y); y += 46;
+  if (art.artists) { g.fillStyle = '#333'; g.font = '28px sans-serif';
+    g.fillText(_plTrunc(g, art.artists, maxW), x, y); y += 38; }
+  g.fillStyle = '#555'; g.font = '24px sans-serif';
+  var meta = [];
+  if (art.year)   meta.push(String(art.year));
+  if (art.medium) meta.push(art.medium);
+  if (art.dims)   meta.push(art.dims);
+  if (meta.length) { g.fillText(_plTrunc(g, meta.join(', '), maxW), x, y); y += 34; }
+  if (art.price) { g.fillStyle = '#111'; g.font = 'bold 24px sans-serif';
+    g.fillText(_plTrunc(g, art.price + (art.sold ? ' — sold' : ''), maxW), x, y); }
+  var tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  return tex;
+}
+function buildPlacard(p) {
+  if (p.wall === 'floor' || p.wall === 'ceiling') return;   // wall labels only
+  var geo = new THREE.PlaneGeometry(PLACARD_W_IN * IN2M, PLACARD_H_IN * IN2M);
+  var mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: makePlacardTexture(p.artwork), side: THREE.DoubleSide }));
+  mesh.position.copy(placardWorldPos(p));
+  mesh.quaternion.copy(wallQuaternion(p.wall));
+  mesh.userData = { placard: p.artwork, wall: p.wall };
+  scene.add(mesh);
+  placardMeshes.push(mesh);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+                                  new THREE.MeshBasicMaterial({ color: 0x333333 })));
+}
+function removePlacardMesh(mesh) {
+  scene.remove(mesh);
+  var i = placardMeshes.indexOf(mesh);
+  if (i !== -1) placardMeshes.splice(i, 1);
+  mesh.traverse(function (o) {
+    if (o.geometry) o.geometry.dispose();
+    var mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    mats.forEach(function (m) { if (m.map) m.map.dispose(); if (m.dispose) m.dispose(); });
+  });
+}
+function syncPlacards(list) {
+  var byId = {};
+  placardMeshes.forEach(function (m) { if (m.userData.placard) byId[m.userData.placard.id] = m; });
+  var seen = {};
+  list.forEach(function (p) {
+    if (p.wall === 'floor' || p.wall === 'ceiling') return;
+    var id = p.artwork.id; seen[id] = true;
+    var mesh = byId[id];
+    if (mesh && mesh.userData.wall === p.wall) mesh.position.copy(placardWorldPos(p));  // plain move
+    else { if (mesh) removePlacardMesh(mesh); buildPlacard(p); }
+  });
+  placardMeshes.slice().forEach(function (m) {
+    if (m.userData.placard && !seen[m.userData.placard.id]) removePlacardMesh(m);
+  });
+}
+
+placements.forEach(buildPlacard);
+
 // Live sync from the layout editor (BroadcastChannel): reposition unchanged pieces
 // in place (no texture reload), rebuild those whose wall/rotation changed, add new
 // ones, and remove any that are gone.
@@ -320,6 +413,7 @@ function applyPlacements(list) {
   artworkMeshes.slice().forEach(function (m) {
     if (m.userData && m.userData.art && !seen[m.userData.art.id]) removeArtworkMesh(m);
   });
+  syncPlacards(list);
 }
 
 // ── Supports (pedestals / shelves): plain boxes ──────────────────────────────
@@ -446,7 +540,8 @@ if (TOUCH) {
   setupTouchControls();
 } else {
   renderer.domElement.addEventListener('click', function () {
-    if (!controls.isLocked) controls.lock();
+    if (!controls.isLocked) { controls.lock(); return; }   // first click enters look mode
+    pickAt(0, 0);                                           // then a click acts on the crosshair
   });
   controls.addEventListener('lock', function () {
     crosshair.style.display = 'block';
@@ -494,7 +589,11 @@ function setupTouchControls() {
     dragging = false;
     const now = performance.now();
     if (!moved && now - tapStartT < TAP_MAX_MS) {
-      // Quick stationary tap — a second one right after resets the view.
+      // A tap on a piece/placard acts on it; otherwise a second tap resets the view.
+      var rect = el.getBoundingClientRect();
+      var nx = ((tapStartX - rect.left) / rect.width) * 2 - 1;
+      var ny = -(((tapStartY - rect.top) / rect.height) * 2 - 1);
+      if (pickAt(nx, ny)) { lastTapT = 0; return; }
       if (now - lastTapT < DOUBLE_TAP_MS) { resetCamera(); lastTapT = 0; }
       else lastTapT = now;
     }
@@ -574,6 +673,82 @@ function updatePlacard(art, screenX, screenY) {
     '</div>';
 }
 
+// ── Click interactions: open a piece's detail page, or enlarge a placard ───────
+const _ndc = new THREE.Vector2();
+const placardFS = document.getElementById('placard-fullscreen');
+
+function openArtwork(art) {
+  if (!art || !window.ARTWORK_URL) return;
+  saveCameraState();                                   // so the browser Back button returns here
+  window.location.href = window.ARTWORK_URL.replace(/0\/?$/, art.id + '/');
+}
+
+function openPlacardFullscreen(art) {
+  if (!art || !placardFS) return;
+  if (controls.isLocked) controls.unlock();            // free the cursor for the overlay
+  var meta = [];
+  if (art.year)   meta.push(esc(String(art.year)));
+  if (art.medium) meta.push(esc(art.medium));
+  if (art.dims)   meta.push(esc(art.dims));
+  var card = placardFS.querySelector('.pfs-card');
+  card.innerHTML =
+    '<span class="pfs-close">×</span>' +
+    '<div class="pfs-name">' + esc(art.name || '') + '</div>' +
+    (art.artists ? '<div class="pfs-artist">' + esc(art.artists) + '</div>' : '') +
+    (meta.length ? '<div class="pfs-meta">' + meta.join(' · ') + '</div>' : '') +
+    (art.price ? '<div class="pfs-price">' + esc(art.price) + (art.sold ? ' — sold' : '') + '</div>' : '');
+  placardFS.style.display = 'flex';
+}
+function closePlacardFullscreen() { if (placardFS) placardFS.style.display = 'none'; }
+if (placardFS) {
+  placardFS.addEventListener('click', function (e) {
+    // Click the backdrop or the × to close; clicks inside the card do nothing.
+    if (e.target === placardFS || e.target.classList.contains('pfs-close')) closePlacardFullscreen();
+  });
+}
+
+// Raycast at NDC coords; a placard wins over a piece behind it. Returns true if
+// something was picked.
+function pickAt(x, y) {
+  _ndc.set(x, y);
+  raycaster.setFromCamera(_ndc, camera);
+  var pl = raycaster.intersectObjects(placardMeshes, false);
+  var ar = raycaster.intersectObjects(artworkMeshes, false);
+  var plHit = pl.length ? pl[0] : null;
+  var arHit = ar.length ? ar[0] : null;
+  if (plHit && (!arHit || plHit.distance <= arHit.distance)) { openPlacardFullscreen(plHit.object.userData.placard); return true; }
+  if (arHit) { openArtwork(arHit.object.userData.art); return true; }
+  return false;
+}
+
+// Persist / restore the camera so leaving for a detail page and coming Back lands
+// exactly where you left off (cleared once consumed, so a fresh visit is default).
+const CAM_KEY = 'room3d-cam-' + (window.ROOM_SLUG || '');
+function saveCameraState() {
+  try {
+    sessionStorage.setItem(CAM_KEY, JSON.stringify({
+      p: camera.position.toArray(), q: camera.quaternion.toArray(),
+      yaw: yaw, pitch: pitch, touch: TOUCH,
+    }));
+  } catch (e) {}
+}
+function restoreCameraState() {
+  try {
+    var raw = sessionStorage.getItem(CAM_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(CAM_KEY);
+    var s = JSON.parse(raw);
+    if (s.p) camera.position.fromArray(s.p);
+    if (TOUCH) { yaw = s.yaw || 0; pitch = s.pitch || 0; applyLook(); }
+    else if (s.q) camera.quaternion.fromArray(s.q);
+  } catch (e) {}
+}
+// If the browser restores this page from the back/forward cache, the live camera
+// is already intact — just drop the saved state so a later fresh visit is default.
+window.addEventListener('pageshow', function (e) {
+  if (e.persisted) { try { sessionStorage.removeItem(CAM_KEY); } catch (err) {} }
+});
+
 // ── Animate ───────────────────────────────────────────────────────────────────
 function animate(now) {
   requestAnimationFrame(animate);
@@ -632,4 +807,5 @@ const ro = new ResizeObserver(setSize);
 ro.observe(canvas.parentElement);
 setSize();
 
+restoreCameraState();   // return-to-exact-view after visiting an artwork's detail page
 requestAnimationFrame(animate);
