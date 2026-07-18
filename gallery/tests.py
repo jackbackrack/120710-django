@@ -2578,6 +2578,42 @@ class SanitizeFilterTests(TestCase):
         self.assertEqual(self._s(None), '')
 
 
+class SupportSaveTests(TestCase):
+    """Supports (pedestals/shelves) persist and link to the pieces on them."""
+
+    def setUp(self):
+        import json
+        self.json = json
+        self.staff = User.objects.create_user(
+            username='sup-staff@example.com', email='sup-staff@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.show = Show.objects.create(
+            name='Support Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7))
+        self.artwork = Artwork.objects.create(
+            name='Bust', end_year=2025, width_inches=10, height_inches=14, depth_inches=8)
+        self.show.artworks.add(self.artwork)
+        self.client.force_login(self.staff)
+
+    def test_support_and_link_persist(self):
+        from gallery.models import Support, WallPlacement
+        payload = {
+            'supports': [{'key': 's1', 'kind': 'shelf', 'wall': 'N', 'x_in': 0, 'y_in': 48,
+                          'z_in': 0, 'w_in': 36, 'h_in': 2, 'd_in': 8, 'rotation': 0, 'label': 'Shelf A'}],
+            'placements': [{'artwork_id': self.artwork.pk, 'wall': 'N', 'x_in': 0, 'y_in': 50,
+                            'z_in': 0, 'rotation': 0, 'group': None, 'support': 's1'}],
+        }
+        r = self.client.post(
+            reverse('gallery:room_layout_save', kwargs={'slug': self.show.slug}),
+            data=self.json.dumps(payload), content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        s = Support.objects.get(show=self.show)
+        self.assertEqual(s.kind, 'shelf')
+        self.assertEqual(s.w_in, 36.0)
+        wp = WallPlacement.objects.get(show=self.show)
+        self.assertEqual(wp.support_id, s.pk)
+
+
 class RoomTwoDViewTests(TestCase):
     """Read-only 2D layout viewer (artists checking where to install)."""
 

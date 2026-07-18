@@ -76,8 +76,46 @@ class WallPlacement(models.Model):
     # together in the layout editor. Null = ungrouped.
     group = models.IntegerField(null=True, blank=True)
 
+    # The support (pedestal/shelf) this piece sits on, if any. The piece is
+    # centered on the support and moves with it; layout ops still use the piece's
+    # own geometry. Null = hung/placed directly.
+    support = models.ForeignKey(
+        'gallery.Support', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='artworks',
+    )
+
     class Meta:
         unique_together = [('show', 'artwork')]
 
     def __str__(self):
         return f'{self.artwork} on {self.get_wall_display()} wall of {self.show}'
+
+
+class Support(models.Model):
+    """A pedestal or shelf a piece can sit on — a plain cuboid in the layout."""
+    PEDESTAL = 'pedestal'
+    SHELF    = 'shelf'
+    KIND_CHOICES = [(PEDESTAL, 'Pedestal'), (SHELF, 'Shelf')]
+
+    show   = models.ForeignKey('gallery.Show', on_delete=models.CASCADE, related_name='supports')
+    kind   = models.CharField(max_length=12, choices=KIND_CHOICES, default=PEDESTAL)
+    wall   = models.CharField(max_length=8, choices=WALL_CHOICES)
+    label  = models.CharField(max_length=100, blank=True)
+
+    # Center position (inches), same convention as WallPlacement.
+    x_in = models.FloatField(default=0)
+    y_in = models.FloatField(default=0)
+    z_in = models.FloatField(default=0)
+
+    # Cuboid dimensions: w along the wall, h vertical, d depth into the room.
+    w_in = models.FloatField(default=16)
+    h_in = models.FloatField(default=40)
+    d_in = models.FloatField(default=16)
+
+    rotation = models.IntegerField(default=0)  # yaw for floor/ceiling supports
+
+    class Meta:
+        ordering = ['wall', 'x_in']
+
+    def __str__(self):
+        return f'{self.get_kind_display()} on {self.get_wall_display()} of {self.show}'

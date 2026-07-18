@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
 from gallery.models import Artwork, Show, WallPlacement
-from gallery.models.room import RoomConfig
+from gallery.models.room import RoomConfig, Support
 from gallery.permissions import can_manage_show
 
 _DEFAULT_CONFIG = {'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0,
@@ -71,9 +71,19 @@ def _placements_json(placed):
     return json.dumps([
         {'artwork': _artwork_json(wp.artwork), 'wall': wp.wall,
          'x_in': wp.x_in, 'y_in': wp.y_in, 'z_in': wp.z_in, 'rotation': wp.rotation,
-         'group': wp.group}
+         'group': wp.group, 'support': wp.support_id}
         for wp in placed
     ])
+
+
+def _support_json(s):
+    return {'id': s.pk, 'kind': s.kind, 'wall': s.wall, 'label': s.label,
+            'x_in': s.x_in, 'y_in': s.y_in, 'z_in': s.z_in,
+            'w_in': s.w_in, 'h_in': s.h_in, 'd_in': s.d_in, 'rotation': s.rotation}
+
+
+def _supports_json(show):
+    return json.dumps([_support_json(s) for s in show.supports.all()])
 
 
 @login_required
@@ -96,6 +106,7 @@ def room_layout(request, slug):
         'config_json': config_json,
         'placements_json': placements_json,
         'pool_json': pool_json,
+        'supports_json': _supports_json(show),
     })
 
 
@@ -120,6 +131,7 @@ def room_2d(request, slug):
         'config_json': json.dumps(_config_dict(config)),
         'placements_json': _placements_json(placed),
         'pool_json': '[]',
+        'supports_json': _supports_json(show),
         'readonly': True,
     })
 
@@ -144,8 +156,29 @@ def room_layout_save(request, slug):
             config.height_in = float(room_cfg.get('height_in', config.height_in))
             config.save()
 
-    WallPlacement.objects.filter(show=show).delete()
     errors = []
+
+    # Rebuild supports first, mapping each payload's client key → the new row so
+    # placements can reference the support they sit on.
+    WallPlacement.objects.filter(show=show).delete()
+    Support.objects.filter(show=show).delete()
+    support_by_key = {}
+    for item in data.get('supports', []):
+        try:
+            kind = item.get('kind')
+            if kind not in (Support.PEDESTAL, Support.SHELF):
+                kind = Support.PEDESTAL
+            s = Support.objects.create(
+                show=show, kind=kind, wall=item['wall'], label=item.get('label', '') or '',
+                x_in=float(item['x_in']), y_in=float(item['y_in']), z_in=float(item['z_in']),
+                w_in=float(item['w_in']), h_in=float(item['h_in']), d_in=float(item['d_in']),
+                rotation=(int(item.get('rotation', 0) or 0) % 360) if (int(item.get('rotation', 0) or 0) % 360) in (0, 90, 180, 270) else 0,
+            )
+            if item.get('key') is not None:
+                support_by_key[str(item['key'])] = s
+        except (KeyError, ValueError, TypeError) as e:
+            errors.append(str(e))
+
     for item in data.get('placements', []):
         try:
             artwork = Artwork.objects.get(pk=item['artwork_id'])
@@ -158,6 +191,7 @@ def room_layout_save(request, slug):
                 z_in=float(item['z_in']),
                 rotation=(int(item.get('rotation', 0) or 0) % 360) if (int(item.get('rotation', 0) or 0) % 360) in (0, 90, 180, 270) else 0,
                 group=(int(item['group']) if item.get('group') not in (None, '') else None),
+                support=support_by_key.get(str(item.get('support'))) if item.get('support') not in (None, '') else None,
             )
         except (Artwork.DoesNotExist, KeyError, ValueError) as e:
             errors.append(str(e))
@@ -185,4 +219,5 @@ def room_viewer(request, slug):
         'show': show,
         'config_json': config_json,
         'placements_json': placements_json,
+        'supports_json': _supports_json(show),
     })
