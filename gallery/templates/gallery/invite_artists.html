@@ -23,7 +23,7 @@
                 class="form-control font-monospace"
                 style="font-size:0.85rem">{{ current_emails }}</textarea>
       <p class="text-muted small mt-1">
-        Only people who haven't been emailed yet get an invitation, so you can add more names later without re-emailing everyone. Emails removed here have their invitation deleted (unless the artist has already submitted). Fix a wrong address or resend in the table below.
+        Only people who haven't been emailed yet get an invitation, so you can add more names later without re-emailing everyone. Emails removed here have their invitation deleted (unless the artist has already submitted). In the table below you can fix a wrong address, resend, or <strong>Copy link</strong> to send the accept link yourself (text, DM, another email) if the invitation email doesn't arrive — it works with whatever account the artist signs in with. The <strong>Accepted</strong> column shows who has claimed their invitation.
       </p>
     </div>
     <button type="submit" class="btn btn-sm btn-primary">Save &amp; Send Invitations</button>
@@ -42,6 +42,7 @@
         <th class="text-center" title="Number of artworks the artist has uploaded">Artworks</th>
         <th class="text-center" title="Number of artworks submitted to this show">Submitted</th>
         <th>Sent</th>
+        <th class="text-center" title="Invitee opened their accept link and linked it to an account">Accepted</th>
         <th></th>
       </tr>
     </thead>
@@ -84,6 +85,13 @@
         </td>
         <td class="py-2 text-muted">
           {% if row.email_sent %}{{ row.invitation.email_sent_at|date:"M d, Y" }}{% else %}<span class="text-warning">not sent</span>{% endif %}
+        </td>
+        <td class="py-2 text-center">
+          {% if row.claimed %}
+            <span class="text-success" title="Accepted{% if row.claimed_email %} by {{ row.claimed_email }}{% endif %}{% if row.invitation.claimed_at %} on {{ row.invitation.claimed_at|date:'M d, Y' }}{% endif %}">✓{% if row.claimed_email and row.claimed_email != row.invitation.email %} <span class="small text-muted">({{ row.claimed_email }})</span>{% endif %}</span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
         </td>
         <td class="py-2">
           <form method="post" style="display:inline">

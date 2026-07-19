@@ -374,7 +374,7 @@ def invite_artists(request, slug):
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
-    invitations = show.invitations.select_related('artist', 'artist__user').order_by('email')
+    invitations = show.invitations.select_related('artist', 'artist__user', 'claimed_by').order_by('email')
     current_emails = '\n'.join(inv.email for inv in invitations)
 
     # Submission counts to THIS show, keyed by lowercased submitter email.
@@ -401,6 +401,7 @@ def invite_artists(request, slug):
             'artist': artist,
             'email_sent': bool(inv.email_sent_at),
             'claimed': bool(inv.claimed_by_id),
+            'claimed_email': (inv.claimed_by.email if inv.claimed_by_id else ''),
             'accept_url': request.build_absolute_uri(inv.get_accept_url()),
             'has_account': email in accounts or bool(artist and artist.user_id),
             'info_complete': bool(artist and artist.image and artist.first_name
