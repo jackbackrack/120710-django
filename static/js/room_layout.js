@@ -522,12 +522,20 @@
   }
   var LABEL_MAX_FONT = 8, HANG_MAX_FONT = 7;   // px at zoom=1; JS scales down to fit
 
+  // The artwork name label is a FIXED physical size (not fit-to-width, which made
+  // every piece a different size). Sized so ~NAME_CHARS_PER_IN characters fit per
+  // inch of wall — i.e. ~24 characters across a 12" piece. CHAR_W_RATIO is the
+  // average glyph advance as a fraction of the font size for the label font.
+  var NAME_CHARS_PER_IN = 2, CHAR_W_RATIO = 0.5;
+  function nameFontPx() { return baseScale / (NAME_CHARS_PER_IN * CHAR_W_RATIO); }
+
   // Compact inches: drop trailing ".0" (12.0 → "12", 12.5 → "12.5")
   function fmtIn(v) { var r = Math.round(v * 10) / 10; return r % 1 === 0 ? r.toFixed(0) : r.toFixed(1); }
 
   function fitLabel(div) {
-    fitTextEl(div.querySelector('.placard-bar'), LABEL_MAX_FONT);
-    fitTextEl(div.querySelector('.art-dims'),    HANG_MAX_FONT);
+    var bar = div.querySelector('.placard-bar');
+    if (bar) bar.style.fontSize = nameFontPx() + 'px';   // fixed physical size; overflow → ellipsis
+    fitTextEl(div.querySelector('.art-dims'), HANG_MAX_FONT);
   }
 
   // Distance from each artwork edge to the corresponding wall edge, computed
