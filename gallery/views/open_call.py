@@ -177,6 +177,22 @@ def _send_invitation_email(show, email, request):
     )
 
 
+def _send_unsent_invitations(show, request, emails=None):
+    """Email every invitation that hasn't been emailed yet (optionally restricted
+    to `emails`), stamp email_sent_at, and return how many were sent."""
+    from django.utils import timezone
+    qs = show.invitations.filter(email_sent_at__isnull=True)
+    if emails is not None:
+        qs = qs.filter(email__in=list(emails))
+    sent = 0
+    for inv in qs:
+        _send_invitation_email(show, inv.email, request)
+        inv.email_sent_at = timezone.now()
+        inv.save(update_fields=['email_sent_at'])
+        sent += 1
+    return sent
+
+
 @login_required
 def send_submission_reminders(request, slug):
     show = get_object_or_404(Show, slug=slug)
@@ -258,6 +274,17 @@ def invite_artists(request, slug):
                 )
                 inv.save(update_fields=['email', 'artist'])
                 messages.success(request, f'Invitation updated to {new_email}.')
+        elif action == 'resend':
+            inv_pk = request.POST.get('invitation_pk')
+            inv = show.invitations.filter(pk=inv_pk).first()
+            if inv is None:
+                messages.error(request, 'Invitation not found.')
+            else:
+                from django.utils import timezone
+                _send_invitation_email(show, inv.email, request)
+                inv.email_sent_at = timezone.now()
+                inv.save(update_fields=['email_sent_at'])
+                messages.success(request, f'Invitation re-sent to {inv.email}.')
         else:
             raw = request.POST.get('emails', '')
             new_emails = {
@@ -267,6 +294,7 @@ def invite_artists(request, slug):
             existing_map = {inv.email.lower(): inv for inv in show.invitations.all()}
             existing_emails = set(existing_map)
 
+            # Create rows for genuinely new emails (no send yet — see below).
             added = 0
             for email in sorted(new_emails - existing_emails):
                 invitation = ShowInvitation.objects.create(
@@ -279,8 +307,11 @@ def invite_artists(request, slug):
                 if artist:
                     invitation.artist = artist
                     invitation.save(update_fields=['artist'])
-                _send_invitation_email(show, email, request)
                 added += 1
+
+            # Email everyone in the list who hasn't been emailed yet — new rows AND
+            # any earlier rows that were never sent. Already-sent people are skipped.
+            sent = _send_unsent_invitations(show, request, emails=new_emails)
 
             submitted_emails = {
                 e.lower() for e in
@@ -298,8 +329,10 @@ def invite_artists(request, slug):
                     removed += 1
 
             parts = []
-            if added:
-                parts.append(f'{added} invitation{"s" if added != 1 else ""} sent')
+            if sent:
+                parts.append(f'{sent} invitation{"s" if sent != 1 else ""} sent')
+            if added and added != sent:
+                parts.append(f'{added} added')
             if removed:
                 parts.append(f'{removed} removed')
             if kept:
@@ -339,6 +372,7 @@ def invite_artists(request, slug):
         invitation_rows.append({
             'invitation': inv,
             'artist': artist,
+            'email_sent': bool(inv.email_sent_at),
             'has_account': email in accounts or bool(artist and artist.user_id),
             'info_complete': bool(artist and artist.image and artist.first_name
                                   and artist.last_name and artist.zipcode),

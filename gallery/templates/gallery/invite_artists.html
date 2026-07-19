@@ -23,7 +23,7 @@
                 class="form-control font-monospace"
                 style="font-size:0.85rem">{{ current_emails }}</textarea>
       <p class="text-muted small mt-1">
-        Emails added here will be sent an invitation. Emails removed will have their invitation deleted (unless the artist has already submitted).
+        Only people who haven't been emailed yet get an invitation, so you can add more names later without re-emailing everyone. Emails removed here have their invitation deleted (unless the artist has already submitted). Fix a wrong address or resend in the table below.
       </p>
     </div>
     <button type="submit" class="btn btn-sm btn-primary">Save &amp; Send Invitations</button>
@@ -82,13 +82,22 @@
             <a class="card__link fw-semibold text-success" href="{% url 'gallery:show_submissions' show.slug %}?artist={{ row.artist.pk }}" title="Review this artist's submissions to this show">{{ row.submitted_count }}</a>
           {% elif row.submitted_count %}<span class="text-success fw-semibold">{{ row.submitted_count }}</span>{% else %}<span class="text-muted">0</span>{% endif %}
         </td>
-        <td class="py-2 text-muted">{{ row.invitation.sent_at|date:"M d, Y" }}</td>
+        <td class="py-2 text-muted">
+          {% if row.email_sent %}{{ row.invitation.email_sent_at|date:"M d, Y" }}{% else %}<span class="text-warning">not sent</span>{% endif %}
+        </td>
         <td class="py-2">
+          <form method="post" style="display:inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="resend">
+            <input type="hidden" name="invitation_pk" value="{{ row.invitation.pk }}">
+            <button type="submit" class="btn btn-sm btn-link p-0 card__link"
+                    onclick="return confirm('{% if row.email_sent %}Re-send{% else %}Send{% endif %} the invitation email to {{ row.invitation.email }}?')">{% if row.email_sent %}Resend{% else %}Send{% endif %}</button>
+          </form>
           <form method="post" style="display:inline">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="invitation_pk" value="{{ row.invitation.pk }}">
-            <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
+            <button type="submit" class="btn btn-sm btn-link p-0 text-danger ms-2"
                     onclick="return confirm('Remove invitation for {{ row.invitation.email }}?')">Remove</button>
           </form>
         </td>

@@ -161,7 +161,10 @@ class ShowInvitation(models.Model):
     invited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='sent_invitations',
     )
-    sent_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(auto_now_add=True)   # row created
+    # When the invitation email was actually sent. Null = never emailed, so a later
+    # "Save & Send" (or Resend) will email this person; already-sent ones are skipped.
+    email_sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('show', 'email')

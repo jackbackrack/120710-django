@@ -1982,6 +1982,30 @@ class InviteArtistsEditTests(TestCase):
         self.inv.refresh_from_db()
         self.assertEqual(self.inv.email, 'wrong@example.com')   # unchanged
 
+    def test_bulk_add_only_emails_not_yet_sent(self):
+        from django.core import mail
+        from django.utils import timezone
+        from gallery.models.exhibitions import ShowInvitation
+        # existing invitation already emailed → must not be re-sent
+        self.inv.email_sent_at = timezone.now()
+        self.inv.save(update_fields=['email_sent_at'])
+        mail.outbox = []
+        self.client.post(self._url(), {'emails': 'wrong@example.com\nfresh@example.com'})
+        # only the new address was emailed
+        recipients = [addr for m in mail.outbox for addr in m.to]
+        self.assertIn('fresh@example.com', recipients)
+        self.assertNotIn('wrong@example.com', recipients)
+        self.assertIsNotNone(ShowInvitation.objects.get(show=self.show, email='fresh@example.com').email_sent_at)
+
+    def test_resend_action_emails_again(self):
+        from django.core import mail
+        from django.utils import timezone
+        self.inv.email_sent_at = timezone.now()
+        self.inv.save(update_fields=['email_sent_at'])
+        mail.outbox = []
+        self.client.post(self._url(), {'action': 'resend', 'invitation_pk': self.inv.pk})
+        self.assertIn('wrong@example.com', [addr for m in mail.outbox for addr in m.to])
+
     def test_edit_relinks_artist(self):
         target = Artist.objects.create(
             user=User.objects.create_user(username='real@example.com', email='real@example.com', password='pw'),
