@@ -48,7 +48,17 @@
     <tbody>
       {% for row in invitation_rows %}
       <tr class="border-bottom">
-        <td class="py-2">{{ row.invitation.email }}</td>
+        <td class="py-2">
+          <form method="post" style="display:flex;gap:6px;align-items:center;margin:0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="invitation_pk" value="{{ row.invitation.pk }}">
+            <input type="email" name="email" value="{{ row.invitation.email }}"
+                   class="form-control form-control-sm" style="width:16em;font-size:.8rem"
+                   aria-label="Invitation email">
+            <button type="submit" class="btn btn-sm btn-link p-0 card__link" title="Save the corrected email">Save</button>
+          </form>
+        </td>
         <td class="py-2">
           {% if row.artist %}
             <a class="card__link" href="{{ row.artist.get_absolute_url }}">{{ row.artist.name }}</a>

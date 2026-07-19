@@ -1945,6 +1945,53 @@ class ArtworkCreateAutoAssignTests(TestCase):
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     }
 )
+class InviteArtistsEditTests(TestCase):
+    """Curators can correct the email on an existing invitation."""
+
+    def setUp(self):
+        self.curator_user = User.objects.create_user(
+            username='cur@example.com', email='cur@example.com', password='pw', is_staff=True)
+        self.curator = Artist.objects.create(
+            user=self.curator_user, name='Cur', first_name='Cur', last_name='Ator', email='cur@example.com')
+        self.show = Show.objects.create(
+            name='Invite Edit Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+            status=Show.STATUS_OPEN_CALL, submission_type=Show.SUBMISSION_INVITED)
+        self.show.curators.add(self.curator)
+        from gallery.models.exhibitions import ShowInvitation
+        self.inv = ShowInvitation.objects.create(
+            show=self.show, email='wrong@example.com', invited_by=self.curator_user)
+        self.client.force_login(self.curator_user)
+
+    def _url(self):
+        return reverse('gallery:invite_artists', kwargs={'slug': self.show.slug})
+
+    def test_edit_updates_invitation_email(self):
+        from gallery.models.exhibitions import ShowInvitation
+        r = self.client.post(self._url(), {
+            'action': 'edit', 'invitation_pk': self.inv.pk, 'email': 'Right@Example.com'})
+        self.assertEqual(r.status_code, 302)
+        self.inv.refresh_from_db()
+        self.assertEqual(self.inv.email, 'right@example.com')
+
+    def test_edit_rejects_duplicate_email(self):
+        from gallery.models.exhibitions import ShowInvitation
+        ShowInvitation.objects.create(show=self.show, email='taken@example.com', invited_by=self.curator_user)
+        self.client.post(self._url(), {
+            'action': 'edit', 'invitation_pk': self.inv.pk, 'email': 'taken@example.com'})
+        self.inv.refresh_from_db()
+        self.assertEqual(self.inv.email, 'wrong@example.com')   # unchanged
+
+    def test_edit_relinks_artist(self):
+        target = Artist.objects.create(
+            user=User.objects.create_user(username='real@example.com', email='real@example.com', password='pw'),
+            name='Real', first_name='Real', last_name='Artist', email='real@example.com')
+        self.client.post(self._url(), {
+            'action': 'edit', 'invitation_pk': self.inv.pk, 'email': 'real@example.com'})
+        self.inv.refresh_from_db()
+        self.assertEqual(self.inv.artist_id, target.id)
+
+
 class InvitedShowDisplayTests(TestCase):
     """Tests that invited shows suppress Open Call label and deadline for non-invited users."""
 

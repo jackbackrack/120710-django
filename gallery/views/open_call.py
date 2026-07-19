@@ -239,6 +239,25 @@ def invite_artists(request, slug):
             inv_pk = request.POST.get('invitation_pk')
             ShowInvitation.objects.filter(pk=inv_pk, show=show).delete()
             messages.success(request, 'Invitation removed.')
+        elif action == 'edit':
+            inv_pk = request.POST.get('invitation_pk')
+            new_email = (request.POST.get('email') or '').strip().lower()
+            inv = ShowInvitation.objects.filter(pk=inv_pk, show=show).first()
+            if inv is None:
+                messages.error(request, 'Invitation not found.')
+            elif not _re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', new_email):
+                messages.error(request, 'Please enter a valid email address.')
+            elif show.invitations.exclude(pk=inv.pk).filter(email__iexact=new_email).exists():
+                messages.error(request, f'{new_email} is already invited to this show.')
+            else:
+                inv.email = new_email
+                # Re-link the artist that owns the corrected email, if any.
+                inv.artist = (
+                    Artist.objects.filter(user__email__iexact=new_email).first()
+                    or Artist.objects.filter(email__iexact=new_email, user__isnull=True).first()
+                )
+                inv.save(update_fields=['email', 'artist'])
+                messages.success(request, f'Invitation updated to {new_email}.')
         else:
             raw = request.POST.get('emails', '')
             new_emails = {
