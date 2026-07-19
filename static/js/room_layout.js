@@ -1002,7 +1002,7 @@
   // ── Placards (5"×3" wall labels) ───────────────────────────────────────────
   // A physical label to the right of each wall-hung piece: 2" gap, bottoms
   // aligned. Non-interactive in 2D; it follows the piece and scales with zoom.
-  var PLACARD_W_IN = 5, PLACARD_H_IN = 3, PLACARD_GAP_IN = 2;
+  var PLACARD_W_IN = 5, PLACARD_H_IN = 3, PLACARD_GAP_IN = 2;   // physical label size (inches)
   function placardHTML(a) {
     var out = '<div class="pl-name">' + esc(a.name || '') + '</div>';
     if (a.artists) out += '<div class="pl-artist">' + esc(a.artists) + '</div>';
@@ -1030,7 +1030,13 @@
       }
       var rL = parseFloat(ref.style.left), rT = parseFloat(ref.style.top),
           rW = parseFloat(ref.style.width), rH = parseFloat(ref.style.height);
-      var pw = PLACARD_W_IN * baseScale, ph = PLACARD_H_IN * baseScale, gap = PLACARD_GAP_IN * baseScale;
+      // Size the placard from the piece's OWN on-screen scale (px per inch), so a
+      // 5x3" label always renders at 5x3" relative to the pieces — robust to any
+      // baseScale drift between when pieces and placards were last laid out.
+      var inchW = footprintDims(p).w;
+      var artPx = parseFloat(ad.style.width);
+      var pxPerIn = (artPx > 0 && inchW > 0) ? (artPx / inchW) : baseScale;
+      var pw = PLACARD_W_IN * pxPerIn, ph = PLACARD_H_IN * pxPerIn, gap = PLACARD_GAP_IN * pxPerIn;
       var card = document.createElement('div');
       card.className = 'placard-card';
       card.dataset.id = p.artwork.id;
