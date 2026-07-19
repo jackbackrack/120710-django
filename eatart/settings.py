@@ -98,9 +98,11 @@ KIOSK_TOKEN = os.environ.get('KIOSK_TOKEN', '')
 
 ACCOUNT_SIGNUP_HONEYPOT_FIELD = 'phone_number'
 
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_REQUIRED = True
+# allauth 65.x config (replaces the deprecated ACCOUNT_USERNAME_REQUIRED /
+# ACCOUNT_AUTHENTICATION_METHOD / ACCOUNT_EMAIL_REQUIRED): log in by email, no
+# username, email required at signup.
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
 # ACCOUNT_SESSION_REMEMBER = True
 # ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = False
