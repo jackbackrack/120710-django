@@ -62,6 +62,26 @@ scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 // BoxGeometry face order: +X(E), -X(W), +Y(ceil), -Y(floor), +Z(S), -Z(N)
 const textureLoader = new THREE.TextureLoader();
 
+// Resilient texture load. A single transient failure (network blip, CDN 5xx,
+// too many concurrent connections) used to give up forever — the image stayed
+// blank until a full page reload. Now we retry with backoff, and from the 2nd
+// try on we append a cache-buster so a negatively-cached failure is re-fetched
+// (skipped for signed URLs, whose query string must not change).
+const TEX_RETRY_DELAYS = [500, 1500, 4000, 8000];   // ms; length = max retries
+function loadTextureRetry(url, onLoad, onGiveUp, attempt) {
+  attempt = attempt || 0;
+  var signed = /[?&](X-Amz-|Signature=)/.test(url);
+  var u = (attempt > 0 && !signed) ? url + (url.indexOf('?') < 0 ? '?' : '&') + '_r=' + attempt : url;
+  textureLoader.load(u, onLoad, undefined, function () {
+    if (attempt < TEX_RETRY_DELAYS.length) {
+      setTimeout(function () { loadTextureRetry(url, onLoad, onGiveUp, attempt + 1); }, TEX_RETRY_DELAYS[attempt]);
+    } else {
+      console.warn('3D viewer: gave up loading texture after retries:', url);
+      if (onGiveUp) onGiveUp();
+    }
+  });
+}
+
 function makeSurfaceMat(color) {
   return new THREE.MeshBasicMaterial({ color: color, side: THREE.BackSide });
 }
@@ -93,15 +113,13 @@ scene.add(room);
   ];
   surfaces.forEach(function (s) {
     if (!s.url) return;
-    textureLoader.load(s.url, function (tex) {
+    loadTextureRetry(s.url, function (tex) {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
       s.mat.map = tex;
       s.mat.color.set(0xffffff);
       s.mat.needsUpdate = true;
-    }, undefined, function () {
-      console.warn('3D viewer: failed to load wall texture', s.url);
     });
   });
 }());
@@ -147,12 +165,10 @@ const artworkMeshes = [];
 
 function loadTex(url, onLoad) {
   // url comes from Artwork.layout_display_url, which already resolves to the crop
-  // or the hero — a guaranteed-valid image — so no extra fallback is needed here.
-  textureLoader.load(url, function (tex) {
+  // or the hero — a guaranteed-valid image. Retry on transient load failures.
+  loadTextureRetry(url, function (tex) {
     tex.colorSpace = THREE.SRGBColorSpace;
     onLoad(tex);
-  }, undefined, function () {
-    console.warn('3D viewer: failed to load texture', url);
   });
 }
 
@@ -450,14 +466,12 @@ function buildSupport(s) {
   var mat = new THREE.MeshStandardMaterial({ color: SUPPORT_COLOR, roughness: 0.9 });
   if (s.texture) {
     // One texture mapped onto all six faces (single material on the BoxGeometry).
-    textureLoader.load(s.texture, function (tex) {
+    loadTextureRetry(s.texture, function (tex) {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       mat.map = tex;
       mat.color.set(0xffffff);
       mat.needsUpdate = true;
-    }, undefined, function () {
-      console.warn('3D viewer: failed to load support texture', s.texture);
     });
   }
   var isFloorCeil = (s.wall === 'floor' || s.wall === 'ceiling');
