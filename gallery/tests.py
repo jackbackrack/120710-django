@@ -2587,6 +2587,26 @@ class ArtistFormRequiredTests(TestCase):
         for f in ('email', 'zipcode', 'image'):
             self.assertIn(f, form.errors)
 
+    def test_website_bare_domain_accepted_and_normalized(self):
+        from gallery.forms import ArtistForm
+        u = User.objects.create_user(
+            username='afw@example.com', email='afw@example.com', password='pw')
+        data = {'first_name': 'A', 'last_name': 'B', 'email': 'afw@example.com',
+                'zipcode': '94710', 'website': 'howardhersh.com'}
+        form = ArtistForm(data=data, user=u)
+        form.is_valid()   # image still missing, but website must NOT be an error
+        self.assertNotIn('website', form.errors)
+        self.assertEqual(form.cleaned_data.get('website'), 'https://howardhersh.com')
+
+    def test_website_invalid_rejected(self):
+        from gallery.forms import ArtistForm
+        u = User.objects.create_user(
+            username='afw2@example.com', email='afw2@example.com', password='pw')
+        form = ArtistForm(data={'first_name': 'A', 'last_name': 'B', 'email': 'afw2@example.com',
+                                'zipcode': '94710', 'website': 'not a url'}, user=u)
+        form.is_valid()
+        self.assertIn('website', form.errors)
+
     def test_form_groups_required_first(self):
         from gallery.forms import ArtistForm
         from crispy_forms.layout import Fieldset

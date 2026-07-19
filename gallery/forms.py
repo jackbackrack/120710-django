@@ -51,6 +51,13 @@ class UserAwareModelForm(forms.ModelForm):
 
 
 class ArtistForm(UserAwareModelForm):
+    # Plain text field (not URLField) so a scheme-less domain like "howardhersh.com"
+    # is accepted; clean_website adds https:// and then validates it as a URL.
+    website = forms.CharField(
+        required=False, max_length=255,
+        widget=forms.TextInput(attrs={'placeholder': 'howardhersh.com'}),
+    )
+
     class Meta:
         model = Artist
         fields = (
@@ -137,10 +144,19 @@ class ArtistForm(UserAwareModelForm):
         return value or None
 
     def clean_website(self):
+        from django.core.validators import URLValidator
+        from django.core.exceptions import ValidationError as DjangoValidationError
         value = (self.cleaned_data.get('website') or '').strip()
-        if value and '://' not in value:
-            value = 'https://' + value
-        return value or None
+        if not value:
+            return None
+        if '://' not in value:
+            value = 'https://' + value   # accept a bare domain
+        try:
+            URLValidator()(value)
+        except DjangoValidationError:
+            raise forms.ValidationError(
+                'Enter a valid website, e.g. howardhersh.com or https://howardhersh.com')
+        return value
 
 
 class ArtworkImageForm(forms.ModelForm):
