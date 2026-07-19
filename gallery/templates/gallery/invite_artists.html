@@ -93,6 +93,8 @@
             <button type="submit" class="btn btn-sm btn-link p-0 card__link"
                     onclick="return confirm('{% if row.email_sent %}Re-send{% else %}Send{% endif %} the invitation email to {{ row.invitation.email }}?')">{% if row.email_sent %}Resend{% else %}Send{% endif %}</button>
           </form>
+          <button type="button" class="btn btn-sm btn-link p-0 card__link ms-2 ss-copy-link"
+                  data-link="{{ row.accept_url }}" title="Copy a personal accept link to send directly (works with any account)">Copy link</button>
           <form method="post" style="display:inline">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete">
@@ -110,4 +112,17 @@
   {% endif %}
 
 </div>
+<script>
+document.querySelectorAll('.ss-copy-link').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var link = btn.dataset.link, old = btn.textContent;
+    var done = function () { btn.textContent = 'Copied!'; setTimeout(function () { btn.textContent = old; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(done, function () { window.prompt('Copy this accept link:', link); });
+    } else {
+      window.prompt('Copy this accept link:', link);
+    }
+  });
+});
+</script>
 {% endblock %}

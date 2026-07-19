@@ -155,23 +155,27 @@ def send_submission_emails(show):
     )
 
 
-def _send_invitation_email(show, email, request):
-    show_url = request.build_absolute_uri(show.get_absolute_url())
+def _send_invitation_email(show, invitation, request):
+    # The accept link binds the invitation to whatever account the invitee signs in
+    # with, so a mismatched email no longer blocks them.
+    accept_url = request.build_absolute_uri(invitation.get_accept_url())
     signup_url = request.build_absolute_uri(reverse('account_signup'))
     html = render_to_string('email/show_invitation.html', {
         'show': show,
-        'show_url': show_url,
+        'show_url': accept_url,     # template's primary link → accept & submit
+        'accept_url': accept_url,
         'signup_url': signup_url,
     })
     send_mail(
         subject=f'Invitation to submit artwork to {show.name}',
         message=(
             f'You have been invited to submit artwork to {show.name}. '
-            f'Visit {show_url} to submit. '
-            f'If you do not have an account, sign up at {signup_url}.'
+            f'Accept your invitation and submit here: {accept_url} '
+            f'If you do not have an account, sign up first at {signup_url} '
+            f'(then open the link above).'
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
+        recipient_list=[invitation.email],
         html_message=html,
         fail_silently=True,
     )
@@ -186,11 +190,34 @@ def _send_unsent_invitations(show, request, emails=None):
         qs = qs.filter(email__in=list(emails))
     sent = 0
     for inv in qs:
-        _send_invitation_email(show, inv.email, request)
+        _send_invitation_email(show, inv, request)
         inv.email_sent_at = timezone.now()
         inv.save(update_fields=['email_sent_at'])
         sent += 1
     return sent
+
+
+def accept_invitation(request, slug, token):
+    """Claim a show invitation via its secret link, binding it to the current
+    account regardless of which email that account uses."""
+    from django.utils import timezone
+    show = get_object_or_404(Show, slug=slug)
+    invitation = get_object_or_404(ShowInvitation, show=show, token=token)
+    if not request.user.is_authenticated:
+        from django.contrib.auth.views import redirect_to_login
+        messages.info(request, 'Please sign in (or sign up) to accept your invitation, then it will be linked to your account.')
+        return redirect_to_login(request.get_full_path())
+
+    invitation.claimed_by = request.user
+    invitation.claimed_at = timezone.now()
+    if invitation.email_sent_at is None:
+        invitation.email_sent_at = timezone.now()   # they clearly received it
+    artist = request.user.artists.order_by('-created_at').first()
+    if artist and invitation.artist_id is None:
+        invitation.artist = artist
+    invitation.save()
+    messages.success(request, f'Invitation to "{show.name}" accepted — you can now submit your work.')
+    return redirect(show)
 
 
 @login_required
@@ -281,7 +308,7 @@ def invite_artists(request, slug):
                 messages.error(request, 'Invitation not found.')
             else:
                 from django.utils import timezone
-                _send_invitation_email(show, inv.email, request)
+                _send_invitation_email(show, inv, request)
                 inv.email_sent_at = timezone.now()
                 inv.save(update_fields=['email_sent_at'])
                 messages.success(request, f'Invitation re-sent to {inv.email}.')
@@ -373,6 +400,8 @@ def invite_artists(request, slug):
             'invitation': inv,
             'artist': artist,
             'email_sent': bool(inv.email_sent_at),
+            'claimed': bool(inv.claimed_by_id),
+            'accept_url': request.build_absolute_uri(inv.get_accept_url()),
             'has_account': email in accounts or bool(artist and artist.user_id),
             'info_complete': bool(artist and artist.image and artist.first_name
                                   and artist.last_name and artist.zipcode),

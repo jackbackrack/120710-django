@@ -1,8 +1,13 @@
 import datetime
+import secrets
 
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+
+
+def _gen_invite_token():
+    return secrets.token_urlsafe(32)
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit, Transpose
 
@@ -165,6 +170,15 @@ class ShowInvitation(models.Model):
     # When the invitation email was actually sent. Null = never emailed, so a later
     # "Save & Send" (or Resend) will email this person; already-sent ones are skipped.
     email_sent_at = models.DateTimeField(null=True, blank=True)
+    # Secret claim token: the invite email links to accept-invitation/<token>/, so
+    # the invitee can bind this invitation to whatever account they sign in with —
+    # even if that email differs from the one they were invited at.
+    token = models.CharField(max_length=64, unique=True, default=_gen_invite_token, editable=False)
+    claimed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='claimed_invitations',
+    )
+    claimed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('show', 'email')
@@ -172,3 +186,6 @@ class ShowInvitation(models.Model):
 
     def __str__(self):
         return f'{self.email} → {self.show}'
+
+    def get_accept_url(self):
+        return reverse('gallery:accept_invitation', kwargs={'slug': self.show.slug, 'token': self.token})

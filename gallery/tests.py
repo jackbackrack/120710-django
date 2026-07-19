@@ -2016,6 +2016,52 @@ class InviteArtistsEditTests(TestCase):
         self.assertEqual(self.inv.artist_id, target.id)
 
 
+class AcceptInvitationTests(TestCase):
+    """Claiming an invitation via its token link binds it to the current account,
+    even when that account uses a different email than the invitation."""
+
+    def setUp(self):
+        self.show = Show.objects.create(
+            name='Token Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7),
+            status=Show.STATUS_OPEN_CALL, submission_type=Show.SUBMISSION_INVITED)
+        from gallery.models.exhibitions import ShowInvitation
+        self.inv = ShowInvitation.objects.create(show=self.show, email='invited@one.com')
+        # artist signed up with a DIFFERENT email than the invitation
+        self.user = User.objects.create_user(
+            username='signed@up.com', email='signed@up.com', password='pw')
+        self.artist = Artist.objects.create(
+            user=self.user, name='Signed Up', first_name='Signed', last_name='Up',
+            email='signed@up.com')
+
+    def _url(self):
+        return reverse('gallery:accept_invitation',
+                       kwargs={'slug': self.show.slug, 'token': self.inv.token})
+
+    def test_anonymous_is_redirected_to_login(self):
+        r = self.client.get(self._url())
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('login', r['Location'])
+
+    def test_claim_binds_invitation_and_grants_access(self):
+        from gallery.permissions import user_invited_to_show
+        # before claiming, the mismatched email is not recognized
+        self.assertFalse(user_invited_to_show(self.show, self.user))
+        self.client.force_login(self.user)
+        r = self.client.get(self._url())
+        self.assertEqual(r.status_code, 302)
+        self.inv.refresh_from_db()
+        self.assertEqual(self.inv.claimed_by_id, self.user.id)
+        self.assertEqual(self.inv.artist_id, self.artist.id)
+        self.assertTrue(user_invited_to_show(self.show, self.user))
+
+    def test_bad_token_404s(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('gallery:accept_invitation',
+                                    kwargs={'slug': self.show.slug, 'token': 'nope'}))
+        self.assertEqual(r.status_code, 404)
+
+
 class InvitedShowDisplayTests(TestCase):
     """Tests that invited shows suppress Open Call label and deadline for non-invited users."""
 

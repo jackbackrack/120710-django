@@ -230,7 +230,7 @@ def invited_show_ids(user):
     if not user.is_authenticated:
         return set()
     from gallery.models.exhibitions import ShowInvitation
-    q = Q(artist__user=user)
+    q = Q(artist__user=user) | Q(claimed_by=user)   # claimed via the invite link
     artist_ids = list(user.artists.values_list('id', flat=True))
     if artist_ids:
         q |= Q(artist_id__in=artist_ids)
