@@ -103,7 +103,8 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
                 if show.submission_type == Show.SUBMISSION_OPEN:
                     context['can_submit'] = show.is_accepting_submissions
                 elif show.submission_type == Show.SUBMISSION_INVITED:
-                    has_inv = show.invitations.filter(email__iexact=user.email).exists()
+                    from gallery.permissions import user_invited_to_show
+                    has_inv = user_invited_to_show(show, user)
                     context['has_invitation'] = has_inv
                     context['can_submit'] = show.is_accepting_submissions and has_inv
                 subs = list(

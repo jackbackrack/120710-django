@@ -1849,6 +1849,18 @@ class SubmittableShowsTests(MediaImageMixin, TestCase):
         response = self.client.get(self.artist.get_absolute_url())
         self.assertIn(self.invited_show, response.context['submittable_shows'])
 
+    def test_invited_show_included_when_invited_by_different_email(self):
+        # Curator invited the artist at a contact email that differs from their
+        # login email; the invitation is linked to the artist. It must still show.
+        from gallery.models.exhibitions import ShowInvitation
+        ShowInvitation.objects.create(
+            show=self.invited_show, email='different-contact@example.com',
+            artist=self.artist, invited_by=self.artist_user,
+        )
+        self.client.force_login(self.artist_user)
+        response = self.client.get(self.artist.get_absolute_url())
+        self.assertIn(self.invited_show, response.context['submittable_shows'])
+
     def test_submittable_shows_not_in_context_for_other_artist_page(self):
         other_user = User.objects.create_user(
             username='other@example.com', email='other@example.com', password='pw'

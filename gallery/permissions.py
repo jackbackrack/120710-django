@@ -203,6 +203,50 @@ def is_juror_for_show(user, show):
     return show.jurors.filter(user=user).exists()
 
 
+def _user_emails(user):
+    """Every email that identifies this user: the account email, any allauth
+    EmailAddress rows, and the emails on their artist profile(s)."""
+    emails = set()
+    if getattr(user, 'email', ''):
+        emails.add(user.email.strip().lower())
+    try:
+        from allauth.account.models import EmailAddress
+        for ea in EmailAddress.objects.filter(user=user).values_list('email', flat=True):
+            if ea:
+                emails.add(ea.strip().lower())
+    except Exception:
+        pass
+    for a_email in user.artists.values_list('email', flat=True):
+        if a_email:
+            emails.add(a_email.strip().lower())
+    return emails
+
+
+def invited_show_ids(user):
+    """Show ids the user has an invitation to — matched by ANY of the user's email
+    addresses OR by an artist profile linked to the user. Curators may invite by an
+    email that differs from the artist's login email, so matching only on
+    user.email misses those invitations."""
+    if not user.is_authenticated:
+        return set()
+    from gallery.models.exhibitions import ShowInvitation
+    q = Q(artist__user=user)
+    artist_ids = list(user.artists.values_list('id', flat=True))
+    if artist_ids:
+        q |= Q(artist_id__in=artist_ids)
+    emails = _user_emails(user)
+    if emails:
+        q |= Q(email__in=emails)
+    return set(ShowInvitation.objects.filter(q).values_list('show_id', flat=True))
+
+
+def user_invited_to_show(show, user):
+    """True if the user has an invitation to this show (robust to email mismatch)."""
+    if not user.is_authenticated:
+        return False
+    return show.id in invited_show_ids(user)
+
+
 def can_see_all_shows(user):
     return is_staff_user(user) or is_juror_user(user)
 

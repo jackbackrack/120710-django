@@ -120,7 +120,7 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         return self.render_to_response(context)
 
     def get_context_data(self, **kwargs):
-        from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, is_curator_user, visible_show_queryset
+        from gallery.permissions import can_delete_artist, can_delete_artwork, can_manage_artist, can_manage_artwork, is_curator_user, visible_show_queryset, invited_show_ids
         from gallery.models.submissions import ArtworkSubmission
         from gallery.models import Show
         context = super().get_context_data(**kwargs)
@@ -144,13 +144,13 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                 .order_by('-submitted_at')
             )
             open_call_shows = Show.objects.filter(status=Show.STATUS_OPEN_CALL).prefetch_related('curators')
+            inv_ids = invited_show_ids(user)   # matches by any of the user's emails or artist link
             submittable_shows = []
             for show in open_call_shows:
                 if show.submission_type == Show.SUBMISSION_OPEN:
                     submittable_shows.append(show)
-                elif show.submission_type == Show.SUBMISSION_INVITED:
-                    if show.invitations.filter(email__iexact=user.email).exists():
-                        submittable_shows.append(show)
+                elif show.submission_type == Show.SUBMISSION_INVITED and show.id in inv_ids:
+                    submittable_shows.append(show)
             context['submittable_shows'] = submittable_shows
             missing = []
             if not artist.image:

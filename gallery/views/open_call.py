@@ -368,7 +368,8 @@ def artwork_submit(request, slug):
         return redirect(f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}")
 
     if show.submission_type == Show.SUBMISSION_INVITED:
-        if not show.invitations.filter(email__iexact=request.user.email).exists():
+        from gallery.permissions import user_invited_to_show
+        if not user_invited_to_show(show, request.user):
             messages.error(request, 'Submissions to this show are by invitation only.')
             return redirect(show)
 
