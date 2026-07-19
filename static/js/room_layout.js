@@ -313,17 +313,46 @@
     }
   }
 
+  // Resilient <img> loading (mirrors the 3D viewer): on a transient failure retry
+  // the same source with backoff, then fall back to the alternate URL (and retry
+  // that) before giving up — so a network blip no longer leaves a permanently
+  // blank thumbnail until a hard reload. A cache-buster is added from the 2nd try
+  // (skipped for signed URLs, whose query string must not change).
+  var IMG_RETRY_DELAYS = [500, 1500, 4000, 8000];
+  function attachImgRetry(img, primary, fallback) {
+    var urls = [primary, fallback].filter(Boolean);
+    if (!urls.length) return;
+    var ui = 0, tries = 0;
+    function load() {
+      var base = urls[ui];
+      var signed = /[?&](X-Amz-|Signature=)/.test(base);
+      img.src = (tries > 0 && !signed) ? base + (base.indexOf('?') < 0 ? '?' : '&') + '_r=' + tries : base;
+    }
+    img.addEventListener('error', function () {
+      if (tries < IMG_RETRY_DELAYS.length) {
+        tries++;
+        setTimeout(load, IMG_RETRY_DELAYS[tries - 1]);
+      } else if (ui < urls.length - 1) {
+        ui++; tries = 0; load();          // exhausted this URL → try the alternate, retry it too
+      }
+    });
+    load();
+  }
+
   function makeSidebarThumb(art, placed) {
     var div = document.createElement('div');
     div.className  = 'pool-thumb';
     div.dataset.id = art.id;
     div.draggable  = true;
     div.title      = art.name + (placed ? ' — click to locate · drag to reposition' : ' — drag onto wall');
-    // thumb prefers a crop thumbnail; if it 404s (e.g. a legacy crop whose small
-    // spec was never generated) fall back to the display image, never a broken img.
-    div.innerHTML  = '<img src="' + (art.thumb || art.img) + '"' +
-                     ' onerror="this.onerror=null;this.src=\'' + (art.img || '') + '\'" alt="">' +
-                     '<div class="pool-label">' + esc(art.name) + '</div>';
+    // thumb prefers a crop thumbnail; if it fails (e.g. a legacy crop whose small
+    // spec was never generated, or a transient error) retry then fall back to the
+    // display image, never a broken img.
+    var thumbImg = document.createElement('img');
+    thumbImg.alt = '';
+    div.appendChild(thumbImg);
+    div.insertAdjacentHTML('beforeend', '<div class="pool-label">' + esc(art.name) + '</div>');
+    attachImgRetry(thumbImg, art.thumb || art.img, art.img);
     // Click a placed thumbnail → jump to its wall and center the view on it
     if (placed) {
       div.addEventListener('click', function () { focusPlacement(art); });
@@ -455,13 +484,13 @@
     // Use the high-res image on the wall (thumb is only ~200px → blurry when zoomed).
     // decoding=async keeps image decode off the paint path so it never blocks UI.
     div.innerHTML =
-      '<img src="' + (p.artwork.img || p.artwork.thumb) + '"' +
-      ' onerror="this.onerror=null;this.src=\'' + (p.artwork.thumb || '') + '\'"' +
-      ' alt="' + esc(p.artwork.name) + '" decoding="async">' +
+      '<img alt="' + esc(p.artwork.name) + '" decoding="async">' +
       '<div class="placard-bar">' + esc(p.artwork.name) + '</div>' +
       '<div class="art-dims">' + fmtIn(footprintDims(p).w) + '×' + fmtIn(footprintDims(p).h) + '"</div>' +
       '<div class="hang-h"></div>' +
       '<div class="hang-v"></div>';
+    // High-res image on the wall, with retry then fall back to the thumbnail.
+    attachImgRetry(div.querySelector('img'), p.artwork.img || p.artwork.thumb, p.artwork.thumb);
 
     makeDraggableOnStage(div, p);
     // Selection stays enabled in read-only mode so artists can pick two pieces to
