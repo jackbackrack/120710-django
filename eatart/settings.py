@@ -350,9 +350,13 @@ STORAGES = {
     "staticfiles": {
         # Manifest storage content-hashes filenames (e.g. slideshow.a1b2c3.js) so
         # every change gets a new URL and browser/CDN caches bust automatically.
+        # In DEBUG (local dev) use plain, un-hashed storage so edits to JS/CSS show
+        # on a normal reload without collectstatic + server restart.
         "BACKEND": (
             "storages.backends.s3boto3.S3ManifestStaticStorage"
             if USE_S3_STATIC else
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG else
             "whitenoise.storage.CompressedManifestStaticFilesStorage"
         ),
         **({"OPTIONS": {"location": "static/"}} if USE_S3_STATIC else {}),

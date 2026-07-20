@@ -325,11 +325,12 @@ var supportsById = {};
 
 // "Right of the piece" in world space, matching the 2D layout's per-wall mapping.
 function wallRightDir(wall) {
-  if (wall === 'N' || wall === 'S') return new THREE.Vector3(1, 0, 0);
-  // East wall's 3D view is mirrored vs the 2D layout, so +z read as the viewer's
-  // LEFT here; use -z so the placard sits on the right, matching every other wall.
-  if (wall === 'E') return new THREE.Vector3(0, 0, -1);
-  return new THREE.Vector3(0, 0, -1);   // W
+  // Offset the placard along the artwork's OWN rendered "right" — i.e. the plane's
+  // local +X after its wall rotation (wallQuaternion). Because the art is not
+  // mirrored, its local +X is the viewer's right, so the placard lands on the
+  // right of the piece on every wall (N/S/E/W) by construction — no per-wall
+  // hard-coding to get out of sync.
+  return new THREE.Vector3(1, 0, 0).applyQuaternion(wallQuaternion(wall));
 }
 
 function placardWorldPos(p) {
