@@ -326,7 +326,9 @@ var supportsById = {};
 // "Right of the piece" in world space, matching the 2D layout's per-wall mapping.
 function wallRightDir(wall) {
   if (wall === 'N' || wall === 'S') return new THREE.Vector3(1, 0, 0);
-  if (wall === 'E') return new THREE.Vector3(0, 0, 1);
+  // East wall's 3D view is mirrored vs the 2D layout, so +z read as the viewer's
+  // LEFT here; use -z so the placard sits on the right, matching every other wall.
+  if (wall === 'E') return new THREE.Vector3(0, 0, -1);
   return new THREE.Vector3(0, 0, -1);   // W
 }
 
