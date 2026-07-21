@@ -781,6 +781,16 @@
   function attachedPlacements(sid) {
     return Object.values(placementMap).filter(function (p) { return p.support === sid; });
   }
+  // Keep an attached support locked to its piece: when the piece moves by a world
+  // delta via any non-drag path (position fields, arrow nudge), shift the support
+  // the same amount so they move together. Returns true if a support was moved.
+  function shiftAttachedSupport(p, dx, dy, dz) {
+    if (p.support == null || (!dx && !dy && !dz)) return false;
+    var s = supportMap[p.support];
+    if (!s) return false;
+    s.x_in += dx; s.y_in += dy; s.z_in += dz;
+    return true;
+  }
   // A support is a "pedestal" on the floor/ceiling, a "shelf" on a vertical wall.
   function supportTerm(wall) { return (wall === 'floor' || wall === 'ceiling') ? 'Pedestal' : 'Shelf'; }
   function redrawSupports() {
@@ -1481,6 +1491,7 @@
     if (popoverArtId === null) return;
     var p = placementMap[popoverArtId];
     if (!p) return;
+    var ox = p.x_in, oy = p.y_in, oz = p.z_in;
     var h = parseFloat(posHoriz.value), v = parseFloat(posVert.value);
     if (!isNaN(h)) applyHoriz(currentWall, p, h);
     if (!isNaN(v)) p.y_in = Math.max(0, v);
@@ -1490,6 +1501,12 @@
     }
     var div = stageEl.querySelector('.placed-art[data-id="' + popoverArtId + '"]');
     if (div) syncDivFromWorld(div, p);
+    // Move an attached support in lock-step, then refresh support boxes/placards.
+    if (shiftAttachedSupport(p, p.x_in - ox, p.y_in - oy, p.z_in - oz)) {
+      stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
+      redrawSupports();
+    }
+    renderSupportBoxes();
   }
 
   [posHoriz, posVert, posDepth].forEach(function (inp) {
@@ -1878,16 +1895,24 @@
       if (nowT - lastNudgeUndoT > 600) pushUndo();
       lastNudgeUndoT = nowT;
       var step = e.shiftKey ? 0.1 : 1.0;  // inches
+      var supMoved = false;
       artworkSelected.forEach(function (div) {
         var id = parseInt(div.dataset.id, 10);
         var p  = placementMap[id];
         if (!p) return;
+        var ox = p.x_in, oy = p.y_in, oz = p.z_in;
         if (e.code === 'ArrowLeft')  applyHoriz(currentWall, p, worldHoriz(currentWall, p) - step);
         if (e.code === 'ArrowRight') applyHoriz(currentWall, p, worldHoriz(currentWall, p) + step);
         if (e.code === 'ArrowUp')    p.y_in += step;
         if (e.code === 'ArrowDown')  p.y_in = Math.max(0, p.y_in - step);
         syncDivFromWorld(div, p);
+        if (shiftAttachedSupport(p, p.x_in - ox, p.y_in - oy, p.z_in - oz)) supMoved = true;
       });
+      if (supMoved) {
+        stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
+        redrawSupports();
+      }
+      renderSupportBoxes();
       if (popoverArtId !== null && placementMap[popoverArtId]) updatePopoverValues(placementMap[popoverArtId]);
       scheduleSave();
       return;
