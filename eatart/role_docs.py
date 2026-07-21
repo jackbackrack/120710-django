@@ -341,8 +341,8 @@ HOW_TO_GUIDES = [
         'steps': [
             'Find the artwork you are interested in — browse Shows or Artists from the navigation, or ask the gallery for a direct link.',
             'On the artwork detail page, check the price listed. If it shows "Not For Sale" the work is unavailable. If it shows "Price on Request" or "Best Offer", the artist will discuss pricing with you directly.',
-            'Click the Inquire button on the artwork page.',
-            'Fill in your name, email address, and a message to the artist — for example, express your interest and ask any questions about the work.',
+            'Click the Inquire button on the artwork page. No account is required to inquire.',
+            'Fill in your name, email address, and a message to the artist — for example, express your interest and ask any questions about the work. You may be asked to complete a quick "I\'m not a robot" verification.',
             'Submit the form. Your message is sent directly to the artist with your email address included so they can reply to you.',
             'The artist will follow up with you by email to arrange payment and delivery or pickup.',
         ],

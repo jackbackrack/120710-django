@@ -13,6 +13,10 @@ PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
+# Tests must not depend on live reCAPTCHA (keys may be present in the dev env);
+# disable it so captcha fields become no-ops and forms can be submitted in tests.
+RECAPTCHA_ENABLED = False
+
 # Quieter, faster: no debug overhead. (Caching is disabled during test runs by the
 # base settings — 'test' in sys.argv → DummyCache — so cached fragments don't leak
 # between tests.)

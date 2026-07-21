@@ -27,6 +27,7 @@
   <form method="post">
     {% csrf_token %}
     {% render_honeypot_field %}
+    <input type="hidden" name="ts" value="{{ ts_token }}">
     {{ form|crispy }}
     <button class="btn btn-primary" type="submit">Send inquiry</button>
     <a class="btn btn-link" href="{{ artwork.get_absolute_url }}">Cancel</a>

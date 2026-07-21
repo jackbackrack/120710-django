@@ -2,6 +2,9 @@ from eatart.schemaorg.mappers import artwork_to_schema
 
 import logging
 import threading
+import time
+
+from django.core import signing
 
 from django.conf import settings
 from django.contrib import messages
@@ -84,9 +87,10 @@ class ArtworkDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailV
         shows = list(artwork.shows.all())
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(self.request.user, s)}
         context['can_delete_show'] = {s.id for s in shows if can_delete_show(self.request.user, s)}
+        # Inquiries are open to everyone (no account needed); spam is handled by
+        # reCAPTCHA + honeypot + time-trap + rate limiting on the inquiry view.
         context['can_inquire'] = (
-            self.request.user.is_authenticated
-            and artwork.artists.filter(email__isnull=False).exclude(email='').exists()
+            artwork.artists.filter(email__isnull=False).exclude(email='').exists()
         )
         context['blind_artist'] = self.request.GET.get('blind') == '1'
         user = self.request.user
@@ -242,7 +246,20 @@ def _send_inquiry_email_async(subject, body, html, recipient_emails, reply_to):
     threading.Thread(target=_run, daemon=True).start()
 
 
-@login_required
+_INQUIRY_MIN_FILL_SECONDS = 3      # a human takes longer than this to fill the form
+_INQUIRY_TOKEN_MAX_AGE = 2 * 60 * 60
+
+
+def _inquiry_too_fast(request):
+    """Time-trap: the form embeds a signed timestamp; reject a POST that arrives
+    implausibly fast, or with a missing/forged/stale token (bot signatures)."""
+    try:
+        started = float(signing.loads(request.POST.get('ts', ''), max_age=_INQUIRY_TOKEN_MAX_AGE))
+    except Exception:
+        return True
+    return (time.time() - started) < _INQUIRY_MIN_FILL_SECONDS
+
+
 @check_honeypot
 def artwork_inquire(request, pk):
     ip = _client_ip(request)
@@ -266,7 +283,10 @@ def artwork_inquire(request, pk):
             logger.warning('Throttled inquiry sends from %s', ip)
             return HttpResponse('Too many inquiries — please try again later.', status=429)
         form = ArtworkInquiryForm(request.POST)
-        if form.is_valid():
+        if _inquiry_too_fast(request):
+            logger.warning('Inquiry rejected (too fast / bad time-trap token) from %s', ip)
+            messages.error(request, 'Your message was submitted too quickly — please try again.')
+        elif form.is_valid():
             sender_name = form.cleaned_data['sender_name']
             sender_email = form.cleaned_data['sender_email']
             message_text = form.cleaned_data['message']
@@ -300,6 +320,7 @@ def artwork_inquire(request, pk):
     return render(request, 'gallery/artwork_inquire.html', {
         'artwork': artwork,
         'form': form,
+        'ts_token': signing.dumps(time.time()),   # fresh time-trap token per render
     })
 
 

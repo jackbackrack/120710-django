@@ -2046,6 +2046,59 @@ class InviteArtistsEditTests(TestCase):
         self.assertEqual(self.inv.artist_id, target.id)
 
 
+class ArtworkInquireTests(TestCase):
+    """The Inquire form is open to anonymous users, guarded by the time-trap."""
+
+    def setUp(self):
+        self.artist = Artist.objects.create(
+            name='Contact Artist', first_name='C', last_name='A', email='artist@example.com')
+        self.artwork = Artwork.objects.create(name='For Sale Piece', end_year=2025)
+        self.artwork.artists.add(self.artist)
+        self.show = Show.objects.create(
+            name='Public Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date.today() - datetime.timedelta(days=1),
+            end=datetime.date.today() + datetime.timedelta(days=30))
+        self.show.artworks.add(self.artwork)
+
+    def _url(self):
+        return reverse('gallery:artwork_inquire', kwargs={'pk': self.artwork.pk})
+
+    def test_anonymous_can_open_inquiry_page(self):
+        r = self.client.get(self._url())
+        self.assertEqual(r.status_code, 200)   # no login redirect
+
+    def test_valid_anonymous_inquiry_is_accepted(self):
+        from django.core import signing
+        import time
+        r = self.client.post(self._url(), {
+            'sender_name': 'Jane', 'sender_email': 'jane@example.com',
+            'message': 'I am interested in this piece.',
+            'address': '',                              # honeypot must be empty
+            'ts': signing.dumps(time.time() - 10),      # form loaded 10s ago
+        })
+        self.assertEqual(r.status_code, 302)            # success → redirect to the artwork
+        self.assertEqual(r['Location'], self.artwork.get_absolute_url())
+
+    def test_too_fast_submission_is_rejected(self):
+        from django.core import signing
+        import time
+        r = self.client.post(self._url(), {
+            'sender_name': 'Bot', 'sender_email': 'bot@example.com',
+            'message': 'spam', 'address': '',
+            'ts': signing.dumps(time.time()),           # submitted instantly
+        })
+        self.assertEqual(r.status_code, 200)            # re-rendered, not sent
+        self.assertContains(r, 'too quickly')
+
+    def test_missing_time_trap_token_is_rejected(self):
+        r = self.client.post(self._url(), {
+            'sender_name': 'Bot', 'sender_email': 'bot@example.com',
+            'message': 'spam', 'address': '',
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'too quickly')
+
+
 class AcceptInvitationTests(TestCase):
     """Claiming an invitation via its token link binds it to the current account,
     even when that account uses a different email than the invitation."""
