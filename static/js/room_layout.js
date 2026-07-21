@@ -892,13 +892,14 @@
     opts = opts || {};
     var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
     var dims = wallDims(currentWall);
-    var center = stageToWorld(currentWall, dims[0] * baseScale / 2, dims[1] * baseScale / 2);
+    // Drop position if dragged onto the wall, else the centre of the wall.
+    var pos = opts.pos || stageToWorld(currentWall, dims[0] * baseScale / 2, dims[1] * baseScale / 2);
     var s = { id: nextSupportTmp--, wall: currentWall, label: opts.label || '',
               w_in: opts.w_in || (onFloor ? 16 : 36),   // pedestal-ish on floor, shelf-ish on a wall
               h_in: opts.h_in || (onFloor ? 40 : 2),
               d_in: opts.d_in || (onFloor ? 16 : 8),
               texture: opts.texture || null,
-              rotation: 0, x_in: center.x_in, y_in: center.y_in, z_in: center.z_in };
+              rotation: 0, x_in: pos.x_in, y_in: pos.y_in, z_in: pos.z_in };
     supports.push(s); supportMap[s.id] = s;
     addSupportDiv(s); renderSupportList(); selectSupport(s); scheduleSave();
   }
@@ -909,13 +910,21 @@
     var el = document.getElementById('support-catalog');
     if (!el) return;
     el.innerHTML = '';
-    siteSupports.forEach(function (cat) {
+    siteSupports.forEach(function (cat, i) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'btn btn-sm btn-outline-secondary';
       b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:4px;font-size:.72rem';
-      b.textContent = '＋ ' + (cat.label || 'Support') +
+      b.textContent = '⠿ ' + (cat.label || 'Support') +
         ' (' + cat.w_in + '×' + cat.h_in + '×' + cat.d_in + '")';
-      b.title = 'Add a copy of this catalog support to the show';
+      b.title = 'Drag onto the wall to place, or click to add at the centre';
+      b.style.cursor = 'grab';
+      b.draggable = true;
+      (function (idx) {
+        b.addEventListener('dragstart', function (e) {
+          e.dataTransfer.setData('text/plain', 'support:' + idx);
+          e.dataTransfer.effectAllowed = 'copy';
+        });
+      }(i));
       b.addEventListener('click', function () {
         addSupport({ w_in: cat.w_in, h_in: cat.h_in, d_in: cat.d_in, label: cat.label, texture: cat.texture });
       });
@@ -1118,7 +1127,27 @@
   canvasWrap.addEventListener('drop', function (e) {
     e.preventDefault();
     if (READONLY) return;                     // read-only 2D viewer: no drop-to-place
-    var id  = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    var data = e.dataTransfer.getData('text/plain');
+
+    // Dropping a support (from the catalog or the "+ Add support" button) places
+    // it exactly where it's dropped.
+    if (data && data.indexOf('support:') === 0) {
+      var key = data.slice('support:'.length);
+      var wrapRectS = canvasWrap.getBoundingClientRect();
+      var spS = canvasToStage(e.clientX - wrapRectS.left, e.clientY - wrapRectS.top);
+      var wS  = stageToWorld(currentWall, spS.x, spS.y);
+      if (key === 'new') {
+        addSupport({ pos: wS });
+      } else {
+        var cat = siteSupports[parseInt(key, 10)];
+        addSupport(cat
+          ? { w_in: cat.w_in, h_in: cat.h_in, d_in: cat.d_in, label: cat.label, texture: cat.texture, pos: wS }
+          : { pos: wS });
+      }
+      return;
+    }
+
+    var id  = parseInt(data, 10);
     if (!id) return;
     var art = findArtwork(id);
     if (!art) return;
@@ -2010,7 +2039,15 @@
   // ── Supports: wire the sidebar buttons + size panel ───────────────────────
   if (!READONLY) {
     var addSupBtn = document.getElementById('add-support-btn');
-    if (addSupBtn) addSupBtn.addEventListener('click', function () { addSupport(); });
+    if (addSupBtn) {
+      addSupBtn.addEventListener('click', function () { addSupport(); });
+      addSupBtn.draggable = true;
+      addSupBtn.style.cursor = 'grab';
+      addSupBtn.addEventListener('dragstart', function (e) {
+        e.dataTransfer.setData('text/plain', 'support:new');
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+    }
     [spW, spH, spD, spHoriz, spVert].forEach(function (inp) {
       if (inp) inp.addEventListener('input', function () { applySupportPanel(); });
     });
