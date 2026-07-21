@@ -252,6 +252,7 @@ HOW_TO_GUIDES = [
             'For each obstacle, enter a label (e.g. "Front door"), select the wall it is on, and enter its position and dimensions (all in inches). Horizontal position is measured from the left edge of the wall; vertical position is measured from the floor.',
             'Obstacles appear as grey rectangles in the layout editor and as semi-transparent panels in the 3D viewer. Users can include them in distribute operations when placing artworks.',
             'Corner handles are always present at the edges of each wall and do not need to be configured.',
+            'Under "Supports (catalog)" you define reusable pedestals/shelves (name, W/H/D, optional texture) that curators drag into a show\'s layout. The blank row at the bottom (placeholder "＋ New support") is for adding one — type a name and sizes, then Save. To remove a support, tick its Delete box and Save; to edit one, change its fields and Save.',
             'Save the site. Room configuration changes take effect immediately in the layout editor and 3D viewer.',
         ],
     },

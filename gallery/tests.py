@@ -2590,6 +2590,31 @@ class SiteFeatureTests(TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_site_support_can_be_deleted(self):
+        from gallery.models.room import RoomConfig, SiteSupport
+        cfg = RoomConfig.objects.create(site=self.published_site, width_in=384, depth_in=576, height_in=120)
+        a = SiteSupport.objects.create(room_config=cfg, label='Plinth A', w_in=16, h_in=40, d_in=16)
+        b = SiteSupport.objects.create(room_config=cfg, label='Plinth B', w_in=20, h_in=44, d_in=20)
+        self.client.force_login(self.staff_user)
+        self.client.post(reverse('gallery:site_edit', kwargs={'slug': self.published_site.slug}), {
+            'name': self.published_site.name, 'street': '', 'city': '', 'state': '',
+            'postal_code': '', 'country': 'USA', 'email': '', 'phone': '',
+            'instagram': '', 'website': '', 'description': '',
+            'status': Site.STATUS_PUBLISHED, 'latitude': '', 'longitude': '',
+            'width_in': '384', 'depth_in': '576', 'height_in': '120',
+            'obstacles-TOTAL_FORMS': '0', 'obstacles-INITIAL_FORMS': '0',
+            'obstacles-MIN_NUM_FORMS': '0', 'obstacles-MAX_NUM_FORMS': '1000',
+            'supports-TOTAL_FORMS': '2', 'supports-INITIAL_FORMS': '2',
+            'supports-MIN_NUM_FORMS': '0', 'supports-MAX_NUM_FORMS': '1000',
+            'supports-0-id': str(a.pk), 'supports-0-label': 'Plinth A',
+            'supports-0-w_in': '16', 'supports-0-h_in': '40', 'supports-0-d_in': '16',
+            'supports-0-DELETE': 'on',
+            'supports-1-id': str(b.pk), 'supports-1-label': 'Plinth B',
+            'supports-1-w_in': '20', 'supports-1-h_in': '44', 'supports-1-d_in': '20',
+            'supports-1-DELETE': 'on',
+        })
+        self.assertEqual(SiteSupport.objects.filter(room_config=cfg).count(), 0)
+
     def test_staff_can_edit_site(self):
         self.client.force_login(self.staff_user)
         response = self.client.get(reverse('gallery:site_edit', kwargs={'slug': self.published_site.slug}))

@@ -389,6 +389,15 @@ def _make_obstacle_formset(**kwargs):
 
 class SiteSupportForm(forms.ModelForm):
     """A reusable pedestal/shelf definition (catalog) for a site."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # On a blank "add new" row, don't show the model's default sizes (16/40/16)
+        # as if they were real values — leave the row visibly empty so it can't be
+        # mistaken for an existing entry.
+        if not self.instance.pk:
+            for f in ('w_in', 'h_in', 'd_in'):
+                self.initial[f] = None
+
     def has_changed(self):
         # A blank new row is skipped, like the obstacle formset.
         if not self.instance.pk:
@@ -404,7 +413,7 @@ class SiteSupportForm(forms.ModelForm):
         labels = {'w_in': 'Width (in)', 'h_in': 'Height (in)', 'd_in': 'Depth (in)',
                   'texture': 'Texture'}
         widgets = {
-            'label': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Plinth A'}),
+            'label': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': '＋ New support — type a name'}),
             'w_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
             'h_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
             'd_in':  forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.5', 'style': 'width:6em'}),
@@ -417,7 +426,7 @@ def _make_support_formset(**kwargs):
     from gallery.models.room import RoomConfig, SiteSupport
     return inlineformset_factory(
         RoomConfig, SiteSupport, form=SiteSupportForm,
-        extra=kwargs.pop('extra', 2), can_delete=True,
+        extra=kwargs.pop('extra', 1), can_delete=True,
     )
 
 

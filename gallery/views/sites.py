@@ -2,6 +2,7 @@ import json
 import urllib.parse
 import urllib.request
 
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import F
 from django.http import JsonResponse
@@ -49,13 +50,28 @@ class RoomConfigMixin:
         obstacle_formset = ObstacleFormSet(self.request.POST, instance=room_config)
         support_formset = SupportFormSet(self.request.POST, self.request.FILES, instance=room_config, prefix='supports')
 
-        if room_form.is_valid() and obstacle_formset.is_valid() and support_formset.is_valid():
+        # Save each section independently (the RoomConfig is already persisted via
+        # get_or_create) so a problem in one — e.g. an obstacle typo — no longer
+        # silently discards the others, such as a support deletion.
+        all_ok = True
+        if room_form.is_valid():
             room_form.save()
+        else:
+            all_ok = False
+        if obstacle_formset.is_valid():
             obstacle_formset.save()
+        else:
+            all_ok = False
+        if support_formset.is_valid():
             support_formset.save()
+        else:
+            all_ok = False
+
+        if all_ok:
             return response
 
-        # Re-render with errors (Site is already saved; that's acceptable here).
+        # Re-render with errors (Site + any valid sections are already saved).
+        messages.error(self.request, 'Some room/support changes could not be saved — please fix the highlighted fields.')
         return self.render_to_response(self.get_context_data(
             form=form, room_form=room_form, obstacle_formset=obstacle_formset,
             support_formset=support_formset,
