@@ -1799,6 +1799,7 @@
     closePopover();
     renderSidebar();
     renderGroupBoxes();
+    renderSupportBoxes();   // also re-renders placards, so removed pieces' labels/boxes go away
     scheduleSave();
   }
 
