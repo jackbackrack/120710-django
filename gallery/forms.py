@@ -474,6 +474,7 @@ class ShowForm(UserAwareModelForm):
             'blind_review',
             'self_install',
             'submission_type',
+            'max_submissions_per_artist',
             'submission_deadline',
             'review_deadline',
             'decision_date',

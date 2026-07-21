@@ -13,6 +13,9 @@
   {% if show.decision_date %}
   <p>Decision date: <strong>{{ show.decision_date }}</strong></p>
   {% endif %}
+  {% if submission_limit %}
+  <p class="text-muted small">This show allows up to <strong>{{ submission_limit }}</strong> submission{{ submission_limit|pluralize }} per artist. You have submitted <strong>{{ submitted_count }}</strong>{% if not at_limit %} — you can submit {{ submissions_remaining }} more{% endif %}.</p>
+  {% endif %}
 
   {% if not available_artworks and not has_any_artworks %}
   <p>You have no artworks yet. Add one below or <a class="card__link" href="{{ show.get_absolute_url }}">go back to the show</a>.</p>
@@ -21,11 +24,13 @@
   {% endif %}
   </div>
 
-  {% if available_artworks %}
+  {% if at_limit %}
+  <p class="text-center">You have reached the submission limit for this show. <a class="card__link" href="{{ show.get_absolute_url }}">Back to the show</a>.</p>
+  {% elif available_artworks %}
   <form method="post" id="submit-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="submit">
-<p class="mt-3 mb-2 text-center"><strong>Select an artwork to submit:</strong></p>
+    <p class="mt-3 mb-2 text-center"><strong>Select one artwork to submit</strong> — you submit one at a time.</p>
     <div class="cards artwork-select-cards" id="artwork-cards">
       {% for artwork in available_artworks %}
       <label class="artwork-select-label" data-pk="{{ artwork.pk }}">

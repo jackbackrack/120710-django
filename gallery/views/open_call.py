@@ -464,6 +464,13 @@ def artwork_submit(request, slug):
         .order_by('name')
     )
 
+    # Per-artist submission cap (blank = unlimited). Count this artist's artworks
+    # already submitted to the show.
+    submission_limit = show.max_submissions_per_artist
+    submitted_count = ArtworkSubmission.objects.filter(show=show, artwork__artists=artist).count()
+    at_limit = submission_limit is not None and submitted_count >= submission_limit
+    submissions_remaining = (submission_limit - submitted_count) if submission_limit is not None else None
+
     if request.method == 'POST':
         action = request.POST.get('action')
 
@@ -480,6 +487,9 @@ def artwork_submit(request, slug):
             preseed_pk = None
         else:
             quick_form = ArtworkForm(user=request.user)
+            if at_limit:
+                messages.error(request, f'You have reached the limit of {submission_limit} submission{"s" if submission_limit != 1 else ""} for this show.')
+                return redirect(show)
             form = ArtworkSubmissionForm(request.POST, show=show, artist=artist)
             if form.is_valid():
                 from django.db import IntegrityError
@@ -508,6 +518,10 @@ def artwork_submit(request, slug):
         'has_any_artworks': artist.artworks.exists(),
         'preseed_pk': preseed_pk,
         'show_quick_form': action == 'create_artwork' if request.method == 'POST' else False,
+        'submission_limit': submission_limit,
+        'submitted_count': submitted_count,
+        'submissions_remaining': submissions_remaining,
+        'at_limit': at_limit,
     })
 
 

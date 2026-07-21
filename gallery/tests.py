@@ -907,6 +907,36 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
             ArtworkSubmission.objects.filter(show=self.show, artwork=self.artwork).exists()
         )
 
+    def test_submission_limit_blocks_when_reached(self):
+        self.show.max_submissions_per_artist = 1
+        self.show.save(update_fields=['max_submissions_per_artist'])
+        ArtworkSubmission.objects.create(
+            show=self.show, artwork=self.artwork, submitted_by=self.artist_user)
+        extra = Artwork.objects.create(name='Extra Piece', created_by=self.artist_user, end_year=2026)
+        extra.artists.add(self.artist)
+        self.client.force_login(self.artist_user)
+        self.client.post(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
+            {'artwork': extra.pk}, follow=True)
+        self.assertFalse(ArtworkSubmission.objects.filter(show=self.show, artwork=extra).exists())
+
+    def test_submission_allowed_under_limit(self):
+        self.show.max_submissions_per_artist = 3
+        self.show.save(update_fields=['max_submissions_per_artist'])
+        self.client.force_login(self.artist_user)
+        self.client.post(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
+            {'artwork': self.artwork.pk}, follow=True)
+        self.assertTrue(ArtworkSubmission.objects.filter(show=self.show, artwork=self.artwork).exists())
+
+    def test_no_limit_allows_unlimited(self):
+        self.assertIsNone(self.show.max_submissions_per_artist)  # blank by default
+        self.client.force_login(self.artist_user)
+        self.client.post(
+            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
+            {'artwork': self.artwork.pk}, follow=True)
+        self.assertTrue(ArtworkSubmission.objects.filter(show=self.show, artwork=self.artwork).exists())
+
     def test_submission_has_submitted_status_by_default(self):
         self.client.force_login(self.artist_user)
         self.client.post(

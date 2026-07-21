@@ -61,6 +61,10 @@ class Show(models.Model):
         max_length=16, choices=SUBMISSION_TYPE_CHOICES, default=SUBMISSION_OPEN,
         verbose_name='Submission type',
     )
+    max_submissions_per_artist = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name='Max submissions per artist',
+        help_text='Most artworks each artist may submit to this show. Leave blank for no limit.',
+    )
     submission_deadline = models.DateField(blank=True, null=True)
     review_deadline = models.DateField(blank=True, null=True, verbose_name='Review deadline (for jurors)')
     decision_date = models.DateField(blank=True, null=True)
