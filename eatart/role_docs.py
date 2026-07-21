@@ -31,10 +31,11 @@ HOW_TO_GUIDES = [
         ],
     },
     {
-        'title': 'How to submit artwork to an open call show',
+        'title': 'How to submit artwork to a show (open call or invitation-only)',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
-            'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Shows Accepting Submissions" and click the Submit button.',
+            'The submission steps are the same for open call and invitation-only shows. The only difference: for an invitation-only show you must first have been invited. You receive an invitation email with a personal accept link — open it (after signing in, or signing up with any email) to link the invitation to your account. If your account email already matches the invited address you are recognized automatically, no link needed.',
+            'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Shows Accepting Submissions" and click the Submit button. (Invitation-only shows appear there once you have been invited and the show is accepting submissions.)',
             'Select the one artwork card you want to submit (click it to highlight it), then click Submit. You submit one artwork at a time — repeat for each piece. Each artwork can only be submitted once per show.',
             'Some shows cap how many artworks each artist may submit. When a limit is set, the submit page shows your allowance (e.g. "up to 3 per artist — you can submit 2 more"); once you reach it, the page tells you and you cannot submit more.',
             'You will receive a confirmation email. Your submission appears on your Me page and on the show detail page as "Submitted".',
@@ -266,10 +267,11 @@ HOW_TO_GUIDES = [
         ],
     },
     {
-        'title': 'How to submit artwork to an open call show (new to the site)',
+        'title': 'How to submit artwork to a show, open call or invitation-only (new to the site)',
         'roles': None,
         'public_only': True,
         'steps': [
+            'This works the same for open call and invitation-only shows. For an invitation-only show, first open the accept link in your invitation email — you can sign up with any email and it will link the invitation to your new account.',
             'Step 1 — Create an account: open the Account menu in the navigation and choose Sign Up. Enter your name, email, and password (or continue with Google).',
             'Step 2 — Complete your artist profile: after signing up you land on your artist profile edit page. Fill in your first name, last name, and zip code. Then upload a profile photo — this must be a photo of YOU (the artist), not a photo of your artwork. Your profile photo appears on your public artist page.',
             'Step 3 — Add your artwork: scroll down to the Artworks section on your Me page and click New. Fill in the title, year, medium, and dimensions, and upload an image of the artwork itself. Save.',
