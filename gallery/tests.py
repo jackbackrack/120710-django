@@ -2559,6 +2559,37 @@ class SiteFeatureTests(TestCase):
         new_site = Site.objects.get(name='New Test Site')
         self.assertRedirects(response, new_site.get_absolute_url())
 
+    def test_site_support_texture_is_saved(self):
+        import tempfile, shutil
+        from django.test import override_settings
+        from gallery.models.room import SiteSupport
+        png = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+               b'\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00'
+               b'\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82')
+        tmp = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=tmp):
+                self.client.force_login(self.staff_user)
+                self.client.post(reverse('gallery:site_new'), {
+                    'name': 'Texture Site', 'street': '', 'city': '', 'state': '',
+                    'postal_code': '', 'country': 'USA', 'email': '', 'phone': '',
+                    'instagram': '', 'website': '', 'description': '',
+                    'status': Site.STATUS_DRAFT, 'latitude': '', 'longitude': '',
+                    'width_in': '384', 'depth_in': '576', 'height_in': '120',
+                    'obstacles-TOTAL_FORMS': '0', 'obstacles-INITIAL_FORMS': '0',
+                    'obstacles-MIN_NUM_FORMS': '0', 'obstacles-MAX_NUM_FORMS': '1000',
+                    'supports-TOTAL_FORMS': '1', 'supports-INITIAL_FORMS': '0',
+                    'supports-MIN_NUM_FORMS': '0', 'supports-MAX_NUM_FORMS': '1000',
+                    'supports-0-label': 'Wood Plinth', 'supports-0-w_in': '16',
+                    'supports-0-h_in': '40', 'supports-0-d_in': '16',
+                    'supports-0-DELETE': '', 'supports-0-id': '',
+                    'supports-0-texture': SimpleUploadedFile('t.png', png, content_type='image/png'),
+                })
+                ss = SiteSupport.objects.get(label='Wood Plinth', room_config__site__name='Texture Site')
+                self.assertTrue(ss.texture)   # the uploaded texture was persisted
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_staff_can_edit_site(self):
         self.client.force_login(self.staff_user)
         response = self.client.get(reverse('gallery:site_edit', kwargs={'slug': self.published_site.slug}))

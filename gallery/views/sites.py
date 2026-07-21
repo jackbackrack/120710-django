@@ -33,7 +33,7 @@ class RoomConfigMixin:
         if self.request.method == 'POST':
             context.setdefault('room_form', RoomConfigForm(self.request.POST, self.request.FILES, instance=room_config))
             context.setdefault('obstacle_formset', ObstacleFormSet(self.request.POST, instance=room_config))
-            context.setdefault('support_formset', SupportFormSet(self.request.POST, instance=room_config, prefix='supports'))
+            context.setdefault('support_formset', SupportFormSet(self.request.POST, self.request.FILES, instance=room_config, prefix='supports'))
         else:
             context.setdefault('room_form', RoomConfigForm(instance=room_config))
             context.setdefault('obstacle_formset', ObstacleFormSet(instance=room_config))
@@ -47,7 +47,7 @@ class RoomConfigMixin:
         ObstacleFormSet = _make_obstacle_formset()
         SupportFormSet = _make_support_formset()
         obstacle_formset = ObstacleFormSet(self.request.POST, instance=room_config)
-        support_formset = SupportFormSet(self.request.POST, instance=room_config, prefix='supports')
+        support_formset = SupportFormSet(self.request.POST, self.request.FILES, instance=room_config, prefix='supports')
 
         if room_form.is_valid() and obstacle_formset.is_valid() and support_formset.is_valid():
             room_form.save()
