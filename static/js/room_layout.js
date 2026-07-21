@@ -128,6 +128,7 @@
   var supportList  = document.getElementById('support-list');
   var spW = document.getElementById('sp-w'), spH = document.getElementById('sp-h'), spD = document.getElementById('sp-d');
   var spHoriz = document.getElementById('sp-horiz'), spVert = document.getElementById('sp-vert');
+  var spTexture = document.getElementById('sp-texture');
 
   // ── Wall dimensions ───────────────────────────────────────────────────────
   function wallDims(wall) {
@@ -871,6 +872,21 @@
     spW.value = round1(s.w_in); spH.value = round1(s.h_in); spD.value = round1(s.d_in);
     spHoriz.value = round1(worldHoriz(currentWall, s));
     spVert.value  = round1(s.y_in);
+    populateSupportTextureSelect(s);
+  }
+  // Build the texture dropdown from the distinct textures in the site catalog,
+  // plus "None" (white). Textures are defined on the site; this lets you apply one
+  // to any support (including a blank one) in the layout tool.
+  function populateSupportTextureSelect(s) {
+    if (!spTexture) return;
+    var cur = s.texture || '', seen = {}, opts = [];
+    if (cur) { seen[cur] = true; opts.push({ label: 'Current', url: cur }); }
+    siteSupports.forEach(function (cat) {
+      if (cat.texture && !seen[cat.texture]) { seen[cat.texture] = true; opts.push({ label: cat.label || 'Texture', url: cat.texture }); }
+    });
+    spTexture.innerHTML = '<option value="">None (white)</option>' +
+      opts.map(function (o) { return '<option value="' + esc(o.url) + '">' + esc(o.label) + '</option>'; }).join('');
+    spTexture.value = cur;
   }
   function applySupportPanel() {
     var s = supportMap[selectedSupportId]; if (!s) return;
@@ -2054,6 +2070,15 @@
     // Removal is the toolbar Remove button / Delete key (unified for pieces + supports).
     var spSaveCat = document.getElementById('sp-save-catalog');
     if (spSaveCat) spSaveCat.addEventListener('click', saveSupportToCatalog);
+    if (spTexture) spTexture.addEventListener('change', function () {
+      var s = supportMap[selectedSupportId]; if (!s) return;
+      s.texture = spTexture.value || null;
+      stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
+      redrawSupports();
+      renderSupportBoxes();
+      if (roomChan) broadcastPlacements();   // update the 3D view live
+      scheduleSave();
+    });
     // Rotation is the toolbar Rotate button (unified for pieces + supports).
   }
 
