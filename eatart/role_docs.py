@@ -346,6 +346,9 @@ HOW_TO_GUIDES = [
             'Fill in your name, email address, and a message to the artist — for example, express your interest and ask any questions about the work. You may be asked to complete a quick "I\'m not a robot" verification.',
             'Submit the form. Your message is sent directly to the artist with your email address included so they can reply to you.',
             'The artist will follow up with you by email to arrange payment and delivery or pickup.',
+            'Optional — record the piece in your own collection: once you own it you can display it in a personal Collection on this site. This is free and you do not need to be an artist.',
+            'Create an account (see "How to sign up for an account"), then set up your profile (see "How to complete your artist profile") — your Collection is shown on your profile page.',
+            'Go back to the artwork detail page and click "Claim" in the button bar. The piece\'s artist (or staff) confirms your claim, and it then appears in your Collection, where you can drag cards to reorder them. See "How to record artwork ownership" for the full claim/confirm flow.',
         ],
     },
     {
