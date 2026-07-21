@@ -463,6 +463,17 @@
     redrawPieces();
   }
 
+  // Reset zoom/pan so the whole current wall fits the available canvas, keeping
+  // the current selection.
+  function fitToView() {
+    initStage();       // recompute fit scale + centre, pan 0
+    redrawPieces();    // re-lay out at the fit scale
+    selectionOrder.forEach(function (id) {
+      var d = stageEl.querySelector('.placed-art[data-id="' + id + '"]');
+      if (d) d.classList.add('selected');   // redrawPieces doesn't re-mark selected art
+    });
+  }
+
   // Re-render every piece on the current wall at the CURRENT zoom/pan (no view
   // reset). Used after operations that change many pieces (e.g. rotate).
   function redrawPieces() {
@@ -1820,6 +1831,7 @@
   }
 
   document.getElementById('btn-measure').addEventListener('click', doMeasure);
+  document.getElementById('btn-fit').addEventListener('click', fitToView);
 
   // ── Hang Info toggle (floor-to-bottom + center-to-edge on each artwork) ────
   var hangBtn = document.getElementById('btn-hang-info');
@@ -1846,6 +1858,7 @@
 
     if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ') { e.preventDefault(); undo(); return; }
     if (e.code === 'KeyM') { doMeasure(); return; }
+    if (e.code === 'KeyF') { e.preventDefault(); fitToView(); return; }
     if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); removeSelected(); return; }
     var isPan   = (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD');
     var isArrow = (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight');
