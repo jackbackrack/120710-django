@@ -217,7 +217,10 @@
     var dims = wallDims(wall);
     var ww = dims[0], wh = dims[1];
     var sx, sy;
-    if (wall === 'N' || wall === 'S') { sx = (p.x_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
+    if (wall === 'N')                  { sx = (p.x_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
+    // Facing the South wall from inside the room, East (+x) is on your LEFT, so its
+    // 2D view must mirror x to match the 3D walkthrough (and the other walls).
+    else if (wall === 'S')             { sx = (-p.x_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
     else if (wall === 'E')             { sx = (p.z_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
     else if (wall === 'W')             { sx = (-p.z_in + ww/2) * baseScale; sy = (wh - p.y_in) * baseScale; }
     else /* ceil/floor */              { sx = (p.x_in + ww/2) * baseScale; sy = (p.z_in + wh/2) * baseScale; }
@@ -231,7 +234,7 @@
     var yi = wh - sy / baseScale;
     var p = {};
     if (wall === 'N') { p.x_in = xi; p.y_in = yi; p.z_in = -cfg.depth_in / 2; }
-    else if (wall === 'S') { p.x_in = xi; p.y_in = yi; p.z_in = cfg.depth_in / 2; }
+    else if (wall === 'S') { p.x_in = -xi; p.y_in = yi; p.z_in = cfg.depth_in / 2; }   // mirror x (inside-facing view)
     else if (wall === 'E') { p.x_in = cfg.width_in / 2; p.y_in = yi; p.z_in = xi; }
     else if (wall === 'W') { p.x_in = -cfg.width_in / 2; p.y_in = yi; p.z_in = -xi; }
     else { p.x_in = xi; p.y_in = wall === 'ceiling' ? cfg.height_in : 0; p.z_in = sy / baseScale - wh / 2; }
@@ -261,13 +264,15 @@
 
   // ── World-coordinate helpers for popover ─────────────────────────────────
   function worldHoriz(wall, p) {
-    if (wall === 'N' || wall === 'S') return p.x_in;
+    if (wall === 'N') return  p.x_in;
+    if (wall === 'S') return -p.x_in;   // South is mirrored (inside-facing view)
     if (wall === 'E')  return  p.z_in;
     if (wall === 'W')  return -p.z_in;
     return p.x_in;
   }
   function applyHoriz(wall, p, val) {
-    if (wall === 'N' || wall === 'S') p.x_in = val;
+    if (wall === 'N')       p.x_in =  val;
+    else if (wall === 'S')  p.x_in = -val;   // South is mirrored (inside-facing view)
     else if (wall === 'E')  p.z_in =  val;
     else if (wall === 'W')  p.z_in = -val;
     else                    p.x_in =  val;
