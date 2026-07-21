@@ -2932,6 +2932,21 @@ class SupportSaveTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(SiteSupport.objects.filter(label='Shelf X', room_config__site=site).exists())
 
+    def test_save_support_to_catalog_ignores_bad_texture(self):
+        # A texture URL that doesn't resolve to a stored file must not break the
+        # save — the named support is still created (texture is optional).
+        from gallery.models import Site, SiteSupport
+        site = Site.objects.create(name='Cat Site 2', status=Site.STATUS_PUBLISHED)
+        self.show.sites.add(site)
+        r = self.client.post(
+            reverse('gallery:save_support_to_catalog', kwargs={'slug': self.show.slug}),
+            data=self.json.dumps({'label': 'Plinth Y', 'w_in': 16, 'h_in': 40, 'd_in': 16,
+                                  'texture': 'https://example.com/support_textures/missing.png'}),
+            content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        cat = SiteSupport.objects.get(label='Plinth Y', room_config__site=site)
+        self.assertFalse(bool(cat.texture))
+
 
 class RoomTwoDViewTests(TestCase):
     """Read-only 2D layout viewer (artists checking where to install)."""

@@ -129,6 +129,9 @@
   var spW = document.getElementById('sp-w'), spH = document.getElementById('sp-h'), spD = document.getElementById('sp-d');
   var spHoriz = document.getElementById('sp-horiz'), spVert = document.getElementById('sp-vert');
   var spTexture = document.getElementById('sp-texture');
+  var spName = document.getElementById('sp-name');
+  var newSupports = [];             // unplaced supports in the tray, waiting to be dragged onto a wall
+  var nextNewTmp = 1;
 
   // ── Wall dimensions ───────────────────────────────────────────────────────
   function wallDims(wall) {
@@ -869,6 +872,7 @@
     if (READONLY || !supportPanel) return;
     supportPanel.classList.add('active');
     document.getElementById('sp-title').textContent = supportTerm(s.wall);
+    if (spName) spName.value = s.label || '';
     spW.value = round1(s.w_in); spH.value = round1(s.h_in); spD.value = round1(s.d_in);
     spHoriz.value = round1(worldHoriz(currentWall, s));
     spVert.value  = round1(s.y_in);
@@ -890,6 +894,7 @@
   }
   function applySupportPanel() {
     var s = supportMap[selectedSupportId]; if (!s) return;
+    if (spName) s.label = spName.value.trim();
     s.w_in = Math.max(1, parseFloat(spW.value) || s.w_in);
     s.h_in = Math.max(1, parseFloat(spH.value) || s.h_in);
     s.d_in = Math.max(1, parseFloat(spD.value) || s.d_in);
@@ -902,6 +907,8 @@
       if (ad) snapArtToSupport(p, ad);
     });
     renderSupportBoxes();
+    renderSupportList();                                       // reflect a renamed support in the list
+    if (roomChan) broadcastPlacements();                      // update the 3D view live
     scheduleSave();
   }
   function addSupport(opts) {
@@ -918,6 +925,57 @@
               rotation: 0, x_in: pos.x_in, y_in: pos.y_in, z_in: pos.z_in };
     supports.push(s); supportMap[s.id] = s;
     addSupportDiv(s); renderSupportList(); selectSupport(s); scheduleSave();
+  }
+
+  // ── Unplaced-support tray ──────────────────────────────────────────────────
+  // "＋ Add support" drops a new support here (not onto the wall). Drag a tray
+  // chip onto a wall to place it — a pedestal on the floor, a shelf on a wall,
+  // sized to sensible defaults you can then adjust in the panel.
+  function addNewSupport() {
+    newSupports.push({ tmp: nextNewTmp++, label: '' });
+    renderNewSupports();
+  }
+  function renderNewSupports() {
+    var el = document.getElementById('support-new-list');
+    if (!el) return;
+    el.innerHTML = '';
+    newSupports.forEach(function (n) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px';
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-sm btn-outline-primary';
+      b.style.cssText = 'flex:1;text-align:left;font-size:.72rem;cursor:grab';
+      b.textContent = '⠿ ' + (n.label || 'New support') + ' — drag to a wall';
+      b.title = 'Drag onto a wall to place this support';
+      b.draggable = true;
+      (function (tmp) {
+        b.addEventListener('dragstart', function (e) {
+          e.dataTransfer.setData('text/plain', 'support:pending:' + tmp);
+          e.dataTransfer.effectAllowed = 'copy';
+        });
+      }(n.tmp));
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'btn btn-sm btn-outline-secondary';
+      rm.style.cssText = 'font-size:.72rem;padding:1px 6px'; rm.textContent = '×';
+      rm.title = 'Discard this unplaced support';
+      (function (tmp) {
+        rm.addEventListener('click', function () {
+          newSupports = newSupports.filter(function (x) { return x.tmp !== tmp; });
+          renderNewSupports();
+        });
+      }(n.tmp));
+      row.appendChild(b); row.appendChild(rm);
+      el.appendChild(row);
+    });
+  }
+  function placePendingSupport(tmp, pos) {
+    var idx = -1;
+    for (var i = 0; i < newSupports.length; i++) { if (newSupports[i].tmp === tmp) { idx = i; break; } }
+    if (idx < 0) return;
+    var n = newSupports[idx];
+    addSupport({ label: n.label, pos: pos });   // wall-appropriate default dims; adjust in the panel
+    newSupports.splice(idx, 1);
+    renderNewSupports();
   }
 
   // Site support catalog (definitions copied into the show when placed).
@@ -951,12 +1009,19 @@
     var s = supportMap[selectedSupportId]; if (!s || !window.SUPPORT_CATALOG_URL) return;
     var name = window.prompt('Name for this catalog support:', s.label || supportTerm(s.wall));
     if (name === null) return;
+    name = name.trim();
     fetch(window.SUPPORT_CATALOG_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ label: name, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in }),
+      body: JSON.stringify({ label: name, w_in: s.w_in, h_in: s.h_in, d_in: s.d_in, texture: s.texture || '' }),
     }).then(function (r) { return r.json(); }).then(function (data) {
-      if (data && data.ok && data.item) { siteSupports.push(data.item); renderSupportCatalog(); }
+      if (data && data.ok && data.item) {
+        s.label = name;                       // keep the placed support in sync with the saved name
+        if (spName) spName.value = name;
+        stageEl.querySelectorAll('.support').forEach(function (d) { d.remove(); });
+        redrawSupports(); renderSupportList();
+        siteSupports.push(data.item); renderSupportCatalog();
+      }
     }).catch(function () {});
   }
   function removeSupport(sid) {
@@ -1152,7 +1217,9 @@
       var wrapRectS = canvasWrap.getBoundingClientRect();
       var spS = canvasToStage(e.clientX - wrapRectS.left, e.clientY - wrapRectS.top);
       var wS  = stageToWorld(currentWall, spS.x, spS.y);
-      if (key === 'new') {
+      if (key.indexOf('pending:') === 0) {
+        placePendingSupport(parseInt(key.slice('pending:'.length), 10), wS);
+      } else if (key === 'new') {
         addSupport({ pos: wS });
       } else {
         var cat = siteSupports[parseInt(key, 10)];
@@ -2056,15 +2123,10 @@
   if (!READONLY) {
     var addSupBtn = document.getElementById('add-support-btn');
     if (addSupBtn) {
-      addSupBtn.addEventListener('click', function () { addSupport(); });
-      addSupBtn.draggable = true;
-      addSupBtn.style.cursor = 'grab';
-      addSupBtn.addEventListener('dragstart', function (e) {
-        e.dataTransfer.setData('text/plain', 'support:new');
-        e.dataTransfer.effectAllowed = 'copy';
-      });
+      // Add to the tray below; the user then drags it onto a wall to place it.
+      addSupBtn.addEventListener('click', function () { addNewSupport(); });
     }
-    [spW, spH, spD, spHoriz, spVert].forEach(function (inp) {
+    [spName, spW, spH, spD, spHoriz, spVert].forEach(function (inp) {
       if (inp) inp.addEventListener('input', function () { applySupportPanel(); });
     });
     // Removal is the toolbar Remove button / Delete key (unified for pieces + supports).
@@ -2085,6 +2147,7 @@
   // ── Init ─────────────────────────────────────────────────────────────────
   renderSidebar();
   renderSupportList();
+  renderNewSupports();
   renderSupportCatalog();
   renderWall();
   applyHangInfoState();

@@ -1,4 +1,5 @@
 import json
+import urllib.parse
 
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, JsonResponse
@@ -233,9 +234,28 @@ def save_support_to_catalog(request, slug):
         )
     except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'ok': False, 'error': 'invalid data'}, status=400)
+
+    # Best-effort: reuse the same texture file the placed support was using, so the
+    # catalog copy looks the same. The texture URL points at an existing file in the
+    # support_textures/ dir; reference it by relative path (never uploads/overwrites).
+    texture_url = (data.get('texture') or '').strip()
+    if texture_url:
+        try:
+            rel = urllib.parse.urlparse(texture_url).path
+            marker = 'support_textures/'
+            i = rel.find(marker)
+            if i != -1:
+                rel = rel[i:]
+                if cat.texture.storage.exists(rel):
+                    cat.texture.name = rel
+                    cat.save(update_fields=['texture'])
+        except Exception:
+            pass   # texture is optional; the label/dimensions are already saved
+
     return JsonResponse({'ok': True, 'item': {
         'id': cat.pk, 'label': cat.label,
-        'w_in': cat.w_in, 'h_in': cat.h_in, 'd_in': cat.d_in}})
+        'w_in': cat.w_in, 'h_in': cat.h_in, 'd_in': cat.d_in,
+        'texture': (cat.texture.url if cat.texture else None)}})
 
 
 def room_viewer(request, slug):

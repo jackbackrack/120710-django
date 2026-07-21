@@ -192,8 +192,9 @@
     <div id="placed-list" class="thumb-grid"></div>
     <h6 style="margin-top:16px">Supports</h6>
     <div id="support-add" class="edit-only" style="margin-bottom:6px">
-      <button type="button" class="btn btn-sm btn-outline-secondary" id="add-support-btn" title="Drag onto the wall to place, or click to add at the centre (a pedestal on the floor, a shelf on a wall)">＋ Add support</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="add-support-btn" title="Add a new support to the tray below, then drag it onto the wall">＋ Add support</button>
     </div>
+    <div id="support-new-list" class="edit-only"></div>
     <div id="support-catalog" class="edit-only"></div>
     <div id="support-list"></div>
   </div>
@@ -228,6 +229,7 @@
     <!-- Support size/position controls — shown when a support is selected -->
     <div id="support-panel" class="edit-only">
       <span class="pos-title" id="sp-title"></span>
+      <label for="sp-name">Name</label><input type="text" id="sp-name" placeholder="e.g. Plinth A" style="width:120px">
       <label for="sp-w">W (in)</label><input type="number" id="sp-w" step="0.5" min="1">
       <label for="sp-h">H (in)</label><input type="number" id="sp-h" step="0.5" min="1">
       <label for="sp-d">D (in)</label><input type="number" id="sp-d" step="0.5" min="1">
