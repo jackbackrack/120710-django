@@ -604,7 +604,8 @@
     var rightD  = ww - (left + w) / baseScale;       // right edge → right wall edge
     var topD    = top / baseScale;                   // top edge → top wall edge
     var bottomD = wh - (top + h) / baseScale;        // bottom edge → bottom wall edge
-    hh.textContent = '←' + fmtIn(leftD) + '"  →' + fmtIn(rightD) + '"';
+    var centerD = (left + w / 2) / baseScale;        // horizontal centre → left wall edge (centre hole)
+    hh.textContent = '←' + fmtIn(leftD) + '"  ⊕' + fmtIn(centerD) + '"  →' + fmtIn(rightD) + '"';
     hv.textContent = '↑' + fmtIn(topD) + '"  ↓' + fmtIn(bottomD) + '"';
     fitTextEl(hh, HANG_MAX_FONT);
     fitTextEl(hv, HANG_MAX_FONT);
