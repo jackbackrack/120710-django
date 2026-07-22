@@ -52,7 +52,7 @@ from gallery.views.collection import (
     toggle_save,
     CollectorsListView,
 )
-from gallery.views.open_call import artwork_submit, invite_artists, accept_invitation, show_submissions, promote_artworks, show_artist_emails, send_selection_emails, update_submission_status, bulk_update_submission_status, renumber_artworks, retract_submission, remove_artwork_from_show, send_submission_reminders
+from gallery.views.open_call import artwork_submit, invite_artists, accept_invitation, show_submissions, promote_artworks, add_artwork_on_behalf, show_artist_emails, send_selection_emails, update_submission_status, bulk_update_submission_status, renumber_artworks, retract_submission, remove_artwork_from_show, send_submission_reminders
 from gallery.views.search import SearchResultsListView
 from gallery.views.room import room_layout, room_layout_save, room_viewer
 from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker, schedule_ics
@@ -109,6 +109,7 @@ __all__ = [
     'accept_invitation',
     'show_submissions',
     'promote_artworks',
+    'add_artwork_on_behalf',
     'show_artist_emails',
     'send_selection_emails',
     'update_submission_status',

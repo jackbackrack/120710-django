@@ -84,6 +84,7 @@ HOW_TO_GUIDES = [
             'Each row has controls to fix a wrong/typo\'d email in place, Resend the invitation, or Copy link to send the accept link directly (text, DM, another email) if the emailed invitation does not arrive.',
             'The invitation email contains a personal accept link. When the artist opens it — after signing in or signing up with ANY email — the invitation binds to their account, so a mismatched signup email no longer blocks them. If their account already uses the invited email, they are recognized automatically without needing the link.',
             'Change the show status to Open Call on the show detail page. Invited artists can now submit their work.',
+            'To add work for an artist who cannot submit themselves (no account/email, or you manage them directly), open the Submissions page and click "Add artwork on behalf of an artist" — see the dedicated guide. This bypasses the invitation requirement.',
             'After the submission deadline, change the show status to Draft on the show detail page to close submissions.',
             'Go to the Submissions page. Use individual card dropdowns for one-at-a-time decisions, or use bulk select for many at once: click card backgrounds to select them, Shift+click for range select, drag on the grid background to rubber-band select, or click "☑ All" in a section heading. The action bar at the bottom moves all selected cards in one step. Alternatively, use the Curation Slideshow for a full-screen decision workflow.',
             'When your selections are final, change the show status to Published on the show detail page. This redirects to the Publish Show confirmation page.',
@@ -91,6 +92,19 @@ HOW_TO_GUIDES = [
             'Back on the show detail page, click "Send Emails" to notify artists of their acceptance or rejection. The emails are sent in the background — the page returns immediately. The button shows how many are pending and how many have already been sent, so it is safe to click again if something goes wrong without sending duplicates.',
             'Change the show status to Closed when the show run ends.',
             'Optionally add events (openings, talks) using the New Event link on the show detail page.',
+        ],
+    },
+    {
+        'title': 'How to add artwork on behalf of an artist (curator/staff)',
+        'roles': {'curator', 'staff'},
+        'steps': [
+            'Use this when an artist cannot self-submit — for example a person you manage who has no email or account (such as an artist with a caregiver acting for them), or any artist you want to add to an invitation-only show directly. The artist needs no account, email, or submission of their own.',
+            'If the artist does not exist yet, create their profile first (Artists → New): fill their name, first/last name, a profile photo and zip code (required to appear in shows), and leave "Linked user account" blank. The email field can be a caregiver\'s address or left blank — it is never sent to the artist.',
+            'Go to the show\'s Submissions page and click "Add artwork on behalf of an artist".',
+            'Choose the artist from the dropdown. The page then lists that artist\'s existing artworks.',
+            'Either select one of their existing artworks and click "Add selected artwork to show", OR fill in the "Create a new artwork" form (title, medium, dimensions, image, price) and click "Create & add to show".',
+            'The piece is added to the show as a curator-selected submission. On a Published show it appears immediately (in the layout editor and 3D view); on a show still in Draft/Open Call it is marked Selected and is added when you Publish/Promote, alongside the other selections.',
+            'If that artist later gets their own account, a staff user can link the profile to it at /accounts/link-artists/ — nothing you added is lost.',
         ],
     },
     {

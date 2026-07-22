@@ -1969,6 +1969,69 @@ class ArtworkCreateAutoAssignTests(TestCase):
         self.assertNotIn('artists', response.context['form'].fields)
 
 
+class AddArtworkOnBehalfTests(MediaImageMixin, TestCase):
+    """A curator/admin can add an artwork on behalf of a managed artist to an
+    invitation-only show, with no account/email/submission from the artist."""
+
+    def setUp(self):
+        self._setup_media()
+        self.staff = User.objects.create_user(
+            username='boss@example.com', email='boss@example.com', password='pw', is_staff=True)
+        # A managed artist with NO linked user and NO email — the proxy case.
+        self.managed = Artist.objects.create(
+            name='Alice Nomail', first_name='Alice', last_name='Nomail',
+            email='', zipcode='94103', image=self.TEST_ARTIST_IMAGE)
+        self.artwork = Artwork.objects.create(name='Blue Study', end_year=2026,
+                                              width_inches=10, height_inches=8)
+        self.artwork.artists.add(self.managed)
+        self.show = Show.objects.create(
+            name='Invited Only', submission_type=Show.SUBMISSION_INVITED,
+            status=Show.STATUS_PUBLISHED,
+            start=datetime.date.today() + datetime.timedelta(days=30),
+            end=datetime.date.today() + datetime.timedelta(days=60))
+        self.url = reverse('gallery:add_artwork_on_behalf', kwargs={'slug': self.show.slug})
+
+    def tearDown(self):
+        self._teardown_media()
+
+    def _minimal_image(self):
+        gif = (b'GIF87a\x01\x00\x01\x00\x80\x00\x00\xff\x00\x00\xff\xff\xff'
+               b'!\xf9\x04\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01'
+               b'\x00\x00\x02\x02D\x01\x00;')
+        return SimpleUploadedFile('test.gif', gif, content_type='image/gif')
+
+    def test_add_existing_artwork_on_behalf(self):
+        self.client.force_login(self.staff)
+        r = self.client.post(self.url, {
+            'artist': self.managed.pk, 'artwork': self.artwork.pk, 'action': 'add_existing'})
+        self.assertRedirects(r, reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}))
+        self.assertTrue(self.show.artworks.filter(pk=self.artwork.pk).exists())
+        sub = ArtworkSubmission.objects.get(show=self.show, artwork=self.artwork)
+        self.assertEqual(sub.curator_decision, ArtworkSubmission.CURATOR_SELECTED)
+        self.assertEqual(sub.submitted_by, self.staff)
+
+    def test_create_new_artwork_on_behalf(self):
+        self.client.force_login(self.staff)
+        r = self.client.post(self.url, {
+            'artist': self.managed.pk, 'action': 'create_new',
+            'name': 'Fresh Piece', 'medium': 'oil', 'end_year': 2026,
+            'width_inches': 12, 'height_inches': 9, 'pricing_type': 'nfs',
+            'image': self._minimal_image()})
+        self.assertRedirects(r, reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}))
+        aw = Artwork.objects.get(name='Fresh Piece')
+        self.assertIn(self.managed, aw.artists.all())          # attributed to the chosen artist
+        self.assertEqual(aw.created_by, self.staff)
+        self.assertTrue(self.show.artworks.filter(pk=aw.pk).exists())
+
+    def test_non_manager_cannot_add(self):
+        nobody = User.objects.create_user(username='x@e.com', email='x@e.com', password='pw')
+        self.client.force_login(nobody)
+        r = self.client.post(self.url, {
+            'artist': self.managed.pk, 'artwork': self.artwork.pk, 'action': 'add_existing'})
+        self.assertEqual(r.status_code, 404)
+        self.assertFalse(self.show.artworks.filter(pk=self.artwork.pk).exists())
+
+
 @override_settings(
     STORAGES={
         'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},

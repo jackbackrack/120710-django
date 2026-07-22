@@ -732,6 +732,75 @@ def promote_artworks(request, slug):
     return render(request, 'gallery/promote_artworks.html', context)
 
 
+def _add_artwork_to_show_on_behalf(show, artwork, user):
+    """Curator/admin path: put an artwork into a show without the artist having to
+    self-submit (used for artists a curator manages who have no account, and to
+    bypass the invitation gate on invitation-only shows). Records a curator-selected
+    submission and syncs show.artworks the same way promote does."""
+    sub, _ = ArtworkSubmission.objects.get_or_create(
+        show=show, artwork=artwork, defaults={'submitted_by': user},
+    )
+    sub.curator_decision = ArtworkSubmission.CURATOR_SELECTED
+    sub.status = ArtworkSubmission.ACCEPTED
+    sub.save(update_fields=['curator_decision', 'status'])
+    _sync_show_artworks(show, artwork, ArtworkSubmission.CURATOR_SELECTED)
+    # Assign a show artwork number if the piece actually joined the show now.
+    if (show.artworks.filter(pk=artwork.pk).exists()
+            and not ShowArtworkNumber.objects.filter(show=show, artwork=artwork).exists()):
+        next_number = (
+            ShowArtworkNumber.objects.filter(show=show).order_by('-number')
+            .values_list('number', flat=True).first() or 0
+        ) + 1
+        ShowArtworkNumber.objects.create(show=show, artwork=artwork, number=next_number)
+
+
+@login_required
+def add_artwork_on_behalf(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+
+    artists = Artist.objects.order_by('first_name', 'last_name', 'name')
+    artist_id = request.POST.get('artist') or request.GET.get('artist')
+    artist = Artist.objects.filter(pk=artist_id).first() if artist_id else None
+
+    def _new_form(*args):
+        f = ArtworkForm(*args, user=request.user)
+        f.fields.pop('artists', None)   # attribution is fixed to the chosen artist
+        return f
+
+    new_form = _new_form()
+
+    if request.method == 'POST' and artist:
+        action = request.POST.get('action')
+        artwork = None
+        if action == 'add_existing':
+            artwork = artist.artworks.filter(pk=request.POST.get('artwork')).first()
+            if not artwork:
+                messages.error(request, "Please choose one of the artist's artworks.")
+        elif action == 'create_new':
+            new_form = _new_form(request.POST, request.FILES)
+            if new_form.is_valid():
+                artwork = new_form.save(commit=False)
+                artwork.created_by = request.user
+                artwork.save()
+                artwork.artists.add(artist)
+        if artwork:
+            _add_artwork_to_show_on_behalf(show, artwork, request.user)
+            messages.success(request, f'Added "{artwork.name}" by {artist.name} to {show.name}.')
+            return redirect('gallery:show_submissions', slug=show.slug)
+
+    existing_artworks = []
+    if artist:
+        already = show.submissions.values_list('artwork_id', flat=True)
+        existing_artworks = list(artist.artworks.exclude(pk__in=already).order_by('name'))
+
+    return render(request, 'gallery/add_artwork_on_behalf.html', {
+        'show': show, 'artists': artists, 'artist': artist,
+        'existing_artworks': existing_artworks, 'new_form': new_form,
+    })
+
+
 @login_required
 def renumber_artworks(request, slug):
     show = get_object_or_404(Show, slug=slug)

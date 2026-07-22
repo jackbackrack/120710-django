@@ -49,6 +49,8 @@
 {% if can_manage %}
 <div class="text-center mb-2">
   <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Review dashboard</a>
+  <span class="mx-2">·</span>
+  <a class="card__link" href="{% url 'gallery:add_artwork_on_behalf' slug=show.slug %}">Add artwork on behalf of an artist</a>
 </div>
 {% endif %}
 

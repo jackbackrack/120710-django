@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add artwork to {{ show.name }}{% endblock %}
+{% block block_title %}Add an artwork on behalf of an artist{% endblock %}
+
+{% block content %}
+<div class="col-lg-8 mx-auto mt-4">
+  <p class="text-muted">
+    Add a piece to <strong>{{ show.name }}</strong> for an artist you manage — no
+    account, email, or submission from the artist is required. This works for
+    invitation-only shows too. The piece is added as a curator-selected submission.
+  </p>
+
+  {# Step 1: choose the artist (auto-reloads to list that artist's artworks). #}
+  <form method="get" class="mb-4">
+    <label for="artist-select" class="form-label"><strong>Artist</strong></label>
+    <select name="artist" id="artist-select" class="form-select"
+            onchange="this.form.submit()">
+      <option value="">— Select an artist —</option>
+      {% for a in artists %}
+        <option value="{{ a.pk }}" {% if artist and a.pk == artist.pk %}selected{% endif %}>
+          {{ a.name }}{% if a.email %} ({{ a.email }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    <div class="form-text">Don't see them? <a href="{% url 'gallery:artist_new' %}">Create the artist profile</a> first (you can leave the linked account blank).</div>
+  </form>
+
+  {% if artist %}
+    <hr>
+    {# Step 2a: pick one of the artist's existing artworks. #}
+    <h5>Add an existing artwork by {{ artist.name }}</h5>
+    {% if existing_artworks %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="artist" value="{{ artist.pk }}">
+        <div class="list-group mb-2">
+          {% for aw in existing_artworks %}
+            <label class="list-group-item d-flex align-items-center gap-2">
+              <input type="radio" name="artwork" value="{{ aw.pk }}" class="form-check-input m-0">
+              {% if aw.image %}<img src="{{ aw.image.url }}" alt="" style="width:48px;height:48px;object-fit:cover">{% endif %}
+              <span>{{ aw.name }}{% if aw.width_inches and aw.height_inches %} — {{ aw.width_inches }}×{{ aw.height_inches }}"{% endif %}</span>
+            </label>
+          {% endfor %}
+        </div>
+        <button type="submit" name="action" value="add_existing" class="btn btn-primary">Add selected artwork to show</button>
+      </form>
+    {% else %}
+      <p class="text-muted">This artist has no artworks that aren't already in this show. Create one below.</p>
+    {% endif %}
+
+    <hr>
+    {# Step 2b: create a brand-new artwork for this artist and add it. #}
+    <h5>Or create a new artwork for {{ artist.name }}</h5>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="artist" value="{{ artist.pk }}">
+      {% crispy new_form %}
+      <button type="submit" name="action" value="create_new" class="btn btn-success">Create &amp; add to show</button>
+    </form>
+  {% endif %}
+
+  <div class="mt-4">
+    <a href="{% url 'gallery:show_submissions' slug=show.slug %}">← Back to submissions</a>
+  </div>
+</div>
+{% endblock %}
