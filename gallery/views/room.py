@@ -63,6 +63,7 @@ def _artwork_json(artwork):
         'w_in':    float(artwork.width_inches)  if artwork.width_inches  else 24.0,
         'h_in':    float(artwork.height_inches) if artwork.height_inches else 24.0,
         'd_in':    float(artwork.depth_inches)  if artwork.depth_inches  else 0.0,
+        'hang_drop': float(artwork.hang_drop_inches) if artwork.hang_drop_inches is not None else None,
         'img':     artwork.layout_display_url,
         'thumb':   artwork.layout_thumb_url,
         # Placard (wall-label) content — shared by the 2D tool and 3D viewer.

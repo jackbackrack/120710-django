@@ -46,6 +46,13 @@ class Artwork(models.Model):
     width_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Width (inches)')
     height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Height (inches)')
     depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Depth (inches, optional)')
+    hang_drop_inches = models.DecimalField(
+        max_digits=8, decimal_places=2, blank=True, null=True,
+        verbose_name='Hang drop (inches)',
+        help_text='Distance from the bottom edge of the piece up to the hanging point '
+                  '(wire pulled taut, or hook). Measure once; the layout Hang Info then '
+                  'shows the exact screw-hole height.',
+    )
     image = models.ImageField(upload_to=artwork_image_upload, blank=True, null=True)
     # Optional cropped image used only in the room layout editor and 3D viewer.
     # Falls back to the hero image when empty. Not shown in cards.

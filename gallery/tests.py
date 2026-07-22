@@ -3036,6 +3036,13 @@ class RoomTwoDViewTests(TestCase):
         )
         self.url = reverse('gallery:room_2d', kwargs={'slug': self.show.slug})
 
+    def test_artwork_json_includes_hang_drop(self):
+        from gallery.views.room import _artwork_json
+        self.assertIsNone(_artwork_json(self.artwork)['hang_drop'])
+        self.artwork.hang_drop_inches = 4.5
+        self.artwork.save(update_fields=['hang_drop_inches'])
+        self.assertEqual(_artwork_json(self.artwork)['hang_drop'], 4.5)
+
     def test_published_show_is_public_and_readonly(self):
         self.show.status = Show.STATUS_PUBLISHED
         self.show.save()

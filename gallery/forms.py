@@ -212,6 +212,7 @@ class ArtworkForm(UserAwareModelForm):
             'width_inches',
             'height_inches',
             'depth_inches',
+            'hang_drop_inches',
             'image',
             'layout_image',
             'pricing_type',
@@ -262,6 +263,9 @@ class ArtworkForm(UserAwareModelForm):
         self.fields['height_inches'].widget.attrs['placeholder'] = 'H'
         self.fields['depth_inches'].widget.attrs['placeholder'] = 'D'
 
+        self.fields['hang_drop_inches'].label = 'Hang drop (in, optional)'
+        self.fields['hang_drop_inches'].widget.attrs.update({'step': 'any', 'min': '0'})
+
         self.helper = FormHelper()
         self.helper.form_tag = False
         dims_row = Row(
@@ -296,6 +300,7 @@ class ArtworkForm(UserAwareModelForm):
             Fieldset(
                 'Additional details (optional)',
                 'start_year',
+                'hang_drop_inches',
                 'description',
                 'url',
                 'installation',
