@@ -508,8 +508,7 @@
       '<div class="placard-bar">' + esc(p.artwork.name) + '</div>' +
       '<div class="art-dims">' + fmtIn(footprintDims(p).w) + '×' + fmtIn(footprintDims(p).h) + '"</div>' +
       '<div class="hang-h"></div>' +
-      '<div class="hang-v"></div>' +
-      '<div class="hang-screw"></div>';
+      '<div class="hang-v"></div>';
     // High-res image on the wall, with retry then fall back to the thumbnail.
     attachImgRetry(div.querySelector('img'), p.artwork.img || p.artwork.thumb, p.artwork.thumb);
 
@@ -594,7 +593,6 @@
   function updateHangInfo(div) {
     var hh = div.querySelector('.hang-h');
     var hv = div.querySelector('.hang-v');
-    var hs = div.querySelector('.hang-screw');
     if (!hh || !hv) return;
     var dims = wallDims(currentWall);
     var ww = dims[0], wh = dims[1];
@@ -607,27 +605,19 @@
     var topD    = top / baseScale;                   // top edge → top wall edge
     var bottomD = wh - (top + h) / baseScale;        // bottom edge → bottom wall edge
     var centerD = (left + w / 2) / baseScale;        // horizontal centre → left wall edge (centre hole)
+    // Screw-hole height above the floor = bottom-above-floor + the piece's measured
+    // hang drop. Appended inline to the vertical line for wall art with a drop set.
+    var p = placementMap[parseInt(div.dataset.id, 10)];
+    var drop = p && p.artwork ? p.artwork.hang_drop : null;
+    var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
+    var vText = '↑' + fmtIn(topD) + '"  ↓' + fmtIn(bottomD) + '"';
+    if (drop != null && !onFloor) {
+      vText += '  🔩↑' + fmtIn(bottomD + drop) + '"';
+    }
     hh.textContent = '←' + fmtIn(leftD) + '"  ⊕' + fmtIn(centerD) + '"  →' + fmtIn(rightD) + '"';
-    hv.textContent = '↑' + fmtIn(topD) + '"  ↓' + fmtIn(bottomD) + '"';
+    hv.textContent = vText;
     fitTextEl(hh, HANG_MAX_FONT);
     fitTextEl(hv, HANG_MAX_FONT);
-    // Screw-hole drill point: horizontal centre + height above the floor, where
-    // screw height = bottom-above-floor + the piece's measured hang drop. Only
-    // shown for wall art that has a hang drop recorded.
-    if (hs) {
-      var p = placementMap[parseInt(div.dataset.id, 10)];
-      var drop = p && p.artwork ? p.artwork.hang_drop : null;
-      var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
-      if (drop != null && !onFloor) {
-        var screwH = bottomD + drop;                 // bottomD = art bottom above floor on a wall
-        hs.textContent = '🔩⊕' + fmtIn(centerD) + '"  ↑' + fmtIn(screwH) + '"';
-        hs.style.display = '';
-        fitTextEl(hs, HANG_MAX_FONT);
-      } else {
-        hs.textContent = '';
-        hs.style.display = 'none';
-      }
-    }
   }
 
   // ── Drag placed artworks on stage ─────────────────────────────────────────
