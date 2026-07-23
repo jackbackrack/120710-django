@@ -3192,6 +3192,19 @@ class PlacardSheetPdfTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.content.startswith(b'%PDF-'))
 
+    def test_card_lines_content(self):
+        from gallery.models import Artist
+        from gallery.views.placards import _card_lines
+        ar = Artist.objects.create(name='Ada', first_name='Ada', last_name='L', email='a@e.com')
+        aw = Artwork.objects.create(name='Study', start_year=2019, end_year=2021,
+                                    medium='oil on canvas', width_inches=24, height_inches=36,
+                                    pricing_type='for_sale', price=4321)
+        aw.artists.add(ar)
+        texts = [t for (t, f, s) in _card_lines(aw)]
+        self.assertEqual(texts, ['Study', '2019–2021', 'Ada L', 'oil on canvas', '24 × 36 in'])
+        self.assertNotIn('4321', ''.join(texts))          # no price
+        self.assertFalse(any(t.startswith('#') for t in texts))   # no number
+
     def test_qr_toggle(self):
         self.client.force_login(self.staff)
         with_qr = self.client.get(self.url).content

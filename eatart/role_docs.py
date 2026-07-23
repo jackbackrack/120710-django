@@ -237,7 +237,7 @@ HOW_TO_GUIDES = [
         'steps': [
             'On the show detail page, click "Placards PDF" (visible to curators/staff). This downloads a PDF with one placard per artwork in the show.',
             'The PDF is laid out for Avery 5376 business-card sheets — US Letter, ten 2 × 3.5 inch cards per page (2 columns × 5 rows). The same layout also fits Avery 5371, 8371, and 8471.',
-            'Each card shows the piece number, title, artist(s), medium/year, dimensions, and price — the same information as the on-screen placard — plus a QR code on the right that links to the artwork\'s page (so visitors can scan it to see more or inquire). The text automatically shrinks to fit beside the QR, even for long titles. Add ?qr=0 to the link if you want text-only cards without the QR.',
+            'Each card shows the title, year(s), artist(s), medium, and dimensions — no price — plus a QR code on the right that links to the artwork\'s page (so visitors can scan it to see more or inquire). The text automatically shrinks to fit beside the QR, even for long titles. Add ?qr=0 to the link if you want text-only cards without the QR.',
             'Cards are ordered by the show artwork number (then title). Load Avery 5376 stock in your printer and print at 100% / "Actual size" (do NOT use "fit to page", which would shift the alignment).',
             'To check alignment on plain paper first, add ?outlines=1 to the PDF link (e.g. …/placards.pdf?outlines=1) to draw faint card borders; print it, hold it against a blank Avery sheet to confirm registration, then print the real one without outlines.',
         ],

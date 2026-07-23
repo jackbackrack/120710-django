@@ -111,26 +111,23 @@ def _draw_qr(c, url, x, y, size):
     renderPDF.draw(d, c, x, y)
 
 
-def _card_lines(artwork, number):
-    """Placard lines (text, font, base_size) mirroring the on-screen placard:
-    title, artist(s), medium/year, dimensions, price."""
+def _card_lines(artwork):
+    """Placard lines (text, font, base_size): title, year(s), artist(s), medium,
+    dimensions. (No price and no number, by request.)"""
     artists = ', '.join(str(a) for a in artwork.artists.all())
-    year = str(artwork.end_year) if artwork.end_year else ''
+    sy, ey = artwork.start_year, artwork.end_year
+    if ey and sy and sy != ey:
+        years = f'{sy}–{ey}'
+    else:
+        years = str(ey or sy or '')
     medium = (artwork.medium or '').strip()
-    medium_year = ' • '.join(p for p in (medium, year) if p)
-    rows = []
-    if number is not None:
-        rows.append((f'#{number}', _FONT, 7.5))
-    rows.append((artwork.name or 'Untitled', _BOLD, 12.0))
-    if artists:
-        rows.append((artists, _FONT, 10.0))
-    if medium_year:
-        rows.append((medium_year, _ITALIC, 9.0))
-    if artwork.placard_dimensions:
-        rows.append((artwork.placard_dimensions, _FONT, 9.0))
-    price = artwork.formatted_price
-    if price:
-        rows.append((price, _BOLD, 9.5))
+    rows = [
+        (artwork.name or 'Untitled', _BOLD, 12.0),
+        (years, _FONT, 9.0),
+        (artists, _FONT, 10.0),
+        (medium, _ITALIC, 9.0),
+        (artwork.placard_dimensions, _FONT, 9.0),
+    ]
     return [(t, f, s) for (t, f, s) in rows if t]
 
 
@@ -154,7 +151,7 @@ def _fit(lines, avail_w, avail_h):
     return out
 
 
-def _draw_card(c, x, y, artwork, number, outline, qr_url=None):
+def _draw_card(c, x, y, artwork, outline, qr_url=None):
     """Draw one placard with bottom-left corner at (x, y). If qr_url is given, a QR
     code is drawn at the right and the text is confined to the left of it."""
     if outline:
@@ -172,7 +169,7 @@ def _draw_card(c, x, y, artwork, number, outline, qr_url=None):
     text_left = x + PAD
     avail_w = text_right - text_left
     avail_h = CARD_H - 2 * PAD
-    lines = _fit(_card_lines(artwork, number), avail_w, avail_h)
+    lines = _fit(_card_lines(artwork), avail_w, avail_h)
     block_h = sum(s * LEADING for _, _, s in lines)
     cx = (text_left + text_right) / 2
     cursor = y + CARD_H / 2 + block_h / 2      # top of the vertically-centred block
@@ -208,7 +205,7 @@ def placard_sheet_pdf(request, slug):
         x = LEFT_MARGIN + col * CARD_W
         y = PAGE_H - TOP_MARGIN - (row + 1) * CARD_H
         qr_url = request.build_absolute_uri(art.get_absolute_url()) if want_qr else None
-        _draw_card(c, x, y, art, numbers.get(art.id), outline, qr_url)
+        _draw_card(c, x, y, art, outline, qr_url)
     c.showPage()   # flush the last (possibly partial) page
     c.save()
 
