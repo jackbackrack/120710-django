@@ -114,6 +114,11 @@ time.sleep(3)
 magtag.peripherals.neopixel_disable = True
 magtag.peripherals.speaker_disable = True
 
+# The MagTag library claims the buttons as DigitalInOut; release those pins so we
+# can arm them as deep-sleep wake alarms (otherwise: "BUTTON_A in use").
+for _btn in magtag.peripherals.buttons:
+    _btn.deinit()
+
 time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + REFRESH_SECONDS)
 button_alarms = [
     alarm.pin.PinAlarm(pin=pin, value=False, pull=True)
