@@ -3081,6 +3081,25 @@ class ChecklistPdfTests(TestCase):
         _bio_entry(b, _styles(), story2)
         self.assertTrue(any(isinstance(f, Paragraph) for f in story2))
 
+    def test_downscale_applies_exif_orientation(self):
+        import io
+        from PIL import Image as P
+        from gallery.views.checklist import _downscale
+        im = P.new('RGB', (100, 40), (200, 50, 50))
+        b = io.BytesIO(); exif = im.getexif(); exif[274] = 6   # Orientation = rotate 90
+        im.save(b, 'JPEG', exif=exif.tobytes()); data = b.getvalue()
+
+        class F:
+            def open(self, mode='rb'): self._b = io.BytesIO(data)
+            def read(self): return self._b.read()
+            def close(self): pass
+            def __bool__(self): return True
+
+        got = _downscale(F(), 600)
+        self.assertIsNotNone(got)
+        _, w, h = got
+        self.assertEqual((w, h), (40, 100))   # landscape source rotated to portrait
+
     def test_logo_reader_uses_site_icon(self):
         from gallery.models import Site
         from gallery.views.checklist import _logo_reader

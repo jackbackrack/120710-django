@@ -104,9 +104,10 @@ def _downscale(fields, max_px):
         if not raw:
             continue
         try:
-            from PIL import Image as PILImage
+            from PIL import Image as PILImage, ImageOps
             im = PILImage.open(io.BytesIO(raw))
             im.load()
+            im = ImageOps.exif_transpose(im)   # honor EXIF orientation (phone photos)
             if im.mode not in ('RGB', 'L'):
                 im = im.convert('RGB')
             im.thumbnail((max_px, max_px))
@@ -163,6 +164,8 @@ def _bio_entry(person, styles, story):
     if (person.bio or '').strip():
         flows.append(Paragraph('<b>Bio:</b> ' + _ptext(person.bio), styles['bio']))
     if (person.statement or '').strip():
+        if (person.bio or '').strip():
+            flows.append(Spacer(1, 6))   # line break between bio and statement
         flows.append(Paragraph('<b>Statement:</b> ' + _ptext(person.statement), styles['bio']))
     img = _img_flowable([getattr(person, 'card_md', None), getattr(person, 'image', None)],
                         1.3 * inch, 1.6 * inch, max_px=600)   # medium source, same on-paper size
