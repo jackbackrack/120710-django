@@ -1,4 +1,5 @@
 import json
+import logging
 import urllib.parse
 
 from django.contrib.auth.decorators import login_required
@@ -11,6 +12,8 @@ from django.views.decorators.http import require_POST
 from gallery.models import Artwork, Show, WallPlacement
 from gallery.models.room import RoomConfig, SiteSupport, Support
 from gallery.permissions import can_manage_show
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG = {'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0,
                    'wall_n_img': None, 'wall_e_img': None, 'wall_s_img': None,
@@ -219,6 +222,8 @@ def _take_snapshot(show, user, kind, name=''):
                     ShowLayoutSnapshot.objects.filter(pk__in=list(stale)).delete()
         return snap
     except Exception:   # noqa: BLE001 — snapshots are a safety net, not critical path
+        logger.exception('Layout snapshot failed for show %s (kind=%s)',
+                         getattr(show, 'slug', '?'), kind)
         return None
 
 
@@ -306,7 +311,13 @@ def room_layout_save(request, slug):
     try:
         errors = _apply_layout(show, data)
     except Exception as e:   # noqa: BLE001 — surface a real failure to the client
+        logger.exception('Layout save failed for show %s (user=%s, %d placements, %d supports)',
+                         show.slug, getattr(request.user, 'email', '?'),
+                         len(data.get('placements', [])), len(data.get('supports', [])))
         return JsonResponse({'ok': False, 'error': f'Save failed: {e}'}, status=500)
+    if errors:
+        logger.warning('Layout save for show %s skipped %d item(s): %s',
+                       show.slug, len(errors), '; '.join(errors[:10]))
     return JsonResponse({'ok': True, 'errors': errors, 'rev': _layout_fingerprint(show)})
 
 
