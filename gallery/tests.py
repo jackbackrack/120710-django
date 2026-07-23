@@ -3065,6 +3065,30 @@ class LayoutSnapshotTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 5)
 
+    def test_delete_snapshot(self):
+        from gallery.models import ShowLayoutSnapshot
+        self._save(5)
+        r = self.client.post(reverse('gallery:layout_snapshots', kwargs={'slug': self.show.slug}),
+                             data=self.json.dumps({'name': 'Doomed'}), content_type='application/json')
+        snap_id = r.json()['snapshot']['id']
+        r = self.client.post(reverse('gallery:delete_layout_snapshot',
+                                     kwargs={'slug': self.show.slug, 'pk': snap_id}))
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(ShowLayoutSnapshot.objects.filter(pk=snap_id).exists())
+
+    def test_delete_snapshot_requires_manage(self):
+        from gallery.models import ShowLayoutSnapshot
+        self._save(5)
+        r = self.client.post(reverse('gallery:layout_snapshots', kwargs={'slug': self.show.slug}),
+                             data=self.json.dumps({'name': 'Keep'}), content_type='application/json')
+        snap_id = r.json()['snapshot']['id']
+        other = User.objects.create_user(username='z@e.com', email='z@e.com', password='pw')
+        self.client.force_login(other)
+        r = self.client.post(reverse('gallery:delete_layout_snapshot',
+                                     kwargs={'slug': self.show.slug, 'pk': snap_id}))
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(ShowLayoutSnapshot.objects.filter(pk=snap_id).exists())
+
     def test_restore_requires_manage(self):
         from gallery.models import ShowLayoutSnapshot
         self._save(5)

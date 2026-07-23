@@ -376,6 +376,19 @@ def restore_layout_snapshot(request, slug, pk):
 
 @login_required
 @require_POST
+def delete_layout_snapshot(request, slug, pk):
+    """Delete a single snapshot (auto or manual)."""
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    from gallery.models import ShowLayoutSnapshot
+    snap = get_object_or_404(ShowLayoutSnapshot, pk=pk, show=show)
+    snap.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
 def save_support_to_catalog(request, slug):
     """Create a reusable SiteSupport (catalog entry) on the show's site from a
     support built in the layout tool."""

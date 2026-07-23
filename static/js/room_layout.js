@@ -2141,7 +2141,21 @@
             else { rb.disabled = false; rb.textContent = 'Restore'; alert('Restore failed.'); }
           }).catch(function () { rb.disabled = false; rb.textContent = 'Restore'; alert('Restore failed.'); });
         });
+        var db = document.createElement('button');
+        db.className = 'btn btn-sm btn-outline-danger'; db.textContent = '🗑';
+        db.title = 'Delete this snapshot';
+        db.addEventListener('click', function () {
+          if (!window.confirm('Delete this snapshot? This cannot be undone.')) return;
+          db.disabled = true;
+          fetch(window.SNAPSHOTS_URL + s.id + '/delete/', {
+            method: 'POST', headers: { 'X-CSRFToken': csrfToken },
+          }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.ok) { row.remove(); if (!listEl.querySelector('.snap-row')) loadList(); }
+            else { db.disabled = false; alert('Delete failed.'); }
+          }).catch(function () { db.disabled = false; alert('Delete failed.'); });
+        });
         row.appendChild(rb);
+        row.appendChild(db);
         listEl.appendChild(row);
       });
     }
