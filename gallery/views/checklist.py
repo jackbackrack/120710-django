@@ -164,8 +164,8 @@ def _bio_entry(person, styles, story):
         flows.append(Paragraph('<b>Bio:</b> ' + _ptext(person.bio), styles['bio']))
     if (person.statement or '').strip():
         flows.append(Paragraph('<b>Statement:</b> ' + _ptext(person.statement), styles['bio']))
-    img = _img_flowable([getattr(person, 'card_sm', None), getattr(person, 'image', None)],
-                        1.3 * inch, 1.6 * inch, max_px=250)
+    img = _img_flowable([getattr(person, 'card_md', None), getattr(person, 'image', None)],
+                        1.3 * inch, 1.6 * inch, max_px=600)   # medium source, same on-paper size
     if img:
         story.append(ImageAndFlowables(img, flows, imageSide='left',
                                        imageRightPadding=10, imageBottomPadding=6))
@@ -239,8 +239,10 @@ def _cover(show, site, works, styles, content_w):
         story.append(Spacer(1, 10))
         story.append(t)
 
-    # Show image (medium size) with the description flowing around it.
-    show_img = _img_flowable([show.card_md, show.image], 3.0 * inch, 3.5 * inch, max_px=800)
+    # Show image (high-res source, capped ~1600px) with the description flowing
+    # around it — same on-paper size as before.
+    show_img = _img_flowable([show.slideshow, show.detail_lg, show.image],
+                             3.0 * inch, 3.5 * inch, max_px=1600)
     desc = _statement_flowables(show.description, styles['stmt'])
     story.append(Spacer(1, 12))
     if show_img:
@@ -268,7 +270,7 @@ def _work_entry(artwork, styles, content_w):
         style=styles['work'],
     )
     img_w = 1.5 * inch
-    img = _img_flowable([artwork.card_sm, artwork.image], img_w, 1.5 * inch, max_px=250)
+    img = _img_flowable([artwork.card_md, artwork.image], img_w, 1.5 * inch, max_px=600)   # medium source, same on-paper size
     if img:
         row = Table([[img, para]], colWidths=[img_w + 0.15 * inch, content_w - img_w - 0.15 * inch])
         row.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'),
