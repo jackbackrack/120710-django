@@ -50,6 +50,18 @@ class UserAwareModelForm(forms.ModelForm):
         return cleaned
 
 
+class NoClearFileInput(forms.ClearableFileInput):
+    """A file input with no "Clear" checkbox — for images that should always have a
+    value (the artist profile photo, the artwork's main image). It still shows the
+    current file and lets you upload or drag-and-drop a replacement; you just can't
+    blank it out (which was confusing, since these images are required)."""
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        # The default template hides the clear checkbox when the widget is "required".
+        context['widget']['required'] = True
+        return context
+
+
 class ArtistForm(UserAwareModelForm):
     # Plain text field (not URLField) so a scheme-less domain like "howardhersh.com"
     # is accepted; clean_website adds https:// and then validates it as a URL.
@@ -77,6 +89,7 @@ class ArtistForm(UserAwareModelForm):
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel', 'placeholder': '+1 (555) 555-5555'}),
             'zipcode': forms.TextInput(attrs={'placeholder': 'e.g. 94710', 'maxlength': '10'}),
+            'image': NoClearFileInput(),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -223,6 +236,9 @@ class ArtworkForm(UserAwareModelForm):
             'url',
             'installation',
         )
+        widgets = {
+            'image': NoClearFileInput(),   # required image → no confusing "Clear" checkbox
+        }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
