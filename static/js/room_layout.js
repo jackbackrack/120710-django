@@ -558,14 +558,16 @@
                fontPx + 'px ' + (cs.fontFamily || 'sans-serif');
     return ctx.measureText(text).width;
   }
-  function fitTextEl(el, maxFont) {
+  function fitTextEl(el, maxFont, measureOverride) {
     if (!el || !el.textContent) return;
     maxFont = maxFont * (baseScale / fitScale);     // scale text with zoom (zoom to read)
     var cs = getComputedStyle(el);
     var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     var avail = el.clientWidth - padX;              // usable content width
     if (avail <= 0) { el.style.fontSize = maxFont + 'px'; return; }  // hidden — refit when shown
-    var w = _textWidth(el.textContent, maxFont, cs);
+    // measureOverride lets callers measure an emoji-free proxy (canvas measureText
+    // mis-sizes emoji, which otherwise leaves the line too wide and clips its end).
+    var w = _textWidth(measureOverride || el.textContent, maxFont, cs);
     // 0.97 safety margin absorbs sub-pixel rounding so the ellipsis never triggers
     el.style.fontSize = (w > avail ? Math.max(0.5, maxFont * avail / w * 0.97) : maxFont) + 'px';
   }
@@ -611,13 +613,17 @@
     var drop = p && p.artwork ? p.artwork.hang_drop : null;
     var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
     var vText = '↑' + fmtIn(topD) + '"  ↓' + fmtIn(bottomD) + '"';
+    var vMeasure = vText;
     if (drop != null && !onFloor) {
-      vText += '  🔩↑' + fmtIn(bottomD + drop) + '"';
+      var screwTxt = '🔩↑' + fmtIn(bottomD + drop) + '"';   // screw hole → floor
+      vText += '  ' + screwTxt;
+      // Proxy the emoji with wide ASCII so the line shrinks enough to show it all.
+      vMeasure += '  WW↑' + fmtIn(bottomD + drop) + '"';
     }
     hh.textContent = '←' + fmtIn(leftD) + '"  ⊕' + fmtIn(centerD) + '"  →' + fmtIn(rightD) + '"';
     hv.textContent = vText;
     fitTextEl(hh, HANG_MAX_FONT);
-    fitTextEl(hv, HANG_MAX_FONT);
+    fitTextEl(hv, HANG_MAX_FONT, vMeasure);
   }
 
   // ── Drag placed artworks on stage ─────────────────────────────────────────
