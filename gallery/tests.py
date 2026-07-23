@@ -3192,6 +3192,13 @@ class PlacardSheetPdfTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.content.startswith(b'%PDF-'))
 
+    def test_qr_toggle(self):
+        self.client.force_login(self.staff)
+        with_qr = self.client.get(self.url).content
+        no_qr = self.client.get(self.url + '?qr=0').content
+        self.assertTrue(with_qr.startswith(b'%PDF-') and no_qr.startswith(b'%PDF-'))
+        self.assertGreater(len(with_qr), len(no_qr))   # QR adds content
+
     def test_non_manager_denied(self):
         other = User.objects.create_user(username='nn@e.com', email='nn@e.com', password='pw')
         self.client.force_login(other)

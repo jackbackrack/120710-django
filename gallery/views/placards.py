@@ -7,6 +7,9 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
+from reportlab.graphics import renderPDF
+from reportlab.graphics.barcode import qr
+from reportlab.graphics.shapes import Drawing
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -93,8 +96,19 @@ PER_PAGE = COLS * ROWS
 PAD = 0.16 * inch          # inner margin inside each card
 LEADING = 1.28             # line height as a multiple of font size
 MIN_FONT = 4.0             # floor so text never disappears
+QR_SIZE = 0.8 * inch       # QR square drawn on the right of the card
 
 _FONT, _BOLD, _ITALIC = 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+
+
+def _draw_qr(c, url, x, y, size):
+    """Draw a QR code (scannable link to the artwork) in a size x size box."""
+    widget = qr.QrCodeWidget(url)
+    b = widget.getBounds()
+    bw, bh = (b[2] - b[0]) or 1, (b[3] - b[1]) or 1
+    d = Drawing(size, size, transform=[size / bw, 0, 0, size / bh, 0, 0])
+    d.add(widget)
+    renderPDF.draw(d, c, x, y)
 
 
 def _card_lines(artwork, number):
@@ -140,18 +154,27 @@ def _fit(lines, avail_w, avail_h):
     return out
 
 
-def _draw_card(c, x, y, artwork, number, outline):
-    """Draw one placard with bottom-left corner at (x, y)."""
+def _draw_card(c, x, y, artwork, number, outline, qr_url=None):
+    """Draw one placard with bottom-left corner at (x, y). If qr_url is given, a QR
+    code is drawn at the right and the text is confined to the left of it."""
     if outline:
         c.saveState()
         c.setStrokeGray(0.75)
         c.setLineWidth(0.5)
         c.rect(x, y, CARD_W, CARD_H)
         c.restoreState()
-    avail_w, avail_h = CARD_W - 2 * PAD, CARD_H - 2 * PAD
+
+    text_right = x + CARD_W - PAD
+    if qr_url:
+        _draw_qr(c, qr_url, x + CARD_W - PAD - QR_SIZE, y + (CARD_H - QR_SIZE) / 2, QR_SIZE)
+        text_right = x + CARD_W - QR_SIZE - 2 * PAD   # keep text clear of the QR
+
+    text_left = x + PAD
+    avail_w = text_right - text_left
+    avail_h = CARD_H - 2 * PAD
     lines = _fit(_card_lines(artwork, number), avail_w, avail_h)
     block_h = sum(s * LEADING for _, _, s in lines)
-    cx = x + CARD_W / 2
+    cx = (text_left + text_right) / 2
     cursor = y + CARD_H / 2 + block_h / 2      # top of the vertically-centred block
     c.setFillGray(0)
     for text, font, size in lines:
@@ -169,6 +192,7 @@ def placard_sheet_pdf(request, slug):
         raise Http404
 
     outline = request.GET.get('outlines') == '1'
+    want_qr = request.GET.get('qr') != '0'   # QR on by default; ?qr=0 to omit
     numbers = {sn.artwork_id: sn.number
                for sn in ShowArtworkNumber.objects.filter(show=show)}
     artworks = list(show.artworks.prefetch_related('artists'))
@@ -183,7 +207,8 @@ def placard_sheet_pdf(request, slug):
         col, row = slot % COLS, slot // COLS
         x = LEFT_MARGIN + col * CARD_W
         y = PAGE_H - TOP_MARGIN - (row + 1) * CARD_H
-        _draw_card(c, x, y, art, numbers.get(art.id), outline)
+        qr_url = request.build_absolute_uri(art.get_absolute_url()) if want_qr else None
+        _draw_card(c, x, y, art, numbers.get(art.id), outline, qr_url)
     c.showPage()   # flush the last (possibly partial) page
     c.save()
 
