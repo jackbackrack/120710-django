@@ -1,0 +1,9 @@
+# Copy to settings.toml on the MagTag's CIRCUITPY drive and fill in.
+# CircuitPython reads CIRCUITPY_WIFI_* natively; SITE_URL is read by code.py.
+
+CIRCUITPY_WIFI_SSID = "your-wifi-network"
+CIRCUITPY_WIFI_PASSWORD = "your-wifi-password"
+
+# Your gallery site, no trailing slash. Must be reachable from the gallery's
+# Wi-Fi. HTTPS is fine on the MagTag (ESP32-S2).
+SITE_URL = "https://your-gallery-site.example.com"
