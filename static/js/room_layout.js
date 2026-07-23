@@ -547,29 +547,21 @@
     updateHangInfo(div);
   }
 
-  // Shrink an element's font so its single-line text fits its box width.
-  // Uses canvas text measurement (independent of overflow/ellipsis state, which
-  // makes scrollWidth unreliable) so text never clips regardless of artwork size.
-  var _fitCanvas = null;
-  function _textWidth(text, fontPx, cs) {
-    if (!_fitCanvas) _fitCanvas = document.createElement('canvas');
-    var ctx = _fitCanvas.getContext('2d');
-    ctx.font = (cs.fontStyle || 'normal') + ' ' + (cs.fontWeight || '400') + ' ' +
-               fontPx + 'px ' + (cs.fontFamily || 'sans-serif');
-    return ctx.measureText(text).width;
-  }
-  function fitTextEl(el, maxFont, measureOverride) {
+  // Shrink an element's font so its single-line text fits its box width. Measures
+  // the REAL rendered width via scrollWidth — accurate for arrows / ⊕ / 🔩 emoji,
+  // which canvas measureText mis-sizes (font fallback differs), so every hang-info
+  // line is scaled to fit with no ellipsis.
+  function fitTextEl(el, maxFont) {
     if (!el || !el.textContent) return;
     maxFont = maxFont * (baseScale / fitScale);     // scale text with zoom (zoom to read)
+    el.style.fontSize = maxFont + 'px';             // measure at full size first
     var cs = getComputedStyle(el);
     var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-    var avail = el.clientWidth - padX;              // usable content width
-    if (avail <= 0) { el.style.fontSize = maxFont + 'px'; return; }  // hidden — refit when shown
-    // measureOverride lets callers measure an emoji-free proxy (canvas measureText
-    // mis-sizes emoji, which otherwise leaves the line too wide and clips its end).
-    var w = _textWidth(measureOverride || el.textContent, maxFont, cs);
-    // 0.97 safety margin absorbs sub-pixel rounding so the ellipsis never triggers
-    el.style.fontSize = (w > avail ? Math.max(0.5, maxFont * avail / w * 0.97) : maxFont) + 'px';
+    var avail = el.clientWidth  - padX;             // usable content width
+    if (avail <= 0) return;                          // hidden — refit when shown (font at max)
+    var full  = el.scrollWidth - padX;              // actual rendered text width at max size
+    // 0.98 safety margin absorbs sub-pixel rounding so the ellipsis never triggers.
+    if (full > avail) el.style.fontSize = Math.max(0.5, maxFont * avail / full * 0.98) + 'px';
   }
   var LABEL_MAX_FONT = 8, HANG_MAX_FONT = 7;   // px at zoom=1; JS scales down to fit
 
@@ -613,17 +605,13 @@
     var drop = p && p.artwork ? p.artwork.hang_drop : null;
     var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
     var vText = '↑' + fmtIn(topD) + '"  ↓' + fmtIn(bottomD) + '"';
-    var vMeasure = vText;
     if (drop != null && !onFloor) {
-      var screwTxt = '🔩↑' + fmtIn(bottomD + drop) + '"';   // screw hole → floor
-      vText += '  ' + screwTxt;
-      // Proxy the emoji with wide ASCII so the line shrinks enough to show it all.
-      vMeasure += '  WW↑' + fmtIn(bottomD + drop) + '"';
+      vText += '  🔩↑' + fmtIn(bottomD + drop) + '"';   // screw hole → floor
     }
     hh.textContent = '←' + fmtIn(leftD) + '"  ⊕' + fmtIn(centerD) + '"  →' + fmtIn(rightD) + '"';
     hv.textContent = vText;
     fitTextEl(hh, HANG_MAX_FONT);
-    fitTextEl(hv, HANG_MAX_FONT, vMeasure);
+    fitTextEl(hv, HANG_MAX_FONT);
   }
 
   // ── Drag placed artworks on stage ─────────────────────────────────────────
@@ -1285,7 +1273,7 @@
   }
 
   // ── Pan & Zoom ────────────────────────────────────────────────────────────
-  var MIN_ZOOM = 0.15, MAX_ZOOM = 8;
+  var MIN_ZOOM = 0.15, MAX_ZOOM = 24;   // allow zooming much closer to read fine detail
 
   // Mouse-wheel zoom (zoom toward cursor) — re-lays out at real pixels
   canvasWrap.addEventListener('wheel', function (e) {
