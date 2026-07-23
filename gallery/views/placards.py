@@ -1,7 +1,9 @@
 import datetime
 import io
 import json
+import os
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -12,7 +14,9 @@ from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 from gallery.models import Show
@@ -95,10 +99,29 @@ PER_PAGE = COLS * ROWS
 
 PAD = 0.16 * inch          # inner margin inside each card
 LEADING = 1.28             # line height as a multiple of font size
-MIN_FONT = 4.0             # floor so text never disappears
+MIN_SCALE = 0.45           # smallest fraction of base size before we truncate
 QR_SIZE = 0.8 * inch       # QR square drawn on the right of the card
 
-_FONT, _BOLD, _ITALIC = 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+
+def _register_fonts():
+    """Embed DejaVu Sans (broad Unicode coverage) so accented/greek/cyrillic/symbol
+    characters render. Falls back to Helvetica if the bundled fonts are missing."""
+    font_dir = os.path.join(settings.BASE_DIR, 'gallery', 'fonts')
+    variants = [
+        ('DejaVuSans', 'DejaVuSans.ttf'),
+        ('DejaVuSans-Bold', 'DejaVuSans-Bold.ttf'),
+        ('DejaVuSans-Oblique', 'DejaVuSans-Oblique.ttf'),
+    ]
+    try:
+        for name, fname in variants:
+            if name not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont(name, os.path.join(font_dir, fname)))
+        return 'DejaVuSans', 'DejaVuSans-Bold', 'DejaVuSans-Oblique'
+    except Exception:   # noqa: BLE001 — never break PDF generation over fonts
+        return 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+
+
+_FONT, _BOLD, _ITALIC = _register_fonts()
 
 
 def _draw_qr(c, url, x, y, size):
@@ -111,9 +134,9 @@ def _draw_qr(c, url, x, y, size):
     renderPDF.draw(d, c, x, y)
 
 
-def _card_lines(artwork):
-    """Placard lines (text, font, base_size): title, year(s), artist(s), medium,
-    dimensions. (No price and no number, by request.)"""
+def _card_fields(artwork):
+    """Placard fields (text, font, base_size, max_lines): title, year(s), artist(s),
+    medium, dimensions. Title and medium may wrap to 2 lines; the rest are 1 line."""
     artists = ', '.join(str(a) for a in artwork.artists.all())
     sy, ey = artwork.start_year, artwork.end_year
     if ey and sy and sy != ey:
@@ -122,33 +145,73 @@ def _card_lines(artwork):
         years = str(ey or sy or '')
     medium = (artwork.medium or '').strip()
     rows = [
-        (artwork.name or 'Untitled', _BOLD, 12.0),
-        (years, _FONT, 9.0),
-        (artists, _FONT, 10.0),
-        (medium, _ITALIC, 9.0),
-        (artwork.placard_dimensions, _FONT, 9.0),
+        (artwork.name or 'Untitled', _BOLD, 12.0, 2),
+        (years, _FONT, 9.0, 1),
+        (artists, _FONT, 10.0, 2),
+        (medium, _ITALIC, 9.0, 2),
+        (artwork.placard_dimensions, _FONT, 9.0, 1),
     ]
-    return [(t, f, s) for (t, f, s) in rows if t]
+    return [(t, f, s, m) for (t, f, s, m) in rows if t]
 
 
-def _fit(lines, avail_w, avail_h):
-    """Shrink fonts so each line fits the width and the block fits the height."""
-    out = []
-    for text, font, size in lines:
-        w = stringWidth(text, font, size)
-        if w > avail_w:
-            size = max(MIN_FONT, size * avail_w / w)
-        out.append([text, font, size])
-    total_h = sum(s * LEADING for _, _, s in out)
-    if total_h > avail_h and total_h > 0:
-        scale = avail_h / total_h
-        for ln in out:
-            ln[2] *= scale
-        for ln in out:   # a vertical shrink can only help width; re-check to be safe
-            w = stringWidth(ln[0], ln[1], ln[2])
-            if w > avail_w:
-                ln[2] *= avail_w / w
-    return out
+def _ellipsize(text, font, size, max_w, force=False):
+    """Trim text (adding …) until it fits max_w. force=True always adds the ellipsis."""
+    if not force and stringWidth(text, font, size) <= max_w:
+        return text
+    ell = '…'
+    t = text
+    while t and stringWidth(t + ell, font, size) > max_w:
+        t = t[:-1]
+    return (t.rstrip() + ell) if t else ell
+
+
+def _wrap(text, font, size, max_w, max_lines):
+    """Word-wrap text to <= max_lines lines within max_w; the last line is
+    ellipsized if content is cut off (or a single word is too long)."""
+    words = text.split()
+    if not words:
+        return []
+    lines, cur = [], words[0]
+    for word in words[1:]:
+        trial = cur + ' ' + word
+        if stringWidth(trial, font, size) <= max_w:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = word
+    lines.append(cur)
+    lines = [_ellipsize(ln, font, size, max_w) for ln in lines]   # break over-long single words
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = _ellipsize(lines[-1], font, size, max_w, force=True)
+    return lines
+
+
+def _layout_card(artwork, avail_w, avail_h):
+    """Wrap + shrink the fields to fit the card. Returns [(text, font, size)].
+    Shrinks the whole block until it fits height; if it still overflows at the
+    minimum size, trailing lines are dropped so nothing spills off the card."""
+    fields = _card_fields(artwork)
+    scale, rendered, total = 1.0, [], 0.0
+    for _ in range(24):
+        rendered = []
+        for text, font, base, max_lines in fields:
+            size = base * scale
+            for ln in _wrap(text, font, size, avail_w, max_lines):
+                rendered.append((ln, font, size))
+        total = sum(s * LEADING for _, _, s in rendered)
+        if total <= avail_h or scale <= MIN_SCALE:
+            break
+        scale *= 0.92
+    if total > avail_h:   # still too tall at min size → hard-truncate from the bottom
+        fit, h = [], 0.0
+        for ln, font, size in rendered:
+            if h + size * LEADING > avail_h:
+                break
+            fit.append((ln, font, size))
+            h += size * LEADING
+        rendered = fit
+    return rendered
 
 
 def _draw_card(c, x, y, artwork, outline, qr_url=None):
@@ -169,7 +232,7 @@ def _draw_card(c, x, y, artwork, outline, qr_url=None):
     text_left = x + PAD
     avail_w = text_right - text_left
     avail_h = CARD_H - 2 * PAD
-    lines = _fit(_card_lines(artwork), avail_w, avail_h)
+    lines = _layout_card(artwork, avail_w, avail_h)
     block_h = sum(s * LEADING for _, _, s in lines)
     cursor = y + CARD_H / 2 + block_h / 2      # top of the vertically-centred block
     c.setFillGray(0)
