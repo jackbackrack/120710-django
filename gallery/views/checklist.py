@@ -174,19 +174,26 @@ def _bio_entry(person, styles, story):
     story.append(Spacer(1, 12))
 
 
-def _footer(canvas, doc, site):
+def _logo_reader(site):
+    """Read the site LOGO (site.icon) once, as an ImageReader reused on every page.
+    (Reading per page re-opens storage, which on S3 can come back empty after the
+    first page — so the footer logo vanished from page 2 on.)"""
+    if not site:
+        return None
+    data = _read(getattr(site, 'icon', None))
+    if not data:
+        return None
+    try:
+        return ImageReader(io.BytesIO(data))
+    except Exception:   # noqa: BLE001
+        return None
+
+
+def _footer(canvas, doc, site, logo):
     canvas.saveState()
     y = 0.42 * inch
     left, right = doc.leftMargin, PAGE_W - doc.rightMargin
     x = left
-    logo = None
-    if site:
-        logo_bytes = _read(getattr(site, 'icon', None)) or _read(getattr(site, 'image', None))
-        if logo_bytes:
-            try:
-                logo = ImageReader(io.BytesIO(logo_bytes))
-            except Exception:   # noqa: BLE001
-                logo = None
     if logo:
         canvas.drawImage(logo, left, y - 3, width=0.4 * inch, height=0.4 * inch,
                          preserveAspectRatio=True, mask='auto', anchor='sw')
@@ -332,7 +339,7 @@ def show_checklist_pdf(request, slug):
             for c in curators:
                 _bio_entry(c, styles, story)
 
-        footer = functools.partial(_footer, site=site)
+        footer = functools.partial(_footer, site=site, logo=_logo_reader(site))
         doc.build(story, onFirstPage=footer, onLaterPages=footer)
     except Exception as e:   # noqa: BLE001 — surface real failures instead of a bare 500
         logger.exception('Checklist PDF failed for show %s (font=%s)', show.slug, _FONT)

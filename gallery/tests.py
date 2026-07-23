@@ -3081,6 +3081,12 @@ class ChecklistPdfTests(TestCase):
         _bio_entry(b, _styles(), story2)
         self.assertTrue(any(isinstance(f, Paragraph) for f in story2))
 
+    def test_logo_reader_uses_site_icon(self):
+        from gallery.models import Site
+        from gallery.views.checklist import _logo_reader
+        self.assertIsNone(_logo_reader(Site.objects.create(name='No Logo')))
+        self.assertIsNotNone(_logo_reader(Site.objects.create(name='Has Logo', icon=self._jpg('icon.jpg'))))
+
     def test_plain_strips_html(self):
         from gallery.views.checklist import _plain
         self.assertEqual(_plain('<p>Hi <b>x</b> &amp; y</p>'), 'Hi x & y')
