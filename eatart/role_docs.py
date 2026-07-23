@@ -214,6 +214,19 @@ HOW_TO_GUIDES = [
             'Put a piece on a support by dragging it over the support — they auto-group (shown by a green box) and the piece centres and rests on top. From then on they move together: moving the piece (drag, the Height/Horiz fields, or arrow keys) moves the support in lock-step, and moving the support carries its pieces. Use Ungroup to detach a piece so it can move on its own. Remove a selected support with the toolbar Remove button or the Delete key.',
             'Each piece shows a 5x3" placard label (name, artist, medium, dimensions, price) to its right (a flat card beside a pedestal on the floor). Placards follow their piece and appear in the 3D view too.',
             'When finished, the layout is saved automatically. Click "3D View" from the show detail page to see the result in three dimensions.',
+            'Snapshots (restore points): click "Snapshots" in the toolbar to save the current layout under a name, or roll back to an earlier one. See the dedicated "How to save and restore layout snapshots" guide. A snapshot of the current layout is also taken automatically before every save, so an accidental change (or an old browser tab overwriting your work) can always be undone.',
+        ],
+    },
+    {
+        'title': 'How to save and restore layout snapshots',
+        'roles': {'curator', 'staff'},
+        'steps': [
+            'In the room layout editor toolbar, click "Snapshots" to open the snapshot panel.',
+            'To save a restore point: type a name (e.g. "Opening night final") and click Save. This stores the current layout — room dimensions, supports, and every artwork placement.',
+            'The list shows your saved (green "saved") snapshots and automatic (grey "auto") ones, each with when it was taken, who took it, and how many pieces/supports it holds. Automatic snapshots are captured before every save and every restore.',
+            'To roll back: click "Restore" next to a snapshot and confirm. The current layout is replaced by that snapshot. The current state is auto-saved first, so a restore is itself undoable — if you restore the wrong one, restore the newest "auto" snapshot to get back.',
+            'Why this exists: the layout is shared, and saving replaces the whole layout. If two people (or two browser tabs/devices) edit the same show, the last save wins — an old tab can overwrite newer work. Snapshots let you recover. Best practice: save a named snapshot before big changes, and avoid leaving stale layout tabs open on other devices.',
+            'Advanced (staff, command line): "python manage.py export_layout <show-slug> --out file.json" saves a layout to a file, and "python manage.py import_layout <show-slug> file.json" restores it — useful for off-site backups or moving a layout between environments.',
         ],
     },
     {
@@ -554,6 +567,7 @@ ROLE_DOCUMENTATION = {
                     {'name': 'Supports tray / + Add support', 'input_type': 'click or drag', 'purpose': '"＋ Add support" adds a new support to the tray in the sidebar (not placed yet). Drag a tray chip — or a site catalog entry — onto the wall to place it where you drop it (a pedestal on the floor, a shelf on a wall). The × on a tray chip discards an unplaced support. Drop a piece onto a support to auto-group them.'},
                     {'name': 'Support panel (Name / size / Texture)', 'input_type': 'text, number, dropdown', 'purpose': 'With a support selected, set its Name, size (W/H/D), height and rotation, save it to the site catalog, or apply a texture. The Name shows on the support\'s list row and is reused as the default when saving to the catalog. The Texture list offers the site catalog\'s textures plus "None (white)". Newly-added site-catalog supports appear in the sidebar catalog after reloading the layout page.'},
                     {'name': 'Fit button (F key)', 'input_type': 'button / keyboard', 'purpose': 'Resets zoom and pan so the whole current wall fits the available canvas.'},
+                    {'name': 'Snapshots button', 'input_type': 'button / panel', 'purpose': 'Save the current layout as a named restore point, or roll back to an earlier one. A snapshot is also taken automatically before every save and restore, so an accidental change or a stale tab overwriting your work can always be undone. Restores are themselves undoable (the current state is snapshotted first).'},
                     {'name': 'Distribute H / Distribute V buttons', 'input_type': 'button', 'purpose': 'Select multiple artworks (and optionally corner or obstacle markers) then click to space them with equal gaps. The outer two items act as anchors; inner items are redistributed. The gap on the outside of each anchor is half the gap between artworks.'},
                     {'name': 'Scroll wheel / pinch', 'input_type': 'gesture', 'purpose': 'Zoom in and out. Artwork images sharpen at higher zoom levels. Pan with W A S D keys or drag on empty canvas.'},
                 ],

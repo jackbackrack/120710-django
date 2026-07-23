@@ -155,17 +155,60 @@ def room_2d(request, slug):
     })
 
 
-@login_required
-@require_POST
-def room_layout_save(request, slug):
-    show = get_object_or_404(Show, slug=slug)
-    if not can_manage_show(request.user, show):
-        raise Http404
-    try:
-        data = json.loads(request.body)
-    except (json.JSONDecodeError, ValueError):
-        return JsonResponse({'error': 'invalid JSON'}, status=400)
+def _layout_payload(show):
+    """Serialize a show's current layout (room dims + supports + placements) into
+    the same JSON shape the save endpoint accepts, so snapshots can be re-applied.
+    Supports are keyed by their pk; placements reference that key."""
+    config, _site = _room_config(show)
+    supports = list(Support.objects.filter(show=show))
+    placements = list(WallPlacement.objects.filter(show=show))
+    return {
+        'room': ({'width_in': config.width_in, 'depth_in': config.depth_in,
+                  'height_in': config.height_in} if config is not None else None),
+        'supports': [{
+            'key': s.pk, 'wall': s.wall, 'label': s.label,
+            'x_in': s.x_in, 'y_in': s.y_in, 'z_in': s.z_in,
+            'w_in': s.w_in, 'h_in': s.h_in, 'd_in': s.d_in,
+            'rotation': s.rotation, 'texture': s.texture_url,
+        } for s in supports],
+        'placements': [{
+            'artwork_id': p.artwork_id, 'wall': p.wall,
+            'x_in': p.x_in, 'y_in': p.y_in, 'z_in': p.z_in,
+            'rotation': p.rotation, 'group': p.group, 'support': p.support_id,
+        } for p in placements],
+    }
 
+
+MAX_AUTO_SNAPSHOTS = 40   # per show; a rolling safety net for accidental overwrites
+
+
+def _take_snapshot(show, user, kind, name=''):
+    """Store the show's CURRENT layout as a snapshot. Best-effort: never raise into
+    the caller (a snapshot must never block or corrupt an actual save)."""
+    from gallery.models import ShowLayoutSnapshot
+    try:
+        payload = _layout_payload(show)
+        # Skip empty auto snapshots (nothing to protect yet).
+        if kind == ShowLayoutSnapshot.AUTO and not payload['placements'] and not payload['supports']:
+            return None
+        snap = ShowLayoutSnapshot.objects.create(
+            show=show, kind=kind, name=name,
+            created_by=user if getattr(user, 'is_authenticated', False) else None,
+            payload=payload,
+        )
+        if kind == ShowLayoutSnapshot.AUTO:
+            stale = ShowLayoutSnapshot.objects.filter(
+                show=show, kind=ShowLayoutSnapshot.AUTO
+            ).values_list('pk', flat=True)[MAX_AUTO_SNAPSHOTS:]
+            if stale:
+                ShowLayoutSnapshot.objects.filter(pk__in=list(stale)).delete()
+        return snap
+    except Exception:   # noqa: BLE001 — snapshots are a safety net, not critical path
+        return None
+
+
+def _apply_layout(show, data):
+    """Replace a show's layout with the given payload. Returns a list of errors."""
     config, _site = _room_config(show)
     if config is not None:
         room_cfg = data.get('room')
@@ -176,7 +219,6 @@ def room_layout_save(request, slug):
             config.save()
 
     errors = []
-
     # Rebuild supports first, mapping each payload's client key → the new row so
     # placements can reference the support they sit on.
     WallPlacement.objects.filter(show=show).delete()
@@ -212,7 +254,78 @@ def room_layout_save(request, slug):
             )
         except (Artwork.DoesNotExist, KeyError, ValueError) as e:
             errors.append(str(e))
+    return errors
 
+
+@login_required
+@require_POST
+def room_layout_save(request, slug):
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'invalid JSON'}, status=400)
+
+    # Safety net: snapshot the state we're about to overwrite so any bad/stale save
+    # (e.g. an old tab) can be rolled back.
+    _take_snapshot(show, request.user, kind='auto')
+
+    errors = _apply_layout(show, data)
+    return JsonResponse({'ok': True, 'errors': errors})
+
+
+def _snapshot_dict(snap):
+    p = snap.payload or {}
+    return {
+        'id': snap.pk,
+        'name': snap.name or '(unnamed)',
+        'kind': snap.kind,
+        'created_at': snap.created_at.isoformat(),
+        'created_at_display': snap.created_at.strftime('%b %-d, %Y %-I:%M %p'),
+        'by': (snap.created_by.email if snap.created_by else ''),
+        'n_placements': len(p.get('placements', [])),
+        'n_supports': len(p.get('supports', [])),
+    }
+
+
+@login_required
+def layout_snapshots(request, slug):
+    """GET: list this show's snapshots. POST: save the current layout as a named
+    manual snapshot."""
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    from gallery.models import ShowLayoutSnapshot
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body or '{}')
+        except (json.JSONDecodeError, ValueError):
+            data = {}
+        name = (data.get('name') or '').strip()[:200] or 'Manual snapshot'
+        snap = _take_snapshot(show, request.user, kind=ShowLayoutSnapshot.MANUAL, name=name)
+        if snap is None:
+            return JsonResponse({'ok': False, 'error': 'Could not save snapshot.'}, status=400)
+        return JsonResponse({'ok': True, 'snapshot': _snapshot_dict(snap)})
+
+    snaps = show.layout_snapshots.select_related('created_by')[:100]
+    return JsonResponse({'ok': True, 'snapshots': [_snapshot_dict(s) for s in snaps]})
+
+
+@login_required
+@require_POST
+def restore_layout_snapshot(request, slug, pk):
+    """Replace the current layout with a snapshot (auto-snapshotting the current
+    state first, so a restore is itself undoable)."""
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    from gallery.models import ShowLayoutSnapshot
+    snap = get_object_or_404(ShowLayoutSnapshot, pk=pk, show=show)
+    _take_snapshot(show, request.user, kind=ShowLayoutSnapshot.AUTO)
+    errors = _apply_layout(show, snap.payload or {})
     return JsonResponse({'ok': True, 'errors': errors})
 
 

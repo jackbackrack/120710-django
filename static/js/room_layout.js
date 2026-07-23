@@ -2048,7 +2048,7 @@
 
   function doSave() {
     saveStatus.textContent = 'Saving…';
-    fetch(saveUrl, {
+    return fetch(saveUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
       body: JSON.stringify({
@@ -2080,6 +2080,74 @@
   }
 
   saveBtn.addEventListener('click', doSave);
+
+  // ── Layout snapshots (named restore points) ────────────────────────────────
+  (function () {
+    var btn   = document.getElementById('btn-snapshots');
+    var panel = document.getElementById('snapshots-panel');
+    if (READONLY || !btn || !panel || !window.SNAPSHOTS_URL) return;
+    var nameInp = document.getElementById('snap-name');
+    var saveSnapBtn = document.getElementById('snap-save');
+    var listEl = document.getElementById('snap-list');
+
+    function esc2(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+    function renderList(snaps) {
+      if (!snaps.length) { listEl.innerHTML = '<div style="color:#888;padding:6px 2px">No snapshots yet.</div>'; return; }
+      listEl.innerHTML = '';
+      snaps.forEach(function (s) {
+        var row = document.createElement('div'); row.className = 'snap-row';
+        row.innerHTML =
+          '<div class="snap-meta"><span class="snap-kind ' + (s.kind === 'manual' ? 'manual' : '') + '">' +
+            (s.kind === 'manual' ? 'saved' : 'auto') + '</span> ' + esc2(s.name) +
+            '<div class="snap-sub">' + esc2(s.created_at_display) + ' · ' + s.n_placements + ' pieces, ' + s.n_supports + ' supports' +
+            (s.by ? ' · ' + esc2(s.by) : '') + '</div></div>';
+        var rb = document.createElement('button');
+        rb.className = 'btn btn-sm btn-outline-primary'; rb.textContent = 'Restore';
+        rb.addEventListener('click', function () {
+          if (!window.confirm('Restore this snapshot? The current layout will be replaced (a backup of the current state is saved first).')) return;
+          rb.disabled = true; rb.textContent = 'Restoring…';
+          fetch(window.SNAPSHOTS_URL + s.id + '/restore/', {
+            method: 'POST', headers: { 'X-CSRFToken': csrfToken },
+          }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.ok) { location.reload(); }
+            else { rb.disabled = false; rb.textContent = 'Restore'; alert('Restore failed.'); }
+          }).catch(function () { rb.disabled = false; rb.textContent = 'Restore'; alert('Restore failed.'); });
+        });
+        row.appendChild(rb);
+        listEl.appendChild(row);
+      });
+    }
+
+    function loadList() {
+      listEl.innerHTML = '<div style="color:#888;padding:6px 2px">Loading…</div>';
+      fetch(window.SNAPSHOTS_URL).then(function (r) { return r.json(); })
+        .then(function (d) { renderList((d && d.snapshots) || []); })
+        .catch(function () { listEl.innerHTML = '<div style="color:#c00;padding:6px 2px">Could not load snapshots.</div>'; });
+    }
+
+    btn.addEventListener('click', function () {
+      panel.classList.toggle('open');
+      if (panel.classList.contains('open')) loadList();
+    });
+
+    saveSnapBtn.addEventListener('click', function () {
+      var name = (nameInp.value || '').trim();
+      saveSnapBtn.disabled = true; saveSnapBtn.textContent = 'Saving…';
+      // Flush any pending edits so the snapshot captures the latest state.
+      doSave().then(function () {
+        return fetch(window.SNAPSHOTS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+          body: JSON.stringify({ name: name }),
+        });
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        saveSnapBtn.disabled = false; saveSnapBtn.textContent = 'Save';
+        if (d && d.ok) { nameInp.value = ''; loadList(); }
+        else { alert('Could not save snapshot.'); }
+      }).catch(function () { saveSnapBtn.disabled = false; saveSnapBtn.textContent = 'Save'; alert('Could not save snapshot.'); });
+    });
+  }());
 
   // ── Resize ────────────────────────────────────────────────────────────────
   window.addEventListener('resize', function () { renderWall(); });

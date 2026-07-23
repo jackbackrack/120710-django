@@ -3011,6 +3011,87 @@ class SupportSaveTests(TestCase):
         self.assertFalse(bool(cat.texture))
 
 
+class LayoutSnapshotTests(TestCase):
+    """Layout snapshots: auto safety net before saves/restores, named restore
+    points, and the export/import management commands."""
+
+    def setUp(self):
+        import json
+        self.json = json
+        self.staff = User.objects.create_user(
+            username='snap-staff@example.com', email='snap-staff@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.show = Show.objects.create(
+            name='Snap Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7))
+        self.artwork = Artwork.objects.create(name='Piece', end_year=2025,
+                                              width_inches=10, height_inches=14)
+        self.show.artworks.add(self.artwork)
+        self.client.force_login(self.staff)
+        self.save_url = reverse('gallery:room_layout_save', kwargs={'slug': self.show.slug})
+
+    def _save(self, x):
+        payload = {'supports': [], 'placements': [
+            {'artwork_id': self.artwork.pk, 'wall': 'N', 'x_in': x, 'y_in': 50,
+             'z_in': 0, 'rotation': 0, 'group': None, 'support': None}]}
+        return self.client.post(self.save_url, data=self.json.dumps(payload),
+                                content_type='application/json')
+
+    def test_save_auto_snapshots_prior_state(self):
+        from gallery.models import ShowLayoutSnapshot, WallPlacement
+        self._save(5)      # first save: prior state empty → no snapshot
+        self.assertEqual(ShowLayoutSnapshot.objects.filter(show=self.show).count(), 0)
+        self._save(99)     # second save: snapshots the prior (x=5) state
+        autos = ShowLayoutSnapshot.objects.filter(show=self.show, kind=ShowLayoutSnapshot.AUTO)
+        self.assertEqual(autos.count(), 1)
+        self.assertEqual(autos.first().payload['placements'][0]['x_in'], 5)
+        # Current DB reflects the latest save.
+        self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 99)
+
+    def test_manual_snapshot_and_restore(self):
+        from gallery.models import ShowLayoutSnapshot, WallPlacement
+        self._save(5)
+        r = self.client.post(reverse('gallery:layout_snapshots', kwargs={'slug': self.show.slug}),
+                             data=self.json.dumps({'name': 'Good layout'}),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        snap = ShowLayoutSnapshot.objects.get(show=self.show, kind=ShowLayoutSnapshot.MANUAL)
+        self.assertEqual(snap.name, 'Good layout')
+        self._save(99)     # clobber
+        self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 99)
+        # Restore the named snapshot → x back to 5
+        r = self.client.post(reverse('gallery:restore_layout_snapshot',
+                                     kwargs={'slug': self.show.slug, 'pk': snap.pk}))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 5)
+
+    def test_restore_requires_manage(self):
+        from gallery.models import ShowLayoutSnapshot
+        self._save(5)
+        self._save(9)
+        snap = ShowLayoutSnapshot.objects.filter(show=self.show).first()
+        other = User.objects.create_user(username='x@e.com', email='x@e.com', password='pw')
+        self.client.force_login(other)
+        r = self.client.post(reverse('gallery:restore_layout_snapshot',
+                                     kwargs={'slug': self.show.slug, 'pk': snap.pk}))
+        self.assertEqual(r.status_code, 404)
+
+    def test_export_import_roundtrip(self):
+        import tempfile, os
+        from django.core.management import call_command
+        from gallery.models import WallPlacement
+        self._save(42)
+        fd, path = tempfile.mkstemp(suffix='.json'); os.close(fd)
+        try:
+            call_command('export_layout', self.show.slug, '--out', path)
+            self._save(7)   # change it
+            self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 7)
+            call_command('import_layout', self.show.slug, path)
+            self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 42)
+        finally:
+            os.remove(path)
+
+
 class RoomTwoDViewTests(TestCase):
     """Read-only 2D layout viewer (artists checking where to install)."""
 

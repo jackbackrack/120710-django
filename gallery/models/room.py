@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -141,3 +142,30 @@ class SiteSupport(models.Model):
 
     def __str__(self):
         return f'Support "{self.label}" ({self.room_config.site})'
+
+
+class ShowLayoutSnapshot(models.Model):
+    """A point-in-time copy of a show's whole layout (room dims + supports +
+    placements) stored as JSON. Auto snapshots are taken before every save/restore
+    so a bad overwrite is always recoverable; manual snapshots are named restore
+    points a curator creates deliberately."""
+    AUTO = 'auto'
+    MANUAL = 'manual'
+    KIND_CHOICES = [(AUTO, 'Automatic'), (MANUAL, 'Manual')]
+
+    show = models.ForeignKey('gallery.Show', on_delete=models.CASCADE, related_name='layout_snapshots')
+    name = models.CharField(max_length=200, blank=True, default='')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=MANUAL)
+    payload = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='layout_snapshots',
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['show', 'kind', '-created_at'])]
+
+    def __str__(self):
+        return f'{self.get_kind_display()} snapshot of {self.show} @ {self.created_at:%Y-%m-%d %H:%M}'
