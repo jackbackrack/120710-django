@@ -3065,6 +3065,22 @@ class ChecklistPdfTests(TestCase):
         self.client.force_login(other)
         self.assertEqual(self.client.get(self.url).status_code, 404)
 
+    def test_bio_entry_shows_name_and_image_without_bio(self):
+        from reportlab.platypus import ImageAndFlowables, Paragraph
+        from gallery.models import Artist
+        from gallery.views.checklist import _bio_entry, _styles
+        # No bio/statement, but has an image → still an image+name block.
+        a = Artist.objects.create(name='No Bio', first_name='No', last_name='Bio',
+                                  email='nb@e.com', image=self._jpg('nb.jpg'))
+        story = []
+        _bio_entry(a, _styles(), story)
+        self.assertTrue(any(isinstance(f, ImageAndFlowables) for f in story))
+        # No image and no bio → still a name paragraph (never dropped entirely).
+        b = Artist.objects.create(name='Bare', first_name='Bare', last_name='X', email='bx@e.com')
+        story2 = []
+        _bio_entry(b, _styles(), story2)
+        self.assertTrue(any(isinstance(f, Paragraph) for f in story2))
+
     def test_minimal_show_renders(self):
         # No site, no images, no bios, no events → must still produce a PDF.
         bare = Show.objects.create(name='Bare Show', start=datetime.date.today(),

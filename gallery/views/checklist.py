@@ -127,15 +127,14 @@ def _statement_flowables(text, style):
 
 
 def _bio_entry(person, styles, story):
-    """Append a bio block: the photo with the name+bio text flowing around it."""
+    """Append a bio block: the photo with the name (and bio, if any) flowing around
+    it. Always shows the name and photo, even when there is no bio/statement."""
     bio_text = (person.bio or person.statement or '').strip()
-    if not bio_text and not person.instagram:
-        return
     handle = f'  {escape(person.instagram)}' if person.instagram else ''
-    flows = [
-        Paragraph(escape(str(person)), styles['bioname']),
-        Paragraph(escape(bio_text).replace('\n', '<br/>') + handle, styles['bio']),
-    ]
+    flows = [Paragraph(escape(str(person)), styles['bioname'])]
+    body = escape(bio_text).replace('\n', '<br/>') + handle
+    if body.strip():
+        flows.append(Paragraph(body, styles['bio']))
     img = _img_flowable(getattr(person, 'image', None), 1.3 * inch, 1.6 * inch, max_px=400)
     if img:
         story.append(ImageAndFlowables(img, flows, imageSide='left',
@@ -175,7 +174,7 @@ def _footer(canvas, doc, site):
     canvas.restoreState()
 
 
-def _cover(show, site, works, styles):
+def _cover(show, site, works, styles, content_w):
     story = [Paragraph(escape(show.name), styles['title'])]
     curators = list(show.curators.all())
     if curators:
@@ -186,6 +185,12 @@ def _cover(show, site, works, styles):
         when = ev.date.strftime('%A %B %-d, %Y')
         times = f"{ev.start.strftime('%-I:%M %p').lower()}–{ev.end.strftime('%-I:%M %p').lower()}"
         story.append(Paragraph(f'{escape(ev.name)}: {when}, {times}', styles['meta']))
+
+    # Show/poster image.
+    show_img = _img_flowable(show.image, content_w, 3.5 * inch, max_px=1100)
+    if show_img:
+        story.append(Spacer(1, 12))
+        story.append(show_img)
 
     # Participating-artist list (two columns).
     seen, artists = set(), []
@@ -266,29 +271,28 @@ def show_checklist_pdf(request, slug):
             topMargin=0.7 * inch, bottomMargin=0.85 * inch,
             title=f'Checklist — {show.name}',
         )
-        story = _cover(show, site, works, styles)
+        story = _cover(show, site, works, styles, content_w)
 
         if works:
             story.append(PageBreak())
             for art in works:
                 story.append(_work_entry(art, styles, content_w))
 
-        # Artist bios, then the curator's bio.
-        bio_artists, seen = [], set()
+        # Every participating artist (name + photo + bio if any), then the curator(s).
+        artists, seen = [], set()
         for w in works:
             for a in w.artists.all():
-                if a.pk not in seen and (a.bio or a.statement):
+                if a.pk not in seen:
                     seen.add(a.pk)
-                    bio_artists.append(a)
-        if bio_artists:
+                    artists.append(a)
+        curators = list(show.curators.all())
+        if artists:
             story.append(PageBreak())
-            story.append(Paragraph('Artist Bios', styles['section']))
-            for a in bio_artists:
+            story.append(Paragraph('Artists', styles['section']))
+            for a in artists:
                 _bio_entry(a, styles, story)
-
-        curators = [c for c in show.curators.all() if (c.bio or c.statement)]
         if curators:
-            story.append(Paragraph('Curator', styles['section']))
+            story.append(Paragraph('Curator' + ('s' if len(curators) > 1 else ''), styles['section']))
             for c in curators:
                 _bio_entry(c, styles, story)
 
