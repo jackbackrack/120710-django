@@ -1,9 +1,18 @@
 # Copy to settings.toml on the MagTag's CIRCUITPY drive and fill in.
-# CircuitPython reads CIRCUITPY_WIFI_* natively; SITE_URL is read by code.py.
+# CircuitPython reads CIRCUITPY_WIFI_* natively; the rest are read by code.py.
+#
+# For programming many devices, keep a filled-in copy as settings.base.toml here
+# (Wi-Fi + SITE_URL, same for all devices) and let ./provision.sh add the
+# per-device PLACARD_NUMBER. See README.md.
 
 CIRCUITPY_WIFI_SSID = "your-wifi-network"
 CIRCUITPY_WIFI_PASSWORD = "your-wifi-password"
 
-# Your gallery site, no trailing slash. Must be reachable from the gallery's
-# Wi-Fi. HTTPS is fine on the MagTag (ESP32-S2).
+# Your gallery site, no trailing slash. Must be reachable from the gallery Wi-Fi.
 SITE_URL = "https://your-gallery-site.example.com"
+
+# This device's placard = the show artwork number it displays. UNIQUE per device.
+PLACARD_NUMBER = "1"
+
+# Optional: how often it wakes to re-fetch (seconds). Default 21600 = 6 hours.
+# REFRESH_SECONDS = "21600"

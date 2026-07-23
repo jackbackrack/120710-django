@@ -1,21 +1,21 @@
-# code.py — MagTag placard display (DEEP-SLEEP / battery version).
+# code.py — MagTag placard display (single fixed artwork number, deep-sleep).
 #
-# Each MagTag holds a list of placard NUMBERS (the numbered artworks in the
-# current show). On each wake it fetches one placard from the website, draws it
-# on the e-ink screen, then deep-sleeps until a button is pressed or the refresh
-# timer fires. The e-ink image persists while asleep, so power draw between
-# updates is ~nil.
+# Every device runs this SAME file. The only per-device difference is the
+# placard number, set in settings.toml as PLACARD_NUMBER — so 40 devices are
+# provisioned by changing one value (see provision.sh), not by editing code.
+#
+# On each wake it fetches its one placard from the website, draws it on the
+# e-ink screen, then deep-sleeps until a button is pressed or the timer fires.
+# The e-ink image persists while asleep, so power draw between updates is ~nil.
 #
 #   API:  GET {SITE_URL}/placard/<number>/data/   (public JSON, no login)
 #
-# Buttons (wake from sleep):  A = previous   B = next   D = refresh current
-# The current index is kept in alarm.sleep_memory so it survives deep sleep.
-#
-# Config in settings.toml (see settings.toml.example):
-#   CIRCUITPY_WIFI_SSID, CIRCUITPY_WIFI_PASSWORD, SITE_URL
-# Libraries in /lib (Adafruit bundle):
+# settings.toml:  CIRCUITPY_WIFI_SSID, CIRCUITPY_WIFI_PASSWORD, SITE_URL,
+#                 PLACARD_NUMBER
+# /lib (Adafruit bundle for your CircuitPython major version):
 #   adafruit_magtag, adafruit_portalbase, adafruit_requests,
-#   adafruit_display_text, adafruit_bitmap_font, neopixel
+#   adafruit_connection_manager, adafruit_display_text, adafruit_bitmap_font,
+#   neopixel
 
 import os
 import time
@@ -27,27 +27,10 @@ import adafruit_connection_manager
 import adafruit_requests
 from adafruit_magtag.magtag import MagTag
 
-# ── Per-device configuration ─────────────────────────────────────────────────
-# The show placard numbers THIS device cycles through. One entry = a single
-# fixed placard (the buttons then just refresh it).
-PLACARD_NUMBERS = [1, 2, 3, 4, 5]
-
-REFRESH_SECONDS = 6 * 60 * 60          # wake and re-fetch at least this often
+# ── Config (all from settings.toml; identical code on every device) ──────────
+PLACARD_NUMBER = int(os.getenv("PLACARD_NUMBER", "0"))
+REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", str(6 * 60 * 60)))
 SITE_URL = os.getenv("SITE_URL", "https://example.com").rstrip("/")
-
-# ── Restore state + decide what this wake should do ──────────────────────────
-# alarm.sleep_memory persists across deep sleep (cleared only on power loss).
-count = len(PLACARD_NUMBERS)
-index = alarm.sleep_memory[0] if count and alarm.sleep_memory[0] < count else 0
-
-wake = alarm.wake_alarm
-if count and wake is not None and getattr(wake, "pin", None) is not None:
-    if wake.pin is board.BUTTON_A:        # previous
-        index = (index - 1) % count
-    elif wake.pin is board.BUTTON_B:      # next
-        index = (index + 1) % count
-    # BUTTON_C: reserved.  BUTTON_D / TimeAlarm / first boot: just refresh.
-alarm.sleep_memory[0] = index
 
 magtag = MagTag()
 
@@ -88,7 +71,6 @@ def fetch_placard(number):
     if not wifi.radio.connected:
         wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"),
                            os.getenv("CIRCUITPY_WIFI_PASSWORD"))
-    # Cached, warning-free pool + SSL context (the modern adafruit_requests pattern).
     pool = adafruit_connection_manager.get_radio_socketpool(wifi.radio)
     ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
     session = adafruit_requests.Session(pool, ssl_context)
@@ -99,25 +81,23 @@ def fetch_placard(number):
         resp.close()
 
 
-# ── Draw this wake's placard ─────────────────────────────────────────────────
-if not count:
-    _message("No placard numbers\nconfigured")
+# ── Draw this device's placard ───────────────────────────────────────────────
+if PLACARD_NUMBER <= 0:
+    _message("Set PLACARD_NUMBER\nin settings.toml")
 else:
-    number = PLACARD_NUMBERS[index]
     magtag.peripherals.neopixels.brightness = 0.15
     magtag.peripherals.neopixels.fill((0, 0, 60))     # blue = working
     try:
-        data = fetch_placard(number)
+        data = fetch_placard(PLACARD_NUMBER)
         if isinstance(data, dict) and not data.get("error"):
             _show_placard(data)
         else:
-            _message("No placard #%d\nin the current show" % number)
+            _message("No placard #%d\nin the current show" % PLACARD_NUMBER)
     except Exception as err:
-        _message("Can't load #%d\n%s" % (number, err))
+        _message("Can't load #%d\n%s" % (PLACARD_NUMBER, err))
     magtag.peripherals.neopixels.fill((0, 0, 0))
 
-# Wait out the panel cooldown, refresh, and let the update finish before we cut
-# power in deep sleep (a partial refresh would ghost the image).
+# Refresh, and let the e-ink update finish before power is cut (avoids ghosting).
 while getattr(magtag.display, "time_to_refresh", 0):
     time.sleep(0.5)
 try:
@@ -130,8 +110,8 @@ except Exception:
         pass
 time.sleep(3)
 
-# ── Power down until a button or the refresh timer ───────────────────────────
-magtag.peripherals.neopixel_disable = True     # cut NeoPixel + speaker power
+# ── Deep sleep until any button or the refresh timer ─────────────────────────
+magtag.peripherals.neopixel_disable = True
 magtag.peripherals.speaker_disable = True
 
 time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + REFRESH_SECONDS)

@@ -1,0 +1,5 @@
+# Real device config with Wi-Fi credentials — never commit.
+settings.base.toml
+settings.toml
+# Local copy of CircuitPython libraries to sync (optional, large/binary).
+lib/
