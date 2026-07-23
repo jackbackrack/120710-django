@@ -19,6 +19,7 @@
 
 import os
 import time
+import json
 
 import alarm
 import board
@@ -68,17 +69,23 @@ def _show_placard(data):
 
 
 def fetch_placard(number):
+    """Return (status_code, body_text) for the placard endpoint."""
     if not wifi.radio.connected:
         wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"),
                            os.getenv("CIRCUITPY_WIFI_PASSWORD"))
     pool = adafruit_connection_manager.get_radio_socketpool(wifi.radio)
     ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
     session = adafruit_requests.Session(pool, ssl_context)
-    resp = session.get("%s/placard/%d/data/" % (SITE_URL, number), timeout=20)
-    try:
-        return resp.json()
-    finally:
-        resp.close()
+    url = "%s/placard/%d/data/" % (SITE_URL, number)
+    print("GET", url)
+    # Ask for uncompressed JSON — the board doesn't gunzip, and a gzipped body
+    # would look like a "JSON syntax error".
+    resp = session.get(url, headers={"Accept": "application/json",
+                                     "Accept-Encoding": "identity"}, timeout=20)
+    status, body = resp.status_code, resp.text
+    resp.close()
+    print("HTTP", status, "(%d bytes)" % len(body))
+    return status, body
 
 
 # ── Programming escape hatch ─────────────────────────────────────────────────
@@ -104,11 +111,21 @@ else:
     magtag.peripherals.neopixels.brightness = 0.15
     magtag.peripherals.neopixels.fill((0, 0, 60))     # blue = working
     try:
-        data = fetch_placard(PLACARD_NUMBER)
-        if isinstance(data, dict) and not data.get("error"):
-            _show_placard(data)
-        else:
+        status, body = fetch_placard(PLACARD_NUMBER)
+        try:
+            data = json.loads(body)
+        except Exception:
+            data = None
+        if data is None:
+            # Not JSON — show the status + a snippet so the cause is visible
+            # (e.g. an HTML error/redirect page, or a wrong SITE_URL).
+            snippet = " ".join(body.split())[:48]
+            print("Non-JSON body:", body[:200])
+            _message("Bad reply #%d\nHTTP %d\n%s" % (PLACARD_NUMBER, status, snippet))
+        elif data.get("error"):
             _message("No placard #%d\nin the current show" % PLACARD_NUMBER)
+        else:
+            _show_placard(data)
     except Exception as err:
         _message("Can't load #%d\n%s" % (PLACARD_NUMBER, err))
     magtag.peripherals.neopixels.fill((0, 0, 0))
