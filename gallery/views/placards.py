@@ -1,6 +1,7 @@
 import datetime
 import io
 import json
+import logging
 import os
 
 from django.conf import settings
@@ -22,6 +23,8 @@ from reportlab.pdfgen import canvas
 from gallery.models import Show
 from gallery.models.show_artwork_numbers import ShowArtworkNumber
 from gallery.permissions import can_manage_show
+
+logger = logging.getLogger(__name__)
 
 
 def _current_show():
@@ -103,25 +106,73 @@ MIN_SCALE = 0.45           # smallest fraction of base size before we truncate
 QR_SIZE = 0.8 * inch       # QR square drawn on the right of the card
 
 
+def _try_register(triples):
+    """Register (name, path) TrueType fonts; return True only if all succeed."""
+    for name, path in triples:
+        if name in pdfmetrics.getRegisteredFontNames():
+            continue
+        if not os.path.exists(path):
+            return False
+        pdfmetrics.registerFont(TTFont(name, path))
+    return True
+
+
 def _register_fonts():
-    """Embed DejaVu Sans (broad Unicode coverage) so accented/greek/cyrillic/symbol
-    characters render. Falls back to Helvetica if the bundled fonts are missing."""
-    font_dir = os.path.join(settings.BASE_DIR, 'gallery', 'fonts')
-    variants = [
-        ('DejaVuSans', 'DejaVuSans.ttf'),
-        ('DejaVuSans-Bold', 'DejaVuSans-Bold.ttf'),
-        ('DejaVuSans-Oblique', 'DejaVuSans-Oblique.ttf'),
+    """Pick a Unicode-capable TrueType font, most-preferred first, so accented /
+    Greek / Cyrillic / symbol characters render. Order:
+      1. DejaVu Sans bundled in this repo (broadest coverage),
+      2. Vera bundled inside the reportlab package (always installed with reportlab),
+      3. Helvetica (base-14; Latin-1 only) as a last resort.
+    Robust to the repo font being unreadable in some deploys; logs what it used."""
+    import reportlab
+    here = os.path.dirname(os.path.abspath(__file__))                 # gallery/views
+    repo_fonts = os.path.join(os.path.dirname(here), 'fonts')          # gallery/fonts
+    rl_fonts = os.path.join(os.path.dirname(reportlab.__file__), 'fonts')
+
+    dejavu = [
+        ('DejaVuSans', os.path.join(repo_fonts, 'DejaVuSans.ttf')),
+        ('DejaVuSans-Bold', os.path.join(repo_fonts, 'DejaVuSans-Bold.ttf')),
+        ('DejaVuSans-Oblique', os.path.join(repo_fonts, 'DejaVuSans-Oblique.ttf')),
+    ]
+    vera = [
+        ('Vera', os.path.join(rl_fonts, 'Vera.ttf')),
+        ('Vera-Bold', os.path.join(rl_fonts, 'VeraBd.ttf')),
+        ('Vera-Oblique', os.path.join(rl_fonts, 'VeraIt.ttf')),
     ]
     try:
-        for name, fname in variants:
-            if name not in pdfmetrics.getRegisteredFontNames():
-                pdfmetrics.registerFont(TTFont(name, os.path.join(font_dir, fname)))
-        return 'DejaVuSans', 'DejaVuSans-Bold', 'DejaVuSans-Oblique'
-    except Exception:   # noqa: BLE001 — never break PDF generation over fonts
-        return 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+        if _try_register(dejavu):
+            logger.info('Placard fonts: DejaVu from %s', repo_fonts)
+            return 'DejaVuSans', 'DejaVuSans-Bold', 'DejaVuSans-Oblique'
+        logger.warning('Placard fonts: DejaVu not found at %s — falling back to Vera', repo_fonts)
+    except Exception:   # noqa: BLE001
+        logger.exception('Placard fonts: DejaVu registration failed — falling back to Vera')
+    try:
+        if _try_register(vera):
+            logger.info('Placard fonts: Vera (reportlab bundle) from %s', rl_fonts)
+            return 'Vera', 'Vera-Bold', 'Vera-Oblique'
+    except Exception:   # noqa: BLE001
+        logger.exception('Placard fonts: Vera registration failed — using Helvetica')
+    logger.warning('Placard fonts: using Helvetica (Latin-1 only)')
+    return 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
 
 
 _FONT, _BOLD, _ITALIC = _register_fonts()
+_IS_TTF = not _FONT.startswith('Helvetica')   # TTF fonts render any glyph; base-14 can't
+
+
+def _safe(text):
+    """When we're stuck on a base-14 font (Latin-1 only), replace characters it
+    can't encode so drawing never raises. No-op for the TrueType fonts."""
+    if _IS_TTF:
+        return text
+    out = []
+    for ch in text:
+        try:
+            ch.encode('cp1252')
+            out.append(ch)
+        except UnicodeEncodeError:
+            out.append('?')
+    return ''.join(out)
 
 
 def _draw_qr(c, url, x, y, size):
@@ -151,7 +202,7 @@ def _card_fields(artwork):
         (medium, _ITALIC, 9.0, 2),
         (artwork.placard_dimensions, _FONT, 9.0, 1),
     ]
-    return [(t, f, s, m) for (t, f, s, m) in rows if t]
+    return [(_safe(t), f, s, m) for (t, f, s, m) in rows if t]
 
 
 def _ellipsize(text, font, size, max_w, force=False):
@@ -257,19 +308,28 @@ def placard_sheet_pdf(request, slug):
     artworks = list(show.artworks.prefetch_related('artists'))
     artworks.sort(key=lambda a: (numbers.get(a.id, 10 ** 9), (a.name or '').lower()))
 
-    buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=letter, title=f'Placards — {show.name}')
-    for i, art in enumerate(artworks):
-        slot = i % PER_PAGE
-        if i and slot == 0:
-            c.showPage()
-        col, row = slot % COLS, slot // COLS
-        x = LEFT_MARGIN + col * CARD_W
-        y = PAGE_H - TOP_MARGIN - (row + 1) * CARD_H
-        qr_url = request.build_absolute_uri(art.get_absolute_url()) if want_qr else None
-        _draw_card(c, x, y, art, outline, qr_url)
-    c.showPage()   # flush the last (possibly partial) page
-    c.save()
+    try:
+        buf = io.BytesIO()
+        c = canvas.Canvas(buf, pagesize=letter, title=f'Placards — {show.name}')
+        for i, art in enumerate(artworks):
+            slot = i % PER_PAGE
+            if i and slot == 0:
+                c.showPage()
+            col, row = slot % COLS, slot // COLS
+            x = LEFT_MARGIN + col * CARD_W
+            y = PAGE_H - TOP_MARGIN - (row + 1) * CARD_H
+            qr_url = request.build_absolute_uri(art.get_absolute_url()) if want_qr else None
+            try:
+                _draw_card(c, x, y, art, outline, qr_url)
+            except Exception:   # noqa: BLE001 — one bad card shouldn't kill the whole sheet
+                logger.exception('Placard card failed: show=%s artwork=%s font=%s',
+                                 show.slug, art.pk, _FONT)
+        c.showPage()   # flush the last (possibly partial) page
+        c.save()
+    except Exception as e:   # noqa: BLE001 — surface a real failure instead of a bare 500
+        logger.exception('Placard sheet failed for show %s (font=%s)', show.slug, _FONT)
+        return HttpResponse(f'Placard PDF generation failed: {e}', status=500,
+                            content_type='text/plain')
 
     resp = HttpResponse(buf.getvalue(), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="placards-{show.slug}.pdf"'

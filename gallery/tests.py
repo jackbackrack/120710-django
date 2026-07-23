@@ -3224,8 +3224,22 @@ class PlacardSheetPdfTests(TestCase):
             self.assertLessEqual(stringWidth(text, font, size), avail_w + 0.5)
 
     def test_unicode_font_registered(self):
-        from gallery.views.placards import _FONT
-        self.assertEqual(_FONT, 'DejaVuSans')   # bundled Unicode font, not Helvetica
+        from gallery.views.placards import _FONT, _IS_TTF
+        self.assertTrue(_IS_TTF)                       # a Unicode TrueType font, not base-14
+        self.assertIn(_FONT, ('DejaVuSans', 'Vera'))   # DejaVu preferred, Vera fallback
+
+    def test_unicode_medium_renders(self):
+        from gallery.models import Artist
+        ar = Artist.objects.create(name='Zoë', first_name='Zoë', last_name='Müller', email='z@e.com')
+        aw = Artwork.objects.create(
+            name='Café — Étude № 3 (Привет)', end_year=2025, width_inches=24, height_inches=36,
+            medium='pigment print on cotton rag — résine & séraphin varnish, édition of 5')
+        aw.artists.add(ar)
+        self.show.artworks.add(aw)
+        self.client.force_login(self.staff)
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)           # no crash on non-Latin-1 characters
+        self.assertTrue(r.content.startswith(b'%PDF-'))
 
     def test_qr_toggle(self):
         self.client.force_login(self.staff)
