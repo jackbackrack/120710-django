@@ -250,6 +250,12 @@ class ArtworkForm(UserAwareModelForm):
         )
         if not is_staff_user(self.user) or user_has_artist:
             self.fields.pop('artists')
+        else:
+            self.fields['artists'].help_text = (
+                'Click to select an artist. Hold Ctrl (Windows) or ⌘ Cmd (Mac) and '
+                'click to select more than one — or to remove one, Ctrl/⌘-click a '
+                'highlighted name to deselect it.'
+            )
 
         self.fields['width_inches'].required = True
         self.fields['height_inches'].required = True
