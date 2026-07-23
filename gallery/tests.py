@@ -3076,6 +3076,46 @@ class LayoutSnapshotTests(TestCase):
                                      kwargs={'slug': self.show.slug, 'pk': snap.pk}))
         self.assertEqual(r.status_code, 404)
 
+    def test_stale_save_is_rejected(self):
+        from gallery.models import WallPlacement
+        # Load a revision, save once (rev advances), then try to save again with the
+        # OLD rev — simulating a stale tab. It must be refused, not clobber.
+        rev0 = self.client.get(reverse('gallery:room_layout', kwargs={'slug': self.show.slug}))
+        self._save(5)                      # advances the server revision
+        payload = {'rev': '0:0:0:0', 'supports': [], 'placements': [
+            {'artwork_id': self.artwork.pk, 'wall': 'N', 'x_in': 77, 'y_in': 50,
+             'z_in': 0, 'rotation': 0, 'group': None, 'support': None}]}
+        r = self.client.post(self.save_url, data=self.json.dumps(payload),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 409)
+        self.assertTrue(r.json().get('stale'))
+        # The stale save did NOT take effect.
+        self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 5)
+
+    def test_current_rev_save_succeeds_and_returns_new_rev(self):
+        r1 = self.client.post(self.save_url, data=self.json.dumps(
+            {'rev': '', 'supports': [], 'placements': []}), content_type='application/json')
+        rev = r1.json()['rev']
+        payload = {'rev': rev, 'supports': [], 'placements': [
+            {'artwork_id': self.artwork.pk, 'wall': 'N', 'x_in': 8, 'y_in': 50,
+             'z_in': 0, 'rotation': 0, 'group': None, 'support': None}]}
+        r2 = self.client.post(self.save_url, data=self.json.dumps(payload),
+                             content_type='application/json')
+        self.assertEqual(r2.status_code, 200)
+        self.assertTrue(r2.json()['ok'])
+        self.assertNotEqual(r2.json()['rev'], rev)   # revision advanced
+
+    def test_force_overwrites_stale(self):
+        from gallery.models import WallPlacement
+        self._save(5)
+        payload = {'rev': '0:0:0:0', 'force': True, 'supports': [], 'placements': [
+            {'artwork_id': self.artwork.pk, 'wall': 'N', 'x_in': 77, 'y_in': 50,
+             'z_in': 0, 'rotation': 0, 'group': None, 'support': None}]}
+        r = self.client.post(self.save_url, data=self.json.dumps(payload),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(WallPlacement.objects.get(show=self.show).x_in, 77)
+
     def test_export_import_roundtrip(self):
         import tempfile, os
         from django.core.management import call_command

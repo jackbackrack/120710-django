@@ -2046,12 +2046,16 @@
   // ── Save ──────────────────────────────────────────────────────────────────
   var saveTimer = null;
 
-  function doSave() {
+  var currentRev = window.LAYOUT_REV || '';
+
+  function doSave(force) {
     saveStatus.textContent = 'Saving…';
     return fetch(saveUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
       body: JSON.stringify({
+        rev: currentRev,
+        force: !!force,
         room: { width_in: cfg.width_in, depth_in: cfg.depth_in, height_in: cfg.height_in },
         supports: supports.map(function (s) {
           return { key: s.id, wall: s.wall, label: s.label || '',
@@ -2064,9 +2068,27 @@
         }),
       }),
     })
-      .then(function (r) { return r.json(); })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
       .then(function (data) {
-        saveStatus.textContent = data.ok ? 'Saved.' : 'Error: ' + (data.errors || []).join('; ');
+        if (data && data.stale) {
+          // Another tab/device saved since we loaded — don't silently clobber it.
+          saveStatus.textContent = 'Changed elsewhere — not saved.';
+          var reload = window.confirm(
+            'This show\'s layout was changed somewhere else (another browser tab or device) ' +
+            'since you opened this editor.\n\n' +
+            'OK  = reload the latest version (recommended — discards the unsaved changes on THIS screen).\n' +
+            'Cancel = overwrite it with what you have here.');
+          if (reload) { location.reload(); }
+          else { if (data.rev) currentRev = data.rev; doSave(true); }
+          return;
+        }
+        if (data && data.ok) {
+          if (data.rev) currentRev = data.rev;   // track the new revision for the next save
+          saveStatus.textContent = (data.errors && data.errors.length)
+            ? 'Saved (with ' + data.errors.length + ' skipped).' : 'Saved.';
+        } else {
+          saveStatus.textContent = 'Error: ' + ((data && (data.error || (data.errors || []).join('; '))) || 'save failed');
+        }
         setTimeout(function () { saveStatus.textContent = ''; }, 3000);
       })
       .catch(function () { saveStatus.textContent = 'Save failed.'; });
@@ -2076,7 +2098,7 @@
     broadcastPlacements();   // push the change to any open 3D viewer immediately
     saveStatus.textContent = 'Unsaved…';
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(doSave, 1500);
+    saveTimer = setTimeout(function () { doSave(); }, 1500);   // no timer-id leaked as `force`
   }
 
   saveBtn.addEventListener('click', doSave);

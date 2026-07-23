@@ -296,6 +296,7 @@ window.SUPPORTS       = {{ supports_json|default:"[]"|safe }};
 window.SITE_SUPPORTS  = {{ site_supports_json|default:"[]"|safe }};
 window.SUPPORT_CATALOG_URL = "{% url 'gallery:save_support_to_catalog' show.slug %}";
 window.SNAPSHOTS_URL  = "{% url 'gallery:layout_snapshots' show.slug %}";
+window.LAYOUT_REV     = "{{ layout_rev|default:'' }}";
 </script>
 <script src="{% static 'js/room_layout.js' %}"></script>
 {% endblock %}

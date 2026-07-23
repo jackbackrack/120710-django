@@ -2,6 +2,8 @@ import json
 import urllib.parse
 
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.db.models import Count, Max
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
@@ -126,6 +128,7 @@ def room_layout(request, slug):
         'pool_json': pool_json,
         'supports_json': _supports_json(show),
         'site_supports_json': _site_supports_json(config),
+        'layout_rev': _layout_fingerprint(show),
     })
 
 
@@ -182,33 +185,48 @@ def _layout_payload(show):
 MAX_AUTO_SNAPSHOTS = 40   # per show; a rolling safety net for accidental overwrites
 
 
+def _layout_fingerprint(show):
+    """A cheap revision token for the show's current layout. Because saving deletes
+    and recreates every row, the max pk strictly increases on each save — so a
+    stale client (old tab/device) can be detected by comparing tokens."""
+    wp = WallPlacement.objects.filter(show=show).aggregate(c=Count('id'), m=Max('id'))
+    sp = Support.objects.filter(show=show).aggregate(c=Count('id'), m=Max('id'))
+    return f"{wp['c']}:{wp['m'] or 0}:{sp['c']}:{sp['m'] or 0}"
+
+
 def _take_snapshot(show, user, kind, name=''):
     """Store the show's CURRENT layout as a snapshot. Best-effort: never raise into
-    the caller (a snapshot must never block or corrupt an actual save)."""
+    the caller (a snapshot must never block or corrupt an actual save). The DB write
+    runs in its own savepoint so, even under ATOMIC_REQUESTS, a failure here (e.g. a
+    missing table before migrations run) can't poison the enclosing save."""
     from gallery.models import ShowLayoutSnapshot
     try:
         payload = _layout_payload(show)
         # Skip empty auto snapshots (nothing to protect yet).
         if kind == ShowLayoutSnapshot.AUTO and not payload['placements'] and not payload['supports']:
             return None
-        snap = ShowLayoutSnapshot.objects.create(
-            show=show, kind=kind, name=name,
-            created_by=user if getattr(user, 'is_authenticated', False) else None,
-            payload=payload,
-        )
-        if kind == ShowLayoutSnapshot.AUTO:
-            stale = ShowLayoutSnapshot.objects.filter(
-                show=show, kind=ShowLayoutSnapshot.AUTO
-            ).values_list('pk', flat=True)[MAX_AUTO_SNAPSHOTS:]
-            if stale:
-                ShowLayoutSnapshot.objects.filter(pk__in=list(stale)).delete()
+        with transaction.atomic():
+            snap = ShowLayoutSnapshot.objects.create(
+                show=show, kind=kind, name=name,
+                created_by=user if getattr(user, 'is_authenticated', False) else None,
+                payload=payload,
+            )
+            if kind == ShowLayoutSnapshot.AUTO:
+                stale = ShowLayoutSnapshot.objects.filter(
+                    show=show, kind=ShowLayoutSnapshot.AUTO
+                ).values_list('pk', flat=True)[MAX_AUTO_SNAPSHOTS:]
+                if stale:
+                    ShowLayoutSnapshot.objects.filter(pk__in=list(stale)).delete()
         return snap
     except Exception:   # noqa: BLE001 — snapshots are a safety net, not critical path
         return None
 
 
+@transaction.atomic
 def _apply_layout(show, data):
-    """Replace a show's layout with the given payload. Returns a list of errors."""
+    """Replace a show's layout with the given payload. Runs in a transaction so it's
+    all-or-nothing — an error mid-way rolls back, never leaving a half-deleted
+    layout. Returns a list of per-item (non-fatal) errors."""
     config, _site = _room_config(show)
     if config is not None:
         room_cfg = data.get('room')
@@ -266,14 +284,30 @@ def room_layout_save(request, slug):
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
-        return JsonResponse({'error': 'invalid JSON'}, status=400)
+        return JsonResponse({'ok': False, 'error': 'invalid JSON'}, status=400)
+
+    # Concurrency guard: if the client loaded a layout revision and the server's has
+    # moved on (another tab/device saved), refuse rather than silently clobber. The
+    # client can then reload or explicitly force-overwrite. Backward-safe: a client
+    # that sends no 'rev' (old cached JS) is allowed through.
+    client_rev = data.get('rev')
+    if client_rev not in (None, '') and not data.get('force'):
+        current_rev = _layout_fingerprint(show)
+        if str(client_rev) != current_rev:
+            return JsonResponse({
+                'ok': False, 'stale': True, 'rev': current_rev,
+                'error': 'This layout was changed elsewhere since you opened it.',
+            }, status=409)
 
     # Safety net: snapshot the state we're about to overwrite so any bad/stale save
     # (e.g. an old tab) can be rolled back.
     _take_snapshot(show, request.user, kind='auto')
 
-    errors = _apply_layout(show, data)
-    return JsonResponse({'ok': True, 'errors': errors})
+    try:
+        errors = _apply_layout(show, data)
+    except Exception as e:   # noqa: BLE001 — surface a real failure to the client
+        return JsonResponse({'ok': False, 'error': f'Save failed: {e}'}, status=500)
+    return JsonResponse({'ok': True, 'errors': errors, 'rev': _layout_fingerprint(show)})
 
 
 def _snapshot_dict(snap):
