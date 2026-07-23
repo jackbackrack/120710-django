@@ -216,9 +216,9 @@ def _ellipsize(text, font, size, max_w, force=False):
     return (t.rstrip() + ell) if t else ell
 
 
-def _wrap(text, font, size, max_w, max_lines):
-    """Word-wrap text to <= max_lines lines within max_w; the last line is
-    ellipsized if content is cut off (or a single word is too long)."""
+def _wrap_all(text, font, size, max_w):
+    """Greedy word-wrap into as many lines as needed (no cap); over-long single
+    words are ellipsized to fit the width."""
     words = text.split()
     if not words:
         return []
@@ -231,24 +231,45 @@ def _wrap(text, font, size, max_w, max_lines):
             lines.append(cur)
             cur = word
     lines.append(cur)
-    lines = [_ellipsize(ln, font, size, max_w) for ln in lines]   # break over-long single words
-    if len(lines) > max_lines:
+    return [_ellipsize(ln, font, size, max_w) for ln in lines]
+
+
+MULTILINE_SHRINK = 0.85   # a field that wraps starts at 85% size...
+FIELD_FLOOR = 0.55        # ...and may shrink to 55% of its size to avoid truncation
+
+
+def _fit_field(text, font, size, max_w, max_lines):
+    """Lay out one field. If it fits on a single line, keep the full size. If it
+    needs more than one line, switch to a smaller font (and shrink further, within a
+    floor) so more of the text fits within max_lines before any truncation.
+    Returns (lines, size)."""
+    lines = _wrap_all(text, font, size, max_w)
+    if len(lines) <= 1:
+        return lines, size
+    smaller = size * MULTILINE_SHRINK
+    floor = size * FIELD_FLOOR
+    lines = _wrap_all(text, font, smaller, max_w)
+    while len(lines) > max_lines and smaller > floor:
+        smaller = max(floor, smaller * 0.9)
+        lines = _wrap_all(text, font, smaller, max_w)
+    if len(lines) > max_lines:                      # still over → cap + ellipsis
         lines = lines[:max_lines]
-        lines[-1] = _ellipsize(lines[-1], font, size, max_w, force=True)
-    return lines
+        lines[-1] = _ellipsize(lines[-1], font, smaller, max_w, force=True)
+    return lines, smaller
 
 
 def _layout_card(artwork, avail_w, avail_h):
     """Wrap + shrink the fields to fit the card. Returns [(text, font, size)].
-    Shrinks the whole block until it fits height; if it still overflows at the
-    minimum size, trailing lines are dropped so nothing spills off the card."""
+    Each field shrinks on its own when it wraps (so more text fits); the whole block
+    then shrinks until it fits the height; if it still overflows at the minimum size,
+    trailing lines are dropped so nothing spills off the card."""
     fields = _card_fields(artwork)
     scale, rendered, total = 1.0, [], 0.0
     for _ in range(24):
         rendered = []
         for text, font, base, max_lines in fields:
-            size = base * scale
-            for ln in _wrap(text, font, size, avail_w, max_lines):
+            lines, size = _fit_field(text, font, base * scale, avail_w, max_lines)
+            for ln in lines:
                 rendered.append((ln, font, size))
         total = sum(s * LEADING for _, _, s in rendered)
         if total <= avail_h or scale <= MIN_SCALE:

@@ -3223,6 +3223,17 @@ class PlacardSheetPdfTests(TestCase):
         for text, font, size in lines:
             self.assertLessEqual(stringWidth(text, font, size), avail_w + 0.5)
 
+    def test_multiline_field_uses_smaller_font(self):
+        from gallery.views.placards import _fit_field, _FONT
+        short_lines, short_size = _fit_field('oil', _FONT, 9.0, 160.0, 2)
+        long_lines, long_size = _fit_field(
+            'archival pigment print on cotton rag with hand-applied gold leaf and resin varnish',
+            _FONT, 9.0, 160.0, 2)
+        self.assertEqual(len(short_lines), 1)
+        self.assertEqual(short_size, 9.0)              # single line keeps full size
+        self.assertGreater(len(long_lines), 1)
+        self.assertLess(long_size, 9.0)                # wrapped field shrinks
+
     def test_unicode_font_registered(self):
         from gallery.views.placards import _FONT, _IS_TTF
         self.assertTrue(_IS_TTF)                       # a Unicode TrueType font, not base-14
