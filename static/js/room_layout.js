@@ -2113,6 +2113,11 @@
     var listEl = document.getElementById('snap-list');
 
     function esc2(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+    // Format the (UTC, ISO) timestamp in the viewer's own local time zone.
+    function fmtDate(s) {
+      try { var d = new Date(s.created_at); if (!isNaN(d.getTime())) return d.toLocaleString(); } catch (e) {}
+      return s.created_at_display || '';
+    }
 
     function renderList(snaps) {
       if (!snaps.length) { listEl.innerHTML = '<div style="color:#888;padding:6px 2px">No snapshots yet.</div>'; return; }
@@ -2122,7 +2127,7 @@
         row.innerHTML =
           '<div class="snap-meta"><span class="snap-kind ' + (s.kind === 'manual' ? 'manual' : '') + '">' +
             (s.kind === 'manual' ? 'saved' : 'auto') + '</span> ' + esc2(s.name) +
-            '<div class="snap-sub">' + esc2(s.created_at_display) + ' · ' + s.n_placements + ' pieces, ' + s.n_supports + ' supports' +
+            '<div class="snap-sub">' + esc2(fmtDate(s)) + ' · ' + s.n_placements + ' pieces, ' + s.n_supports + ' supports' +
             (s.by ? ' · ' + esc2(s.by) : '') + '</div></div>';
         var rb = document.createElement('button');
         rb.className = 'btn btn-sm btn-outline-primary'; rb.textContent = 'Restore';
@@ -2148,9 +2153,23 @@
         .catch(function () { listEl.innerHTML = '<div style="color:#c00;padding:6px 2px">Could not load snapshots.</div>'; });
     }
 
-    btn.addEventListener('click', function () {
+    function closePanel() { panel.classList.remove('open'); }
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
       panel.classList.toggle('open');
       if (panel.classList.contains('open')) loadList();
+    });
+    var closeBtn = document.getElementById('snap-close');
+    if (closeBtn) closeBtn.addEventListener('click', closePanel);
+    // Close on Escape, or when clicking anywhere outside the panel.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
+    });
+    document.addEventListener('mousedown', function (e) {
+      if (!panel.classList.contains('open')) return;
+      if (panel.contains(e.target) || btn.contains(e.target)) return;
+      closePanel();
     });
 
     saveSnapBtn.addEventListener('click', function () {

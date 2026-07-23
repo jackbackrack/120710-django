@@ -270,7 +270,10 @@
       <a href="{% url 'gallery:room_viewer' show.slug %}" class="card__link ms-2">3D View</a>
     </div>
     <div id="snapshots-panel">
-      <h6>Layout snapshots</h6>
+      <div style="display:flex;align-items:center;margin-bottom:6px">
+        <h6 style="margin:0;flex:1">Layout snapshots</h6>
+        <button id="snap-close" type="button" class="btn btn-sm btn-outline-secondary" title="Close" style="line-height:1;padding:0 8px">×</button>
+      </div>
       <div style="display:flex;gap:4px;margin-bottom:8px">
         <input id="snap-name" type="text" class="form-control form-control-sm" placeholder="Name this snapshot…">
         <button id="snap-save" class="btn btn-sm btn-success" type="button">Save</button>
