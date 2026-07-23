@@ -249,7 +249,7 @@ HOW_TO_GUIDES = [
             'On the show detail page, click "Checklist PDF" (visible to curators/staff). This downloads a print-ready exhibition checklist for the whole show.',
             'It opens with a cover page: the show title, "Curated by…", the date range, any opening/events, the list of participating artists (in as many columns as needed for the count), and the show image with the description flowing around it. HTML in the description is stripped to clean text.',
             'Then one entry per artwork — a small thumbnail with the artist, title (year), medium, dimensions, and price (with "Not For Sale" / "Price on Request" handled) — grouped by artist.',
-            'It ends with an "Artists" section — every participating artist\'s photo with their name (Instagram right after it) and their Bio and Statement (each labelled), flowing around the photo — then the curator(s). Everyone is listed with their name and photo even if they have no bio/statement; HTML in bios/statements is stripped.',
+            'It ends with an "Artists" section — every participating artist\'s photo with their name (Instagram right after it), then their bio and their Statement (the statement is labelled "Statement:"), flowing around the photo — then the curator(s). Everyone is listed with their name and photo even if they have no bio/statement; HTML in bios/statements is stripped.',
             'Every page footer shows the site\'s logo and info (website, Instagram, and street address), pulled from the show\'s associated site. Empty fields are omitted, so fill in the site and artist profiles for the fullest checklist.',
             'This is separate from the Avery placard sheets and prints on plain US-Letter paper.',
         ],

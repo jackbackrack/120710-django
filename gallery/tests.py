@@ -3121,8 +3121,18 @@ class ChecklistPdfTests(TestCase):
         _bio_entry(a, _styles(), story)
         texts = [f.text for f in story if isinstance(f, Paragraph)]
         self.assertTrue(any('@zed' in t and t.startswith('<b>') for t in texts))          # IG by name
-        self.assertTrue(any(t.startswith('<b>Bio:</b>') and 'bio text' in t for t in texts))
+        self.assertTrue(any('bio text' in t for t in texts))                              # bio shown
+        self.assertFalse(any(t.startswith('<b>Bio:</b>') for t in texts))                 # no "Bio:" label
         self.assertTrue(any(t.startswith('<b>Statement:</b>') and 'stmt text' in t for t in texts))
+
+    def test_cover_uses_date_range_not_name_twice(self):
+        from reportlab.platypus import Paragraph
+        from reportlab.lib.units import inch
+        from gallery.views.checklist import _cover, _styles
+        story = _cover(self.show, self.site, list(self.show.artworks.all()), _styles(), 6.5 * inch)
+        texts = [f.text for f in story if isinstance(f, Paragraph)]
+        self.assertIn(self.show.date_range, texts)                                   # run dates present
+        self.assertEqual(sum(1 for t in texts if t == self.show.name), 1)           # name only once
 
     def test_minimal_show_renders(self):
         # No site, no images, no bios, no events → must still produce a PDF.

@@ -162,7 +162,7 @@ def _bio_entry(person, styles, story):
         name += f'  {escape(person.instagram)}'
     flows = [Paragraph(name, styles['bioname'])]
     if (person.bio or '').strip():
-        flows.append(Paragraph('<b>Bio:</b> ' + _ptext(person.bio), styles['bio']))
+        flows.append(Paragraph(_ptext(person.bio), styles['bio']))   # no label — the bio is obvious
     if (person.statement or '').strip():
         if (person.bio or '').strip():
             flows.append(Spacer(1, 6))   # line break between bio and statement
@@ -220,7 +220,7 @@ def _cover(show, site, works, styles, content_w):
     if curators:
         names = ', '.join(str(c) for c in curators)
         story.append(Paragraph('Curated by ' + escape(names), styles['curator']))
-    story.append(Paragraph(escape(str(show)), styles['meta']))   # date range via Show.__str__
+    story.append(Paragraph(escape(show.date_range), styles['meta']))   # dates (str(show) is the name)
     for ev in show.events.all().order_by('date', 'start'):
         when = ev.date.strftime('%A %B %-d, %Y')
         times = f"{ev.start.strftime('%-I:%M %p').lower()}–{ev.end.strftime('%-I:%M %p').lower()}"
