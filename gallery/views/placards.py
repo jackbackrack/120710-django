@@ -171,13 +171,12 @@ def _draw_card(c, x, y, artwork, outline, qr_url=None):
     avail_h = CARD_H - 2 * PAD
     lines = _fit(_card_lines(artwork), avail_w, avail_h)
     block_h = sum(s * LEADING for _, _, s in lines)
-    cx = (text_left + text_right) / 2
     cursor = y + CARD_H / 2 + block_h / 2      # top of the vertically-centred block
     c.setFillGray(0)
     for text, font, size in lines:
         cursor -= size * LEADING
         c.setFont(font, size)
-        c.drawCentredString(cx, cursor + size * 0.22, text)
+        c.drawString(text_left, cursor + size * 0.22, text)   # left-justified
 
 
 @login_required
