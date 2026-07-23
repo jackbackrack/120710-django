@@ -54,7 +54,12 @@ def _get_placard_data(show, number):
     artwork = entry.artwork
     artists = list(artwork.artists.values_list('name', flat=True))
     year = str(artwork.start_year) + '–' + str(artwork.end_year) if artwork.start_year and artwork.start_year != artwork.end_year else str(artwork.end_year)
-    image_url = artwork.card_thumbnail.url if artwork.image else None
+    image_url = None
+    if artwork.image:
+        try:
+            image_url = artwork.card_sm.url   # small thumbnail; generated on demand
+        except Exception:                     # noqa: BLE001 — never 500 over a bad image
+            image_url = None
     return {
         'number': number,
         'show': show.name,

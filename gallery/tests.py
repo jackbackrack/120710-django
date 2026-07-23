@@ -2366,6 +2366,24 @@ class PlacardTests(TestCase):
         self.assertEqual(data['artwork']['name'], self.artwork1.name)
         self.assertIn(self.artist.name, data['artwork']['artists'])
 
+    def test_placard_json_ok_for_upcoming_show_artwork_with_image(self):
+        # Regression: an artwork WITH an image used to raise AttributeError
+        # (bad `card_thumbnail`) -> HTTP 500. Also covers _current_show serving
+        # the next not-yet-open published show.
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        # Give it a (truthy) image without triggering imagekit's save-time
+        # processing — .update() bypasses save signals. The endpoint's image
+        # thumbnail lookup must not 500 even if the file can't be read.
+        Artwork.objects.filter(pk=self.artwork1.pk).update(image='artwork_images/x.jpg')
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.start = datetime.date.today() + datetime.timedelta(days=2)   # opens soon
+        self.show.end = datetime.date.today() + datetime.timedelta(days=32)
+        self.show.save(update_fields=['status', 'start', 'end'])
+        response = self.client.get(reverse('gallery:placard_json', kwargs={'number': 1}))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['artwork']['name'], self.artwork1.name)
+
     def test_placard_json_returns_404_for_missing_number(self):
         self.show.status = Show.STATUS_PUBLISHED
         self.show.save(update_fields=['status'])
