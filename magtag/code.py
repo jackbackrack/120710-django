@@ -18,13 +18,12 @@
 #   adafruit_display_text, adafruit_bitmap_font, neopixel
 
 import os
-import ssl
 import time
 
 import alarm
 import board
 import wifi
-import socketpool
+import adafruit_connection_manager
 import adafruit_requests
 from adafruit_magtag.magtag import MagTag
 
@@ -89,8 +88,10 @@ def fetch_placard(number):
     if not wifi.radio.connected:
         wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"),
                            os.getenv("CIRCUITPY_WIFI_PASSWORD"))
-    pool = socketpool.SocketPool(wifi.radio)
-    session = adafruit_requests.Session(pool, ssl.create_default_context())
+    # Cached, warning-free pool + SSL context (the modern adafruit_requests pattern).
+    pool = adafruit_connection_manager.get_radio_socketpool(wifi.radio)
+    ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
+    session = adafruit_requests.Session(pool, ssl_context)
     resp = session.get("%s/placard/%d/data/" % (SITE_URL, number), timeout=20)
     try:
         return resp.json()

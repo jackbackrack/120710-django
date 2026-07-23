@@ -19,9 +19,11 @@ website decides which show is "current," so devices only carry numbers.
 
 ## Setup
 1. Install CircuitPython 8 or 9 on the MagTag.
-2. Copy the Adafruit CircuitPython **bundle** libraries into `/lib`:
+2. Copy the Adafruit CircuitPython **bundle** libraries into `/lib` (use the
+   bundle that matches your CircuitPython major version):
    `adafruit_magtag`, `adafruit_portalbase`, `adafruit_requests`,
-   `adafruit_display_text`, `adafruit_bitmap_font`, `neopixel`.
+   `adafruit_connection_manager`, `adafruit_display_text`, `adafruit_bitmap_font`,
+   `neopixel`.
 3. Copy `code.py` to the CIRCUITPY drive.
 4. Copy `settings.toml.example` → `settings.toml` and fill in Wi-Fi + `SITE_URL`.
 5. Edit `PLACARD_NUMBERS` in `code.py` per device (one number for a single
