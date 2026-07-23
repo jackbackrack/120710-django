@@ -44,6 +44,14 @@ Eject and the board reboots showing that placard. Repeat with the next number.
 Copy `code.py` + `/lib`, then `settings.toml.example` → `settings.toml` and set
 `CIRCUITPY_WIFI_*`, `SITE_URL`, and `PLACARD_NUMBER`.
 
+## Reprogramming a deep-sleeping board
+While it's asleep the CIRCUITPY drive is unmounted, so you can't edit it. To get
+it to stay awake for editing: **plug in USB, then press a button to wake it and
+keep BUTTON_A held.** It shows "Programming mode" and stays awake (drive mounted,
+REPL available). Copy new files, then press **RESET** to resume. (Alternatively,
+open the serial console and press **Ctrl-C** right after it wakes.) If a board
+ever gets stuck, double-click **RESET** to enter the bootloader and reinstall.
+
 ## Notes
 - **Numbers, not database ids:** the endpoint keys on the show artwork *number*.
 - **CircuitPython 10 (incl. alphas):** use libraries from the **10.x** bundle;

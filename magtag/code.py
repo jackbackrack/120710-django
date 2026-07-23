@@ -81,6 +81,22 @@ def fetch_placard(number):
         resp.close()
 
 
+# ── Programming escape hatch ─────────────────────────────────────────────────
+# Hold BUTTON_A while the board wakes to STAY AWAKE instead of deep-sleeping, so
+# the CIRCUITPY drive stays mounted (writable) and the serial REPL is available
+# for copying new code / editing settings. Press RESET when done to resume normal
+# operation. (In deep sleep the drive is unmounted and you can't reprogram it.)
+if not magtag.peripherals.buttons[0].value:
+    _message("Programming mode\nEdit files, then\npress RESET")
+    try:
+        magtag.refresh()
+    except Exception:
+        pass
+    magtag.peripherals.neopixels.brightness = 0.2
+    magtag.peripherals.neopixels.fill((40, 30, 0))   # amber = awake for programming
+    while True:                                       # Ctrl-C here drops to the REPL
+        time.sleep(1)
+
 # ── Draw this device's placard ───────────────────────────────────────────────
 if PLACARD_NUMBER <= 0:
     _message("Set PLACARD_NUMBER\nin settings.toml")
