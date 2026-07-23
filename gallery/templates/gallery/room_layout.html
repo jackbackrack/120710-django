@@ -267,7 +267,7 @@
       <button id="btn-save" class="btn btn-primary btn-sm ms-2">Save</button>
       <button id="btn-snapshots" class="btn btn-outline-secondary btn-sm ms-1" title="Save a named restore point, or roll back to an earlier layout">Snapshots</button>
       <span id="save-status"></span>
-      <a href="{% url 'gallery:room_viewer' show.slug %}" class="card__link ms-2">3D View</a>
+      <a id="btn-3d-view" href="{% url 'gallery:room_viewer' show.slug %}" class="card__link ms-2">3D View</a>
     </div>
     <div id="snapshots-panel">
       <div style="display:flex;align-items:center;margin-bottom:6px">

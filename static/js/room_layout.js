@@ -2045,6 +2045,7 @@
 
   // ── Save ──────────────────────────────────────────────────────────────────
   var saveTimer = null;
+  var dirty = false;   // there are edits not yet confirmed saved by the server
 
   var currentRev = window.LAYOUT_REV || '';
 
@@ -2084,6 +2085,7 @@
         }
         if (data && data.ok) {
           if (data.rev) currentRev = data.rev;   // track the new revision for the next save
+          dirty = false;                          // server confirmed the save
           saveStatus.textContent = (data.errors && data.errors.length)
             ? 'Saved (with ' + data.errors.length + ' skipped).' : 'Saved.';
         } else {
@@ -2095,13 +2097,34 @@
   }
 
   function scheduleSave() {
+    dirty = true;
     broadcastPlacements();   // push the change to any open 3D viewer immediately
     saveStatus.textContent = 'Unsaved…';
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () { doSave(); }, 1500);   // no timer-id leaked as `force`
   }
 
-  saveBtn.addEventListener('click', doSave);
+  saveBtn.addEventListener('click', function () { doSave(); });
+
+  // Don't lose the last edit when leaving the editor. Clicking "3D View" flushes
+  // any pending save first, then navigates; other exits (Back, close) warn if there
+  // are unsaved changes. (The 3D view is read-only and can't alter the layout.)
+  if (!READONLY) {
+    var view3d = document.getElementById('btn-3d-view');
+    if (view3d) {
+      view3d.addEventListener('click', function (e) {
+        if (!dirty) return;              // nothing pending → navigate normally
+        e.preventDefault();
+        var href = view3d.href;
+        clearTimeout(saveTimer);
+        doSave().then(function () { window.location.href = href; })
+                .catch(function () { window.location.href = href; });
+      });
+    }
+    window.addEventListener('beforeunload', function (e) {
+      if (dirty) { e.preventDefault(); e.returnValue = ''; }   // native "unsaved changes" prompt
+    });
+  }
 
   // ── Layout snapshots (named restore points) ────────────────────────────────
   (function () {
