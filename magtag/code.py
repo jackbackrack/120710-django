@@ -1,46 +1,56 @@
-# code.py — MagTag placard display for the 120710 / eatart gallery site.
+# code.py — MagTag placard display (DEEP-SLEEP / battery version).
 #
 # Each MagTag holds a list of placard NUMBERS (the numbered artworks in the
-# current show) and shows their placard — title, artist(s), year/medium/
-# dimensions, price — fetched live from the website's placard API on the e-ink
-# screen. The website resolves "the current show" itself, so these devices only
-# need the numbers.
+# current show). On each wake it fetches one placard from the website, draws it
+# on the e-ink screen, then deep-sleeps until a button is pressed or the refresh
+# timer fires. The e-ink image persists while asleep, so power draw between
+# updates is ~nil.
 #
 #   API:  GET {SITE_URL}/placard/<number>/data/   (public JSON, no login)
 #
-# Buttons:  A = previous placard   B = next placard   D = refresh from web
-# It also re-fetches on its own every REFRESH_SECONDS.
+# Buttons (wake from sleep):  A = previous   B = next   D = refresh current
+# The current index is kept in alarm.sleep_memory so it survives deep sleep.
 #
-# Config lives in settings.toml (see settings.toml.example):
+# Config in settings.toml (see settings.toml.example):
 #   CIRCUITPY_WIFI_SSID, CIRCUITPY_WIFI_PASSWORD, SITE_URL
-# Required libraries in /lib (from the Adafruit CircuitPython bundle):
+# Libraries in /lib (Adafruit bundle):
 #   adafruit_magtag, adafruit_portalbase, adafruit_requests,
 #   adafruit_display_text, adafruit_bitmap_font, neopixel
-#
-# Tested against CircuitPython 8/9 on the Adafruit MagTag (ESP32-S2).
 
 import os
-import time
 import ssl
+import time
 
+import alarm
+import board
 import wifi
 import socketpool
 import adafruit_requests
 from adafruit_magtag.magtag import MagTag
 
 # ── Per-device configuration ─────────────────────────────────────────────────
-# The show placard numbers THIS device is responsible for. Use a single number
-# for a one-piece placard, or several to let the buttons page through them.
+# The show placard numbers THIS device cycles through. One entry = a single
+# fixed placard (the buttons then just refresh it).
 PLACARD_NUMBERS = [1, 2, 3, 4, 5]
 
-REFRESH_SECONDS = 6 * 60 * 60          # auto re-fetch from the web this often
+REFRESH_SECONDS = 6 * 60 * 60          # wake and re-fetch at least this often
 SITE_URL = os.getenv("SITE_URL", "https://example.com").rstrip("/")
 
-# E-ink should not be fully refreshed faster than this (panel longevity).
-MIN_REFRESH_GAP = 3.0
+# ── Restore state + decide what this wake should do ──────────────────────────
+# alarm.sleep_memory persists across deep sleep (cleared only on power loss).
+count = len(PLACARD_NUMBERS)
+index = alarm.sleep_memory[0] if count and alarm.sleep_memory[0] < count else 0
+
+wake = alarm.wake_alarm
+if count and wake is not None and getattr(wake, "pin", None) is not None:
+    if wake.pin is board.BUTTON_A:        # previous
+        index = (index - 1) % count
+    elif wake.pin is board.BUTTON_B:      # next
+        index = (index + 1) % count
+    # BUTTON_C: reserved.  BUTTON_D / TimeAlarm / first boot: just refresh.
+alarm.sleep_memory[0] = index
 
 magtag = MagTag()
-magtag.peripherals.neopixels.brightness = 0.15
 
 # ── Screen layout (296 x 128) ────────────────────────────────────────────────
 HEADER = magtag.add_text(text_position=(4, 6),   text_scale=1, text_anchor_point=(0, 0))
@@ -52,24 +62,11 @@ META   = magtag.add_text(text_position=(4, 88),  text_scale=1, text_anchor_point
                          text_wrap=46)
 PRICE  = magtag.add_text(text_position=(4, 116), text_scale=1, text_anchor_point=(0, 0))
 
-# ── Networking (native wifi + requests; creds from settings.toml) ────────────
-_requests = None
 
-
-def _session():
-    global _requests
-    if not wifi.radio.connected:
-        wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"),
-                           os.getenv("CIRCUITPY_WIFI_PASSWORD"))
-    if _requests is None:
-        pool = socketpool.SocketPool(wifi.radio)
-        _requests = adafruit_requests.Session(pool, ssl.create_default_context())
-    return _requests
-
-
-def _blank():
-    for i in (HEADER, TITLE, ARTIST, META, PRICE):
+def _message(text):
+    for i in (HEADER, ARTIST, META, PRICE):
         magtag.set_text("", i, auto_refresh=False)
+    magtag.set_text(text, TITLE, auto_refresh=False)
 
 
 def _show_placard(data):
@@ -77,7 +74,6 @@ def _show_placard(data):
     artists = ", ".join(aw.get("artists", []) or [])
     year = aw.get("year", "")
     parts = [str(year) if year else "", aw.get("medium", ""), aw.get("dimensions", "")]
-    meta = " • ".join(p for p in parts if p)      # " • "
     price = aw.get("price", "") or ""
     if aw.get("is_sold"):
         price = (price + "  (SOLD)").strip()
@@ -85,78 +81,61 @@ def _show_placard(data):
                     HEADER, auto_refresh=False)
     magtag.set_text(aw.get("name", "Untitled"), TITLE, auto_refresh=False)
     magtag.set_text(artists, ARTIST, auto_refresh=False)
-    magtag.set_text(meta, META, auto_refresh=False)
+    magtag.set_text(" • ".join(p for p in parts if p), META, auto_refresh=False)
     magtag.set_text(price, PRICE, auto_refresh=False)
 
 
-def _message(text):
-    _blank()
-    magtag.set_text(text, TITLE, auto_refresh=False)
-
-
-_last_refresh_time = 0.0
-
-
-def _safe_refresh():
-    global _last_refresh_time
-    gap = time.monotonic() - _last_refresh_time
-    if gap < MIN_REFRESH_GAP:
-        time.sleep(MIN_REFRESH_GAP - gap)
-    # Wait out the panel's own refresh cooldown, then draw.
-    while getattr(magtag.display, "time_to_refresh", 0):
-        time.sleep(0.5)
+def fetch_placard(number):
+    if not wifi.radio.connected:
+        wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"),
+                           os.getenv("CIRCUITPY_WIFI_PASSWORD"))
+    pool = socketpool.SocketPool(wifi.radio)
+    session = adafruit_requests.Session(pool, ssl.create_default_context())
+    resp = session.get("%s/placard/%d/data/" % (SITE_URL, number), timeout=20)
     try:
-        magtag.refresh()
-    except Exception:      # RuntimeError "refresh too soon" etc.
-        time.sleep(5)
-        try:
-            magtag.refresh()
-        except Exception:
-            pass
-    _last_refresh_time = time.monotonic()
-
-
-def fetch_and_show(number):
-    url = "%s/placard/%d/data/" % (SITE_URL, number)
-    magtag.peripherals.neopixels.fill((0, 0, 60))     # blue = loading
-    try:
-        resp = _session().get(url, timeout=20)
-        data = resp.json()
+        return resp.json()
+    finally:
         resp.close()
-        if not isinstance(data, dict) or data.get("error"):
-            _message("No placard #%d\nin the current show" % number)
-        else:
+
+
+# ── Draw this wake's placard ─────────────────────────────────────────────────
+if not count:
+    _message("No placard numbers\nconfigured")
+else:
+    number = PLACARD_NUMBERS[index]
+    magtag.peripherals.neopixels.brightness = 0.15
+    magtag.peripherals.neopixels.fill((0, 0, 60))     # blue = working
+    try:
+        data = fetch_placard(number)
+        if isinstance(data, dict) and not data.get("error"):
             _show_placard(data)
+        else:
+            _message("No placard #%d\nin the current show" % number)
     except Exception as err:
         _message("Can't load #%d\n%s" % (number, err))
-    finally:
-        magtag.peripherals.neopixels.fill((0, 0, 0))
-    _safe_refresh()
+    magtag.peripherals.neopixels.fill((0, 0, 0))
 
+# Wait out the panel cooldown, refresh, and let the update finish before we cut
+# power in deep sleep (a partial refresh would ghost the image).
+while getattr(magtag.display, "time_to_refresh", 0):
+    time.sleep(0.5)
+try:
+    magtag.refresh()
+except Exception:
+    time.sleep(5)
+    try:
+        magtag.refresh()
+    except Exception:
+        pass
+time.sleep(3)
 
-# ── Main loop ────────────────────────────────────────────────────────────────
-index = 0
-if not PLACARD_NUMBERS:
-    _message("No placard numbers\nconfigured")
-    _safe_refresh()
-    while True:
-        time.sleep(60)
+# ── Power down until a button or the refresh timer ───────────────────────────
+magtag.peripherals.neopixel_disable = True     # cut NeoPixel + speaker power
+magtag.peripherals.speaker_disable = True
 
-fetch_and_show(PLACARD_NUMBERS[index])
-last_fetch = time.monotonic()
-
-buttons = magtag.peripherals.buttons   # [A, B, C, D], pressed == value False
-
-while True:
-    now = time.monotonic()
-    if not buttons[0].value:                       # A → previous
-        index = (index - 1) % len(PLACARD_NUMBERS)
-        fetch_and_show(PLACARD_NUMBERS[index]); last_fetch = now
-    elif not buttons[1].value:                     # B → next
-        index = (index + 1) % len(PLACARD_NUMBERS)
-        fetch_and_show(PLACARD_NUMBERS[index]); last_fetch = now
-    elif not buttons[3].value:                     # D → refresh current
-        fetch_and_show(PLACARD_NUMBERS[index]); last_fetch = now
-    elif now - last_fetch >= REFRESH_SECONDS:      # periodic auto-refresh
-        fetch_and_show(PLACARD_NUMBERS[index]); last_fetch = now
-    time.sleep(0.05)
+time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + REFRESH_SECONDS)
+button_alarms = [
+    alarm.pin.PinAlarm(pin=pin, value=False, pull=True)
+    for pin in (board.BUTTON_A, board.BUTTON_B, board.BUTTON_C, board.BUTTON_D)
+]
+alarm.exit_and_deep_sleep_until_alarms(time_alarm, *button_alarms)
