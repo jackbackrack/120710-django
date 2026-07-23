@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 
-from gallery.views.placards import placard_html, placard_json
+from gallery.views.placards import placard_html, placard_json, placard_sheet_pdf
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer, room_2d, save_support_to_catalog, layout_snapshots, restore_layout_snapshot, delete_layout_snapshot
 from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker, schedule_ics
@@ -80,6 +80,7 @@ urlpatterns = [
     path('artist/<int:pk>/regenerate-thumbnail/', regenerate_artist_thumbnail, name='regenerate_artist_thumbnail'),
     path('placard/<int:number>/', placard_html, name='placard_html'),
     path('placard/<int:number>/data/', placard_json, name='placard_json'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/placards.pdf$', placard_sheet_pdf, name='placard_sheet_pdf'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/layout/$', room_layout, name='room_layout'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/layout/save/$', room_layout_save, name='room_layout_save'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/layout/support-to-catalog/$', save_support_to_catalog, name='save_support_to_catalog'),

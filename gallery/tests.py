@@ -3156,6 +3156,49 @@ class LayoutSnapshotTests(TestCase):
             os.remove(path)
 
 
+class PlacardSheetPdfTests(TestCase):
+    """Printable Avery 5376 placard sheet."""
+
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            username='pp@example.com', email='pp@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.show = Show.objects.create(
+            name='Placard Show', start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=5))
+        from gallery.models import Artist, ShowArtworkNumber
+        artist = Artist.objects.create(name='Ada L', first_name='Ada', last_name='L', email='a@e.com')
+        for i in range(1, 13):
+            aw = Artwork.objects.create(
+                name='A Rather Long Artwork Title %d' % i, end_year=2025,
+                medium='oil on canvas', width_inches=24, height_inches=36,
+                pricing_type='for_sale', price=1000 + i)
+            aw.artists.add(artist)
+            self.show.artworks.add(aw)
+            ShowArtworkNumber.objects.create(show=self.show, artwork=aw, number=i)
+        self.url = reverse('gallery:placard_sheet_pdf', kwargs={'slug': self.show.slug})
+
+    def test_staff_downloads_pdf(self):
+        self.client.force_login(self.staff)
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        self.assertTrue(r.content.startswith(b'%PDF-'))
+        self.assertIn('attachment', r['Content-Disposition'])
+
+    def test_outlines_variant(self):
+        self.client.force_login(self.staff)
+        r = self.client.get(self.url + '?outlines=1')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.content.startswith(b'%PDF-'))
+
+    def test_non_manager_denied(self):
+        other = User.objects.create_user(username='nn@e.com', email='nn@e.com', password='pw')
+        self.client.force_login(other)
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 404)
+
+
 class RoomTwoDViewTests(TestCase):
     """Read-only 2D layout viewer (artists checking where to install)."""
 
