@@ -333,4 +333,8 @@ def placard_sheet_pdf(request, slug):
 
     resp = HttpResponse(buf.getvalue(), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="placards-{show.slug}.pdf"'
+    # Never cache — the layout changes, and a cached copy (browser or edge) would
+    # re-serve a stale PDF without the request ever reaching the app.
+    resp['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp['Pragma'] = 'no-cache'
     return resp
