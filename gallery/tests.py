@@ -3011,6 +3011,73 @@ class SupportSaveTests(TestCase):
         self.assertFalse(bool(cat.texture))
 
 
+class ChecklistPdfTests(TestCase):
+    """Exhibition checklist PDF (cover, works+images, artist & curator bios)."""
+
+    def _jpg(self, name):
+        import io
+        from PIL import Image as P
+        b = io.BytesIO(); P.new('RGB', (300, 200), (150, 120, 90)).save(b, 'JPEG')
+        return SimpleUploadedFile(name, b.getvalue(), content_type='image/jpeg')
+
+    def setUp(self):
+        from gallery.models import Artist, Site, Event
+        self.staff = User.objects.create_user(
+            username='cl@example.com', email='cl@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.site = Site.objects.create(
+            name='Personal Space', street='1505 Tennessee Street', city='Vallejo',
+            state='CA', postal_code='94590', website='www.personalspace.space',
+            instagram='@personal_space', image=self._jpg('logo.jpg'))
+        self.curator = Artist.objects.create(
+            name='Reniel del Rosario', first_name='Reniel', last_name='del Rosario',
+            email='cur@e.com', bio='A curator working across ceramics.', instagram='@reniel',
+            image=self._jpg('cur.jpg'))
+        self.show = Show.objects.create(
+            name='Giant Steps', description='A statement.\n\nAnother paragraph.',
+            start=datetime.date(2026, 5, 31), end=datetime.date(2026, 7, 19))
+        self.show.curators.add(self.curator)
+        self.show.sites.add(self.site)
+        Event.objects.create(name='Opening', show=self.show, date=datetime.date(2026, 5, 31),
+                             start=datetime.time(14, 0), end=datetime.time(17, 0))
+        artist = Artist.objects.create(
+            name='Paola de la Calle', first_name='Paola', last_name='Calle', email='a@e.com',
+            bio='An artist working in ceramics and mixed media.', instagram='@paola',
+            image=self._jpg('artist.jpg'))
+        aw = Artwork.objects.create(
+            name='Herencia', end_year=2024, medium='Found object, glazed stoneware',
+            width_inches=19, height_inches=9, depth_inches=1,
+            pricing_type='for_sale', price=550, image=self._jpg('work.jpg'))
+        aw.artists.add(artist)
+        self.show.artworks.add(aw)
+        self.url = reverse('gallery:show_checklist_pdf', kwargs={'slug': self.show.slug})
+
+    def test_staff_downloads_checklist(self):
+        self.client.force_login(self.staff)
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        self.assertTrue(r.content.startswith(b'%PDF-'))
+        self.assertIn('attachment', r['Content-Disposition'])
+
+    def test_non_manager_denied(self):
+        other = User.objects.create_user(username='no@e.com', email='no@e.com', password='pw')
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_minimal_show_renders(self):
+        # No site, no images, no bios, no events → must still produce a PDF.
+        bare = Show.objects.create(name='Bare Show', start=datetime.date.today(),
+                                   end=datetime.date.today() + datetime.timedelta(days=3))
+        aw = Artwork.objects.create(name='Plain', end_year=2025, medium='oil',
+                                    width_inches=10, height_inches=10)
+        bare.artworks.add(aw)
+        self.client.force_login(self.staff)
+        r = self.client.get(reverse('gallery:show_checklist_pdf', kwargs={'slug': bare.slug}))
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.content.startswith(b'%PDF-'))
+
+
 class LayoutSnapshotTests(TestCase):
     """Layout snapshots: auto safety net before saves/restores, named restore
     points, and the export/import management commands."""

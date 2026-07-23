@@ -243,6 +243,18 @@ HOW_TO_GUIDES = [
         ],
     },
     {
+        'title': 'How to download a show checklist PDF',
+        'roles': {'curator', 'staff'},
+        'steps': [
+            'On the show detail page, click "Checklist PDF" (visible to curators/staff). This downloads a print-ready exhibition checklist for the whole show.',
+            'It opens with a cover page: the show title, "Curated by…", the date range, any opening/events, the list of participating artists, and the show description as the curatorial statement.',
+            'Then one entry per artwork — a thumbnail with the artist, title (year), medium, dimensions, and price (with "Not For Sale" / "Price on Request" handled) — grouped by artist.',
+            'It ends with an "Artist Bios" section (each artist\'s photo with their bio/statement flowing around it, plus their Instagram) and then the curator\'s bio. Artists or a curator with no bio are simply skipped.',
+            'Every page footer shows the site\'s logo and info (website, Instagram, and street address), pulled from the show\'s associated site. Empty fields are omitted, so fill in the site and artist profiles for the fullest checklist.',
+            'This is separate from the Avery placard sheets and prints on plain US-Letter paper.',
+        ],
+    },
+    {
         'title': 'How to view a show in 3D',
         'roles': {'curator', 'staff'},
         'steps': [

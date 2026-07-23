@@ -90,6 +90,7 @@
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
     <a class="card__link" href="{% url 'gallery:placard_sheet_pdf' show.slug %}" title="Download a PDF of the show's placards for Avery 5376 (2×3.5in) business-card sheets">Placards PDF</a>
+    <a class="card__link" href="{% url 'gallery:show_checklist_pdf' show.slug %}" title="Download the show checklist PDF (cover, works with images, artist & curator bios)">Checklist PDF</a>
     {# Email actions on their own line so they don't overflow the row above #}
     <div style="width:100%"></div>
     {% if emails_pending or emails_sent %}<form method="post" action="{% url 'gallery:send_selection_emails' show.slug %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 card__link" onclick="return confirm('Send acceptance/rejection emails to {{ emails_pending }} artist(s)?')">Send Emails ({{ emails_pending }} pending{% if emails_sent %}, {{ emails_sent }} sent{% endif %})</button></form>{% endif %}
