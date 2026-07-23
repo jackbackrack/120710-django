@@ -7,13 +7,16 @@ Every page has a footer with the site logo and site info.
 
 Separate from the Avery placard sheets (gallery.views.placards)."""
 import functools
+import html as _html
 import io
 import logging
+import math
 from xml.sax.saxutils import escape
 
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils.html import strip_tags
 
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import letter
@@ -60,6 +63,22 @@ def _styles():
     }
 
 
+def _plain(text):
+    """Strip HTML to readable plain text: block tags → newlines, tags removed,
+    entities decoded. (Show descriptions / bios / statements may hold rich text.)"""
+    if not text:
+        return ''
+    t = text.replace('</p>', '\n\n').replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+    t = strip_tags(t)
+    t = _html.unescape(t)
+    return t.strip()
+
+
+def _ptext(text):
+    """Plain text (HTML stripped) escaped for a reportlab Paragraph, newlines → <br/>."""
+    return escape(_plain(text)).replace('\n', '<br/>')
+
+
 def _read(field):
     """Bytes for a Django image field / imagekit spec via its storage, or None."""
     if not field:
@@ -74,29 +93,36 @@ def _read(field):
         return None
 
 
-def _downscale(field, max_px):
-    """Return (BytesIO JPEG, w, h) downscaled to max_px, or None."""
-    raw = _read(field)
-    if not raw:
-        return None
-    try:
-        from PIL import Image as PILImage
-        im = PILImage.open(io.BytesIO(raw))
-        im.load()
-        if im.mode not in ('RGB', 'L'):
-            im = im.convert('RGB')
-        im.thumbnail((max_px, max_px))
-        out = io.BytesIO()
-        im.save(out, format='JPEG', quality=80)
-        out.seek(0)
-        return out, im.size[0], im.size[1]
-    except Exception:   # noqa: BLE001
-        return None
+def _downscale(fields, max_px):
+    """Return (BytesIO JPEG, w, h) for the first readable field, downscaled to
+    max_px. `fields` may be a single field or a list of candidates (e.g. a small
+    thumbnail spec first, then the full image as a fallback)."""
+    if not isinstance(fields, (list, tuple)):
+        fields = [fields]
+    for field in fields:
+        raw = _read(field)
+        if not raw:
+            continue
+        try:
+            from PIL import Image as PILImage
+            im = PILImage.open(io.BytesIO(raw))
+            im.load()
+            if im.mode not in ('RGB', 'L'):
+                im = im.convert('RGB')
+            im.thumbnail((max_px, max_px))
+            out = io.BytesIO()
+            im.save(out, format='JPEG', quality=80)
+            out.seek(0)
+            return out, im.size[0], im.size[1]
+        except Exception:   # noqa: BLE001
+            continue
+    return None
 
 
-def _img_flowable(field, box_w, box_h, max_px=600):
-    """A platypus Image scaled to fit within (box_w, box_h), or None."""
-    got = _downscale(field, max_px)
+def _img_flowable(fields, box_w, box_h, max_px=600):
+    """A platypus Image scaled to fit within (box_w, box_h), or None. `fields` may
+    be a single image field or a list of candidates."""
+    got = _downscale(fields, max_px)
     if not got:
         return None
     data, iw, ih = got
@@ -117,9 +143,9 @@ def _para_lines(*lines, style):
 
 
 def _statement_flowables(text, style):
-    """Split a free-text statement into paragraphs (blank line = new paragraph)."""
+    """HTML-stripped free-text split into paragraphs (blank line = new paragraph)."""
     out = []
-    for block in (text or '').replace('\r\n', '\n').split('\n\n'):
+    for block in _plain(text).split('\n\n'):
         block = block.strip()
         if block:
             out.append(Paragraph(escape(block).replace('\n', '<br/>'), style))
@@ -127,15 +153,19 @@ def _statement_flowables(text, style):
 
 
 def _bio_entry(person, styles, story):
-    """Append a bio block: the photo with the name (and bio, if any) flowing around
-    it. Always shows the name and photo, even when there is no bio/statement."""
-    bio_text = (person.bio or person.statement or '').strip()
-    handle = f'  {escape(person.instagram)}' if person.instagram else ''
-    flows = [Paragraph(escape(str(person)), styles['bioname'])]
-    body = escape(bio_text).replace('\n', '<br/>') + handle
-    if body.strip():
-        flows.append(Paragraph(body, styles['bio']))
-    img = _img_flowable(getattr(person, 'image', None), 1.3 * inch, 1.6 * inch, max_px=400)
+    """A bio block: the photo with the name + bio + statement flowing around it.
+    The Instagram handle sits right after the name; 'Bio:' and 'Statement:' are
+    bolded labels. Always shows the name and photo, even with no bio/statement."""
+    name = f'<b>{escape(str(person))}</b>'
+    if person.instagram:
+        name += f'  {escape(person.instagram)}'
+    flows = [Paragraph(name, styles['bioname'])]
+    if (person.bio or '').strip():
+        flows.append(Paragraph('<b>Bio:</b> ' + _ptext(person.bio), styles['bio']))
+    if (person.statement or '').strip():
+        flows.append(Paragraph('<b>Statement:</b> ' + _ptext(person.statement), styles['bio']))
+    img = _img_flowable([getattr(person, 'card_sm', None), getattr(person, 'image', None)],
+                        1.3 * inch, 1.6 * inch, max_px=250)
     if img:
         story.append(ImageAndFlowables(img, flows, imageSide='left',
                                        imageRightPadding=10, imageBottomPadding=6))
@@ -186,13 +216,7 @@ def _cover(show, site, works, styles, content_w):
         times = f"{ev.start.strftime('%-I:%M %p').lower()}–{ev.end.strftime('%-I:%M %p').lower()}"
         story.append(Paragraph(f'{escape(ev.name)}: {when}, {times}', styles['meta']))
 
-    # Show/poster image.
-    show_img = _img_flowable(show.image, content_w, 3.5 * inch, max_px=1100)
-    if show_img:
-        story.append(Spacer(1, 12))
-        story.append(show_img)
-
-    # Participating-artist list (two columns).
+    # Participating-artist list — as many columns as needed for the count.
     seen, artists = set(), []
     for w in works:
         for a in w.artists.all():
@@ -200,20 +224,30 @@ def _cover(show, site, works, styles, content_w):
                 seen.add(a.pk)
                 artists.append(str(a))
     if artists:
-        half = (len(artists) + 1) // 2
-        col1, col2 = artists[:half], artists[half:]
+        n = len(artists)
+        ncols = 2 if n <= 14 else 3 if n <= 30 else 4
+        per = math.ceil(n / ncols)
+        cols = [artists[i * per:(i + 1) * per] for i in range(ncols)]
         rows = []
-        for i in range(half):
-            rows.append([Paragraph(escape(col1[i]), styles['names']),
-                         Paragraph(escape(col2[i]) if i < len(col2) else '', styles['names'])])
-        t = Table(rows, colWidths=[3.25 * inch, 3.25 * inch])
+        for ri in range(per):
+            rows.append([Paragraph(escape(cols[ci][ri]) if ri < len(cols[ci]) else '', styles['names'])
+                         for ci in range(ncols)])
+        t = Table(rows, colWidths=[content_w / ncols] * ncols)
         t.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'),
                                ('LEFTPADDING', (0, 0), (-1, -1), 0),
                                ('TOPPADDING', (0, 0), (-1, -1), 2)]))
         story.append(Spacer(1, 10))
         story.append(t)
 
-    story.extend(_statement_flowables(show.description, styles['stmt']))
+    # Show image (medium size) with the description flowing around it.
+    show_img = _img_flowable([show.card_md, show.image], 3.0 * inch, 3.5 * inch, max_px=800)
+    desc = _statement_flowables(show.description, styles['stmt'])
+    story.append(Spacer(1, 12))
+    if show_img:
+        story.append(ImageAndFlowables(show_img, desc or [Spacer(1, 1)], imageSide='left',
+                                       imageRightPadding=12, imageBottomPadding=8))
+    else:
+        story.extend(desc)
     return story
 
 
@@ -234,7 +268,7 @@ def _work_entry(artwork, styles, content_w):
         style=styles['work'],
     )
     img_w = 1.5 * inch
-    img = _img_flowable(artwork.image, img_w, 1.5 * inch, max_px=600)
+    img = _img_flowable([artwork.card_sm, artwork.image], img_w, 1.5 * inch, max_px=250)
     if img:
         row = Table([[img, para]], colWidths=[img_w + 0.15 * inch, content_w - img_w - 0.15 * inch])
         row.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'),

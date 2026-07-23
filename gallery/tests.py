@@ -3081,6 +3081,24 @@ class ChecklistPdfTests(TestCase):
         _bio_entry(b, _styles(), story2)
         self.assertTrue(any(isinstance(f, Paragraph) for f in story2))
 
+    def test_plain_strips_html(self):
+        from gallery.views.checklist import _plain
+        self.assertEqual(_plain('<p>Hi <b>x</b> &amp; y</p>'), 'Hi x & y')
+        self.assertEqual(_plain('<p>One</p><p>Two</p>'), 'One\n\nTwo')
+
+    def test_bio_entry_labels_and_instagram(self):
+        from reportlab.platypus import Paragraph
+        from gallery.models import Artist
+        from gallery.views.checklist import _bio_entry, _styles
+        a = Artist.objects.create(name='Zed', first_name='Z', last_name='D', email='z@e.com',
+                                  bio='<p>bio text</p>', statement='stmt text', instagram='@zed')
+        story = []
+        _bio_entry(a, _styles(), story)
+        texts = [f.text for f in story if isinstance(f, Paragraph)]
+        self.assertTrue(any('@zed' in t and t.startswith('<b>') for t in texts))          # IG by name
+        self.assertTrue(any(t.startswith('<b>Bio:</b>') and 'bio text' in t for t in texts))
+        self.assertTrue(any(t.startswith('<b>Statement:</b>') and 'stmt text' in t for t in texts))
+
     def test_minimal_show_renders(self):
         # No site, no images, no bios, no events → must still produce a PDF.
         bare = Show.objects.create(name='Bare Show', start=datetime.date.today(),
