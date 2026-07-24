@@ -81,7 +81,10 @@ def _add_qr(url, scale=2, border=2):
     tile = displayio.TileGrid(bmp, pixel_shader=pal)
     tile.x = 296 - side - 4
     tile.y = max(0, (128 - side) // 2)
-    magtag.display.root_group.append(tile)
+    # Append to the group that's actually on screen.
+    group = getattr(magtag, "splash", None) or magtag.display.root_group
+    group.append(tile)
+    print("QR added (%dx%d px) for %s" % (side, side, url))
 
 
 def _show_placard(data):
@@ -93,11 +96,14 @@ def _show_placard(data):
     magtag.set_text(aw.get("medium", "") or "", MEDIUM, auto_refresh=False)
     magtag.set_text(aw.get("dimensions", "") or "", DIMS, auto_refresh=False)
     url = aw.get("url") or ""
+    print("placard url:", repr(url))
     if url:
         try:
             _add_qr(url)
         except Exception as err:      # QR is a bonus — never fail the placard over it
             print("QR error:", err)
+    else:
+        print("No 'url' in the JSON — redeploy the site so the placard API returns it.")
 
 
 def fetch_placard(number):
