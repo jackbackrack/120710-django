@@ -71,7 +71,16 @@ const TEX_RETRY_DELAYS = [500, 1500, 4000, 8000];   // ms; length = max retries
 function loadTextureRetry(url, onLoad, onGiveUp, attempt) {
   attempt = attempt || 0;
   var signed = /[?&](X-Amz-|Signature=)/.test(url);
-  var u = (attempt > 0 && !signed) ? url + (url.indexOf('?') < 0 ? '?' : '&') + '_r=' + attempt : url;
+  // WebGL textures are fetched with crossOrigin=anonymous, so they need a CORS
+  // response. A plain <img> (2D view) does not — which means the browser/CDN may
+  // already hold a *non-CORS* cached copy of this exact file, and reusing it here
+  // fails the texture ("loads in 2D, blank in 3D"). Give textures their own query
+  // key (_tex=1) so they never collide with an <img> cache entry, plus a per-retry
+  // buster. Skipped for signed URLs, whose query string must not change.
+  var u = url;
+  if (!signed) {
+    u += (url.indexOf('?') < 0 ? '?' : '&') + '_tex=1' + (attempt > 0 ? '&_r=' + attempt : '');
+  }
   textureLoader.load(u, onLoad, undefined, function () {
     if (attempt < TEX_RETRY_DELAYS.length) {
       setTimeout(function () { loadTextureRetry(url, onLoad, onGiveUp, attempt + 1); }, TEX_RETRY_DELAYS[attempt]);
@@ -79,6 +88,18 @@ function loadTextureRetry(url, onLoad, onGiveUp, attempt) {
       console.warn('3D viewer: gave up loading texture after retries:', url);
       if (onGiveUp) onGiveUp();
     }
+  });
+}
+
+// Try each URL in turn (primary image, then thumbnail), each with its own retry
+// budget — mirrors the 2D view's fallback chain so a persistently-failing display
+// image drops to the smaller thumbnail instead of leaving the piece blank.
+function loadTextureChain(urls, onLoad, i) {
+  i = i || 0;
+  urls = urls.filter(Boolean);
+  if (i >= urls.length) return;
+  loadTextureRetry(urls[i], onLoad, function () {
+    loadTextureChain(urls, onLoad, i + 1);
   });
 }
 
@@ -163,10 +184,10 @@ function wallQuaternion(wall) {
 // Placard data for hover
 const artworkMeshes = [];
 
-function loadTex(url, onLoad) {
-  // url comes from Artwork.layout_display_url, which already resolves to the crop
-  // or the hero — a guaranteed-valid image. Retry on transient load failures.
-  loadTextureRetry(url, function (tex) {
+function loadTex(art, onLoad) {
+  // Prefer the display image (crop or hero); fall back to the thumbnail if it
+  // keeps failing — same source list the 2D wall uses, so 2D and 3D recover alike.
+  loadTextureChain([art.img, art.thumb], function (tex) {
     tex.colorSpace = THREE.SRGBColorSpace;
     onLoad(tex);
   });
@@ -197,8 +218,8 @@ function buildFlatPlane(p, art, aw, ah, norm) {
   pos.addScaledVector(norm, WALL_OFFSET);
   mesh.position.copy(pos);
   mesh.quaternion.copy(wallQuaternion(p.wall));
-  if (art.img) {
-    loadTex(art.img, function (tex) {
+  if (art.img || art.thumb) {
+    loadTex(art, function (tex) {
       var plane = bestFitImagePlane(tex, aw, ah);   // contain within the w×h frame
       plane.position.set(0, 0, 0.004);              // just in front of the frame
       mesh.add(plane);
@@ -255,8 +276,8 @@ function buildCuboid(p, art, aw, ah, ad, norm) {
     { fw: aw, fh: ah, pos: [0, 0, -ad / 2 - eps], rot: [0, Math.PI, 0] },
   ];
 
-  if (art.img) {
-    loadTex(art.img, function (tex) {
+  if (art.img || art.thumb) {
+    loadTex(art, function (tex) {
       faces.forEach(function (f) {
         // Skip thin sliver faces (shorter side < 1/8 of the longer side).
         if (Math.min(f.fw, f.fh) < Math.max(f.fw, f.fh) / 8) return;
