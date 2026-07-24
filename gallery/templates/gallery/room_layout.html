@@ -231,7 +231,7 @@
     <!-- Inline position controls — shown below when exactly one artwork is selected -->
     <div id="pos-panel">
       <span class="pos-title" id="pos-title"></span>
-      <label id="pos-horiz-label" for="pos-horiz">Horiz from center (in)</label>
+      <label id="pos-horiz-label" for="pos-horiz">Horiz from left (in)</label>
       <input type="number" id="pos-horiz" step="0.5">
       <label for="pos-vert">Height from floor (in)</label>
       <input type="number" id="pos-vert" step="0.5" min="0">
@@ -245,7 +245,7 @@
       <label for="sp-w">W (in)</label><input type="number" id="sp-w" step="0.5" min="1">
       <label for="sp-h">H (in)</label><input type="number" id="sp-h" step="0.5" min="1">
       <label for="sp-d">D (in)</label><input type="number" id="sp-d" step="0.5" min="1">
-      <label id="sp-horiz-label" for="sp-horiz">Horiz (in)</label><input type="number" id="sp-horiz" step="0.5">
+      <label id="sp-horiz-label" for="sp-horiz">Horiz from left (in)</label><input type="number" id="sp-horiz" step="0.5">
       <label for="sp-vert">Height (in)</label><input type="number" id="sp-vert" step="0.5" min="0">
       <label for="sp-texture">Texture</label><select id="sp-texture" title="Choose a texture from the site's support catalog"></select>
       <button type="button" id="sp-save-catalog" class="btn btn-sm btn-outline-secondary">Save to site catalog</button>
@@ -263,7 +263,8 @@
       <button id="btn-undo" title="Undo the last change (Ctrl/Cmd+Z)" disabled>Undo</button>
       <button id="btn-measure" title="Measure distance between two selected artworks (M)">Measure</button>
       <button id="btn-hang-info" title="Show each artwork's size and the distance from each edge to the wall edges (for hanging)">Hang Info</button>
-      <button id="btn-ruler" title="Ruler along the wall edges — long ticks every 10 inches, short every inch (horizontal from the centre, vertical from the floor)">Ruler</button>
+      <button id="btn-ruler" title="Ruler along the wall edges — long ticks every 10 inches, short every inch (horizontal from the left edge, vertical from the floor)">Ruler</button>
+      <button id="btn-ruler-origin" title="Switch the horizontal ruler's zero between the left edge and the wall centre">0: left</button>
       <span id="measure-display" style="font-size:.8rem;color:#555;font-family:monospace;"></span>
       <button id="btn-save" class="btn btn-primary btn-sm ms-2">Save</button>
       <button id="btn-snapshots" class="btn btn-outline-secondary btn-sm ms-1" title="Save a named restore point, or roll back to an earlier layout">Snapshots</button>

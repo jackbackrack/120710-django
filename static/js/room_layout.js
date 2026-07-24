@@ -184,6 +184,7 @@
   // system. Tick lengths are in inches, so they scale with zoom.
   var rulerCanvas = null;
   var rulerOn = localStorage.getItem('roomLayoutRuler') !== '0';   // default on
+  var rulerOrigin = localStorage.getItem('roomLayoutRulerOrigin') || 'left';  // 'left' | 'center'
   var RULER_INCH_MIN = 3.5;   // only draw inch ticks when >= this many px/inch
   function drawRuler() {
     if (!rulerCanvas) {
@@ -231,20 +232,33 @@
       ctx.moveTo(W, y); ctx.lineTo(W - len, y);
       ctx.stroke();
     }
-    // Horizontal: from the centre outward, both directions. Labels (inches from
-    // the centre) go along the bottom edge on the big ticks.
+    // Horizontal ticks + bottom-edge labels. Default origin is the LEFT edge
+    // (0 at left); the origin can be switched to the wall CENTRE (0 at centre,
+    // distances measured outward) — handy for placing symmetric obstacles.
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    for (var n = 0; n <= Math.ceil(dims[0] / 2); n++) {
-      var big = (n % BIG_STEP === 0);
-      if (!big && !showInch) continue;
-      ctx.lineWidth = big ? 1.6 : 1;
-      var len = big ? bigLen : smallLen;
-      var xr = cx + n * baseScale, xl = cx - n * baseScale;
-      if (xr <= W + 0.5) vtick(xr, len);
-      if (n !== 0 && xl >= -0.5) vtick(xl, len);
-      if (big && showLabels) {
-        if (xr <= W - 6) ctx.fillText(String(n), xr, H - bigLen - 2);
-        if (n !== 0 && xl >= 6) ctx.fillText(String(n), xl, H - bigLen - 2);
+    if (rulerOrigin === 'center') {
+      for (var n = 0; n <= Math.ceil(dims[0] / 2); n++) {
+        var big = (n % BIG_STEP === 0);
+        if (!big && !showInch) continue;
+        ctx.lineWidth = big ? 1.6 : 1;
+        var len = big ? bigLen : smallLen;
+        var xr = cx + n * baseScale, xl = cx - n * baseScale;
+        if (xr <= W + 0.5) vtick(xr, len);
+        if (n !== 0 && xl >= -0.5) vtick(xl, len);
+        if (big && showLabels) {
+          if (xr <= W - 6) ctx.fillText(String(n), xr, H - bigLen - 2);
+          if (n !== 0 && xl >= 6) ctx.fillText(String(n), xl, H - bigLen - 2);
+        }
+      }
+    } else {   // left-edge origin
+      for (var nl = 0; nl <= Math.ceil(dims[0]); nl++) {
+        var bigl = (nl % BIG_STEP === 0);
+        if (!bigl && !showInch) continue;
+        ctx.lineWidth = bigl ? 1.6 : 1;
+        var x = nl * baseScale;
+        if (x > W + 0.5) break;
+        vtick(x, bigl ? bigLen : smallLen);
+        if (bigl && showLabels && x <= W - 6) ctx.fillText(String(nl), x, H - bigLen - 2);
       }
     }
     // Vertical: from the floor (bottom) upward. Labels (inches from the floor) go
@@ -352,19 +366,21 @@
   }
 
   // ── World-coordinate helpers for popover ─────────────────────────────────
+  // Horizontal position shown/entered as inches from the LEFT edge of the wall (as
+  // displayed). Stored coords stay room-centre based; this is a display conversion.
   function worldHoriz(wall, p) {
-    if (wall === 'N') return  p.x_in;
-    if (wall === 'S') return -p.x_in;   // South is mirrored (inside-facing view)
-    if (wall === 'E')  return  p.z_in;
-    if (wall === 'W')  return -p.z_in;
-    return p.x_in;
+    var ww = wallDims(wall)[0];
+    if (wall === 'S') return ww / 2 - p.x_in;   // South is mirrored (inside-facing view)
+    if (wall === 'E') return p.z_in + ww / 2;
+    if (wall === 'W') return ww / 2 - p.z_in;
+    return p.x_in + ww / 2;                      // N, floor, ceiling
   }
   function applyHoriz(wall, p, val) {
-    if (wall === 'N')       p.x_in =  val;
-    else if (wall === 'S')  p.x_in = -val;   // South is mirrored (inside-facing view)
-    else if (wall === 'E')  p.z_in =  val;
-    else if (wall === 'W')  p.z_in = -val;
-    else                    p.x_in =  val;
+    var ww = wallDims(wall)[0];
+    if (wall === 'S')       p.x_in = ww / 2 - val;
+    else if (wall === 'E')  p.z_in = val - ww / 2;
+    else if (wall === 'W')  p.z_in = ww / 2 - val;
+    else                    p.x_in = val - ww / 2;   // N, floor, ceiling
   }
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
@@ -2084,14 +2100,23 @@
   }
 
   var rulerBtn = document.getElementById('btn-ruler');
+  var rulerOriginBtn = document.getElementById('btn-ruler-origin');
   function applyRulerState() {
     if (rulerBtn) rulerBtn.classList.toggle('active', rulerOn);
+    if (rulerOriginBtn) rulerOriginBtn.textContent = '0: ' + (rulerOrigin === 'center' ? 'centre' : 'left');
     drawRuler();
   }
   if (rulerBtn) {
     rulerBtn.addEventListener('click', function () {
       rulerOn = !rulerOn;
       localStorage.setItem('roomLayoutRuler', rulerOn ? '1' : '0');
+      applyRulerState();
+    });
+  }
+  if (rulerOriginBtn) {
+    rulerOriginBtn.addEventListener('click', function () {
+      rulerOrigin = (rulerOrigin === 'center') ? 'left' : 'center';
+      localStorage.setItem('roomLayoutRulerOrigin', rulerOrigin);
       applyRulerState();
     });
   }
