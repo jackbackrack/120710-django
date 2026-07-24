@@ -416,7 +416,7 @@ th, td {
 }
 
 .dim-input {
-    width: 10em !important;
+    width: 7.5em !important;   /* 1.5x the original 5em */
     display: inline-block;
     text-align: center;
 }
