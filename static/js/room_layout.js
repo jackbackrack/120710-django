@@ -2042,11 +2042,23 @@
     var dy = Math.abs(p2.y_in - p1.y_in);
     var dz = Math.abs(p2.z_in - p1.z_in);
     var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    // Closest edge-to-edge gap on the wall plane, from the rendered footprints
+    // (stage px → inches). 0 means the pieces overlap on that axis.
+    function box(el) {
+      var l = parseFloat(el.style.left), t = parseFloat(el.style.top);
+      return { l: l, t: t, r: l + parseFloat(el.style.width), b: t + parseFloat(el.style.height) };
+    }
+    var a = box(sel[0]), b = box(sel[1]);
+    var gapH = Math.max(0, Math.max(a.l, b.l) - Math.min(a.r, b.r)) / baseScale;
+    var gapV = Math.max(0, Math.max(a.t, b.t) - Math.min(a.b, b.b)) / baseScale;
+
     var r = function (v) { return Math.round(v * 10) / 10; };
     measureDisplay.textContent =
-      'Δx ' + r(dx) + '"  Δy ' + r(dy) + '"' +
+      'centre Δx ' + r(dx) + '"  Δy ' + r(dy) + '"' +
       (dz > 0.05 ? '  Δz ' + r(dz) + '"' : '') +
-      '  dist ' + r(dist) + '"';
+      '  dist ' + r(dist) + '"' +
+      '   edge gap x ' + r(gapH) + '"  y ' + r(gapV) + '"';
   }
 
   document.getElementById('btn-measure').addEventListener('click', doMeasure);
