@@ -62,6 +62,34 @@ scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 // BoxGeometry face order: +X(E), -X(W), +Y(ceil), -Y(floor), +Z(S), -Z(N)
 const textureLoader = new THREE.TextureLoader();
 
+// Some source images are far larger than the GPU's max WebGL texture size (often
+// 4096 on mobile, 8192 on desktop). An oversized texture fails to upload and the
+// piece renders blank in every browser (it's a GPU limit, not browser-specific) —
+// even though the same file shows fine as a plain <img> in the 2D view, which just
+// downscales it. Downscale any decoded image to the GPU limit via a canvas before
+// it becomes a texture. Safe because TextureLoader uses crossOrigin=anonymous and
+// S3 sends CORS headers, so the image is not tainted when drawn to the canvas.
+const MAX_TEX = Math.min((renderer.capabilities && renderer.capabilities.maxTextureSize) || 4096, 8192);
+function clampTextureSize(tex) {
+  var img = tex && tex.image;
+  var iw = img && (img.width || img.videoWidth);
+  var ih = img && (img.height || img.videoHeight);
+  if (!iw || !ih || Math.max(iw, ih) <= MAX_TEX) return tex;
+  var s = MAX_TEX / Math.max(iw, ih);
+  var cw = Math.max(1, Math.floor(iw * s)), ch = Math.max(1, Math.floor(ih * s));
+  try {
+    var cnv = document.createElement('canvas');
+    cnv.width = cw; cnv.height = ch;
+    cnv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+    tex.image = cnv;
+    tex.needsUpdate = true;
+    console.info('3D viewer: downscaled oversized texture ' + iw + '×' + ih + ' → ' + cw + '×' + ch);
+  } catch (e) {
+    console.warn('3D viewer: could not downscale oversized texture', e);
+  }
+  return tex;
+}
+
 // Resilient texture load. A single transient failure (network blip, CDN 5xx,
 // too many concurrent connections) used to give up forever — the image stayed
 // blank until a full page reload. Now we retry with backoff, and from the 2nd
@@ -81,7 +109,7 @@ function loadTextureRetry(url, onLoad, onGiveUp, attempt) {
   if (!signed) {
     u += (url.indexOf('?') < 0 ? '?' : '&') + '_tex=1' + (attempt > 0 ? '&_r=' + attempt : '');
   }
-  textureLoader.load(u, onLoad, undefined, function () {
+  textureLoader.load(u, function (tex) { onLoad(clampTextureSize(tex)); }, undefined, function () {
     if (attempt < TEX_RETRY_DELAYS.length) {
       setTimeout(function () { loadTextureRetry(url, onLoad, onGiveUp, attempt + 1); }, TEX_RETRY_DELAYS[attempt]);
     } else {
