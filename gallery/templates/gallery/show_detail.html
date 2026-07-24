@@ -53,10 +53,12 @@
       {% endif %}
     </div>
     {% endif %}
-    {# The rubric is worth reading for the whole life of the show — how the work was
-       judged still explains a published or closed show, not just an open call. So it
-       is shown whenever criteria exist, independent of status. ShowRubricView has no
-       status gate of its own, so the link is always valid. #}
+    {% comment %}
+      The rubric is worth reading for the whole life of the show — how the work was
+      judged still explains a published or closed show, not just an open call. So it
+      is shown whenever criteria exist, independent of status. ShowRubricView has no
+      status gate of its own, so the link is always valid.
+    {% endcomment %}
     {% if rubric_criteria_count %}
     <p class="mt-3"><a class="card__link" href="{% url 'gallery:show_rubric' show.pk %}">Judging rubric</a></p>
     {% endif %}
