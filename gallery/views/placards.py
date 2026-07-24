@@ -54,7 +54,7 @@ def _current_show_for_site(site):
             or qs.filter(start__gt=today).order_by('start').first())
 
 
-def _get_placard_data(show, number):
+def _get_placard_data(request, show, number):
     if show is None:
         return None
     entry = ShowArtworkNumber.objects.filter(show=show, number=number).select_related('artwork').first()
@@ -69,6 +69,10 @@ def _get_placard_data(show, number):
             image_url = artwork.card_sm.url   # small thumbnail; generated on demand
         except Exception:                     # noqa: BLE001 — never 500 over a bad image
             image_url = None
+    try:
+        url = request.build_absolute_uri(artwork.get_absolute_url())
+    except Exception:                         # noqa: BLE001
+        url = ''
     return {
         'number': number,
         'show': show.name,
@@ -82,13 +86,14 @@ def _get_placard_data(show, number):
             'description': artwork.description or '',
             'artists': artists,
             'image_url': image_url,
+            'url': url,                        # artwork page — for the MagTag QR code
         },
     }
 
 
 def placard_html(request, number):
     show = _current_show()
-    data = _get_placard_data(show, number)
+    data = _get_placard_data(request, show, number)
     return render(request, 'gallery/placard.html', {
         'data': data,
         'number': number,
@@ -98,7 +103,7 @@ def placard_html(request, number):
 
 def placard_json(request, number):
     show = _current_show()
-    data = _get_placard_data(show, number)
+    data = _get_placard_data(request, show, number)
     if data is None:
         return JsonResponse({'error': 'not found', 'number': number}, status=404)
     return JsonResponse(data)
@@ -109,7 +114,7 @@ def placard_json_for_site(request, site_slug, number):
     Used by the MagTag displays so each venue shows its own show."""
     from gallery.models import Site
     site = get_object_or_404(Site, slug=site_slug)
-    data = _get_placard_data(_current_show_for_site(site), number)
+    data = _get_placard_data(request, _current_show_for_site(site), number)
     if data is None:
         return JsonResponse({'error': 'not found', 'number': number, 'site': site_slug},
                             status=404)

@@ -23,8 +23,10 @@ import json
 
 import alarm
 import board
+import displayio
 import wifi
 import adafruit_connection_manager
+import adafruit_miniqr
 import adafruit_requests
 from adafruit_magtag.magtag import MagTag
 
@@ -40,36 +42,62 @@ SITE_SLUG = (os.getenv("SITE_SLUG", "") or "").strip()
 magtag = MagTag()
 
 # ── Screen layout (296 x 128) ────────────────────────────────────────────────
-HEADER = magtag.add_text(text_position=(4, 6),   text_scale=1, text_anchor_point=(0, 0))
-TITLE  = magtag.add_text(text_position=(4, 22),  text_scale=2, text_anchor_point=(0, 0),
-                         text_wrap=22, line_spacing=0.85)
-ARTIST = magtag.add_text(text_position=(4, 66),  text_scale=1, text_anchor_point=(0, 0),
-                         text_wrap=46)
-META   = magtag.add_text(text_position=(4, 88),  text_scale=1, text_anchor_point=(0, 0),
-                         text_wrap=46)
-PRICE  = magtag.add_text(text_position=(4, 116), text_scale=1, text_anchor_point=(0, 0))
+# Text on the left (~190px), QR code on the right. Order: title, year(s), artist,
+# medium, dimensions.
+_TW = 30   # wrap width (chars) for the left text column at scale 1
+TITLE  = magtag.add_text(text_position=(4, 4),   text_scale=2, text_anchor_point=(0, 0),
+                         text_wrap=15, line_spacing=0.85)
+YEAR   = magtag.add_text(text_position=(4, 44),  text_scale=1, text_anchor_point=(0, 0))
+ARTIST = magtag.add_text(text_position=(4, 60),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
+MEDIUM = magtag.add_text(text_position=(4, 82),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
+DIMS   = magtag.add_text(text_position=(4, 110), text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
 
 
 def _message(text):
-    for i in (HEADER, ARTIST, META, PRICE):
+    for i in (YEAR, ARTIST, MEDIUM, DIMS):
         magtag.set_text("", i, auto_refresh=False)
     magtag.set_text(text, TITLE, auto_refresh=False)
+
+
+def _add_qr(url, scale=2, border=2):
+    """Draw a QR code for `url` on the right side of the screen."""
+    qr = adafruit_miniqr.QRCode(qr_type=None, error_correction=adafruit_miniqr.L)
+    qr.add_data(url.encode("utf-8"))
+    qr.make()
+    m = qr.matrix
+    side = (m.width + 2 * border) * scale
+    bmp = displayio.Bitmap(side, side, 2)
+    pal = displayio.Palette(2)
+    pal[0] = 0xFFFFFF   # background
+    pal[1] = 0x000000   # modules
+    for qy in range(m.height):
+        for qx in range(m.width):
+            if m[qx, qy]:
+                px = (qx + border) * scale
+                py = (qy + border) * scale
+                for dy in range(scale):
+                    for dx in range(scale):
+                        bmp[px + dx, py + dy] = 1
+    tile = displayio.TileGrid(bmp, pixel_shader=pal)
+    tile.x = 296 - side - 4
+    tile.y = max(0, (128 - side) // 2)
+    magtag.display.root_group.append(tile)
 
 
 def _show_placard(data):
     aw = data.get("artwork", {})
     artists = ", ".join(aw.get("artists", []) or [])
-    year = aw.get("year", "")
-    parts = [str(year) if year else "", aw.get("medium", ""), aw.get("dimensions", "")]
-    price = aw.get("price", "") or ""
-    if aw.get("is_sold"):
-        price = (price + "  (SOLD)").strip()
-    magtag.set_text("#%s   %s" % (data.get("number", "?"), data.get("show", "")),
-                    HEADER, auto_refresh=False)
     magtag.set_text(aw.get("name", "Untitled"), TITLE, auto_refresh=False)
+    magtag.set_text(str(aw.get("year", "") or ""), YEAR, auto_refresh=False)
     magtag.set_text(artists, ARTIST, auto_refresh=False)
-    magtag.set_text(" • ".join(p for p in parts if p), META, auto_refresh=False)
-    magtag.set_text(price, PRICE, auto_refresh=False)
+    magtag.set_text(aw.get("medium", "") or "", MEDIUM, auto_refresh=False)
+    magtag.set_text(aw.get("dimensions", "") or "", DIMS, auto_refresh=False)
+    url = aw.get("url") or ""
+    if url:
+        try:
+            _add_qr(url)
+        except Exception as err:      # QR is a bonus — never fail the placard over it
+            print("QR error:", err)
 
 
 def fetch_placard(number):

@@ -22,9 +22,11 @@ devices is just "set one number per board," not editing code.
 1. Install CircuitPython (8/9/10) on a MagTag.
 2. Copy the Adafruit **bundle** libraries into `/lib` (bundle matching your
    CircuitPython major version): `adafruit_magtag`, `adafruit_portalbase`,
-   `adafruit_requests`, `adafruit_connection_manager`, `adafruit_display_text`,
-   `adafruit_bitmap_font`, `neopixel`. (Optional: keep a copy in `magtag/lib/`
-   so `provision.sh` can sync it too.)
+   `adafruit_requests`, `adafruit_connection_manager`, `adafruit_miniqr`,
+   `adafruit_display_text`, `adafruit_bitmap_font`, `neopixel`. (Optional: keep a
+   copy in `magtag/lib/` so `provision.sh` can sync it too.)  `circup install
+   adafruit_miniqr` if it's missing — it's imported by the QR-code drawing and
+   won't be auto-detected.
 3. `cp settings.toml.example settings.base.toml`, then fill in Wi-Fi + `SITE_URL`
    (same for every device). `settings.base.toml` is git-ignored.
 

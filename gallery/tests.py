@@ -2365,6 +2365,7 @@ class PlacardTests(TestCase):
         self.assertEqual(data['number'], 1)
         self.assertEqual(data['artwork']['name'], self.artwork1.name)
         self.assertIn(self.artist.name, data['artwork']['artists'])
+        self.assertIn('url', data['artwork'])   # artwork page URL for the MagTag QR
 
     def test_placard_json_ok_for_upcoming_show_artwork_with_image(self):
         # Regression: an artwork WITH an image used to raise AttributeError
