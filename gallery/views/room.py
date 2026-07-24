@@ -30,6 +30,34 @@ def _room_config(show):
     return config, site
 
 
+# wall → (coordinate perpendicular to that wall, RoomConfig dimension, sign).
+# Floor/ceiling are absent: both of their horizontal coordinates run along the
+# surface, and y_in carries pedestal height, so nothing there is derivable.
+_WALL_PERP = {
+    'E': ('x_in', 'width_in',  1),
+    'W': ('x_in', 'width_in', -1),
+    'S': ('z_in', 'depth_in',  1),
+    'N': ('z_in', 'depth_in', -1),
+}
+
+
+def wall_plane_coord(wall, config):
+    """(field_name, value) pinning a wall-hung item to its wall plane, or None when
+    the wall has no perpendicular axis (floor/ceiling) or the room is unknown.
+
+    For anything on a vertical wall this coordinate is fully determined by `wall`
+    plus the room dimensions — it is never chosen by the curator. Deriving it on
+    every write means a room resize can't strand pieces outside the room (where the
+    3D viewer hides them behind the opaque wall), which is exactly what happened
+    when the layout tool stopped forcing the room dims to match its own.
+    """
+    spec = _WALL_PERP.get(wall)
+    if spec is None or config is None:
+        return None
+    field, dim, sign = spec
+    return field, sign * getattr(config, dim) / 2.0
+
+
 def _config_dict(config):
     if config is None:
         return _DEFAULT_CONFIG.copy()
@@ -239,6 +267,19 @@ def _apply_layout(show, data):
     # them here let a stale layout tab — one opened before an admin changed the
     # dimensions — silently overwrite that change on its next autosave.
     errors = []
+    # The coordinate perpendicular to a vertical wall is derived, never taken from
+    # the payload: a client that loaded before a room resize still carries the old
+    # wall's value, and honouring it would leave the piece outside the room. So one
+    # save from the layout editor also re-seats anything already stranded.
+    config, _site = _room_config(show)
+
+    def _coords(item):
+        c = {'x_in': float(item['x_in']), 'y_in': float(item['y_in']), 'z_in': float(item['z_in'])}
+        snap = wall_plane_coord(item['wall'], config)
+        if snap:
+            c[snap[0]] = snap[1]
+        return c
+
     # Rebuild supports first, mapping each payload's client key → the new row so
     # placements can reference the support they sit on.
     WallPlacement.objects.filter(show=show).delete()
@@ -248,7 +289,7 @@ def _apply_layout(show, data):
         try:
             s = Support.objects.create(
                 show=show, wall=item['wall'], label=item.get('label', '') or '',
-                x_in=float(item['x_in']), y_in=float(item['y_in']), z_in=float(item['z_in']),
+                **_coords(item),
                 w_in=float(item['w_in']), h_in=float(item['h_in']), d_in=float(item['d_in']),
                 rotation=(int(item.get('rotation', 0) or 0) % 360) if (int(item.get('rotation', 0) or 0) % 360) in (0, 90, 180, 270) else 0,
                 texture_url=(item.get('texture') or '')[:500],
@@ -265,9 +306,7 @@ def _apply_layout(show, data):
                 show=show,
                 artwork=artwork,
                 wall=item['wall'],
-                x_in=float(item['x_in']),
-                y_in=float(item['y_in']),
-                z_in=float(item['z_in']),
+                **_coords(item),
                 rotation=(int(item.get('rotation', 0) or 0) % 360) if (int(item.get('rotation', 0) or 0) % 360) in (0, 90, 180, 270) else 0,
                 group=(int(item['group']) if item.get('group') not in (None, '') else None),
                 support=support_by_key.get(str(item.get('support'))) if item.get('support') not in (None, '') else None,

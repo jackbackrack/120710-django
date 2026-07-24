@@ -191,8 +191,21 @@ function wallNormal(wall) {
   return new THREE.Vector3(0, 1, 0);  // floor
 }
 
+// For a wall-hung piece, the coordinate perpendicular to its wall (x_in on E/W,
+// z_in on N/S) is redundant with `wall` — and it goes stale when the room is
+// resized, because the layout editor only rewrites it for pieces it actually
+// moves. A stale value leaves the piece *outside* the room box, where the opaque
+// BackSide wall hides it completely — frame, edges and all. The 2D view plots
+// along-wall position + height only and never reads this axis, which is why the
+// same piece shows there but vanishes here. So derive it from the wall, exactly as
+// room_layout.js does when it writes a placement.
 function placementPosition(p) {
-  return new THREE.Vector3(p.x_in * IN2M, p.y_in * IN2M, p.z_in * IN2M);
+  var x = p.x_in, z = p.z_in;
+  if      (p.wall === 'E') x =  cfg.width_in / 2;
+  else if (p.wall === 'W') x = -cfg.width_in / 2;
+  else if (p.wall === 'N') z = -cfg.depth_in / 2;
+  else if (p.wall === 'S') z =  cfg.depth_in / 2;
+  return new THREE.Vector3(x * IN2M, p.y_in * IN2M, z * IN2M);
 }
 
 function wallQuaternion(wall) {

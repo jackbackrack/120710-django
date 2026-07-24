@@ -3235,6 +3235,42 @@ class LayoutSnapshotTests(TestCase):
         cfg.refresh_from_db()
         self.assertEqual((cfg.width_in, cfg.depth_in, cfg.height_in), (384.0, 576.0, 120.0))
 
+    def test_layout_save_snaps_stale_wall_coordinates(self):
+        """A client that loaded before a room resize POSTs the OLD wall plane. The
+        save must re-derive it, or the piece lands outside the room and the 3D viewer
+        hides it behind the opaque wall. Along-wall position and height are kept, and
+        floor pieces (no perpendicular axis) are left alone."""
+        from gallery.models import RoomConfig, Site, Support, WallPlacement
+        site = Site.objects.create(name='Venue', status=Site.STATUS_PUBLISHED)
+        RoomConfig.objects.create(site=site, width_in=348, depth_in=565, height_in=120)
+        self.show.sites.add(site)
+        floor_art = Artwork.objects.create(name='Pedestal piece', end_year=2025)
+        self.show.artworks.add(floor_art)
+        # Every coordinate below is from the previous 384×576 room.
+        payload = {'supports': [{'key': 'k1', 'wall': 'W', 'label': 'Shelf',
+                                 'x_in': -192, 'y_in': 34.7, 'z_in': 55.68,
+                                 'w_in': 16, 'h_in': 4, 'd_in': 10}],
+                   'placements': [
+                       {'artwork_id': self.artwork.pk, 'wall': 'E',
+                        'x_in': 192, 'y_in': 60, 'z_in': -100.28},
+                       {'artwork_id': floor_art.pk, 'wall': 'floor',
+                        'x_in': 100.68, 'y_in': 34.7, 'z_in': 168.58}]}
+        r = self.client.post(self.save_url, data=self.json.dumps(payload),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+
+        east = WallPlacement.objects.get(show=self.show, artwork=self.artwork)
+        self.assertEqual(east.x_in, 174.0)        # snapped to the current east wall
+        self.assertEqual(east.z_in, -100.28)      # along-wall position preserved
+        self.assertEqual(east.y_in, 60.0)         # height preserved
+
+        floor = WallPlacement.objects.get(show=self.show, artwork=floor_art)
+        self.assertEqual((floor.x_in, floor.y_in, floor.z_in), (100.68, 34.7, 168.58))
+
+        shelf = Support.objects.get(show=self.show)
+        self.assertEqual(shelf.x_in, -174.0)      # wall shelves snap the same way
+        self.assertEqual(shelf.z_in, 55.68)
+
     def test_save_auto_snapshots_prior_state(self):
         from gallery.models import ShowLayoutSnapshot, WallPlacement
         self._save(5)      # first save: prior state empty → no snapshot
