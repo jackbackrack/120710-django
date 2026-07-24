@@ -61,7 +61,7 @@ def _message(text):
 
 def _add_qr(url, scale=2, border=2):
     """Draw a QR code for `url` on the right side of the screen."""
-    qr = adafruit_miniqr.QRCode(qr_type=None, error_correction=adafruit_miniqr.L)
+    qr = adafruit_miniqr.QRCode(qr_type=None, error_correct=adafruit_miniqr.L)
     qr.add_data(url.encode("utf-8"))
     qr.make()
     m = qr.matrix
