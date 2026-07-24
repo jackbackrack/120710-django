@@ -41,6 +41,16 @@
   touch-action: none; transition: transform .07s ease, background .12s ease; }
 #touch-controls .tc-btn:active { background: rgba(100,150,140,.92); transform: scale(.86); }
 
+/* Curator/admin: save the current viewpoint as the room's default start view.
+   Sits top-left; clickable only when not in pointer-lock (press Esc first, or
+   just tap it on touch). */
+#save-view-btn { position: absolute; top: 12px; left: 12px; z-index: 15;
+  border: 2px solid rgba(255,255,255,.9); background: rgba(20,22,24,.62); color: #fff;
+  font-size: .82rem; font-weight: 600; padding: 7px 12px; border-radius: 4px; cursor: pointer;
+  -webkit-user-select: none; user-select: none; }
+#save-view-btn:hover { background: rgba(100,150,140,.9); }
+#save-view-btn.saved { background: rgba(47,158,111,.95); border-color: rgba(47,158,111,.95); }
+
 /* On touch, lift the hint above the button row so they don't overlap. */
 @media (hover: none) and (pointer: coarse) {
   #hud { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); font-size: .72rem; }
@@ -59,6 +69,9 @@
     <button id="tc-fwd" class="tc-btn" aria-label="Walk forward">▲</button>
     <button id="tc-back" class="tc-btn" aria-label="Walk back">▼</button>
   </div>
+  {% if can_edit_room %}
+  <button id="save-view-btn" type="button" title="Save the current viewpoint as the default start view for this room (all visitors).">Set as start view</button>
+  {% endif %}
 </div>
 {% endblock %}
 
@@ -78,6 +91,11 @@ window.PLACEMENTS    = {{ placements_json|safe }};
 window.ROOM_SLUG     = "{{ show.slug }}";
 window.SUPPORTS      = {{ supports_json|default:"[]"|safe }};
 window.ARTWORK_URL   = "{% url 'gallery:artwork_detail' 0 %}";   // '0' placeholder → replaced with the piece id
+{% if can_edit_room %}
+window.CAN_EDIT_ROOM = true;
+window.CAMERA_SAVE_URL = "{% url 'gallery:room_camera_save' show.slug %}";
+window.CSRF_TOKEN    = "{{ csrf_token }}";
+{% endif %}
 </script>
 <script type="module" src="{% static 'js/room_viewer.js' %}"></script>
 {% endblock %}

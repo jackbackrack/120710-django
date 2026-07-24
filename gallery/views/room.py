@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CONFIG = {'width_in': 384.0, 'depth_in': 576.0, 'height_in': 120.0,
                    'wall_n_img': None, 'wall_e_img': None, 'wall_s_img': None,
                    'wall_w_img': None, 'floor_img': None, 'ceiling_img': None,
-                   'obstacles': []}
+                   'initial_camera': None, 'obstacles': []}
 
 
 def _room_config(show):
@@ -39,6 +39,7 @@ def _config_dict(config):
         'width_in':    config.width_in,
         'depth_in':    config.depth_in,
         'height_in':   config.height_in,
+        'initial_camera': config.initial_camera,
         'wall_n_img':  _url(config.wall_n_image),
         'wall_e_img':  _url(config.wall_e_image),
         'wall_s_img':  _url(config.wall_s_image),
@@ -447,4 +448,49 @@ def room_viewer(request, slug):
         'config_json': config_json,
         'placements_json': placements_json,
         'supports_json': _supports_json(show),
+        'can_edit_room': can_manage_show(request.user, show),
     })
+
+
+@login_required
+@require_POST
+def room_camera_save(request, slug):
+    """Save the current 3D viewpoint as the room's default start view.
+
+    Restricted to curators/admins. The pose is stored on the (per-site) RoomConfig
+    so every visitor to any show at that site opens on this viewpoint by default.
+    """
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    try:
+        payload = json.loads(request.body or '{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'bad JSON'}, status=400)
+
+    # Keep only the known pose keys, coerced to plain numbers.
+    def _nums(v):
+        try:
+            return [float(x) for x in v]
+        except (TypeError, ValueError):
+            return None
+    cam = {}
+    p, q = _nums(payload.get('p')), _nums(payload.get('q'))
+    if p and len(p) == 3:
+        cam['p'] = p
+    if q and len(q) == 4:
+        cam['q'] = q
+    for k in ('yaw', 'pitch'):
+        try:
+            cam[k] = float(payload.get(k))
+        except (TypeError, ValueError):
+            pass
+    if 'p' not in cam:
+        return JsonResponse({'ok': False, 'error': 'no position'}, status=400)
+
+    config, _site = _room_config(show)
+    if config is None:
+        return JsonResponse({'ok': False, 'error': 'show has no site'}, status=400)
+    config.initial_camera = cam
+    config.save(update_fields=['initial_camera'])
+    return JsonResponse({'ok': True})

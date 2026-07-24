@@ -3464,6 +3464,63 @@ class PlacardSheetPdfTests(TestCase):
         self.assertEqual(r.status_code, 404)
 
 
+class RoomCameraSaveTests(TestCase):
+    """Curator/admin-set default start viewpoint for the 3D walkthrough."""
+
+    def setUp(self):
+        import json
+        from gallery.models import RoomConfig, Site
+        self.json = json
+        self.staff = User.objects.create_user(
+            username='cam-staff@example.com', email='cam-staff@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.viewer = User.objects.create_user(
+            username='cam-viewer@example.com', email='cam-viewer@example.com', password='pw')
+        self.show = Show.objects.create(
+            name='Cam Show', status=Show.STATUS_PUBLISHED, start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=7))
+        self.site = Site.objects.create(name='Cam Venue', status=Site.STATUS_PUBLISHED)
+        self.cfg = RoomConfig.objects.create(site=self.site, width_in=384, depth_in=576, height_in=120)
+        self.show.sites.add(self.site)
+        self.url = reverse('gallery:room_camera_save', kwargs={'slug': self.show.slug})
+        self.pose = {'p': [0, 1.5, -7], 'q': [0, 1, 0, 0], 'yaw': 3.14, 'pitch': 0}
+
+    def _post(self, body):
+        return self.client.post(self.url, data=self.json.dumps(body),
+                                content_type='application/json')
+
+    def test_curator_can_save_start_view(self):
+        self.client.force_login(self.staff)
+        r = self._post(self.pose)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()['ok'])
+        self.cfg.refresh_from_db()
+        self.assertEqual(self.cfg.initial_camera['p'], [0.0, 1.5, -7.0])
+        self.assertEqual(self.cfg.initial_camera['q'], [0.0, 1.0, 0.0, 0.0])
+
+    def test_non_manager_cannot_save(self):
+        self.client.force_login(self.viewer)
+        r = self._post(self.pose)
+        self.assertEqual(r.status_code, 404)
+        self.cfg.refresh_from_db()
+        self.assertIsNone(self.cfg.initial_camera)
+
+    def test_anonymous_redirected_to_login(self):
+        r = self._post(self.pose)
+        self.assertEqual(r.status_code, 302)
+
+    def test_missing_position_rejected(self):
+        self.client.force_login(self.staff)
+        r = self._post({'q': [0, 1, 0, 0]})
+        self.assertEqual(r.status_code, 400)
+
+    def test_saved_pose_appears_in_viewer_config(self):
+        from gallery.views.room import _config_dict
+        self.cfg.initial_camera = self.pose
+        self.cfg.save(update_fields=['initial_camera'])
+        self.assertEqual(_config_dict(self.cfg)['initial_camera'], self.pose)
+
+
 class RoomTwoDViewTests(TestCase):
     """Read-only 2D layout viewer (artists checking where to install)."""
 

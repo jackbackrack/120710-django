@@ -11,6 +11,11 @@ class RoomConfig(models.Model):
     depth_in  = models.FloatField(default=576.0)   # N–S (48 ft)
     height_in = models.FloatField(default=120.0)   # 10 ft
 
+    # Saved starting viewpoint for the 3D walkthrough (set by curators/admins).
+    # {p:[x,y,z], q:[x,y,z,w], yaw, pitch} in the viewer's metre/quaternion space.
+    # Null → the viewer falls back to its built-in default (room centre).
+    initial_camera = models.JSONField(blank=True, null=True)
+
     wall_n_image  = models.ImageField(upload_to='room_textures/', blank=True, null=True)
     wall_e_image  = models.ImageField(upload_to='room_textures/', blank=True, null=True)
     wall_s_image  = models.ImageField(upload_to='room_textures/', blank=True, null=True)

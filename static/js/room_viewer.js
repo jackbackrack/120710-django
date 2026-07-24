@@ -813,6 +813,42 @@ window.addEventListener('pageshow', function (e) {
   if (e.persisted) { try { sessionStorage.removeItem(CAM_KEY); } catch (err) {} }
 });
 
+// Apply the room's saved default viewpoint (set by a curator), if any. Used on a
+// fresh visit; the Back-button restore overrides it when returning from a piece.
+function applyInitialCamera() {
+  var c = window.ROOM_CONFIG && window.ROOM_CONFIG.initial_camera;
+  if (!c || !c.p) return;
+  camera.position.fromArray(c.p);
+  if (TOUCH) { yaw = c.yaw || 0; pitch = c.pitch || 0; applyLook(); }
+  else if (c.q) camera.quaternion.fromArray(c.q);
+}
+
+// Curator/admin only: persist the current viewpoint as this room's default start
+// view. On desktop, press Esc to leave look-mode first so the button is clickable.
+if (window.CAN_EDIT_ROOM) {
+  var saveBtn = document.getElementById('save-view-btn');
+  if (saveBtn) saveBtn.addEventListener('click', function () {
+    if (TOUCH) applyLook();   // reflect the latest drag-look in the camera first
+    var label = 'Set as start view';
+    fetch(window.CAMERA_SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN || '' },
+      body: JSON.stringify({
+        p: camera.position.toArray(), q: camera.quaternion.toArray(),
+        yaw: yaw, pitch: pitch,
+      }),
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      var ok = d && d.ok;
+      saveBtn.textContent = ok ? 'Saved ✓' : 'Save failed';
+      saveBtn.classList.toggle('saved', !!ok);
+      setTimeout(function () { saveBtn.textContent = label; saveBtn.classList.remove('saved'); }, 1600);
+    }).catch(function () {
+      saveBtn.textContent = 'Save failed';
+      setTimeout(function () { saveBtn.textContent = label; }, 1600);
+    });
+  });
+}
+
 // ── Animate ───────────────────────────────────────────────────────────────────
 function animate(now) {
   requestAnimationFrame(animate);
@@ -873,5 +909,6 @@ const ro = new ResizeObserver(setSize);
 ro.observe(canvas.parentElement);
 setSize();
 
-restoreCameraState();   // return-to-exact-view after visiting an artwork's detail page
+applyInitialCamera();   // curator-set default viewpoint for a fresh visit
+restoreCameraState();   // …overridden by return-to-exact-view after visiting a piece
 requestAnimationFrame(animate);
