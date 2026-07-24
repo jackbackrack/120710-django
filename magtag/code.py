@@ -47,10 +47,11 @@ magtag = MagTag()
 _TW = 36   # wrap width (chars) for the left text column at scale 1
 TITLE  = magtag.add_text(text_position=(4, 4),   text_scale=2, text_anchor_point=(0, 0),
                          text_wrap=18, line_spacing=0.85)
-YEAR   = magtag.add_text(text_position=(4, 44),  text_scale=1, text_anchor_point=(0, 0))
-ARTIST = magtag.add_text(text_position=(4, 60),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
-MEDIUM = magtag.add_text(text_position=(4, 82),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
-DIMS   = magtag.add_text(text_position=(4, 110), text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
+# ~half-line gap after the title, then tight (~13px) line spacing for the rest.
+YEAR   = magtag.add_text(text_position=(4, 34),  text_scale=1, text_anchor_point=(0, 0))
+ARTIST = magtag.add_text(text_position=(4, 47),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
+MEDIUM = magtag.add_text(text_position=(4, 60),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
+DIMS   = magtag.add_text(text_position=(4, 73),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
 
 # The built-in font is ASCII only, so map the common Unicode we get from the site
 # (× in dimensions, en/em dashes in year ranges, curly quotes, bullets) to ASCII.
