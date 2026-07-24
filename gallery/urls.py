@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 
-from gallery.views.placards import placard_html, placard_json, placard_sheet_pdf
+from gallery.views.placards import placard_html, placard_json, placard_json_for_site, placard_sheet_pdf
 from gallery.views.checklist import show_checklist_pdf
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer, room_2d, save_support_to_catalog, layout_snapshots, restore_layout_snapshot, delete_layout_snapshot
@@ -81,6 +81,8 @@ urlpatterns = [
     path('artist/<int:pk>/regenerate-thumbnail/', regenerate_artist_thumbnail, name='regenerate_artist_thumbnail'),
     path('placard/<int:number>/', placard_html, name='placard_html'),
     path('placard/<int:number>/data/', placard_json, name='placard_json'),
+    re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/placard/(?P<number>\d+)/data/$',
+            placard_json_for_site, name='placard_json_for_site'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/placard-sheet/$', placard_sheet_pdf, name='placard_sheet_pdf'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/checklist/$', show_checklist_pdf, name='show_checklist_pdf'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/layout/$', room_layout, name='room_layout'),

@@ -45,6 +45,15 @@ def _current_show():
     return show
 
 
+def _current_show_for_site(site):
+    """The current published show AT a given site (or the next upcoming one).
+    'Current show' is per-site — one show per site at a time."""
+    today = datetime.date.today()
+    qs = Show.objects.filter(status=Show.STATUS_PUBLISHED, sites=site)
+    return (qs.filter(start__lte=today, end__gte=today).order_by('-start').first()
+            or qs.filter(start__gt=today).order_by('start').first())
+
+
 def _get_placard_data(show, number):
     if show is None:
         return None
@@ -92,6 +101,18 @@ def placard_json(request, number):
     data = _get_placard_data(show, number)
     if data is None:
         return JsonResponse({'error': 'not found', 'number': number}, status=404)
+    return JsonResponse(data)
+
+
+def placard_json_for_site(request, site_slug, number):
+    """Placard for a numbered artwork in the current show AT a specific site.
+    Used by the MagTag displays so each venue shows its own show."""
+    from gallery.models import Site
+    site = get_object_or_404(Site, slug=site_slug)
+    data = _get_placard_data(_current_show_for_site(site), number)
+    if data is None:
+        return JsonResponse({'error': 'not found', 'number': number, 'site': site_slug},
+                            status=404)
     return JsonResponse(data)
 
 

@@ -32,6 +32,10 @@ from adafruit_magtag.magtag import MagTag
 PLACARD_NUMBER = int(os.getenv("PLACARD_NUMBER", "0"))
 REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", str(6 * 60 * 60)))
 SITE_URL = os.getenv("SITE_URL", "https://example.com").rstrip("/")
+# The venue this device lives at — resolves to that site's current show. Shared by
+# all devices at a venue (set it in settings.base.toml). If blank, falls back to
+# the site-wide "current show".
+SITE_SLUG = (os.getenv("SITE_SLUG", "") or "").strip()
 
 magtag = MagTag()
 
@@ -76,7 +80,10 @@ def fetch_placard(number):
     pool = adafruit_connection_manager.get_radio_socketpool(wifi.radio)
     ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
     session = adafruit_requests.Session(pool, ssl_context)
-    url = "%s/placard/%d/data/" % (SITE_URL, number)
+    if SITE_SLUG:
+        url = "%s/site/%s/placard/%d/data/" % (SITE_URL, SITE_SLUG, number)
+    else:
+        url = "%s/placard/%d/data/" % (SITE_URL, number)
     print("GET", url)
     # Ask for uncompressed JSON — the board doesn't gunzip, and a gzipped body
     # would look like a "JSON syntax error".

@@ -11,6 +11,12 @@ CIRCUITPY_WIFI_PASSWORD = "your-wifi-password"
 # Your gallery site, no trailing slash. Must be reachable from the gallery Wi-Fi.
 SITE_URL = "https://your-gallery-site.example.com"
 
+# The venue (Site) this device is at — its slug from the site's URL
+# (…/site/<SITE_SLUG>/). Shared by all devices at a venue, so keep it in
+# settings.base.toml. The device shows that site's current show. Leave blank to
+# use the site-wide "current show" instead.
+SITE_SLUG = "your-site-slug"
+
 # This device's placard = the show artwork number it displays. UNIQUE per device.
 PLACARD_NUMBER = "1"
 

@@ -7,9 +7,13 @@ Every device runs the **same** `code.py`; the only per-device difference is the
 placard number, set in `settings.toml` as `PLACARD_NUMBER`. So programming 40
 devices is just "set one number per board," not editing code.
 
-- API used (public, no login): `GET {SITE_URL}/placard/<number>/data/`
-- The website resolves "the current show," so devices only carry a number —
-  rotate the show and the same devices show the new show's pieces.
+- API used (public, no login): `GET {SITE_URL}/site/<SITE_SLUG>/placard/<number>/data/`
+  (with `SITE_SLUG` set) — the website resolves that **site's** current show, so
+  devices carry only a venue slug + a number. Rotate the site's show and the same
+  devices show the new pieces. (Leave `SITE_SLUG` blank to use the site-wide
+  current show instead.)
+- `SITE_SLUG` is shared by all devices at a venue → put it in `settings.base.toml`.
+  Multiple venues = one base file per venue.
 - **Deep sleep between updates** for battery life: it wakes on any button or the
   `REFRESH_SECONDS` timer, draws once, then powers down (the e-ink image
   persists). Expect a few seconds after a press (wake → Wi-Fi → fetch → redraw).

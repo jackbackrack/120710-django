@@ -2384,6 +2384,35 @@ class PlacardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['artwork']['name'], self.artwork1.name)
 
+    def test_placard_json_for_site_returns_that_sites_show(self):
+        from gallery.models import Site
+        site = Site.objects.create(name='Venue A', status=Site.STATUS_PUBLISHED)
+        self.show.sites.add(site)
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.start = datetime.date.today() + datetime.timedelta(days=2)   # upcoming
+        self.show.end = datetime.date.today() + datetime.timedelta(days=32)
+        self.show.save(update_fields=['status', 'start', 'end'])
+        r = self.client.get(reverse('gallery:placard_json_for_site',
+                                    kwargs={'site_slug': site.slug, 'number': 1}))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['artwork']['name'], self.artwork1.name)
+
+    def test_placard_json_for_site_is_isolated_per_site(self):
+        from gallery.models import Site
+        site_a = Site.objects.create(name='Venue A', status=Site.STATUS_PUBLISHED)
+        site_b = Site.objects.create(name='Venue B', status=Site.STATUS_PUBLISHED)
+        self.show.sites.add(site_a)          # show is only at site A
+        self._submit_and_select(self.artwork1)
+        self._promote()
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        # Site B has no show → its placard #1 is not found (no cross-site bleed).
+        r = self.client.get(reverse('gallery:placard_json_for_site',
+                                    kwargs={'site_slug': site_b.slug, 'number': 1}))
+        self.assertEqual(r.status_code, 404)
+
     def test_placard_json_returns_404_for_missing_number(self):
         self.show.status = Show.STATUS_PUBLISHED
         self.show.save(update_fields=['status'])
