@@ -3221,6 +3221,20 @@ class LayoutSnapshotTests(TestCase):
         return self.client.post(self.save_url, data=self.json.dumps(payload),
                                 content_type='application/json')
 
+    def test_layout_save_does_not_change_room_dimensions(self):
+        from gallery.models import RoomConfig, Site
+        site = Site.objects.create(name='Venue', status=Site.STATUS_PUBLISHED)
+        cfg = RoomConfig.objects.create(site=site, width_in=384, depth_in=576, height_in=120)
+        self.show.sites.add(site)
+        # A layout save carrying stale room dims must NOT overwrite the site config.
+        payload = {'room': {'width_in': 240, 'depth_in': 240, 'height_in': 96},
+                   'supports': [], 'placements': []}
+        r = self.client.post(self.save_url, data=self.json.dumps(payload),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        cfg.refresh_from_db()
+        self.assertEqual((cfg.width_in, cfg.depth_in, cfg.height_in), (384.0, 576.0, 120.0))
+
     def test_save_auto_snapshots_prior_state(self):
         from gallery.models import ShowLayoutSnapshot, WallPlacement
         self._save(5)      # first save: prior state empty → no snapshot

@@ -232,15 +232,10 @@ def _apply_layout(show, data):
     """Replace a show's layout with the given payload. Runs in a transaction so it's
     all-or-nothing — an error mid-way rolls back, never leaving a half-deleted
     layout. Returns a list of per-item (non-fatal) errors."""
-    config, _site = _room_config(show)
-    if config is not None:
-        room_cfg = data.get('room')
-        if room_cfg:
-            config.width_in  = float(room_cfg.get('width_in',  config.width_in))
-            config.depth_in  = float(room_cfg.get('depth_in',  config.depth_in))
-            config.height_in = float(room_cfg.get('height_in', config.height_in))
-            config.save()
-
+    # Room dimensions are NOT written from a layout save. They belong to the Site
+    # (shared by every show there) and are edited only via the site form. Writing
+    # them here let a stale layout tab — one opened before an admin changed the
+    # dimensions — silently overwrite that change on its next autosave.
     errors = []
     # Rebuild supports first, mapping each payload's client key → the new row so
     # placements can reference the support they sit on.
