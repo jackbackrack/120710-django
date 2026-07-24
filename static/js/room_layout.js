@@ -211,8 +211,11 @@
     var BIG_STEP = 10;                        // a big tick every 10 inches
     var bigLen = BIG_IN * baseScale, smallLen = SMALL_IN * baseScale;
     var showInch = baseScale >= RULER_INCH_MIN;
+    var showLabels = BIG_STEP * baseScale >= 26;   // room for a number between big ticks
     var cx = W / 2;                           // horizontal centre (x_in = 0)
     ctx.strokeStyle = 'rgba(50,50,50,0.6)';
+    ctx.fillStyle = 'rgba(50,50,50,0.9)';
+    ctx.font = '10px sans-serif';
 
     function vtick(x, len) {                  // ticks on the top & bottom edges
       x = Math.round(x) + 0.5;
@@ -228,21 +231,32 @@
       ctx.moveTo(W, y); ctx.lineTo(W - len, y);
       ctx.stroke();
     }
-    // Horizontal: from the centre outward, both directions.
+    // Horizontal: from the centre outward, both directions. Labels (inches from
+    // the centre) go along the bottom edge on the big ticks.
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     for (var n = 0; n <= Math.ceil(dims[0] / 2); n++) {
       var big = (n % BIG_STEP === 0);
       if (!big && !showInch) continue;
       ctx.lineWidth = big ? 1.6 : 1;
       var len = big ? bigLen : smallLen;
-      if (cx + n * baseScale <= W + 0.5) vtick(cx + n * baseScale, len);
-      if (n !== 0 && cx - n * baseScale >= -0.5) vtick(cx - n * baseScale, len);
+      var xr = cx + n * baseScale, xl = cx - n * baseScale;
+      if (xr <= W + 0.5) vtick(xr, len);
+      if (n !== 0 && xl >= -0.5) vtick(xl, len);
+      if (big && showLabels) {
+        if (xr <= W - 6) ctx.fillText(String(n), xr, H - bigLen - 2);
+        if (n !== 0 && xl >= 6) ctx.fillText(String(n), xl, H - bigLen - 2);
+      }
     }
-    // Vertical: from the floor (bottom) upward.
+    // Vertical: from the floor (bottom) upward. Labels (inches from the floor) go
+    // along the left edge on the big ticks.
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     for (var m = 0; m <= Math.ceil(dims[1]); m++) {
       var bigv = (m % BIG_STEP === 0);
       if (!bigv && !showInch) continue;
       ctx.lineWidth = bigv ? 1.6 : 1;
-      htick(H - m * baseScale, bigv ? bigLen : smallLen);
+      var y = H - m * baseScale;
+      htick(y, bigv ? bigLen : smallLen);
+      if (bigv && showLabels && y >= 8 && y <= H - 2) ctx.fillText(String(m), bigLen + 3, y);
     }
   }
 
