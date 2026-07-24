@@ -42,15 +42,28 @@ SITE_SLUG = (os.getenv("SITE_SLUG", "") or "").strip()
 magtag = MagTag()
 
 # ── Screen layout (296 x 128) ────────────────────────────────────────────────
-# Text on the left (~190px), QR code on the right. Order: title, year(s), artist,
-# medium, dimensions.
-_TW = 30   # wrap width (chars) for the left text column at scale 1
+# Text on the left, QR code on the right. Order: title, year(s), artist, medium,
+# dimensions. Wrap widths are wide so text reaches close to the QR before wrapping.
+_TW = 36   # wrap width (chars) for the left text column at scale 1
 TITLE  = magtag.add_text(text_position=(4, 4),   text_scale=2, text_anchor_point=(0, 0),
-                         text_wrap=15, line_spacing=0.85)
+                         text_wrap=18, line_spacing=0.85)
 YEAR   = magtag.add_text(text_position=(4, 44),  text_scale=1, text_anchor_point=(0, 0))
 ARTIST = magtag.add_text(text_position=(4, 60),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
 MEDIUM = magtag.add_text(text_position=(4, 82),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
 DIMS   = magtag.add_text(text_position=(4, 110), text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
+
+# The built-in font is ASCII only, so map the common Unicode we get from the site
+# (× in dimensions, en/em dashes in year ranges, curly quotes, bullets) to ASCII.
+_SUBST = {"×": "x", "–": "-", "—": "-", "‘": "'", "’": "'",
+          "“": '"', "”": '"', "•": "*", "…": "..."}
+
+
+def _ascii(s):
+    if not s:
+        return ""
+    for k, v in _SUBST.items():
+        s = s.replace(k, v)
+    return s.encode("ascii", "ignore").decode("ascii")
 
 
 def _message(text):
@@ -90,11 +103,11 @@ def _add_qr(url, scale=2, border=2):
 def _show_placard(data):
     aw = data.get("artwork", {})
     artists = ", ".join(aw.get("artists", []) or [])
-    magtag.set_text(aw.get("name", "Untitled"), TITLE, auto_refresh=False)
-    magtag.set_text(str(aw.get("year", "") or ""), YEAR, auto_refresh=False)
-    magtag.set_text(artists, ARTIST, auto_refresh=False)
-    magtag.set_text(aw.get("medium", "") or "", MEDIUM, auto_refresh=False)
-    magtag.set_text(aw.get("dimensions", "") or "", DIMS, auto_refresh=False)
+    magtag.set_text(_ascii(aw.get("name", "Untitled")), TITLE, auto_refresh=False)
+    magtag.set_text(_ascii(str(aw.get("year", "") or "")), YEAR, auto_refresh=False)
+    magtag.set_text(_ascii(artists), ARTIST, auto_refresh=False)
+    magtag.set_text(_ascii(aw.get("medium", "") or ""), MEDIUM, auto_refresh=False)
+    magtag.set_text(_ascii(aw.get("dimensions", "") or ""), DIMS, auto_refresh=False)
     url = aw.get("url") or ""
     print("placard url:", repr(url))
     if url:
