@@ -128,6 +128,7 @@
   var supportList  = document.getElementById('support-list');
   var spW = document.getElementById('sp-w'), spH = document.getElementById('sp-h'), spD = document.getElementById('sp-d');
   var spHoriz = document.getElementById('sp-horiz'), spVert = document.getElementById('sp-vert');
+  var spHorizLabel = document.getElementById('sp-horiz-label');
   var spTexture = document.getElementById('sp-texture');
   var spName = document.getElementById('sp-name');
   var newSupports = [];             // unplaced supports in the tray, waiting to be dragged onto a wall
@@ -366,16 +367,34 @@
   }
 
   // ── World-coordinate helpers for popover ─────────────────────────────────
-  // Horizontal position shown/entered as inches from the LEFT edge of the wall (as
-  // displayed). Stored coords stay room-centre based; this is a display conversion.
+  // Horizontal position shown/entered following the ruler's zero toggle: inches
+  // from the LEFT edge (default) or from the wall CENTRE. Stored coords stay
+  // room-centre based; this is a display conversion. (South/West are mirrored to
+  // match the inside-facing 2D view.)
+  function horizLabelText() {
+    return 'Horiz from ' + (rulerOrigin === 'center' ? 'centre' : 'left') + ' (in)';
+  }
   function worldHoriz(wall, p) {
+    if (rulerOrigin === 'center') {
+      if (wall === 'S') return -p.x_in;
+      if (wall === 'E') return  p.z_in;
+      if (wall === 'W') return -p.z_in;
+      return p.x_in;                              // N, floor, ceiling
+    }
     var ww = wallDims(wall)[0];
-    if (wall === 'S') return ww / 2 - p.x_in;   // South is mirrored (inside-facing view)
+    if (wall === 'S') return ww / 2 - p.x_in;
     if (wall === 'E') return p.z_in + ww / 2;
     if (wall === 'W') return ww / 2 - p.z_in;
-    return p.x_in + ww / 2;                      // N, floor, ceiling
+    return p.x_in + ww / 2;                        // N, floor, ceiling
   }
   function applyHoriz(wall, p, val) {
+    if (rulerOrigin === 'center') {
+      if (wall === 'S')       p.x_in = -val;
+      else if (wall === 'E')  p.z_in =  val;
+      else if (wall === 'W')  p.z_in = -val;
+      else                    p.x_in =  val;       // N, floor, ceiling
+      return;
+    }
     var ww = wallDims(wall)[0];
     if (wall === 'S')       p.x_in = ww / 2 - val;
     else if (wall === 'E')  p.z_in = val - ww / 2;
@@ -980,6 +999,7 @@
     document.getElementById('sp-title').textContent = supportTerm(s.wall);
     if (spName) spName.value = s.label || '';
     spW.value = round1(s.w_in); spH.value = round1(s.h_in); spD.value = round1(s.d_in);
+    if (spHorizLabel) spHorizLabel.textContent = horizLabelText();
     spHoriz.value = round1(worldHoriz(currentWall, s));
     spVert.value  = round1(s.y_in);
     populateSupportTextureSelect(s);
@@ -1588,7 +1608,7 @@
     popoverArtId = p.artwork.id;
     posTitle.textContent = p.artwork.name;
     var isCF = (currentWall === 'ceiling' || currentWall === 'floor');
-    posHorizLabel.textContent = isCF ? 'East from center (in)' : 'Horiz from center (in, + = right)';
+    posHorizLabel.textContent = horizLabelText();
     posDepthLabel.style.display = isCF ? 'inline' : 'none';
     posDepth.style.display      = isCF ? 'inline' : 'none';
     updatePopoverValues(p);
@@ -2119,6 +2139,15 @@
       rulerOrigin = (rulerOrigin === 'center') ? 'left' : 'center';
       localStorage.setItem('roomLayoutRulerOrigin', rulerOrigin);
       applyRulerState();
+      // Refresh any open position bar / support panel to the new origin.
+      if (popoverArtId != null && placementMap[popoverArtId]) {
+        posHorizLabel.textContent = horizLabelText();
+        updatePopoverValues(placementMap[popoverArtId]);
+      }
+      if (supportPanel && supportPanel.classList.contains('active') && supportMap[selectedSupportId]) {
+        if (spHorizLabel) spHorizLabel.textContent = horizLabelText();
+        spHoriz.value = round1(worldHoriz(currentWall, supportMap[selectedSupportId]));
+      }
     });
   }
 
