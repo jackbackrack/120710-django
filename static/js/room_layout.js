@@ -669,7 +669,7 @@
   }
 
   // Shrink an element's font so its single-line text fits its box width. Measures
-  // the REAL rendered width via scrollWidth — accurate for arrows / ⊕ / 🔩 emoji,
+  // the REAL rendered width via scrollWidth — accurate for arrows / ⊕ glyphs,
   // which canvas measureText mis-sizes (font fallback differs), so every hang-info
   // line is scaled to fit with no ellipsis.
   function fitTextEl(el, maxFont) {
@@ -727,7 +727,7 @@
     var onFloor = (currentWall === 'floor' || currentWall === 'ceiling');
     var vText = '↑' + fmtIn(topD) + '"  ↓' + fmtIn(bottomD) + '"';
     if (drop != null && !onFloor) {
-      vText += '  🔩↑' + fmtIn(bottomD + drop) + '"';   // screw hole → floor
+      vText += '  ⊕↑' + fmtIn(bottomD + drop) + '"';   // screw hole → floor
     }
     hh.textContent = '←' + fmtIn(leftD) + '"  ⊕' + fmtIn(centerD) + '"  →' + fmtIn(rightD) + '"';
     hv.textContent = vText;
