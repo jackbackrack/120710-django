@@ -174,6 +174,71 @@
     fitScale = baseScale; panX = 0; panY = 0;
     updateStageBackground();
     applyTransform();
+    drawRuler();
+  }
+
+  // ── Wall-edge ruler ─────────────────────────────────────────────────────────
+  // Tick marks along all four wall borders: long ticks every foot, short every
+  // inch. Horizontal ticks are measured from the wall centre (x = 0), vertical
+  // ticks from the floor (y = 0) — matching the placement coordinate system.
+  var rulerCanvas = null;
+  var rulerOn = localStorage.getItem('roomLayoutRuler') !== '0';   // default on
+  var RULER_INCH_MIN = 3.5;   // only draw inch ticks when >= this many px/inch
+  function drawRuler() {
+    if (!rulerCanvas) {
+      rulerCanvas = document.createElement('canvas');
+      rulerCanvas.className = 'wall-ruler';
+      rulerCanvas.style.position = 'absolute';
+      rulerCanvas.style.left = '0px';
+      rulerCanvas.style.top = '0px';
+      rulerCanvas.style.zIndex = '1';        // above corners/background, below art
+      rulerCanvas.style.pointerEvents = 'none';
+      stageEl.appendChild(rulerCanvas);
+    }
+    var dims = wallDims(currentWall);
+    var W = Math.round(dims[0] * baseScale), H = Math.round(dims[1] * baseScale);
+    rulerCanvas.width = W; rulerCanvas.height = H;
+    rulerCanvas.style.width = W + 'px'; rulerCanvas.style.height = H + 'px';
+    var ctx = rulerCanvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    if (!rulerOn) { rulerCanvas.style.display = 'none'; return; }
+    rulerCanvas.style.display = 'block';
+
+    var BIG = 15, SMALL = 7;                  // tick lengths (screen px)
+    var showInch = baseScale >= RULER_INCH_MIN;
+    var cx = W / 2;                           // horizontal centre (x_in = 0)
+    ctx.strokeStyle = 'rgba(50,50,50,0.6)';
+
+    function vtick(x, len) {                  // ticks on the top & bottom edges
+      x = Math.round(x) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, 0); ctx.lineTo(x, len);
+      ctx.moveTo(x, H); ctx.lineTo(x, H - len);
+      ctx.stroke();
+    }
+    function htick(y, len) {                  // ticks on the left & right edges
+      y = Math.round(y) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, y); ctx.lineTo(len, y);
+      ctx.moveTo(W, y); ctx.lineTo(W - len, y);
+      ctx.stroke();
+    }
+    // Horizontal: from the centre outward, both directions.
+    for (var n = 0; n <= Math.ceil(dims[0] / 2); n++) {
+      var big = (n % 12 === 0);
+      if (!big && !showInch) continue;
+      ctx.lineWidth = big ? 1.6 : 1;
+      var len = big ? BIG : SMALL;
+      if (cx + n * baseScale <= W + 0.5) vtick(cx + n * baseScale, len);
+      if (n !== 0 && cx - n * baseScale >= -0.5) vtick(cx - n * baseScale, len);
+    }
+    // Vertical: from the floor (bottom) upward.
+    for (var m = 0; m <= Math.ceil(dims[1]); m++) {
+      var bigv = (m % 12 === 0);
+      if (!bigv && !showInch) continue;
+      ctx.lineWidth = bigv ? 1.6 : 1;
+      htick(H - m * baseScale, bigv ? BIG : SMALL);
+    }
   }
 
   function applyTransform() {
@@ -214,6 +279,7 @@
     });
     renderGroupBoxes();     // group outlines must follow the rescaled pieces
     renderSupportBoxes();   // support boxes derive from positions — rebuild at new zoom
+    drawRuler();            // tick spacing scales with zoom
   }
 
   // ── World ↔ stage-pixel conversions ──────────────────────────────────────
@@ -1986,6 +2052,19 @@
     });
   }
 
+  var rulerBtn = document.getElementById('btn-ruler');
+  function applyRulerState() {
+    if (rulerBtn) rulerBtn.classList.toggle('active', rulerOn);
+    drawRuler();
+  }
+  if (rulerBtn) {
+    rulerBtn.addEventListener('click', function () {
+      rulerOn = !rulerOn;
+      localStorage.setItem('roomLayoutRuler', rulerOn ? '1' : '0');
+      applyRulerState();
+    });
+  }
+
   // ── Keyboard: pan (WASD) and artwork nudge (arrows) ─────────────────────
   document.addEventListener('keydown', function (e) {
     if (e.target.matches('input, textarea, select')) return;
@@ -2301,5 +2380,6 @@
   renderSupportCatalog();
   renderWall();
   applyHangInfoState();
+  applyRulerState();
 
 }());
