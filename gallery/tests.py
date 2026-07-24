@@ -3496,6 +3496,31 @@ class RoomTwoDViewTests(TestCase):
         self.artwork.save(update_fields=['hang_drop_inches'])
         self.assertEqual(_artwork_json(self.artwork)['hang_drop'], 4.5)
 
+    def test_artwork_json_uses_framed_dimensions_when_set(self):
+        from gallery.views.room import _artwork_json
+        self.artwork.width_inches = 24
+        self.artwork.height_inches = 36
+        self.artwork.depth_inches = 2
+        self.artwork.save()
+        j = _artwork_json(self.artwork)
+        self.assertEqual((j['w_in'], j['h_in'], j['d_in']), (24.0, 36.0, 2.0))  # backward compatible
+        self.artwork.framed_width_inches = 30
+        self.artwork.framed_height_inches = 42
+        self.artwork.framed_depth_inches = 3
+        self.artwork.save()
+        j = _artwork_json(self.artwork)
+        self.assertEqual((j['w_in'], j['h_in'], j['d_in']), (30.0, 42.0, 3.0))  # framed overrides
+
+    def test_effective_dimensions_fallback(self):
+        self.artwork.width_inches = 10
+        self.artwork.height_inches = 12
+        self.artwork.depth_inches = 1
+        self.artwork.framed_width_inches = 15   # only width framed
+        self.artwork.save()
+        self.assertEqual(self.artwork.effective_width_inches, 15)   # framed used
+        self.assertEqual(self.artwork.effective_height_inches, 12)  # falls back
+        self.assertEqual(self.artwork.effective_depth_inches, 1)    # falls back
+
     def test_published_show_is_public_and_readonly(self):
         self.show.status = Show.STATUS_PUBLISHED
         self.show.save()

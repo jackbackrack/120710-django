@@ -46,6 +46,13 @@ class Artwork(models.Model):
     width_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Width (inches)')
     height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Height (inches)')
     depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Depth (inches, optional)')
+    # Optional framed (outer) dimensions — set only when the piece is framed and its
+    # outer size differs from the artwork dimensions. The layout editor and 3D view
+    # use these when present; everything else (placards, etc.) uses the artwork
+    # dimensions above. Fully optional and backward compatible (null = not framed).
+    framed_width_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Framed width (inches)')
+    framed_height_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Framed height (inches)')
+    framed_depth_inches = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, verbose_name='Framed depth (inches)')
     hang_drop_inches = models.DecimalField(
         max_digits=8, decimal_places=2, blank=True, null=True,
         verbose_name='Hang drop (inches)',
@@ -123,6 +130,19 @@ class Artwork(models.Model):
             return self.card_sm.url
         except Exception:
             return self.layout_display_url
+
+    @property
+    def effective_width_inches(self):
+        """Framed width if set, else the artwork width. Used by the layout/3D views."""
+        return self.framed_width_inches if self.framed_width_inches is not None else self.width_inches
+
+    @property
+    def effective_height_inches(self):
+        return self.framed_height_inches if self.framed_height_inches is not None else self.height_inches
+
+    @property
+    def effective_depth_inches(self):
+        return self.framed_depth_inches if self.framed_depth_inches is not None else self.depth_inches
 
     @property
     def placard_dimensions(self):

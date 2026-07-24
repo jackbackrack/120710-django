@@ -27,6 +27,7 @@ HOW_TO_GUIDES = [
             'Sign in — you will be taken to your Me page. Find the Artworks section and click the New button.',
             'Fill in the title, year, medium, dimensions (width × height × depth), and upload an image — image is required for new artworks.',
             'Optionally set the pricing type (For Sale, Price on Request, Best Offer, or Not For Sale), add a price if applicable, set a replacement cost, and add a description.',
+            'If the piece is framed and its outer size differs from the artwork dimensions, fill in the optional "Framed size" (width × height × depth) under Additional details. The layout editor and 3D view use the framed size when present (otherwise the artwork dimensions); placards still show the artwork dimensions. Leave blank for unframed work.',
             'Optionally record the "Hang drop" (under Additional details): the distance from the bottom edge of the piece up to its hanging point (wire pulled taut, or hook). Measure it once; the layout tool\'s Hang Info then shows the exact screw-hole height for wherever the piece is placed.',
             'Newly added artworks are private until they are included in a show whose status is Published or Closed.',
         ],

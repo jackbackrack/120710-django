@@ -225,6 +225,9 @@ class ArtworkForm(UserAwareModelForm):
             'width_inches',
             'height_inches',
             'depth_inches',
+            'framed_width_inches',
+            'framed_height_inches',
+            'framed_depth_inches',
             'hang_drop_inches',
             'image',
             'layout_image',
@@ -279,11 +282,19 @@ class ArtworkForm(UserAwareModelForm):
         self.fields['layout_image'].label = 'Upload a cropped image'
         self.fields['layout_image'].help_text = ''
 
-        for f in ('width_inches', 'height_inches', 'depth_inches'):
+        self.fields['framed_width_inches'].label = 'Framed width (in)'
+        self.fields['framed_height_inches'].label = 'Framed height (in)'
+        self.fields['framed_depth_inches'].label = 'Framed depth (in)'
+
+        for f in ('width_inches', 'height_inches', 'depth_inches',
+                  'framed_width_inches', 'framed_height_inches', 'framed_depth_inches'):
             self.fields[f].widget.attrs.update({'class': 'dim-input', 'step': 'any', 'min': '0'})
         self.fields['width_inches'].widget.attrs['placeholder'] = 'W'
         self.fields['height_inches'].widget.attrs['placeholder'] = 'H'
         self.fields['depth_inches'].widget.attrs['placeholder'] = 'D'
+        self.fields['framed_width_inches'].widget.attrs['placeholder'] = 'W'
+        self.fields['framed_height_inches'].widget.attrs['placeholder'] = 'H'
+        self.fields['framed_depth_inches'].widget.attrs['placeholder'] = 'D'
 
         self.fields['hang_drop_inches'].label = 'Hang drop (in, optional)'
         self.fields['hang_drop_inches'].widget.attrs.update({'step': 'any', 'min': '0'})
@@ -296,6 +307,14 @@ class ArtworkForm(UserAwareModelForm):
             Column(Field('height_inches'), css_class='col-auto'),
             Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
             Column(Field('depth_inches'), css_class='col-auto'),
+            css_class='align-items-end g-2',
+        )
+        framed_dims_row = Row(
+            Column(Field('framed_width_inches'), css_class='col-auto'),
+            Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
+            Column(Field('framed_height_inches'), css_class='col-auto'),
+            Column(HTML('<span class="dim-sep">×</span>'), css_class='col-auto align-self-end mb-3'),
+            Column(Field('framed_depth_inches'), css_class='col-auto'),
             css_class='align-items-end g-2',
         )
         # Required fields grouped first (with asterisks), then pricing, then the
@@ -322,6 +341,11 @@ class ArtworkForm(UserAwareModelForm):
             Fieldset(
                 'Additional details (optional)',
                 'start_year',
+                HTML('<p class="text-muted small mb-1">Framed size — set these only if '
+                     'the piece is framed and its outer dimensions differ from the '
+                     'artwork dimensions above. The layout editor and 3D view use '
+                     'these when present; leave blank otherwise.</p>'),
+                framed_dims_row,
                 'hang_drop_inches',
                 'description',
                 'url',
