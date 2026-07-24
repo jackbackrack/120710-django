@@ -24,10 +24,12 @@ import json
 import alarm
 import board
 import displayio
+import terminalio
 import wifi
 import adafruit_connection_manager
 import adafruit_miniqr
 import adafruit_requests
+from adafruit_display_text import label as text_label
 from adafruit_magtag.magtag import MagTag
 
 # ── Config (all from settings.toml; identical code on every device) ──────────
@@ -42,16 +44,18 @@ SITE_SLUG = (os.getenv("SITE_SLUG", "") or "").strip()
 magtag = MagTag()
 
 # ── Screen layout (296 x 128) ────────────────────────────────────────────────
-# Text on the left, QR code on the right. Order: title, year(s), artist, medium,
-# dimensions. Wrap widths are wide so text reaches close to the QR before wrapping.
-_TW = 36   # wrap width (chars) for the left text column at scale 1
-TITLE  = magtag.add_text(text_position=(4, 4),   text_scale=2, text_anchor_point=(0, 0),
-                         text_wrap=18, line_spacing=0.85)
-# ~half-line gap after the title, then tight (~13px) line spacing for the rest.
-YEAR   = magtag.add_text(text_position=(4, 34),  text_scale=1, text_anchor_point=(0, 0))
-ARTIST = magtag.add_text(text_position=(4, 47),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
-MEDIUM = magtag.add_text(text_position=(4, 60),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
-DIMS   = magtag.add_text(text_position=(4, 73),  text_scale=1, text_anchor_point=(0, 0), text_wrap=_TW)
+# Text is drawn into our own group and stacked DYNAMICALLY: each line is placed
+# below the actual rendered height of the one above it, so a title (or medium)
+# that wraps to multiple lines pushes everything below it down — no overlap.
+FONT = terminalio.FONT
+LINE_H = FONT.get_bounding_box()[1]     # font line height (px) at scale 1
+LEFT = 4                                # left margin (px)
+TOP = 4                                 # top margin (px)
+TITLE_WRAP = 17                         # chars/line for the scale-2 title
+BODY_WRAP = 34                          # chars/line for the scale-1 body lines
+
+placard_group = displayio.Group()
+magtag.display.root_group.append(placard_group)
 
 # The built-in font is ASCII only, so map the common Unicode we get from the site
 # (× in dimensions, en/em dashes in year ranges, curly quotes, bullets) to ASCII.
@@ -67,10 +71,46 @@ def _ascii(s):
     return s.encode("ascii", "ignore").decode("ascii")
 
 
+def _wrap(text, max_chars):
+    """Word-wrap ASCII text to <= max_chars per line (hard-breaking long words)."""
+    words = _ascii(text).split()
+    if not words:
+        return []
+    lines, cur = [], words[0]
+    for w in words[1:]:
+        if len(cur) + 1 + len(w) <= max_chars:
+            cur += " " + w
+        else:
+            lines.append(cur); cur = w
+    lines.append(cur)
+    out = []
+    for ln in lines:
+        while len(ln) > max_chars:
+            out.append(ln[:max_chars]); ln = ln[max_chars:]
+        out.append(ln)
+    return out
+
+
+def _clear():
+    while len(placard_group):
+        placard_group.pop()
+
+
+def _add_line(text, scale, wrap_chars, y, gap):
+    """Add a wrapped text block at top-left (LEFT, y); return the y below it."""
+    lines = _wrap(text, wrap_chars)
+    if not lines:
+        return y
+    lbl = text_label.Label(FONT, text="\n".join(lines), scale=scale, color=0x000000,
+                           anchor_point=(0, 0), anchored_position=(LEFT, y),
+                           line_spacing=1.0)
+    placard_group.append(lbl)
+    return y + len(lines) * LINE_H * scale + gap   # stack by actual line count
+
+
 def _message(text):
-    for i in (YEAR, ARTIST, MEDIUM, DIMS):
-        magtag.set_text("", i, auto_refresh=False)
-    magtag.set_text(text, TITLE, auto_refresh=False)
+    _clear()
+    _add_line(text, 1, BODY_WRAP, TOP, 0)
 
 
 def _add_qr(url, scale=2, border=2):
@@ -95,20 +135,20 @@ def _add_qr(url, scale=2, border=2):
     tile = displayio.TileGrid(bmp, pixel_shader=pal)
     tile.x = 296 - side - 4
     tile.y = max(0, (128 - side) // 2)
-    # Append to the group that's actually on screen.
-    group = getattr(magtag, "splash", None) or magtag.display.root_group
-    group.append(tile)
+    placard_group.append(tile)
     print("QR added (%dx%d px) for %s" % (side, side, url))
 
 
 def _show_placard(data):
+    _clear()
     aw = data.get("artwork", {})
     artists = ", ".join(aw.get("artists", []) or [])
-    magtag.set_text(_ascii(aw.get("name", "Untitled")), TITLE, auto_refresh=False)
-    magtag.set_text(_ascii(str(aw.get("year", "") or "")), YEAR, auto_refresh=False)
-    magtag.set_text(_ascii(artists), ARTIST, auto_refresh=False)
-    magtag.set_text(_ascii(aw.get("medium", "") or ""), MEDIUM, auto_refresh=False)
-    magtag.set_text(_ascii(aw.get("dimensions", "") or ""), DIMS, auto_refresh=False)
+    y = TOP
+    y = _add_line(aw.get("name", "Untitled"), 2, TITLE_WRAP, y, LINE_H // 2)  # half-line after title
+    y = _add_line(str(aw.get("year", "") or ""), 1, BODY_WRAP, y, 2)
+    y = _add_line(artists, 1, BODY_WRAP, y, 2)
+    y = _add_line(aw.get("medium", "") or "", 1, BODY_WRAP, y, 2)
+    y = _add_line(aw.get("dimensions", "") or "", 1, BODY_WRAP, y, 2)
     url = aw.get("url") or ""
     print("placard url:", repr(url))
     if url:
