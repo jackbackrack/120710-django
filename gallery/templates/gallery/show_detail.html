@@ -36,7 +36,7 @@
     <div class="mt-3">
       {% if show.status == show.STATUS_OPEN_CALL %}
         {% if show.submission_type == 'open' %}
-          <p><strong>Open Call</strong> &mdash; Accepting submissions{% if rubric_criteria_count > 1 %} &mdash; <a class="card__link" href="{% url 'gallery:show_rubric' show.pk %}">rubric</a>{% endif %}</p>
+          <p><strong>Open Call</strong> &mdash; Accepting submissions</p>
         {% else %}
           <p><strong>Invitation Only</strong> &mdash; Accepting submissions</p>
           {% if user.is_authenticated and not has_invitation %}<p class="text-gray-500 text-sm">Submissions to this show are by invitation only.</p>{% endif %}
@@ -52,6 +52,13 @@
         {% if show.decision_date %}<p class="text-gray-500 text-sm"><strong>Decision date:</strong> <span style="background:#fff176;padding:0 2px">{{ show.decision_date }}</span></p>{% endif %}
       {% endif %}
     </div>
+    {% endif %}
+    {# The rubric is worth reading for the whole life of the show — how the work was
+       judged still explains a published or closed show, not just an open call. So it
+       is shown whenever criteria exist, independent of status. ShowRubricView has no
+       status gate of its own, so the link is always valid. #}
+    {% if rubric_criteria_count %}
+    <p class="mt-3"><a class="card__link" href="{% url 'gallery:show_rubric' show.pk %}">Judging rubric</a></p>
     {% endif %}
     {% if can_manage_show %}<div class="mt-3">{% include 'gallery/_show_status_control.html' %}</div>{% endif %}
     {% for event in show.events.all %}
