@@ -199,6 +199,7 @@ HOW_TO_GUIDES = [
         'steps': [
             'From the show detail page, click "Layout" in the curatorial button row. This opens the room layout editor for the show\'s associated site.',
             'The editor shows a top-down floor plan with the room walls. Select a wall by clicking its tab at the top (N, E, S, W) — the selected wall is shown in the main canvas area.',
+            'Toolbar layout: the Arrange buttons (Center, Distribute, Group/Ungroup, Rotate, Remove) appear only when you have pieces selected; the occasional view/measure tools (Fit, Measure, Hang Info, Ruler, ruler-zero toggle) live under the "View" menu; Undo, Save, Snapshots, and 3D View are always shown.',
             'To place an artwork, click it in the sidebar on the left (it appears centered on the wall), or drag it from the sidebar onto the wall to drop it exactly where you want. Then drag it to fine-tune its position.',
             'To adjust the height from the floor (measured to the center of the artwork), use the Height field in the position bar below the canvas after clicking an artwork.',
             'The position bar below the canvas shows the artwork\'s horizontal position (inches from the left edge of the wall), height to center (from floor), and the four edge distances: ← left, → right, ↑ top, ↓ bottom edges.',

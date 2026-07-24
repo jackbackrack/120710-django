@@ -84,6 +84,17 @@
 #toolbar { display: flex; gap: 8px; padding: 6px 10px; background: #fff; border-top: 1px solid #ddd; align-items: center; flex-wrap: wrap; }
 #toolbar button { font-size: .8rem; padding: 3px 10px; }
 #toolbar button.active { background: #64968c; color: #fff; border-color: #4f7d74; }
+/* Arrange group: hidden until something is selected */
+#arrange-group { display: inline-flex; gap: 8px; }
+#arrange-group.tb-hidden { display: none; }
+/* View menu (self-contained dropdown, opens upward above the bottom toolbar) */
+.tb-menu { position: relative; display: inline-block; }
+#view-menu { display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 4px;
+  background: #fff; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.2);
+  padding: 4px; z-index: 50; min-width: 140px; }
+#view-menu.tb-open { display: flex; flex-direction: column; gap: 3px; }
+#view-menu button { width: 100%; text-align: left; }
+#view-menu button.active::before { content: "\2713 "; }   /* ✓ before an active toggle */
 #save-status { font-size: .8rem; color: #888; margin-left: auto; }
 
 /* Inline position controls (shown below the canvas when one artwork is selected) */
@@ -251,21 +262,30 @@
       <button type="button" id="sp-save-catalog" class="btn btn-sm btn-outline-secondary">Save to site catalog</button>
     </div>
     <div id="toolbar">
-      <button id="btn-align-h" title="Center selected on wall horizontally">Center H</button>
-      <button id="btn-align-v" title="Center selected on wall vertically">Center V</button>
-      <button id="btn-dist-h" title="Distribute selected evenly horizontal">Dist H</button>
-      <button id="btn-dist-v" title="Distribute selected evenly vertical">Dist V</button>
-      <button id="btn-remove" title="Return selected to unplaced pool">Remove</button>
-      <button id="btn-group" title="Group selected artworks (move &amp; arrange together)">Group</button>
-      <button id="btn-ungroup" title="Ungroup selected artworks, or detach a selected piece from its support (so it can move on its own)">Ungroup</button>
-      <button id="btn-rotate" title="Rotate the selection 90° about the vertical axis — pieces, a support, or an art+support group (a group turns about its centre)">Rotate</button>
-      <button id="btn-fit" title="Fit the whole wall in the view (F)">Fit</button>
-      <button id="btn-undo" title="Undo the last change (Ctrl/Cmd+Z)" disabled>Undo</button>
-      <button id="btn-measure" title="Measure distance between two selected artworks (M)">Measure</button>
-      <button id="btn-hang-info" title="Show each artwork's size and the distance from each edge to the wall edges (for hanging)">Hang Info</button>
-      <button id="btn-ruler" title="Ruler along the wall edges — long ticks every 10 inches, short every inch (horizontal from the left edge, vertical from the floor)">Ruler</button>
-      <button id="btn-ruler-origin" title="Switch the horizontal ruler's zero between the left edge and the wall centre">0: left</button>
+      <!-- Arrange actions: shown only when something is selected -->
+      <span id="arrange-group">
+        <button id="btn-align-h" title="Center selected on wall horizontally">Center H</button>
+        <button id="btn-align-v" title="Center selected on wall vertically">Center V</button>
+        <button id="btn-dist-h" title="Distribute selected evenly horizontal">Dist H</button>
+        <button id="btn-dist-v" title="Distribute selected evenly vertical">Dist V</button>
+        <button id="btn-group" title="Group selected artworks (move &amp; arrange together)">Group</button>
+        <button id="btn-ungroup" title="Ungroup selected artworks, or detach a selected piece from its support (so it can move on its own)">Ungroup</button>
+        <button id="btn-rotate" title="Rotate the selection 90° about the vertical axis — pieces, a support, or an art+support group (a group turns about its centre)">Rotate</button>
+        <button id="btn-remove" title="Return selected to unplaced pool">Remove</button>
+      </span>
+      <!-- View / measure tools (occasional) tucked into a menu -->
+      <span class="tb-menu">
+        <button id="btn-view-menu" type="button">View ▾</button>
+        <span id="view-menu">
+          <button id="btn-fit" title="Fit the whole wall in the view (F)">Fit view</button>
+          <button id="btn-measure" title="Measure between two selected items (M)">Measure</button>
+          <button id="btn-hang-info" title="Show each artwork's size and edge distances (for hanging)">Hang Info</button>
+          <button id="btn-ruler" title="Ruler along the wall edges — feet/inches">Ruler</button>
+          <button id="btn-ruler-origin" title="Switch the horizontal ruler's zero between the left edge and the wall centre">0: left</button>
+        </span>
+      </span>
       <span id="measure-display" style="font-size:.8rem;color:#555;font-family:monospace;"></span>
+      <button id="btn-undo" title="Undo the last change (Ctrl/Cmd+Z)" disabled>Undo</button>
       <button id="btn-save" class="btn btn-primary btn-sm ms-2">Save</button>
       <button id="btn-snapshots" class="btn btn-outline-secondary btn-sm ms-1" title="Save a named restore point, or roll back to an earlier layout">Snapshots</button>
       <span id="save-status"></span>

@@ -566,6 +566,7 @@
     selectionOrder = [];
     initStage();
     redrawPieces();
+    if (typeof updateArrange === 'function') updateArrange();   // selection cleared → hide Arrange
   }
 
   // Reset zoom/pan so the whole current wall fits the available canvas, keeping
@@ -2121,6 +2122,28 @@
     });
   }
 
+  // ── View menu (self-contained dropdown) ────────────────────────────────────
+  var viewMenuBtn = document.getElementById('btn-view-menu');
+  var viewMenu = document.getElementById('view-menu');
+  if (viewMenuBtn && viewMenu) {
+    viewMenuBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      viewMenu.classList.toggle('tb-open');
+    });
+    document.addEventListener('click', function (e) {
+      if (!viewMenu.contains(e.target) && e.target !== viewMenuBtn) viewMenu.classList.remove('tb-open');
+    });
+  }
+
+  // ── Contextual Arrange group: only show when something is selected ─────────
+  var arrangeGroup = document.getElementById('arrange-group');
+  function updateArrange() {
+    if (arrangeGroup) arrangeGroup.classList.toggle('tb-hidden', getSelected().length === 0);
+  }
+  // Selection changes always follow a click/drag/keypress; recompute just after.
+  document.addEventListener('mouseup', function () { setTimeout(updateArrange, 0); });
+  document.addEventListener('keyup', function () { setTimeout(updateArrange, 0); });
+
   // ── Keyboard: pan (WASD) and artwork nudge (arrows) ─────────────────────
   document.addEventListener('keydown', function (e) {
     if (e.target.matches('input, textarea, select')) return;
@@ -2437,5 +2460,6 @@
   renderWall();
   applyHangInfoState();
   applyRulerState();
+  updateArrange();
 
 }());
