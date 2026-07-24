@@ -606,9 +606,15 @@ const touchMove = { fwd: false, back: false };
 if (TOUCH) {
   setupTouchControls();
 } else {
-  renderer.domElement.addEventListener('click', function () {
-    if (!controls.isLocked) { controls.lock(); return; }   // first click enters look mode
-    pickAt(0, 0);                                           // then a click acts on the crosshair
+  renderer.domElement.addEventListener('click', function (e) {
+    if (controls.isLocked) { pickAt(0, 0); return; }   // locked: act on the crosshair
+    // Not locked (fresh load, after Esc, or a silently-dropped lock): a click on a
+    // piece opens it directly at the cursor; only an empty-space click enters look
+    // mode — so a click is never "wasted" just re-acquiring pointer lock.
+    var rect = renderer.domElement.getBoundingClientRect();
+    var nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    var ny = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    if (!pickAt(nx, ny)) controls.lock();
   });
   controls.addEventListener('lock', function () {
     crosshair.style.display = 'block';
@@ -790,17 +796,35 @@ if (placardFS) {
   });
 }
 
-// Raycast at NDC coords; a placard wins over a piece behind it. Returns true if
-// something was picked.
-function pickAt(x, y) {
+// Raycast at one NDC point; a placard wins over a piece behind it. Returns the
+// pick target ({kind, art}) or null — no side effects.
+function pickResult(x, y) {
+  camera.updateMatrixWorld();   // ensure the ray uses the camera's current pose
   _ndc.set(x, y);
   raycaster.setFromCamera(_ndc, camera);
   var pl = raycaster.intersectObjects(placardMeshes, false);
   var ar = raycaster.intersectObjects(artworkMeshes, false);
   var plHit = pl.length ? pl[0] : null;
   var arHit = ar.length ? ar[0] : null;
-  if (plHit && (!arHit || plHit.distance <= arHit.distance)) { openPlacardFullscreen(plHit.object.userData.placard); return true; }
-  if (arHit) { openArtwork(arHit.object.userData.art); return true; }
+  if (plHit && (!arHit || plHit.distance <= arHit.distance)) return { kind: 'placard', art: plHit.object.userData.placard };
+  if (arHit) return { kind: 'art', art: arHit.object.userData.art };
+  return null;
+}
+
+// A single-pixel crosshair ray is unforgiving — a hair off the piece silently
+// misses. Try the exact point first, then a small ring around it, so a click that
+// is "close enough" still lands. Center is tried first, so a dead-on hit wins.
+var PICK_OFFSETS = [[0, 0], [0.028, 0], [-0.028, 0], [0, 0.04], [0, -0.04],
+                    [0.028, 0.04], [-0.028, 0.04], [0.028, -0.04], [-0.028, -0.04]];
+function pickAt(x, y) {
+  for (var i = 0; i < PICK_OFFSETS.length; i++) {
+    var r = pickResult(x + PICK_OFFSETS[i][0], y + PICK_OFFSETS[i][1]);
+    if (r) {
+      if (r.kind === 'placard') openPlacardFullscreen(r.art);
+      else openArtwork(r.art);
+      return true;
+    }
+  }
   return false;
 }
 
