@@ -178,9 +178,10 @@
   }
 
   // ── Wall-edge ruler ─────────────────────────────────────────────────────────
-  // Tick marks along all four wall borders: long ticks every foot, short every
-  // inch. Horizontal ticks are measured from the wall centre (x = 0), vertical
-  // ticks from the floor (y = 0) — matching the placement coordinate system.
+  // Tick marks along all four wall borders: long ticks every 10 inches, short
+  // every inch. Horizontal ticks are measured from the wall centre (x = 0),
+  // vertical ticks from the floor (y = 0) — matching the placement coordinate
+  // system. Tick lengths are in inches, so they scale with zoom.
   var rulerCanvas = null;
   var rulerOn = localStorage.getItem('roomLayoutRuler') !== '0';   // default on
   var RULER_INCH_MIN = 3.5;   // only draw inch ticks when >= this many px/inch
@@ -204,7 +205,11 @@
     if (!rulerOn) { rulerCanvas.style.display = 'none'; return; }
     rulerCanvas.style.display = 'block';
 
-    var BIG = 15, SMALL = 7;                  // tick lengths (screen px)
+    // Tick lengths are in INCHES (fixed size on the wall) so they scale with zoom
+    // instead of ballooning when you zoom out.
+    var BIG_IN = 4, SMALL_IN = 2;             // big/small tick length, in inches
+    var BIG_STEP = 10;                        // a big tick every 10 inches
+    var bigLen = BIG_IN * baseScale, smallLen = SMALL_IN * baseScale;
     var showInch = baseScale >= RULER_INCH_MIN;
     var cx = W / 2;                           // horizontal centre (x_in = 0)
     ctx.strokeStyle = 'rgba(50,50,50,0.6)';
@@ -225,19 +230,19 @@
     }
     // Horizontal: from the centre outward, both directions.
     for (var n = 0; n <= Math.ceil(dims[0] / 2); n++) {
-      var big = (n % 12 === 0);
+      var big = (n % BIG_STEP === 0);
       if (!big && !showInch) continue;
       ctx.lineWidth = big ? 1.6 : 1;
-      var len = big ? BIG : SMALL;
+      var len = big ? bigLen : smallLen;
       if (cx + n * baseScale <= W + 0.5) vtick(cx + n * baseScale, len);
       if (n !== 0 && cx - n * baseScale >= -0.5) vtick(cx - n * baseScale, len);
     }
     // Vertical: from the floor (bottom) upward.
     for (var m = 0; m <= Math.ceil(dims[1]); m++) {
-      var bigv = (m % 12 === 0);
+      var bigv = (m % BIG_STEP === 0);
       if (!bigv && !showInch) continue;
       ctx.lineWidth = bigv ? 1.6 : 1;
-      htick(H - m * baseScale, bigv ? BIG : SMALL);
+      htick(H - m * baseScale, bigv ? bigLen : smallLen);
     }
   }
 
