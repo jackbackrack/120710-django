@@ -24,7 +24,9 @@
            padding-top: .6rem; border-top: 1px solid rgba(0,0,0,.15); }
 
   /* Roster: the PDF splits the artist list into 2–4 columns by count. */
-  .ck-roster { margin: .7rem 0 0; padding: 0; list-style: none;
+  /* Bottom margin separates the roster from the show image and statement below —
+     the float clears it, so the gap holds with or without an image. */
+  .ck-roster { margin: .7rem 0 1.4rem; padding: 0; list-style: none;
                columns: 2; column-gap: 1.2rem; font-size: 11pt; }
   @media (min-width: 700px) { .ck-roster.cols-3 { columns: 3; } .ck-roster.cols-4 { columns: 4; } }
   .ck-roster li { break-inside: avoid; padding: .05rem 0; }
@@ -66,11 +68,11 @@
   }
 </style>
 
+{# No PDF link here, even for curators: generating it is slow enough to tie up the
+   single web worker, so it stays a deliberate action from the show page's curator
+   row rather than something one click away on a public page. Print uses this page. #}
 <div class="ck-actions">
   <button type="button" class="btn btn-sm btn-link p-0 card__link" onclick="window.print()">Print</button>
-  {% if can_manage_show %}
-  <a class="card__link" href="{% url 'gallery:show_checklist_pdf' show.slug %}">Download PDF</a>
-  {% endif %}
 </div>
 
 <div class="ck">
