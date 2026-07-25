@@ -286,10 +286,11 @@ def _cover(show, site, works, styles, content_w, cache=None):
     # Participating-artist list — as many columns as needed for the count.
     seen, artists = set(), []
     for w in works:
-        for a in w.artists.all():
+        for a in w.credited_artists:
             if a.pk not in seen:
                 seen.add(a.pk)
                 artists.append(str(a))
+    artists.sort(key=str.casefold)   # a cover list reads as a roster, so alphabetical
     if artists:
         n = len(artists)
         ncols = 2 if n <= 14 else 3 if n <= 30 else 4
@@ -321,7 +322,7 @@ def _cover(show, site, works, styles, content_w, cache=None):
 
 
 def _work_entry(artwork, styles, content_w, cache=None):
-    artists = ', '.join(str(a) for a in artwork.artists.all())
+    artists = artwork.credit_line
     title_year = escape(artwork.name or 'Untitled')
     yr = _years(artwork)
     if yr:
@@ -360,16 +361,17 @@ def show_checklist_pdf(request, slug):
     numbers = {sn.artwork_id: sn.number
                for sn in ShowArtworkNumber.objects.filter(show=show)}
     works = list(show.artworks.prefetch_related('artists'))
-    works.sort(key=lambda a: (', '.join(str(x) for x in a.artists.all()).lower(),
+    works.sort(key=lambda a: (a.credit_line.casefold(),
                               numbers.get(a.id, 10 ** 9), (a.name or '').lower()))
 
     # Every participating artist (name + photo + bio if any), then the curator(s).
     artists, seen = [], set()
     for w in works:
-        for a in w.artists.all():
+        for a in w.credited_artists:
             if a.pk not in seen:
                 seen.add(a.pk)
                 artists.append(a)
+    artists.sort(key=lambda a: str(a).casefold())   # bios in the same order as the cover
     curators = list(show.curators.all())
 
     # Resolve every image field on THIS thread (field access can touch the ORM), then

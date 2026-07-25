@@ -61,7 +61,10 @@ def _get_placard_data(request, show, number):
     if entry is None:
         return None
     artwork = entry.artwork
-    artists = list(artwork.artists.values_list('name', flat=True))
+    # str(artist) is full_name (first+last, falling back to `name`) — the same value
+    # the printed placard and the checklist use. Reading the raw `name` column here
+    # made the e-ink placard disagree with the paper one for the same piece.
+    artists = [str(a) for a in artwork.credited_artists]
     year = str(artwork.start_year) + '–' + str(artwork.end_year) if artwork.start_year and artwork.start_year != artwork.end_year else str(artwork.end_year)
     image_url = None
     if artwork.image:
@@ -219,7 +222,7 @@ def _draw_qr(c, url, x, y, size):
 def _card_fields(artwork):
     """Placard fields (text, font, base_size, max_lines): title, year(s), artist(s),
     medium, dimensions. Title and medium may wrap to 2 lines; the rest are 1 line."""
-    artists = ', '.join(str(a) for a in artwork.artists.all())
+    artists = artwork.credit_line
     sy, ey = artwork.start_year, artwork.end_year
     if ey and sy and sy != ey:
         years = f'{sy}–{ey}'

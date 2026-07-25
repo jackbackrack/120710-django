@@ -3641,6 +3641,61 @@ class PlacardSheetPdfTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.content.startswith(b'%PDF-'))
 
+    def test_collaboration_credits_every_artist_alphabetically(self):
+        """A piece with several artists names all of them, comma-separated and in the
+        same order, wherever it is printed or displayed. Artist.Meta.ordering is
+        ['-created_at'], so a plain artists.all() would reverse them by sign-up date."""
+        from gallery.models import Artist
+        from gallery.views.checklist import _styles, _work_entry
+        from gallery.views.placards import _card_fields, _layout_card, CARD_W, CARD_H, PAD
+        from gallery.views.room import _artwork_json
+
+        aw = Artwork.objects.create(name='Collaboration', end_year=2025,
+                                    medium='mixed media', width_inches=24, height_inches=36)
+        for first, last in [('Ana', 'Ruiz'), ('Cleo', 'Nakamura'), ('Bo', 'Chen')]:
+            aw.artists.add(Artist.objects.create(
+                name='%s %s' % (first, last), first_name=first, last_name=last,
+                email='%s@example.com' % first.lower()))
+        expected = 'Ana Ruiz, Bo Chen, Cleo Nakamura'
+
+        self.assertEqual(aw.credit_line, expected)
+        # ...and not merely whatever the default related ordering produced.
+        self.assertNotEqual(', '.join(str(a) for a in aw.artists.all()), expected)
+
+        self.assertIn(expected, [t for (t, *_rest) in _card_fields(aw)])
+        card = ' '.join(t for (t, _f, _s) in _layout_card(aw, CARD_W - 2 * PAD, CARD_H - 2 * PAD))
+        for name in ('Ana Ruiz', 'Bo Chen', 'Cleo Nakamura'):
+            self.assertIn(name, card)
+        self.assertNotIn('…', card)                       # nobody trimmed off the card
+        self.assertEqual(_artwork_json(aw)['artists'], expected)
+
+        entry = _work_entry(aw, _styles(), 6.5 * 72)
+        text = ''
+        for row in entry._content:
+            if hasattr(row, 'text'):
+                text = row.text
+            for cells in getattr(row, '_cellvalues', None) or []:
+                for cell in cells:
+                    if hasattr(cell, 'text'):
+                        text = cell.text
+        self.assertIn(expected, text)
+
+    def test_magtag_placard_uses_the_same_names_as_the_printed_one(self):
+        """The e-ink placard read the raw `name` column while paper used full_name,
+        so the two could disagree for the same piece."""
+        from gallery.models import Artist, ShowArtworkNumber
+        from gallery.views.placards import _get_placard_data
+        aw = Artwork.objects.create(name='Duo Piece', end_year=2025)
+        aw.artists.add(Artist.objects.create(
+            name='legacy-handle', first_name='Bo', last_name='Chen', email='b@e.com'))
+        aw.artists.add(Artist.objects.create(
+            name='other-handle', first_name='Ana', last_name='Ruiz', email='a@e.com'))
+        self.show.artworks.add(aw)
+        ShowArtworkNumber.objects.create(show=self.show, artwork=aw, number=99)
+
+        data = _get_placard_data(self.client.request().wsgi_request, self.show, 99)
+        self.assertEqual(data['artwork']['artists'], ['Ana Ruiz', 'Bo Chen'])
+
     def _pages(self, qs=''):
         r = self.client.get(self.url + qs)
         self.assertEqual(r.status_code, 200)

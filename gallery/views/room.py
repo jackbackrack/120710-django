@@ -86,7 +86,7 @@ def _config_dict(config):
 def _artwork_json(artwork):
     # "Prefer the crop, else the hero" lives on the model (Artwork.layout_*_url),
     # so the layout editor, 3D viewer, and detail page share one source of truth.
-    artists = ', '.join(str(a) for a in artwork.artists.all())
+    artists = artwork.credit_line
     return {
         'id':      artwork.pk,
         'name':    artwork.name,

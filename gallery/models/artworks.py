@@ -145,6 +145,24 @@ class Artwork(models.Model):
         return self.framed_depth_inches if self.framed_depth_inches is not None else self.depth_inches
 
     @property
+    def credited_artists(self):
+        """Every artist on the piece, in credit order: alphabetical by display name.
+
+        Artist.Meta.ordering is ['-created_at'], so a plain artists.all() credits a
+        collaboration in reverse sign-up order — a duo added Ana-then-Bo reads
+        "Bo Chen, Ana Ruiz". That order is arbitrary and shifts as accounts are
+        created, so credits sort here instead. Sorting the (usually prefetched) list
+        in Python rather than re-querying keeps prefetch_related('artists') effective.
+        """
+        return sorted(self.artists.all(), key=lambda a: str(a).casefold())
+
+    @property
+    def credit_line(self):
+        """Comma-separated credit for placards, the checklist and the 3D placards, so
+        one piece reads identically wherever it appears."""
+        return ', '.join(str(a) for a in self.credited_artists)
+
+    @property
     def placard_dimensions(self):
         """W × H (× D) in — formatted dimension string."""
         def fmt(v):
