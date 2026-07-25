@@ -101,8 +101,7 @@
   {% endif %}
   {% if can_manage_show %}
     <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
-    <a class="card__link" href="{% url 'gallery:placard_sheet_pdf' show.slug %}" title="Download a PDF of the show's placards for Avery 5376 (2×3.5in) business-card sheets">Placards PDF</a>
-    <a class="card__link" href="{% url 'gallery:show_placards_detail' show.slug %}" title="Pick specific placards to print — for reprinting a few cards without running the whole show">Pick Placards</a>
+    <a class="card__link" href="{% url 'gallery:show_placards_detail' show.slug %}" title="Choose which placards to print, then download a PDF for Avery 5376 (2×3.5in) business-card sheets">Placards PDF</a>
     <a class="card__link" href="{% url 'gallery:show_checklist_pdf' show.slug %}" title="Download the show checklist PDF (cover, works with images, artist & curator bios)">Checklist PDF</a>
     {# Email actions on their own line so they don't overflow the row above #}
     <div style="width:100%"></div>
