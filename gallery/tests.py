@@ -3148,6 +3148,56 @@ class ChecklistPdfTests(TestCase):
         _, w, h = got
         self.assertEqual((w, h), (40, 100))   # landscape source rotated to portrait
 
+    def _counting_field(self, name, opens, fail=False):
+        """A stand-in image field that records every storage open."""
+        import io
+        from PIL import Image as P
+        b = io.BytesIO(); P.new('RGB', (40, 30), (10, 20, 30)).save(b, 'JPEG')
+        data = b.getvalue()
+
+        class F:
+            def __init__(self): self.name = name
+            def __bool__(self): return True
+            def open(self, mode='rb'):
+                opens.append(name)
+                if fail:
+                    raise IOError('missing')
+                self._b = io.BytesIO(data)
+            def read(self): return self._b.read()
+            def close(self): pass
+        return F()
+
+    def test_prefetch_warms_cache_and_skips_full_size_originals(self):
+        """Images are fetched once, concurrently, before the PDF is laid out. Only the
+        thumbnail candidate is prefetched — pulling the full-resolution fallbacks up
+        front would download megabytes that are almost never needed."""
+        from gallery.views.checklist import _downscale, _prefetch
+        opens = []
+        lists = [[self._counting_field(f'thumb-{i}.jpg', opens),
+                  self._counting_field(f'orig-{i}.jpg', opens)] for i in range(5)]
+
+        cache = {}
+        _prefetch(lists, cache)
+        self.assertEqual(sorted(opens), [f'thumb-{i}.jpg' for i in range(5)])
+        self.assertFalse([k for k in cache if k.startswith('orig-')])
+
+        opens.clear()
+        for l in lists:
+            self.assertIsNotNone(_downscale(l, 600, cache))
+        self.assertEqual(opens, [])   # laid out entirely from the prefetched bytes
+
+    def test_missing_thumbnail_falls_back_to_original_and_warns(self):
+        from gallery.views.checklist import _downscale, _prefetch
+        opens = []
+        fields = [self._counting_field('thumb.jpg', opens, fail=True),
+                  self._counting_field('orig.jpg', opens)]
+        cache = {}
+        _prefetch([fields], cache)
+        with self.assertLogs('gallery.views.checklist', level='WARNING') as log:
+            self.assertIsNotNone(_downscale(fields, 600, cache))
+        self.assertIn('thumbnail missing', ''.join(log.output))
+        self.assertIn('orig.jpg', opens)   # fallback fetched lazily, not in the prefetch
+
     def test_logo_reader_uses_site_icon(self):
         from gallery.models import Site
         from gallery.views.checklist import _logo_reader
