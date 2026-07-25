@@ -85,13 +85,18 @@ def artist_to_schema(artist, request) -> Person:
         handle = artist.instagram.lstrip('@')
         same_as.append(f'https://www.instagram.com/{handle}/')
 
+    # An artist's email/phone are deliberately NOT emitted. Structured data exists to
+    # be read by crawlers, so anything put here is public by definition — there is no
+    # way to gate it the way the artist page gates the same fields behind
+    # can_see_contact. This mapper also feeds artwork/show/event schemas and the
+    # public /api/schema/artists feed, so populating them leaked every artist's
+    # contact details in bulk. The GALLERY's own contact details stay (see
+    # gallery_to_schema): those are business contact info, published on purpose.
     return Person(
         id=public_url,
         name=artist.full_name,
         givenName=artist.first_name or None,
         familyName=artist.last_name or None,
-        email=artist.email or None,
-        telephone=artist.phone or None,
         url=public_url,
         image=build_absolute_media_url(request, artist.image),
         sameAs=same_as or None,

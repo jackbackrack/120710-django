@@ -596,6 +596,42 @@ class ArtistVenmoVisibilityTests(TestCase):
         add_staff_role(staff)
         self.assertIn(self.VENMO, self._body(staff))
 
+    def test_contact_details_hidden_from_public_page(self):
+        """Phone and email use the same gate as Venmo, in the rendered page."""
+        self.artist.phone = '555-0100'
+        self.artist.save(update_fields=['phone'])
+        body = self._body()
+        self.assertNotIn('555-0100', body)
+        self.assertNotIn('payee-a@example.com', body)
+
+    def test_contact_details_visible_to_curator_and_owner(self):
+        self.artist.phone = '555-0100'
+        self.artist.save(update_fields=['phone'])
+        owner_body = self._body(self.owner)
+        self.assertIn('555-0100', owner_body)
+        self.assertIn('payee-a@example.com', owner_body)
+
+    def test_contact_details_never_in_structured_data(self):
+        """JSON-LD is written for crawlers, so anything in it is public regardless of
+        who is signed in. artist_to_schema also feeds artwork/show/event schemas and
+        the /api/schema/artists feed, so a leak here is a bulk leak."""
+        self.artist.phone = '555-0100'
+        self.artist.save(update_fields=['phone'])
+        for user in (None, self.owner):
+            body = self._body(user)
+            for block in re.findall(
+                    r'<script type="application/ld\+json">(.*?)</script>', body, re.S):
+                self.assertNotIn('555-0100', block)
+                self.assertNotIn('payee-a@example.com', block)
+
+    def test_gallery_own_contact_details_are_still_published(self):
+        """Only per-artist contact is withheld; the gallery's own stays public."""
+        from django.test import RequestFactory
+        from eatart.schemaorg.mappers import gallery_to_schema, schema_to_dict
+        gal = schema_to_dict(gallery_to_schema(RequestFactory().get('/')))
+        self.assertTrue(gal.get('email'))
+        self.assertTrue(gal.get('telephone'))
+
     def test_not_emitted_in_public_structured_data(self):
         """The JSON-LD block is built by artist_to_schema and bypasses template
         gating entirely, so assert the handle is absent from it separately."""
