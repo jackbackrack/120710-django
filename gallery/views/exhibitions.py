@@ -154,8 +154,11 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         return context
 
 
-def redirect_to_latest_show(request, site_slug=None):
+def redirect_to_latest_show(request, site_slug=None, target='detail'):
     """Redirect to the show running now, else the next one starting.
+
+    target='checklist' lands on that show's web checklist instead of its detail page,
+    so a site can publish one durable "current checklist" link.
 
     With site_slug (/site/<site>/show/latest) the search is limited to that site's
     shows and the redirect stays inside the site's URL space, so a visitor following
@@ -181,6 +184,10 @@ def redirect_to_latest_show(request, site_slug=None):
 
     if show is None:
         return redirect(site.get_absolute_url() if site else '/shows/')
+    if target == 'checklist':
+        # The checklist page has no site-scoped URL — it reads the show's own site —
+        # so both the scoped and unscoped routes land on the same place.
+        return redirect('gallery:show_checklist', slug=show.slug)
     if site is not None:
         return redirect('gallery:site_show_detail', site_slug=site.slug, slug=show.slug)
     return redirect(show)

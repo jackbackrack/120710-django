@@ -296,6 +296,49 @@ class PublicUrlTests(TestCase):
 
     def test_unknown_site_slug_is_404(self):
         self.assertEqual(self.client.get('/site/no-such-site/show/latest').status_code, 404)
+        self.assertEqual(self.client.get('/site/no-such-site/latest/checklist').status_code, 404)
+
+    def test_latest_checklist_shortcuts_land_on_the_web_checklist(self):
+        """A durable "current checklist" link for a venue, in either spelling."""
+        from gallery.models import Site
+        today = datetime.date.today()
+        day = datetime.timedelta(days=1)
+        site = Site.objects.create(name='Venue X', slug='venue-x', status=Site.STATUS_PUBLISHED)
+        other = Site.objects.create(name='Venue Y', slug='venue-y', status=Site.STATUS_PUBLISHED)
+        mine = Show.objects.create(name='Mine Now', start=today - day, end=today + day,
+                                   status=Show.STATUS_PUBLISHED)
+        mine.sites.add(site)
+        theirs = Show.objects.create(name='Theirs Now', start=today - day, end=today + day,
+                                     status=Show.STATUS_PUBLISHED)
+        theirs.sites.add(other)
+        target = reverse('gallery:show_checklist', kwargs={'slug': mine.slug})
+
+        for url in ('/site/venue-x/latest/checklist',
+                    '/site/venue-x/latest/checklist/',
+                    '/site/venue-x/show/latest/checklist'):
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 302)
+                self.assertEqual(r.headers['Location'], target)
+
+        # Scoped to the site, and the checklist itself actually renders.
+        self.assertEqual(self.client.get('/site/venue-y/latest/checklist').headers['Location'],
+                         reverse('gallery:show_checklist', kwargs={'slug': theirs.slug}))
+        r = self.client.get('/site/venue-x/latest/checklist', follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Mine Now')
+
+    def test_latest_show_route_still_goes_to_the_show_page(self):
+        """The checklist routes must not swallow the plain latest-show redirect."""
+        from gallery.models import Site
+        today = datetime.date.today()
+        day = datetime.timedelta(days=1)
+        site = Site.objects.create(name='Venue Z', slug='venue-z', status=Site.STATUS_PUBLISHED)
+        show = Show.objects.create(name='Z Now', start=today - day, end=today + day,
+                                   status=Show.STATUS_PUBLISHED)
+        show.sites.add(site)
+        r = self.client.get('/site/venue-z/show/latest')
+        self.assertEqual(r.headers['Location'], '/site/venue-z/show/%s/' % show.slug)
 
     def test_homepage_contains_art_gallery_json_ld(self):
         response = self.client.get(reverse('index'))

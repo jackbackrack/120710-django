@@ -145,6 +145,8 @@ urlpatterns = [
     re_path(r'^artwork/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ArtworkDetailView.as_view(), name='artwork_detail'),
     path('shows/', ShowListView.as_view(), name='show_list'),
     path('show/latest', redirect_to_latest_show, name='show_latest'),
+    re_path(r'^show/latest/checklist/?$', redirect_to_latest_show,
+            {'target': 'checklist'}, name='show_latest_checklist'),
     path('show/<int:pk>/', ShowDetailView.as_view(), name='show_detail'),
     path('show/catalog/<int:pk>/', ShowCatalogView.as_view(), name='show_catalog'),
     re_path(r'^show/catalog/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ShowCatalogView.as_view(), name='show_catalog'),
@@ -171,6 +173,13 @@ urlpatterns = [
     # show whose slug is "latest". Trailing slash optional, since the global
     # /show/latest has none and either form is a reasonable thing to type or link.
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/show/latest/?$', redirect_to_latest_show, name='site_show_latest'),
+    # A durable "current checklist" link for a venue. Two spellings: the one that
+    # composes with the route above, and the shorter one without the show/ segment.
+    re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/show/latest/checklist/?$',
+            redirect_to_latest_show, {'target': 'checklist'}, name='site_show_latest_checklist'),
+    re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/latest/checklist/?$',
+            redirect_to_latest_show, {'target': 'checklist'}),
+
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ShowDetailView.as_view(), name='site_show_detail'),
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artist/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ArtistDetailView.as_view(), name='site_artist_detail'),
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artwork/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ArtworkDetailView.as_view(), name='site_artwork_detail'),
