@@ -234,6 +234,69 @@ class PublicUrlTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers['Location'], self.show.get_absolute_url())
 
+    def test_site_scoped_show_latest_picks_that_sites_show(self):
+        """/site/<site>/show/latest mirrors /show/latest but scoped to one site, and
+        lands inside that site's URL space rather than dropping out of it."""
+        from gallery.models import Site
+        today = datetime.date.today()
+        day = datetime.timedelta(days=1)
+        site_a = Site.objects.create(name='Site A', slug='site-a', status=Site.STATUS_PUBLISHED)
+        site_b = Site.objects.create(name='Site B', slug='site-b', status=Site.STATUS_PUBLISHED)
+        show_a = Show.objects.create(name='A Now', start=today - day, end=today + day,
+                                     status=Show.STATUS_PUBLISHED)
+        show_a.sites.add(site_a)
+        show_b = Show.objects.create(name='B Now', start=today - day, end=today + day,
+                                     status=Show.STATUS_PUBLISHED)
+        show_b.sites.add(site_b)
+
+        r = self.client.get('/site/site-a/show/latest')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.headers['Location'], '/site/site-a/show/%s/' % show_a.slug)
+        # The other site's show is not a candidate.
+        r = self.client.get('/site/site-b/show/latest')
+        self.assertEqual(r.headers['Location'], '/site/site-b/show/%s/' % show_b.slug)
+        # Trailing slash is accepted too, and must not resolve as slug='latest'.
+        self.assertEqual(self.client.get('/site/site-a/show/latest/').status_code, 302)
+
+    def test_site_scoped_show_latest_falls_back_to_upcoming_then_site(self):
+        from gallery.models import Site
+        today = datetime.date.today()
+        day = datetime.timedelta(days=1)
+        site = Site.objects.create(name='Later', slug='later', status=Site.STATUS_PUBLISHED)
+        r = self.client.get('/site/later/show/latest')          # no shows at all
+        self.assertEqual(r.headers['Location'], site.get_absolute_url())
+
+        upcoming = Show.objects.create(name='Soon', start=today + 10 * day,
+                                       end=today + 20 * day, status=Show.STATUS_PUBLISHED)
+        upcoming.sites.add(site)
+        r = self.client.get('/site/later/show/latest')
+        self.assertEqual(r.headers['Location'], '/site/later/show/%s/' % upcoming.slug)
+
+    def test_show_latest_never_redirects_anonymous_to_an_invisible_show(self):
+        """The detail view filters by visible_show_queryset, so redirecting to a draft
+        would land the visitor on a 404."""
+        from gallery.models import Site
+        today = datetime.date.today()
+        day = datetime.timedelta(days=1)
+        site = Site.objects.create(name='Drafty', slug='drafty', status=Site.STATUS_PUBLISHED)
+        draft = Show.objects.create(name='Secret', start=today - day, end=today + day,
+                                    status=Show.STATUS_DRAFT)
+        draft.sites.add(site)
+
+        r = self.client.get('/site/drafty/show/latest', follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('/show/%s/' % draft.slug, r.redirect_chain[-1][0])
+
+        staff = User.objects.create_user(
+            username='drafty@example.com', email='drafty@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        r = self.client.get('/site/drafty/show/latest')
+        self.assertEqual(r.headers['Location'], '/site/drafty/show/%s/' % draft.slug)
+
+    def test_unknown_site_slug_is_404(self):
+        self.assertEqual(self.client.get('/site/no-such-site/show/latest').status_code, 404)
+
     def test_homepage_contains_art_gallery_json_ld(self):
         response = self.client.get(reverse('index'))
         html = response.content.decode()

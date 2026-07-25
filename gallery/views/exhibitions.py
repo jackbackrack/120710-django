@@ -152,20 +152,36 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         return context
 
 
-def redirect_to_latest_show(request):
+def redirect_to_latest_show(request, site_slug=None):
+    """Redirect to the show running now, else the next one starting.
+
+    With site_slug (/site/<site>/show/latest) the search is limited to that site's
+    shows and the redirect stays inside the site's URL space, so a visitor following
+    a site link is not dropped out of it. Falls back to the site's page, or the
+    global show list when unscoped.
+
+    Only shows the viewer may actually open are considered: ShowDetailView filters by
+    visible_show_queryset, so redirecting to a draft would land an anonymous visitor
+    on a 404. A curator still gets their own unpublished shows.
+    """
     now = timezone.now()
-    ongoing_shows = Show.objects.filter(start__lte=now, end__gte=now).order_by('-start')
-    upcoming_shows = Show.objects.filter(start__gt=now).order_by('start')
-    current_show = ongoing_shows.first()
+    shows = visible_show_queryset(Show.objects.all(), request.user)
 
-    if current_show:
-        return redirect(current_show)
+    site = None
+    if site_slug is not None:
+        from gallery.models import Site
+        site = get_object_or_404(Site, slug=site_slug)
+        shows = shows.filter(sites=site)
+    shows = shows.distinct()
 
-    next_show = upcoming_shows.first()
-    if next_show:
-        return redirect(next_show)
+    show = (shows.filter(start__lte=now, end__gte=now).order_by('-start').first()
+            or shows.filter(start__gt=now).order_by('start').first())
 
-    return redirect('/shows/')
+    if show is None:
+        return redirect(site.get_absolute_url() if site else '/shows/')
+    if site is not None:
+        return redirect('gallery:site_show_detail', site_slug=site.slug, slug=show.slug)
+    return redirect(show)
 
 
 class ShowCatalogView(ShowDetailView):

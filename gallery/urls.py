@@ -166,6 +166,10 @@ urlpatterns = [
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/delete/$', SiteDeleteView.as_view(), name='site_delete'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artists/$', SiteArtistListView.as_view(), name='site_artist_list'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artworks/$', SiteArtworkListView.as_view(), name='site_artwork_list'),
+    # Must precede site_show_detail: otherwise ".../show/latest/" is captured as a
+    # show whose slug is "latest". Trailing slash optional, since the global
+    # /show/latest has none and either form is a reasonable thing to type or link.
+    re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/show/latest/?$', redirect_to_latest_show, name='site_show_latest'),
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ShowDetailView.as_view(), name='site_show_detail'),
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artist/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ArtistDetailView.as_view(), name='site_artist_detail'),
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artwork/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ArtworkDetailView.as_view(), name='site_artwork_detail'),
