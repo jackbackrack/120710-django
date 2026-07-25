@@ -163,6 +163,14 @@ class Artwork(models.Model):
         return ', '.join(str(a) for a in self.credited_artists)
 
     @property
+    def year_range(self):
+        """"2019–2021" for a piece made over time, else the single year (or '')."""
+        sy, ey = self.start_year, self.end_year
+        if ey and sy and sy != ey:
+            return f'{sy}–{ey}'
+        return str(ey or sy or '')
+
+    @property
     def placard_dimensions(self):
         """W × H (× D) in — formatted dimension string."""
         def fmt(v):

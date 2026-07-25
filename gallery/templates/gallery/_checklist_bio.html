@@ -1,0 +1,13 @@
+{% comment %}
+  One bio block — the photo floated left with the name, bio and statement flowing
+  around it, matching ImageAndFlowables(imageSide='left') in the PDF. Shared by the
+  Artists and Curators sections. Expects `person`.
+{% endcomment %}
+<div class="ck-entry ck-bio">
+  {% if person.image %}
+    <a href="{{ person.get_absolute_url }}"><img loading="lazy" src="{{ person.card_md.url }}" alt="{{ person }}"></a>
+  {% endif %}
+  <p class="ck-bioname">{{ person }}{% if person.instagram %} <span style="font-weight:400">{{ person.instagram }}</span>{% endif %}</p>
+  {% if person.bio %}<p>{{ person.bio|striptags }}</p>{% endif %}
+  {% if person.statement %}<p class="ck-stmt"><strong>Statement:</strong> {{ person.statement|striptags }}</p>{% endif %}
+</div>

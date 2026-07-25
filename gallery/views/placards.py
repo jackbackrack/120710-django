@@ -223,11 +223,7 @@ def _card_fields(artwork):
     """Placard fields (text, font, base_size, max_lines): title, year(s), artist(s),
     medium, dimensions. Title and medium may wrap to 2 lines; the rest are 1 line."""
     artists = artwork.credit_line
-    sy, ey = artwork.start_year, artwork.end_year
-    if ey and sy and sy != ey:
-        years = f'{sy}–{ey}'
-    else:
-        years = str(ey or sy or '')
+    years = artwork.year_range
     medium = (artwork.medium or '').strip()
     rows = [
         (artwork.name or 'Untitled', _BOLD, 12.0, 2),

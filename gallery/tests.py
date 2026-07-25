@@ -3313,6 +3313,54 @@ class ChecklistPdfTests(TestCase):
         _, w, h = got
         self.assertEqual((w, h), (40, 100))   # landscape source rotated to portrait
 
+    def test_html_checklist_is_public_for_a_published_show(self):
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+        url = reverse('gallery:show_checklist', kwargs={'slug': self.show.slug})
+        r = self.client.get(url)                      # anonymous
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode()
+        self.assertIn(self.show.name, body)
+        self.assertIn('float: left', body)            # thumbnails flow, per the PDF
+        # The curator-only PDF is not advertised to the public.
+        self.assertNotIn('checklist.pdf', body)
+
+    def test_html_checklist_hidden_until_published(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        url = reverse('gallery:show_checklist', kwargs={'slug': self.show.slug})
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.staff)           # curator may preview early
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_html_checklist_carries_no_private_contact_details(self):
+        """It is public, so it must hold no more than the PDF does."""
+        from gallery.models import Artist
+        artist = Artist.objects.create(
+            name='Pia Private', first_name='Pia', last_name='Private',
+            email='pia-private@example.com', phone='555-0199', venmo='@pia-venmo',
+            bio='A bio.')
+        art = Artwork.objects.create(name='Piece', end_year=2025)
+        art.artists.add(artist)
+        self.show.artworks.add(art)
+        self.show.status = Show.STATUS_PUBLISHED
+        self.show.save(update_fields=['status'])
+
+        body = self.client.get(
+            reverse('gallery:show_checklist', kwargs={'slug': self.show.slug})).content.decode()
+        self.assertIn('Pia Private', body)             # credited
+        self.assertIn('A bio.', body)
+        for secret in ('pia-private@example.com', '555-0199', '@pia-venmo'):
+            self.assertNotIn(secret, body)
+
+    def test_pdf_and_html_checklists_agree_on_content(self):
+        """Both read from _checklist_data, so neither can quietly drift."""
+        from gallery.views.checklist import _checklist_data
+        site, works, artists, curators = _checklist_data(self.show)
+        self.assertEqual([str(w) for w in works],
+                         [str(w) for w in _checklist_data(self.show, user=self.staff)[1]])
+        self.assertTrue(works and artists)
+
     def _counting_field(self, name, opens, fail=False):
         """A stand-in image field that records every storage open."""
         import io

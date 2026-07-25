@@ -82,6 +82,9 @@
     <a class="card__link" href="{% url 'gallery:room_2d' show.slug %}">2D View</a>
     <a class="card__link" href="{% url 'gallery:room_viewer' show.slug %}">3D View</a>
   {% endif %}
+  {% if can_view_checklist %}
+    <a class="card__link" href="{% url 'gallery:show_checklist' show.slug %}" title="The show checklist — works, credits and artist bios">Checklist</a>
+  {% endif %}
   {# Curatorial actions on their own line for admin / juror / curator #}
   {% if can_view_reviews %}<div style="width:100%"></div>{% endif %}
   {% if show.submission_type == 'invited' and can_manage_show %}

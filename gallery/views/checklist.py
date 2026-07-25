@@ -16,7 +16,7 @@ from xml.sax.saxutils import escape
 
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.utils.html import strip_tags
 
 from reportlab.lib.enums import TA_LEFT
@@ -32,7 +32,7 @@ from reportlab.platypus import (
 
 from gallery.models import Show
 from gallery.models.show_artwork_numbers import ShowArtworkNumber
-from gallery.permissions import can_manage_show
+from gallery.permissions import can_manage_show, visible_artwork_queryset
 # Reuse the Unicode font chosen (and registered) by the placard module.
 from gallery.views.placards import _BOLD, _FONT, _ITALIC
 
@@ -188,13 +188,6 @@ def _img_flowable(fields, box_w, box_h, max_px=600, cache=None):
     return Image(data, width=iw * scale, height=ih * scale)
 
 
-def _years(artwork):
-    sy, ey = artwork.start_year, artwork.end_year
-    if ey and sy and sy != ey:
-        return f'{sy}–{ey}'
-    return str(ey or sy or '')
-
-
 def _para_lines(*lines, style):
     text = '<br/>'.join(l for l in lines if l)
     return Paragraph(text, style)
@@ -324,7 +317,7 @@ def _cover(show, site, works, styles, content_w, cache=None):
 def _work_entry(artwork, styles, content_w, cache=None):
     artists = artwork.credit_line
     title_year = escape(artwork.name or 'Untitled')
-    yr = _years(artwork)
+    yr = artwork.year_range
     if yr:
         title_year = f'<i>{title_year}</i>, {escape(yr)}'
     else:
@@ -350,17 +343,21 @@ def _work_entry(artwork, styles, content_w, cache=None):
     return KeepTogether([para, Spacer(1, 12)])
 
 
-@login_required
-def show_checklist_pdf(request, slug):
-    """Download the show's checklist as a PDF (Personal Space style)."""
-    show = get_object_or_404(Show, slug=slug)
-    if not can_manage_show(request.user, show):
-        raise Http404
+def _checklist_data(show, user=None):
+    """(site, works, artists, curators) for a show's checklist.
 
+    Shared by the PDF and the HTML version so the two can never drift in what they
+    include or how they order it. `user` restricts the works to what that viewer may
+    see — the HTML page is public, so it must not surface a hidden piece. Passing
+    None keeps every work in the show, which is what the curator-only PDF wants.
+    """
     site = show.sites.first()
     numbers = {sn.artwork_id: sn.number
                for sn in ShowArtworkNumber.objects.filter(show=show)}
-    works = list(show.artworks.prefetch_related('artists'))
+    works = show.artworks.prefetch_related('artists')
+    if user is not None:
+        works = works.filter(visible_artwork_queryset(user)).distinct()
+    works = list(works)
     works.sort(key=lambda a: (a.credit_line.casefold(),
                               numbers.get(a.id, 10 ** 9), (a.name or '').lower()))
 
@@ -372,7 +369,17 @@ def show_checklist_pdf(request, slug):
                 seen.add(a.pk)
                 artists.append(a)
     artists.sort(key=lambda a: str(a).casefold())   # bios in the same order as the cover
-    curators = list(show.curators.all())
+    return site, works, artists, list(show.curators.all())
+
+
+@login_required
+def show_checklist_pdf(request, slug):
+    """Download the show's checklist as a PDF (Personal Space style)."""
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+
+    site, works, artists, curators = _checklist_data(show)
 
     # Resolve every image field on THIS thread (field access can touch the ORM), then
     # fetch the bytes concurrently. Worker threads only talk to storage.
@@ -426,3 +433,28 @@ def show_checklist_pdf(request, slug):
     resp['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     resp['Pragma'] = 'no-cache'
     return resp
+
+
+def show_checklist_html(request, slug):
+    """The checklist as a web page, mirroring the PDF's layout.
+
+    Public for a published (or closed) show, like the 3D viewer and the read-only 2D
+    view; a curator can preview it earlier. Everything it shows — title, credits,
+    medium, dimensions, price, bios, Instagram — is already public on the show and
+    artist pages. It deliberately carries no email, phone or Venmo, matching the PDF.
+    """
+    show = get_object_or_404(Show, slug=slug)
+    published = show.status in (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED)
+    if not published and not can_manage_show(request.user, show):
+        raise Http404
+
+    site, works, artists, curators = _checklist_data(show, user=request.user)
+    return render(request, 'gallery/show_checklist.html', {
+        'show': show,
+        'site': site,
+        'works': works,
+        'artists': artists,
+        'curators': curators,
+        'statement_paragraphs': [b.strip() for b in _plain(show.description).split('\n\n') if b.strip()],
+        'can_manage_show': can_manage_show(request.user, show),
+    })

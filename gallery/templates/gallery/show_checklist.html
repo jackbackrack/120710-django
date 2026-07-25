@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Checklist — {{ show.name }}{% endblock %}
+{% block block_title %}{% endblock %}
+
+{% block content %}
+{% comment %}
+  Web version of the checklist PDF (gallery/views/checklist.py). It mirrors the PDF's
+  structure and relative type sizes — 7in content column, 24pt title, 9.5pt entries —
+  so the two read as the same document. Images float left with the text flowing
+  around them, which is what ImageAndFlowables(imageSide='left') does for the bios in
+  the PDF; the work entries use the same flow here rather than the PDF's rigid
+  two-column table, so a long credit or medium wraps under the thumbnail instead of
+  being squeezed into a narrow column.
+{% endcomment %}
+<style>
+  .ck { max-width: 7in; margin: 0 auto; padding: 0 .25in 2rem;
+        font-size: 11pt; line-height: 1.32; }
+  .ck h1 { font-size: 24pt; line-height: 1.12; margin: 0 0 .18rem; font-weight: 700; }
+  .ck .ck-curator { font-style: italic; font-size: 12pt; margin: 0 0 .15rem; }
+  .ck .ck-meta { font-size: 11pt; margin: 0 0 .1rem; }
+  .ck h2 { font-size: 13pt; font-weight: 700; margin: 1.5rem 0 .6rem;
+           padding-top: .6rem; border-top: 1px solid rgba(0,0,0,.15); }
+
+  /* Roster: the PDF splits the artist list into 2–4 columns by count. */
+  .ck-roster { margin: .7rem 0 0; padding: 0; list-style: none;
+               columns: 2; column-gap: 1.2rem; font-size: 11pt; }
+  @media (min-width: 700px) { .ck-roster.cols-3 { columns: 3; } .ck-roster.cols-4 { columns: 4; } }
+  .ck-roster li { break-inside: avoid; padding: .05rem 0; }
+
+  /* The float is the whole point: text wraps around the image, then continues
+     under it once it clears. clearfix so the next entry starts below. */
+  .ck-entry { margin: 0 0 .85rem; }
+  .ck-entry::after { content: ""; display: block; clear: both; }
+  .ck-entry img { float: left; margin: .1rem .55rem .3rem 0;
+                  max-width: 1.5in; height: auto; }
+  .ck-bio img { max-width: 1.3in; margin-right: .6rem; }
+  .ck-entry p { margin: 0 0 .12rem; font-size: 9.5pt; line-height: 1.32; }
+  .ck-artists { font-weight: 700; }
+  .ck-title { font-style: italic; }
+  .ck-bioname { font-weight: 700; font-size: 11pt; margin-bottom: .2rem; }
+  .ck-stmt { margin-top: .4rem; }
+
+  .ck-showimg { float: left; max-width: 3in; height: auto; margin: 0 .8rem .5rem 0; }
+  .ck-desc { font-size: 10.5pt; }
+  .ck-desc p { margin: 0 0 .55rem; }
+  .ck-cover::after { content: ""; display: block; clear: both; }
+
+  .ck-footer { margin-top: 2rem; padding-top: .6rem; font-size: 7.5pt; color: #4d4d4d;
+               border-top: 1px solid rgba(0,0,0,.15);
+               display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .ck-footer img { height: .4in; width: auto; }
+  .ck-actions { max-width: 7in; margin: 0 auto .5rem; padding: 0 .25in;
+                display: flex; gap: .8rem; }
+
+  @media print {
+    .ck-actions, nav, header, footer.site-footer { display: none !important; }
+    .ck { max-width: none; padding: 0; }
+    .ck-entry, .ck-bio { break-inside: avoid; }
+    .ck h2 { break-after: avoid; }
+  }
+  @media (max-width: 560px) {
+    .ck-showimg, .ck-entry img { float: none; margin: 0 0 .5rem; max-width: 100%; }
+    .ck-roster { columns: 1; }
+  }
+</style>
+
+<div class="ck-actions">
+  <button type="button" class="btn btn-sm btn-link p-0 card__link" onclick="window.print()">Print</button>
+  {% if can_manage_show %}
+  <a class="card__link" href="{% url 'gallery:show_checklist_pdf' show.slug %}">Download PDF</a>
+  {% endif %}
+</div>
+
+<div class="ck">
+  {# ── Cover ─────────────────────────────────────────────────────────── #}
+  <div class="ck-cover">
+    <h1>{{ show.name }}</h1>
+    {% if curators %}
+      <p class="ck-curator">Curated by {% for c in curators %}{{ c }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    <p class="ck-meta">{{ show.date_range }}</p>
+    {% for ev in show.events.all %}
+      <p class="ck-meta">{{ ev.name }}: {{ ev.date|date:"l F j, Y" }}, {{ ev.time_range }}</p>
+    {% endfor %}
+
+    {% if artists %}
+    <ul class="ck-roster {% if artists|length > 30 %}cols-4{% elif artists|length > 14 %}cols-3{% endif %}">
+      {% for a in artists %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if show.image %}
+      <img class="ck-showimg" loading="lazy" src="{{ show.detail_lg.url }}" alt="{{ show.name }}">
+    {% endif %}
+    <div class="ck-desc">
+      {% for para in statement_paragraphs %}<p>{{ para }}</p>{% endfor %}
+    </div>
+  </div>
+
+  {# ── Works ─────────────────────────────────────────────────────────── #}
+  {% if works %}
+  <h2>Works</h2>
+  {% for artwork in works %}
+  <div class="ck-entry">
+    {% if artwork.image %}
+      <a href="{{ artwork.get_absolute_url }}"><img loading="lazy" src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}"></a>
+    {% endif %}
+    {% if artwork.credit_line %}<p class="ck-artists">{{ artwork.credit_line }}</p>{% endif %}
+    <p><span class="ck-title">{{ artwork.name|default:"Untitled" }}</span>{% if artwork.year_range %}, {{ artwork.year_range }}{% endif %}</p>
+    {% if artwork.medium %}<p>{{ artwork.medium }}</p>{% endif %}
+    {% if artwork.placard_dimensions %}<p>{{ artwork.placard_dimensions }}</p>{% endif %}
+    {% if artwork.formatted_price %}<p>{{ artwork.formatted_price }}{% if artwork.is_sold %} — sold{% endif %}</p>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {# ── Bios ──────────────────────────────────────────────────────────── #}
+  {% if artists %}
+  <h2>Artists</h2>
+  {% for person in artists %}{% include 'gallery/_checklist_bio.html' %}{% endfor %}
+  {% endif %}
+
+  {% if curators %}
+  <h2>Curator{{ curators|length|pluralize }}</h2>
+  {% for person in curators %}{% include 'gallery/_checklist_bio.html' %}{% endfor %}
+  {% endif %}
+
+  {# ── Footer (the PDF repeats this on every page) ────────────────────── #}
+  {% if site %}
+  <div class="ck-footer">
+    <span>
+      {% if site.icon %}<img src="{{ site.icon.url }}" alt="">{% endif %}
+      {{ site.website|default:site.name }}{% if site.instagram %}<br>{{ site.instagram }}{% endif %}
+    </span>
+    <span style="text-align:right">
+      {{ site.street }}{% if site.city %}<br>{{ site.city }}{% if site.state %}, {{ site.state }}{% endif %} {{ site.postal_code }}{% endif %}
+    </span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

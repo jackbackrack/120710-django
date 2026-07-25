@@ -82,6 +82,8 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         context['has_placements'] = has_placements
         published = show.status in (Show.STATUS_PUBLISHED, Show.STATUS_CLOSED)
         context['can_view_3d'] = has_placements and (published or can_manage_show(self.request.user, show))
+        # The web checklist needs no placements — just a show anyone may see.
+        context['can_view_checklist'] = published or can_manage_show(self.request.user, show)
         if can_manage_show(self.request.user, show) and published:
             context['emails_pending'] = ArtworkSubmission.objects.filter(
                 show=show,
