@@ -20,8 +20,9 @@
       <strong>{{ artist.full_name }}</strong>
       {% if can_see_contact and artist.phone %}<br><strong>Phone: </strong><a class="card__link" href="tel:{{ artist.phone }}">{{ artist.phone }}</a>{% endif %}
       {% if can_see_contact and artist.email %}<br><strong>Email: </strong><a class="card__link" href="mailto:{{ artist.email }}">{{ artist.email }}</a>{% endif %}
+      {# Venmo is payment info, not a public profile: same gate as phone/email. #}
+      {% if can_see_contact and artist.venmo %}<br><strong>Venmo: </strong><a class="card__link" href="https://venmo.com/{{ artist.venmo|cut:"@" }}">{{ artist.venmo }}</a>{% endif %}
       {% if artist.instagram %}<br><strong>Instagram: </strong><a class="card__link" href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a>{% endif %}
-      {% if artist.venmo %}<br><strong>Venmo: </strong><a class="card__link" href="https://venmo.com/{{ artist.venmo|cut:"@" }}">{{ artist.venmo }}</a>{% endif %}
       {% if artist.website %}<br><strong>Website: </strong><a class="card__link" href="{{ artist.website }}">{{ artist.website }}</a>{% endif %}
       {% if artist.bio %}<br><strong>Bio: </strong>{{ artist.bio|sanitize }}{% endif %}
       {% if artist.statement %}<br><strong>Statement: </strong>{{ artist.statement|sanitize }}{% endif %}

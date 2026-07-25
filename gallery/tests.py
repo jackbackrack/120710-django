@@ -1,6 +1,7 @@
 import datetime
 import io
 import os
+import re
 import shutil
 import tempfile
 
@@ -542,6 +543,71 @@ class AuthorizationWorkflowTests(MediaImageMixin, TestCase):
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     },
 )
+class ArtistVenmoVisibilityTests(TestCase):
+    """Venmo is payment info, not a public profile field: only the artist, curators
+    and gallery admins may see it — the same gate as phone and email."""
+
+    VENMO = '@artist-a-venmo'
+
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username='payee-a@example.com', email='payee-a@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            user=self.owner, first_name='Paula', last_name='Payee',
+            email='payee-a@example.com', venmo=self.VENMO)
+        # Public visibility: an artwork in a published show.
+        show = Show.objects.create(
+            name='Venmo Show', slug='venmo-show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date.today(), end=datetime.date.today())
+        art = Artwork.objects.create(name='W', end_year=2025)
+        art.artists.add(self.artist)
+        art.shows.add(show)
+        self.url = self.artist.get_absolute_url()
+
+    def _body(self, user=None):
+        if user:
+            self.client.force_login(user)
+        r = self.client.get(self.url, follow=True)
+        self.assertEqual(r.status_code, 200)
+        return r.content.decode()
+
+    def test_hidden_from_anonymous_public(self):
+        self.assertNotIn(self.VENMO, self._body())
+
+    def test_hidden_from_an_unrelated_signed_in_artist(self):
+        other = User.objects.create_user(
+            username='payee-b@example.com', email='payee-b@example.com', password='pw')
+        Artist.objects.create(user=other, first_name='Other', last_name='Artist')
+        self.assertNotIn(self.VENMO, self._body(other))
+
+    def test_visible_to_the_artist_themselves(self):
+        self.assertIn(self.VENMO, self._body(self.owner))
+
+    def test_visible_to_a_curator(self):
+        cur_user = User.objects.create_user(
+            username='payee-c@example.com', email='payee-c@example.com', password='pw')
+        cur = Artist.objects.create(user=cur_user, first_name='Cur', last_name='Ator')
+        Show.objects.create(name='Curated', slug='curated').curators.add(cur)
+        self.assertIn(self.VENMO, self._body(cur_user))
+
+    def test_visible_to_staff(self):
+        staff = User.objects.create_user(
+            username='payee-s@example.com', email='payee-s@example.com', password='pw')
+        add_staff_role(staff)
+        self.assertIn(self.VENMO, self._body(staff))
+
+    def test_not_emitted_in_public_structured_data(self):
+        """The JSON-LD block is built by artist_to_schema and bypasses template
+        gating entirely, so assert the handle is absent from it separately."""
+        body = self._body()
+        blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>',
+                            body, re.S)
+        self.assertTrue(blocks, 'expected a JSON-LD block on the artist page')
+        for b in blocks:
+            self.assertNotIn(self.VENMO, b)
+            self.assertNotIn(self.VENMO.lstrip('@'), b)
+
+
 class ArtistDeletePermissionTests(MediaImageMixin, TestCase):
     """Artists with artworks in shows cannot be deleted except by staff."""
 
