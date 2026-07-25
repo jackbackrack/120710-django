@@ -1,16 +1,106 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ show.name }} placards{% endblock %}
-{% block block_title %}{{ show.name }} placards{% endblock %}
+{% block title %}Placards — {{ show.name }}{% endblock %}
+{% block block_title %}Placards — {{ show.name }}{% endblock %}
 
 {% block content %}
-{% for artwork in artworks %}
-  Placard(
-    &quot;{{ artwork.name }}&quot;, 
-    &quot;{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}&quot;,
-    &quot;{% if artwork.start_year %}{{ artwork.start_year }}-{% endif %}{{ artwork.end_year }}&quot;,
-    &quot;{{ artwork.medium }}&quot;
-    &quot;https://120710.art{{ artwork.get_absolute_url }}&quot;)
-  <br>
-{% endfor %}
+<style>
+  .pl-toolbar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center;
+    position:sticky; top:0; z-index:5; padding:.6rem 0; background:#fff;
+    border-bottom:1px solid rgba(0,0,0,.12); }
+  .pl-list { list-style:none; padding:0; margin:1rem 0 0; }
+  .pl-list li { border-bottom:1px solid rgba(0,0,0,.07); }
+  .pl-row { display:flex; gap:.6rem; align-items:baseline; padding:.4rem .2rem; }
+  label.pl-row { cursor:pointer; }
+  label.pl-row:hover { background:rgba(0,0,0,.03); }
+  .pl-num { min-width:2.6em; font-variant-numeric:tabular-nums; color:#666; font-size:.85rem; }
+  .pl-artist { font-weight:600; }
+  .pl-title { font-style:italic; }
+  .pl-opts { display:flex; gap:1rem; flex-wrap:wrap; margin:.5rem 0 0; font-size:.9rem; }
+</style>
+
+{% if can_manage_show %}
+{% comment %}
+  Curator view: tick the cards you need and download a sheet of just those. The form
+  is a plain GET whose checkboxes are named "ids", which is exactly what
+  placard_sheet_pdf reads — so it degrades to a working (if unfiltered) request even
+  with JavaScript disabled. The script below only adds the counter and select-all.
+{% endcomment %}
+<form method="get" action="{% url 'gallery:placard_sheet_pdf' show.slug %}" id="pl-form">
+  <div class="pl-toolbar">
+    <button type="submit" class="btn btn-sm btn-primary" id="pl-submit">Download placards</button>
+    <span><strong id="pl-n">0</strong> selected &mdash; <span id="pl-sheets">0</span> sheet(s) of {{ per_page }}</span>
+    <button type="button" class="btn btn-sm btn-link p-0" id="pl-all">Select all</button>
+    <button type="button" class="btn btn-sm btn-link p-0" id="pl-none">Select none</button>
+  </div>
+
+  <div class="pl-opts">
+    <label><input type="checkbox" name="outlines" value="1"> Draw card outlines (plain-paper alignment test)</label>
+    <label><input type="checkbox" name="qr" value="0"> Omit QR codes</label>
+  </div>
+
+  <ul class="pl-list">
+    {% for artwork in artworks %}
+    <li>
+      <label class="pl-row">
+        <input type="checkbox" name="ids" value="{{ artwork.pk }}" class="pl-cb">
+        <span class="pl-num">{% if artwork.placard_number %}#{{ artwork.placard_number }}{% endif %}</span>
+        <span>
+          <span class="pl-artist">{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% empty %}(no artist){% endfor %}</span>
+          &mdash; <span class="pl-title">{{ artwork.name|default:"Untitled" }}</span>{% if artwork.end_year %}, {{ artwork.end_year }}{% endif %}
+        </span>
+      </label>
+    </li>
+    {% empty %}
+    <li><p>This show has no artworks yet.</p></li>
+    {% endfor %}
+  </ul>
+</form>
+
+<script>
+(function () {
+  var form = document.getElementById('pl-form');
+  if (!form) return;
+  var boxes = Array.prototype.slice.call(form.querySelectorAll('.pl-cb'));
+  var nEl = document.getElementById('pl-n');
+  var sheetsEl = document.getElementById('pl-sheets');
+  var submit = document.getElementById('pl-submit');
+  var perPage = {{ per_page }};
+
+  function update() {
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    nEl.textContent = n;
+    sheetsEl.textContent = Math.ceil(n / perPage);
+    // Submitting with nothing ticked sends no ids at all, which the endpoint reads as
+    // "the whole show" — block it rather than surprise-printing every card.
+    submit.disabled = n === 0;
+    submit.textContent = n ? 'Download ' + n + ' placard' + (n === 1 ? '' : 's') : 'Download placards';
+  }
+  boxes.forEach(function (b) { b.addEventListener('change', update); });
+  document.getElementById('pl-all').addEventListener('click', function () {
+    boxes.forEach(function (b) { b.checked = true; }); update();
+  });
+  document.getElementById('pl-none').addEventListener('click', function () {
+    boxes.forEach(function (b) { b.checked = false; }); update();
+  });
+  update();
+}());
+</script>
+
+{% else %}
+<ul class="pl-list">
+  {% for artwork in artworks %}
+  <li>
+    <div class="pl-row">
+      <span class="pl-num">{% if artwork.placard_number %}#{{ artwork.placard_number }}{% endif %}</span>
+      <span>
+        <span class="pl-artist">{% for artist in artwork.artists.all %}{{ artist }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+        &mdash; <span class="pl-title">{{ artwork.name|default:"Untitled" }}</span>{% if artwork.end_year %}, {{ artwork.end_year }}{% endif %}
+        {% if artwork.medium %}<br><small>{{ artwork.medium }}</small>{% endif %}
+      </span>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
 {% endblock %}

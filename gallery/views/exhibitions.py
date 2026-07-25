@@ -15,8 +15,12 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
+from gallery.models.show_artwork_numbers import ShowArtworkNumber
 from gallery.permissions import can_delete_artist, can_delete_artwork, can_delete_show, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
+# Cards per Avery 5376 sheet — shown on the picker so a curator can see how many
+# sheets a selection will need.
+from gallery.views.placards import PER_PAGE as PLACARDS_PER_PAGE
 
 
 class ShowListView(ListView):
@@ -170,6 +174,9 @@ class ShowCatalogView(ShowDetailView):
 
 
 class ShowPlacardsView(CanonicalSlugRedirectMixin, DetailView):
+    """Placard list for a show, and — for curators — a picker that builds a PDF of
+    just the selected cards. The page itself stays public (PublicUrlTests asserts
+    that); only the print form is gated, matching the PDF endpoint it submits to."""
     model = Show
     canonical_url_name = 'gallery:show_placards_detail'
     template_name = 'gallery/show_placards_detail.html'
@@ -177,7 +184,21 @@ class ShowPlacardsView(CanonicalSlugRedirectMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         show = kwargs.get('object')
-        context['artworks'] = Artwork.objects.filter(shows=show).filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists').distinct().order_by('artists__name')
+        artworks = list(
+            Artwork.objects.filter(shows=show)
+            .filter(visible_artwork_queryset(self.request.user))
+            .prefetch_related('artists').distinct()
+        )
+        # Same order the sheet is laid out in (placard number, then title), so the
+        # list on screen reads in the order the cards will come off the printer.
+        numbers = {sn.artwork_id: sn.number
+                   for sn in ShowArtworkNumber.objects.filter(show=show)}
+        artworks.sort(key=lambda a: (numbers.get(a.id, 10 ** 9), (a.name or '').lower()))
+        for a in artworks:
+            a.placard_number = numbers.get(a.id)   # None → unnumbered, sorts last
+        context['artworks'] = artworks
+        context['per_page'] = PLACARDS_PER_PAGE
+        context['can_manage_show'] = can_manage_show(self.request.user, show)
         return context
 
 

@@ -3578,6 +3578,62 @@ class PlacardSheetPdfTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.content.startswith(b'%PDF-'))
 
+    def _pages(self, qs=''):
+        r = self.client.get(self.url + qs)
+        self.assertEqual(r.status_code, 200)
+        return len(re.findall(rb'/Type\s*/Page[^s]', r.content))
+
+    def test_selected_ids_limit_the_sheet(self):
+        """A subset prints only those cards, packed from the first slot — so a few
+        reprints do not mean running the whole show again."""
+        self.client.force_login(self.staff)
+        ids = list(self.show.artworks.values_list('pk', flat=True))
+        self.assertEqual(self._pages(), 2)                       # 12 works, 10 per sheet
+        self.assertEqual(self._pages('?ids=%d&ids=%d&ids=%d' % tuple(ids[:3])), 1)
+        self.assertEqual(self._pages('?ids=' + ','.join(str(i) for i in ids[:11])), 2)
+
+    def test_selection_filename_distinguishes_a_partial_sheet(self):
+        self.client.force_login(self.staff)
+        pk = self.show.artworks.first().pk
+        self.assertIn('placards-%s.pdf' % self.show.slug,
+                      self.client.get(self.url)['Content-Disposition'])
+        self.assertIn('selection-1.pdf',
+                      self.client.get(self.url + '?ids=%d' % pk)['Content-Disposition'])
+
+    def test_ids_cannot_pull_in_another_shows_artwork(self):
+        other = Show.objects.create(name='Other Show', start=datetime.date.today(),
+                                    end=datetime.date.today())
+        alien = Artwork.objects.create(name='Alien', end_year=2025)
+        other.artworks.add(alien)
+        self.client.force_login(self.staff)
+        r = self.client.get(self.url + '?ids=%d' % alien.pk)
+        self.assertEqual(r.status_code, 400)
+        # Mixed selection keeps only the artwork that belongs to this show.
+        mine = self.show.artworks.first().pk
+        r = self.client.get(self.url + '?ids=%d,%d' % (mine, alien.pk))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('selection-1.pdf', r['Content-Disposition'])
+
+    def test_unparseable_ids_do_not_silently_print_everything(self):
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(self.url + '?ids=abc,,').status_code, 400)
+
+    def test_picker_form_is_curator_only(self):
+        """The page stays public (PublicUrlTests pins that), but only a curator gets
+        the selection form — it submits to an endpoint they alone can use."""
+        url = reverse('gallery:show_placards_detail', kwargs={'slug': self.show.slug})
+        sheet = reverse('gallery:placard_sheet_pdf', kwargs={'slug': self.show.slug})
+
+        anon = self.client.get(url)
+        self.assertEqual(anon.status_code, 200)
+        self.assertNotIn('name="ids"', anon.content.decode())
+        self.assertNotIn(sheet, anon.content.decode())
+
+        self.client.force_login(self.staff)
+        body = self.client.get(url).content.decode()
+        self.assertEqual(body.count('name="ids"'), 12)            # one box per artwork
+        self.assertIn(sheet, body)
+
     def test_card_fields_content(self):
         from gallery.models import Artist
         from gallery.views.placards import _card_fields

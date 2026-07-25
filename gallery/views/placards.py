@@ -348,7 +348,13 @@ def _draw_card(c, x, y, artwork, outline, qr_url=None):
 @login_required
 def placard_sheet_pdf(request, slug):
     """Download a PDF of the show's placards laid out for Avery 5376 sheets.
-    ?outlines=1 draws faint card borders for a plain-paper alignment test."""
+
+    ?outlines=1 draws faint card borders for a plain-paper alignment test.
+    ?qr=0 omits the QR codes.
+    ?ids=… limits the sheet to specific artworks — repeated (ids=1&ids=2, what the
+    picker form posts) or comma-separated (ids=1,2). Omit it for the whole show, so
+    the plain "Placards PDF" link keeps working. Reprinting a couple of damaged cards
+    should not mean running the entire show again."""
     show = get_object_or_404(Show, slug=slug)
     if not can_manage_show(request.user, show):
         raise Http404
@@ -358,6 +364,17 @@ def placard_sheet_pdf(request, slug):
     numbers = {sn.artwork_id: sn.number
                for sn in ShowArtworkNumber.objects.filter(show=show)}
     artworks = list(show.artworks.prefetch_related('artists'))
+
+    # Filter the show's own list rather than querying by id, so an id from another
+    # show can never pull an unrelated artwork onto the sheet.
+    raw_ids = ','.join(request.GET.getlist('ids'))
+    selected = {int(t) for t in raw_ids.replace(' ', '').split(',') if t.isdigit()}
+    if raw_ids:
+        artworks = [a for a in artworks if a.pk in selected]
+        if not artworks:
+            return HttpResponse('No artworks in this show matched the selection.',
+                                status=400, content_type='text/plain')
+
     artworks.sort(key=lambda a: (numbers.get(a.id, 10 ** 9), (a.name or '').lower()))
 
     try:
@@ -384,7 +401,10 @@ def placard_sheet_pdf(request, slug):
                             content_type='text/plain')
 
     resp = HttpResponse(buf.getvalue(), content_type='application/pdf')
-    resp['Content-Disposition'] = f'attachment; filename="placards-{show.slug}.pdf"'
+    # Name a partial sheet differently so a 3-card reprint is not mistaken for — or
+    # saved over — the full run.
+    suffix = f'-selection-{len(artworks)}' if raw_ids else ''
+    resp['Content-Disposition'] = f'attachment; filename="placards-{show.slug}{suffix}.pdf"'
     # Never cache — the layout changes, and a cached copy (browser or edge) would
     # re-serve a stale PDF without the request ever reaching the app.
     resp['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
