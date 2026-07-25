@@ -68,9 +68,11 @@
   }
 </style>
 
-{# No PDF link here, even for curators: generating it is slow enough to tie up the
-   single web worker, so it stays a deliberate action from the show page's curator
-   row rather than something one click away on a public page. Print uses this page. #}
+{% comment %}
+  No PDF link here, even for curators: generating it is slow enough to tie up the
+  single web worker, so it stays a deliberate action from the show page's curator
+  row rather than something one click away on a public page. Print uses this page.
+{% endcomment %}
 <div class="ck-actions">
   <button type="button" class="btn btn-sm btn-link p-0 card__link" onclick="window.print()">Print</button>
 </div>
