@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 
+from gallery.submission_cta import submit_ctas
 from gallery.models import Site, Show, Artist, Artwork
 from gallery.models.room import RoomConfig
 from gallery.forms import SiteForm, RoomConfigForm, _make_obstacle_formset, _make_support_formset
@@ -153,6 +154,8 @@ class SiteDetailView(DetailView):
             .order_by(F('start').desc(nulls_last=True), '-created_at')
         )
         context['shows'] = shows
+        # Same submit action as every other page that shows a show card.
+        context['submit_ctas'] = submit_ctas(self.request, shows)
         context['can_manage_site'] = (
             self.request.user.is_authenticated and
             is_staff_user(self.request.user)

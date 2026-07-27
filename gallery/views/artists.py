@@ -25,6 +25,7 @@ from gallery.permissions import (
     visible_artist_queryset,
     visible_artwork_queryset,
 )
+from gallery.submission_cta import submit_ctas
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 
 
@@ -168,6 +169,8 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         shows_qs = visible_show_queryset(shows_qs, user)
         shows = list(shows_qs.order_by('name'))
         context['shows'] = shows
+        context['submit_ctas'] = submit_ctas(
+            self.request, list(shows) + list(context.get('submittable_shows') or []))
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(user, s)}
         context['can_delete_show'] = {s.id for s in shows if can_delete_show(user, s)}
         if user.is_authenticated and artist.user == user:

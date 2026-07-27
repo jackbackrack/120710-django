@@ -2,6 +2,7 @@ from django.db.models import Q, CharField
 from django.db.models.functions import Cast
 from django.views.generic import ListView
 
+from gallery.submission_cta import submit_ctas
 from gallery.models import Artist, Artwork, Show, Tag
 from gallery.permissions import (
     can_delete_artist,
@@ -73,6 +74,7 @@ class SearchResultsListView(ListView):
         show_qs = visible_show_queryset(show_qs, user)
         shows = list(tag_filter_queryset(show_qs, tag).distinct())
         context['show_list'] = shows
+        context['submit_ctas'] = submit_ctas(self.request, shows)
         context['can_manage_show'] = {s.id for s in shows if can_manage_show(user, s)}
         context['can_delete_show'] = {s.id for s in shows if can_delete_show(user, s)}
 
