@@ -844,6 +844,109 @@ class SubmissionOnboardingTests(TestCase):
         self.assertIn('photo', body)
 
 
+class ArtworkFormPricingTests(TestCase):
+    """Pricing must be chosen, and replacement cost is optional detail."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='pr@example.com', email='pr@example.com', password='pw')
+
+    def test_new_artwork_has_no_preselected_pricing(self):
+        """The model defaults to Price on Request, so the form used to arrive with
+        that already chosen — an unanswered question that looks like an answer."""
+        from gallery.forms import ArtworkForm
+        form = ArtworkForm(user=self.user)
+        self.assertIn('', [c[0] for c in form.fields['pricing_type'].choices])
+        self.assertIsNone(form.fields['pricing_type'].initial)
+        self.assertTrue(form.fields['pricing_type'].required)
+
+    def test_submitting_without_choosing_pricing_is_an_error(self):
+        from gallery.forms import ArtworkForm
+        form = ArtworkForm(data={'name': 'X', 'end_year': 2025, 'medium': 'oil',
+                                 'width_inches': 10, 'height_inches': 10},
+                           user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('pricing_type', form.errors)
+
+    def test_editing_keeps_the_saved_pricing_and_offers_no_blank(self):
+        from gallery.forms import ArtworkForm
+        aw = Artwork.objects.create(name='Existing', end_year=2024,
+                                    pricing_type=Artwork.PRICING_BEST_OFFER)
+        form = ArtworkForm(instance=aw, user=self.user)
+        self.assertNotIn('', [c[0] for c in form.fields['pricing_type'].choices])
+        self.assertEqual(form.instance.pricing_type, Artwork.PRICING_BEST_OFFER)
+
+    def test_replacement_cost_is_optional_detail_not_pricing(self):
+        from gallery.forms import ArtworkForm
+        form = ArtworkForm(user=self.user)
+        self.assertFalse(form.fields['replacement_cost'].required)
+        def legend_holding(field_name):
+            for section in form.helper.layout.fields:
+                legend = getattr(section, 'legend', None)
+                if legend and field_name in _flatten(section):
+                    return legend
+            return None
+
+        def _flatten(node):
+            out = []
+            for child in getattr(node, 'fields', []) or []:
+                if isinstance(child, str):
+                    out.append(child)
+                else:
+                    out.extend(_flatten(child))
+            return out
+
+        self.assertEqual(legend_holding('replacement_cost'),
+                         'Additional details (optional)')
+        self.assertEqual(legend_holding('pricing_type'), 'Pricing')
+
+
+class StatusBarNameTests(TestCase):
+    """The signed-in artist's name follows the page title — except where that would
+    simply repeat it."""
+
+    def setUp(self):
+        today = datetime.date.today()
+        self.show = Show.objects.create(name='Pub Show', status=Show.STATUS_PUBLISHED,
+                                        start=today, end=today)
+
+    def _make(self, tag):
+        user = User.objects.create_user(
+            username='%s@example.com' % tag, email='%s@example.com' % tag, password='pw')
+        artist = Artist.objects.create(user=user, first_name=tag.title(),
+                                       last_name='Person', email='%s@example.com' % tag)
+        art = Artwork.objects.create(name='%s work' % tag, end_year=2025)
+        art.artists.add(artist)
+        art.shows.add(self.show)
+        return user, artist
+
+    def _status_bar(self, url):
+        body = self.client.get(url, follow=True).content.decode()
+        return ' '.join(re.search(r'<div id="status-bar">(.*?)</div>',
+                                  body, re.S).group(1).split())
+
+    def test_own_profile_does_not_repeat_your_name(self):
+        user, artist = self._make('sam')
+        self.client.force_login(user)
+        bar = self._status_bar(artist.get_absolute_url())
+        self.assertIn('Sam Person', bar)
+        self.assertEqual(bar.count('Sam Person'), 1)
+        self.assertNotIn('status-sep', bar)
+
+    def test_other_pages_still_show_who_you_are(self):
+        user, _artist = self._make('sam')
+        _other_user, other = self._make('other')
+        self.client.force_login(user)
+
+        bar = self._status_bar(other.get_absolute_url())
+        self.assertIn('Other Person', bar)
+        self.assertIn('Sam Person', bar)
+
+        bar = self._status_bar(self.show.get_absolute_url())
+        self.assertIn('Pub Show', bar)
+        self.assertIn('Sam Person', bar)
+
+
 class MakeTestArtistCommandTests(TestCase):
     """Dev helper for entering the submission flow at a chosen step."""
 

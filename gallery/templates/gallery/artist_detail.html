@@ -3,6 +3,12 @@
 
 {% block title %}{{ artist.full_name }}{% endblock %}
 {% block block_title %}{{ artist.full_name }}{% endblock %}
+{% comment %}
+  The status bar normally appends the signed-in artist's name after the page title.
+  On your own profile that is the same name twice ("Sam Ready | Sam Ready"), so drop
+  it here. Viewing someone else's page still shows who you are signed in as.
+{% endcomment %}
+{% block status_artist %}{% if not user.is_authenticated or artist.user_id != user.id %}{{ block.super }}{% endif %}{% endblock %}
 
 {% block content %}
 {% if can_manage_artist and missing_profile_fields %}

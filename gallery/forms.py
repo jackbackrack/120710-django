@@ -308,6 +308,13 @@ class ArtworkForm(UserAwareModelForm):
         self.fields['hang_drop_inches'].label = 'Hang drop (in, optional)'
         self.fields['hang_drop_inches'].widget.attrs.update({'step': 'any', 'min': '0'})
 
+        self.fields['replacement_cost'].label = 'Replacement cost (optional)'
+        self.fields['replacement_cost'].help_text = (
+            'What it would cost to remake this piece if it were damaged or stolen. '
+            'Used for insurance; never shown publicly.')
+
+        self._require_explicit_pricing()
+
         self.helper = FormHelper()
         self.helper.form_tag = False
         dims_row = Row(
@@ -344,7 +351,6 @@ class ArtworkForm(UserAwareModelForm):
                 'Pricing',
                 'pricing_type',
                 Field('price', wrapper_id='div_id_price'),
-                'replacement_cost',
                 'is_sold',
             ),
             Fieldset(
@@ -356,11 +362,29 @@ class ArtworkForm(UserAwareModelForm):
                      'these when present; leave blank otherwise.</p>'),
                 framed_dims_row,
                 'hang_drop_inches',
+                'replacement_cost',
                 'description',
                 'url',
                 'installation',
             ),
         )
+
+    def _require_explicit_pricing(self):
+        """Force a deliberate pricing choice on new work.
+
+        The model defaults to Price on Request, so the form arrived with that already
+        selected and an artist could submit without ever deciding — which reads as an
+        answer but is really an unanswered question, and it is the gallery that finds
+        out at hanging time. Existing pieces keep whatever they were saved with.
+        """
+        from gallery.models import Artwork
+        field = self.fields['pricing_type']
+        field.required = True
+        if self.instance is None or self.instance.pk is None:
+            field.choices = ([('', 'Choose how this piece is priced…')]
+                             + list(Artwork.PRICING_TYPE_CHOICES))
+            field.initial = None
+            self.initial.pop('pricing_type', None)
 
     def clean(self):
         cleaned = super().clean()
