@@ -89,7 +89,9 @@ class ArtistForm(UserAwareModelForm):
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel', 'placeholder': '+1 (555) 555-5555'}),
             'zipcode': forms.TextInput(attrs={'placeholder': 'e.g. 94710', 'maxlength': '10'}),
-            'image': NoClearFileInput(),
+            # accept/capture let a phone open the camera straight to a selfie —
+            # the cheapest way for an artist to satisfy the photo requirement.
+            'image': NoClearFileInput(attrs={'accept': 'image/*', 'capture': 'user'}),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -100,11 +102,13 @@ class ArtistForm(UserAwareModelForm):
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
-        # The photo is NOT required here. It is a catalogue asset — the checklist
-        # bio and the artist page are its only consumers — and it is asked for at
-        # acceptance, when the artist has a reason to supply it. Requiring it up
-        # front walled off the very first screen a new artist ever sees.
-        for f in ('first_name', 'last_name', 'zipcode'):
+        # The photo IS required before submitting. Chasing photos after acceptance
+        # costs the gallery far more than it costs an artist to supply one now, so
+        # the cost is paid up front — but the flow works hard to make it cheap:
+        # Google signups arrive with their avatar already imported, the field takes
+        # a phone camera shot directly, and the show page names the requirement
+        # before anyone starts rather than bouncing them mid-submission.
+        for f in ('first_name', 'last_name', 'zipcode', 'image'):
             self.fields[f].required = True
         self.fields['first_name'].label = 'First name'
         self.fields['first_name'].help_text = 'Your public first name.'
@@ -114,9 +118,9 @@ class ArtistForm(UserAwareModelForm):
         self.fields['zipcode'].help_text = 'US zip code (e.g. 94710). Required to submit artwork to shows.'
         self.fields['image'].label = 'Profile photo'
         self.fields['image'].help_text = (
-            'A photo of you (the artist), not your artwork. Appears on your public '
-            'profile and in the printed show catalogue. You can add it later, but '
-            'it is needed before a show you are in goes to print.'
+            'A photo of you, not your artwork — it appears on your profile and in the '
+            'printed show catalogue. A phone snapshot is fine; on a phone the button '
+            'opens your camera.'
         )
         self.fields['email'].required = True
         self.fields['email'].help_text = 'Used to contact you and to link your account.'
@@ -125,17 +129,17 @@ class ArtistForm(UserAwareModelForm):
         # asterisks) come first under a "Required" heading, optional ones after.
         self.helper = FormHelper()
         self.helper.form_tag = False   # the template supplies <form> + submit button
-        required = ['first_name', 'last_name', 'email', 'zipcode']
-        optional = ['image', 'phone', 'website', 'instagram', 'venmo', 'bio', 'statement']
+        required = ['first_name', 'last_name', 'email', 'zipcode', 'image']
+        optional = ['phone', 'website', 'instagram', 'venmo', 'bio', 'statement']
         layout = Layout(
             HTML('<p class="text-muted small mb-3">Fields marked '
                  '<span class="text-danger">*</span> are required.</p>'),
             Fieldset('Required', *required),
             Fieldset(
                 'Optional',
-                HTML('<p class="text-muted small mb-3">Your photo, bio and statement '
-                     'are printed in the show catalogue, so add them before a show '
-                     'you are in goes to press. The rest help people get in touch.</p>'),
+                HTML('<p class="text-muted small mb-3">Your bio and statement are '
+                     'printed in the show catalogue — worth adding now while you are '
+                     'here. The rest help people get in touch.</p>'),
                 *optional,
             ),
         )

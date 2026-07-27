@@ -7,7 +7,7 @@ from django.core.exceptions import MultipleObjectsReturned
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 
-from accounts.signup import apply_google_profile_data, ensure_signup_profile
+from accounts.signup import apply_google_profile_data, ensure_signup_profile, import_google_avatar
 
 
 logger = logging.getLogger(__name__)
@@ -141,6 +141,9 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         if changed_fields:
             user.save(update_fields=changed_fields)
         artist, status = ensure_signup_profile(user)
+        # Google already has a profile picture for them; taking it here means the
+        # photo requirement is satisfied before they ever see the profile form.
+        import_google_avatar(artist, extra_data)
         if artist and status == 'claimed':
             request.session['claimed_artist_pk'] = artist.pk
         elif artist and status == 'created':

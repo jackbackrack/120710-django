@@ -42,13 +42,37 @@
     bad(el, fb, 'Must be 5 digits (94710) or 9 digits (94710-1234)'); return false;
   }
 
-  // The photo is optional here: it is a catalogue asset, asked for at acceptance
-  // rather than as a wall on the first screen a new artist sees. Confirm a new
-  // upload, stay quiet otherwise — never block the save.
+  // The photo is required, so make satisfying it obvious: show the chosen image
+  // immediately (people cannot otherwise tell a file input worked, and re-picking
+  // the same file is a common source of confusion), and say plainly why we need it.
+  function showPreview(el) {
+    var file = el.files && el.files[0];
+    // Insert the preview right after the file input wherever crispy put it, rather
+    // than relying on a fixed slot in the template that may be nowhere near it.
+    var box = document.getElementById('artist-photo-preview');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'artist-photo-preview';
+      (el.parentNode || el).insertBefore(box, el.nextSibling);
+    }
+    if (!file) { box.innerHTML = ''; return; }
+    var url = URL.createObjectURL(file);
+    box.innerHTML = '<img src="' + url + '" alt="Your photo" ' +
+      'style="max-width:120px;max-height:120px;border-radius:6px;margin-top:.4rem">' +
+      '<div class="text-muted small">That\'s the one — change it above if you like.</div>';
+    box.querySelector('img').onload = function () { URL.revokeObjectURL(url); };
+  }
+
   function validateImage(el, fb) {
     var hasNew = el.files && el.files.length > 0;
+    var hasExisting = form.dataset.hasImage === '1';
+    var clearBox = document.getElementById('id_image-clear');
+    var cleared = clearBox && clearBox.checked;
+    showPreview(el);
     if (hasNew) { ok(el, fb, '✓'); return true; }
-    neutral(el, fb); return true;
+    if (hasExisting && !cleared) { neutral(el, fb); return true; }
+    bad(el, fb, 'Please add a photo of yourself — it appears in the show catalogue');
+    return false;
   }
 
   function validatePhone(el, fb) {

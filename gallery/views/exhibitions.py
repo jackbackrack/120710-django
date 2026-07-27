@@ -157,11 +157,12 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         return context
 
 
-    # Fields needed to credit a submission. The profile photo is NOT one of them —
-    # it is a catalogue asset asked for at acceptance.
+    # Everything needed before submitting, named here so the show page can state the
+    # requirement up front instead of bouncing someone mid-submission.
     SUBMIT_REQUIRED = (('first_name', 'first name'),
                        ('last_name', 'last name'),
-                       ('zipcode', 'zip code'))
+                       ('zipcode', 'zip code'),
+                       ('image', 'photo'))
 
     def _submit_cta(self, show, artist):
         """The single next action for this visitor, or None.
@@ -200,10 +201,14 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             qs = urlencode({'highlight': ','.join(
                 f for f, _l in self.SUBMIT_REQUIRED if not getattr(artist, f, None)),
                 'next': submit_url})
+            if missing == ['photo']:
+                hint = ('Just a photo of you left — it prints in the show catalogue. '
+                        'A phone snapshot is fine.')
+            else:
+                hint = 'We need your ' + ', '.join(missing) + ' before you can submit.'
             return {'label': f'Finish your profile ({len(missing)} to go)',
                     'url': f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}",
-                    'hint': 'We need your ' + ', '.join(missing) + ' to credit your work.',
-                    'step': 2}
+                    'hint': hint, 'step': 2}
 
         submitted = ArtworkSubmission.objects.filter(show=show, artwork__artists=artist).count()
         if submitted:

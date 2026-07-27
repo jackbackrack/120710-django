@@ -13,7 +13,9 @@
 </div>
 {% endif %}
 {% if form.errors %}<div class="alert alert-danger">Please correct the highlighted fields below.</div>{% endif %}
-{% if progress_step %}{% include 'gallery/_submission_progress.html' %}{% endif %}
+{% if progress_step %}{% include 'gallery/_submission_progress.html' %}
+<p class="text-muted small">Once this is saved you go straight back to submitting your work.</p>
+{% endif %}
 <form action="" method="post" enctype="multipart/form-data" data-has-image="{% if object.image %}1{% endif %}">{% csrf_token %}
   {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
   {% crispy form %}

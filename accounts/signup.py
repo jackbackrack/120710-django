@@ -1,4 +1,10 @@
+import logging
+import re
+
 from gallery.models import Artist
+
+
+logger = logging.getLogger(__name__)
 
 
 def apply_google_profile_data(user, extra_data):
@@ -26,6 +32,35 @@ def apply_google_profile_data(user, extra_data):
         changed_fields.append('username')
 
     return changed_fields
+
+
+def import_google_avatar(artist, extra_data):
+    """Save the Google account picture as the artist's profile photo.
+
+    A profile photo is required before submitting, and Google already hands us one
+    at signup — so for anyone who signs in with Google the requirement is met before
+    they ever see it. Best-effort: signup must never fail because a photo fetch did.
+    """
+    if artist is None or artist.image:
+        return False
+    url = (extra_data or {}).get('picture')
+    if not url:
+        return False
+    try:
+        import requests
+        from django.core.files.base import ContentFile
+        # Google serves a small avatar by default; ask for one big enough to print.
+        resp = requests.get(re.sub(r'=s\d+(-c)?$', '=s600-c', url), timeout=5)
+        resp.raise_for_status()
+        if not resp.headers.get('Content-Type', '').startswith('image/'):
+            return False
+        if len(resp.content) > 8 * 1024 * 1024:
+            return False
+        artist.image.save(f'google-{artist.pk}.jpg', ContentFile(resp.content), save=True)
+        return True
+    except Exception:   # noqa: BLE001 — a missing photo is recoverable; a failed signup is not
+        logger.warning('Could not import Google avatar for artist %s', artist.pk, exc_info=True)
+        return False
 
 
 def ensure_signup_profile(user):

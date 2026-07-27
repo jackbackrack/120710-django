@@ -444,9 +444,12 @@ def artwork_submit(request, slug):
     if not artist:
         return redirect(show)
 
-    # The photo is deliberately absent from this gate: it is a catalogue asset,
-    # requested at acceptance. Only what is needed to credit the work is required.
+    # Checked on GET, before the submission form is ever rendered, so nobody loses
+    # a filled-in form to this. The show page CTA normally prevents anyone reaching
+    # it at all — it names what is missing before they start.
     missing_fields = []
+    if not artist.image:
+        missing_fields.append('image')
     if not artist.first_name:
         missing_fields.append('first_name')
     if not artist.last_name:
@@ -454,8 +457,8 @@ def artwork_submit(request, slug):
     if not artist.zipcode:
         missing_fields.append('zipcode')
     if missing_fields:
-        labels = {'first_name': 'first name', 'last_name': 'last name',
-                  'zipcode': 'zip code'}
+        labels = {'image': 'photo', 'first_name': 'first name',
+                  'last_name': 'last name', 'zipcode': 'zip code'}
         missing_display = ', '.join(labels[f] for f in missing_fields)
         messages.info(
             request,

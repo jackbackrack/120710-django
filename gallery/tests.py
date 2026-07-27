@@ -25,6 +25,15 @@ def _make_test_image_dir():
     return tmp
 
 
+
+def _test_jpg(name='photo.jpg'):
+    """A tiny real JPEG upload, for the places a profile photo is now required."""
+    import io
+    from PIL import Image as _P
+    b = io.BytesIO(); _P.new('RGB', (240, 240), (120, 140, 110)).save(b, 'JPEG')
+    return SimpleUploadedFile(name, b.getvalue(), content_type='image/jpeg')
+
+
 class MediaImageMixin:
     """Mixin that sets up a real MEDIA_ROOT with a tiny test image.
 
@@ -689,14 +698,31 @@ class SubmissionOnboardingTests(TestCase):
         artist.zipcode = '94710'
         artist.save()
         label, _url = self._cta()
-        self.assertEqual(label, 'Submit Artwork')   # still no photo — not required
+        self.assertIn('Finish your profile', label)   # photo still outstanding
 
-    def test_submitting_needs_no_profile_photo(self):
+        artist.image = _test_jpg('cta.jpg')
+        artist.save()
+        label, _url = self._cta()
+        self.assertEqual(label, 'Submit Artwork')
+
+    def test_submitting_requires_a_photo_but_says_so_before_you_start(self):
         user = User.objects.create_user(
             username='nop@example.com', email='nop@example.com', password='pw')
-        Artist.objects.create(user=user, first_name='No', last_name='Photo',
-                              email='nop@example.com', zipcode='94710')
+        artist = Artist.objects.create(user=user, first_name='No', last_name='Photo',
+                                       email='nop@example.com', zipcode='94710')
         self.client.force_login(user)
+        # The show page names the requirement, so nobody meets it as a surprise...
+        label, _url = self._cta()
+        self.assertIn('Finish your profile', label)
+        # ...and the submit page itself still refuses, on GET, before any form is
+        # filled in, carrying a way back.
+        r = self.client.get(self.submit_url)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('image', r.headers['Location'])
+        self.assertIn('next=', r.headers['Location'])
+
+        artist.image = _test_jpg('ok.jpg')
+        artist.save()
         self.assertEqual(self.client.get(self.submit_url).status_code, 200)
 
     def test_profile_detour_returns_to_the_submission(self):
@@ -710,7 +736,8 @@ class SubmissionOnboardingTests(TestCase):
         r = self.client.post(
             reverse('gallery:artist_edit', kwargs={'pk': artist.pk}),
             {'first_name': 'Ree', 'last_name': 'Turn', 'email': 'ret@example.com',
-             'zipcode': '94710', 'next': self.submit_url})
+             'zipcode': '94710', 'next': self.submit_url,
+             'image': _test_jpg('detour.jpg')})
         self.assertEqual(r.headers['Location'], self.submit_url)
 
     def test_destination_survives_signup_and_email_verification(self):
@@ -730,6 +757,39 @@ class SubmissionOnboardingTests(TestCase):
                              follow=True)
         visited = [u for u, _code in r.redirect_chain]
         self.assertTrue(any(self.submit_url in u for u in visited), visited)
+
+    def test_google_signup_arrives_with_its_avatar(self):
+        """Google hands us a picture at signup, so a Google artist satisfies the
+        photo requirement without ever seeing the field."""
+        from unittest import mock
+        from accounts.signup import import_google_avatar
+        artist = Artist.objects.create(first_name='Gina', last_name='Google',
+                                       email='gg@example.com', zipcode='94710')
+        jpg = _test_jpg('g.jpg').read()
+
+        class _Resp:
+            content = jpg
+            headers = {'Content-Type': 'image/jpeg'}
+            def raise_for_status(self):
+                pass
+
+        with mock.patch('requests.get', return_value=_Resp()) as get:
+            self.assertTrue(import_google_avatar(
+                artist, {'picture': 'https://lh3.googleusercontent.com/a/x=s96-c'}))
+        # Asks Google for something big enough to print, not the 96px default.
+        self.assertIn('=s600-c', get.call_args[0][0])
+        artist.refresh_from_db()
+        self.assertTrue(artist.image)
+
+    def test_google_avatar_failure_never_breaks_signup(self):
+        from unittest import mock
+        from accounts.signup import import_google_avatar
+        artist = Artist.objects.create(first_name='Gus', last_name='Glitch',
+                                       email='gl@example.com')
+        with mock.patch('requests.get', side_effect=OSError('network down')):
+            self.assertFalse(import_google_avatar(artist, {'picture': 'https://x/y=s96-c'}))
+        artist.refresh_from_db()
+        self.assertFalse(artist.image)
 
     def test_missing_catalogue_assets_reported_to_the_curator(self):
         staff = User.objects.create_user(
@@ -1333,8 +1393,7 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
         self.assertIn('highlight=', location)
         self.assertIn('zipcode', location)
         self.assertIn('next=', location)
-        # A missing photo must NOT be what sent them here.
-        self.assertNotIn('image', location)
+        self.assertIn('image', location)
         # first_name and last_name are present so should NOT be in highlight
         self.assertNotIn('first_name', location)
         self.assertNotIn('last_name', location)
@@ -3143,18 +3202,19 @@ class ArtistFormRequiredTests(TestCase):
         )
         form = ArtistForm(data={'first_name': 'A', 'last_name': 'B'}, user=u)
         self.assertFalse(form.is_valid())
-        for f in ('email', 'zipcode'):
+        for f in ('email', 'zipcode', 'image'):
             self.assertIn(f, form.errors)
-        # The photo is a catalogue asset, requested at acceptance — it must never
-        # block a new artist from saving their very first profile.
-        self.assertNotIn('image', form.errors)
 
-    def test_profile_saves_without_a_photo(self):
+    def test_profile_needs_a_photo(self):
+        """Required before submitting: chasing photos after acceptance costs the
+        gallery far more than supplying one costs the artist."""
         from gallery.forms import ArtistForm
         u = User.objects.create_user(
             username='nophoto@example.com', email='nophoto@example.com', password='pw')
-        form = ArtistForm(data={'first_name': 'A', 'last_name': 'B',
-                                'email': 'nophoto@example.com', 'zipcode': '94710'}, user=u)
+        data = {'first_name': 'A', 'last_name': 'B',
+                'email': 'nophoto@example.com', 'zipcode': '94710'}
+        self.assertFalse(ArtistForm(data=data, user=u).is_valid())
+        form = ArtistForm(data=data, files={'image': _test_jpg('p.jpg')}, user=u)
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_website_bare_domain_accepted_and_normalized(self):
@@ -3164,7 +3224,7 @@ class ArtistFormRequiredTests(TestCase):
         data = {'first_name': 'A', 'last_name': 'B', 'email': 'afw@example.com',
                 'zipcode': '94710', 'website': 'howardhersh.com'}
         form = ArtistForm(data=data, user=u)
-        form.is_valid()   # website must NOT be an error
+        form.is_valid()   # image missing, but website must NOT be an error
         self.assertNotIn('website', form.errors)
         self.assertEqual(form.cleaned_data.get('website'), 'https://howardhersh.com')
 
