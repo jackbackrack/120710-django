@@ -156,18 +156,13 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
                 elif show.submission_type == Show.SUBMISSION_INVITED and show.id in inv_ids:
                     submittable_shows.append(show)
             context['submittable_shows'] = submittable_shows
-            missing = []
-            if not artist.image:
-                missing.append('photo')
-            if not artist.first_name:
-                missing.append('first name')
-            if not artist.last_name:
-                missing.append('last name')
-            if not artist.zipcode:
-                missing.append('zip code')
-            context['profile_complete'] = not missing
-            context['missing_profile_fields'] = missing
-            context['submittable_show_ids'] = {s.id for s in submittable_shows} if not missing else set()
+            # Submit stays offered even with an incomplete profile. Withholding it
+            # left an artist looking at shows they could not act on, above a banner
+            # telling them to go and fill in a form first — the "do homework, then
+            # come back" shape that made this flow hard to follow. Starting a
+            # submission asks for whatever is missing at that moment and returns
+            # here, so the profile is completed inside the flow instead of ahead of it.
+            context['submittable_show_ids'] = {s.id for s in submittable_shows}
         from gallery.permissions import can_delete_show, can_manage_show
         shows_qs = Show.objects.filter(artworks__artists=artist).prefetch_related('curators', 'tags', 'events').distinct()
         shows_qs = visible_show_queryset(shows_qs, user)

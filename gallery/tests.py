@@ -844,6 +844,49 @@ class SubmissionOnboardingTests(TestCase):
         self.assertIn('photo', body)
 
 
+class ArtistPageSubmitEntryTests(TestCase):
+    """An incomplete profile no longer becomes homework on the artist's own page."""
+
+    def setUp(self):
+        today = datetime.date.today()
+        self.show = Show.objects.create(
+            name='Open Studio', status=Show.STATUS_OPEN_CALL, submission_type='open',
+            start=today + datetime.timedelta(days=60), end=today + datetime.timedelta(days=90))
+        self.user = User.objects.create_user(
+            username='own@example.com', email='own@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            user=self.user, first_name='Sam', last_name='Ready',
+            email='own@example.com', zipcode='94710')     # deliberately no photo
+        self.client.force_login(self.user)
+
+    def test_no_standing_nag_to_complete_the_profile(self):
+        body = self.client.get(self.artist.get_absolute_url(), follow=True).content.decode()
+        self.assertNotIn('profile is missing', body)
+
+    def test_submit_is_offered_even_with_an_incomplete_profile(self):
+        """It used to be hidden, leaving shows listed that could not be acted on."""
+        body = self.client.get(self.artist.get_absolute_url(), follow=True).content.decode()
+        self.assertIn('Shows Accepting Submissions', body)
+        self.assertIn(reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
+                      body)
+
+    def test_following_it_asks_for_the_photo_and_comes_back(self):
+        submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        r = self.client.get(submit_url)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('image', r.headers['Location'])
+        self.assertIn('next=', r.headers['Location'])
+        body = self.client.get(r.headers['Location']).content.decode()
+        self.assertIn('Your details', body)             # the step tracker
+        self.assertIn('straight back to submitting', body)
+
+        r = self.client.post(
+            reverse('gallery:artist_edit', kwargs={'pk': self.artist.pk}),
+            {'first_name': 'Sam', 'last_name': 'Ready', 'email': 'own@example.com',
+             'zipcode': '94710', 'next': submit_url, 'image': _test_jpg('own.jpg')})
+        self.assertEqual(r.headers['Location'], submit_url)
+
+
 class ArtworkFormPricingTests(TestCase):
     """Pricing must be chosen, and replacement cost is optional detail."""
 
