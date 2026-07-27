@@ -12,18 +12,25 @@
       fb = document.createElement('div');
       fb.className = 'ae-hint form-text mt-1';
       fb.style.fontSize = '0.82em';
+      // Reserve one line so the hint appearing or clearing never reflows the form.
+      // Without this every keystroke that flips a field between valid and invalid
+      // shunts everything below it up or down.
+      fb.style.minHeight = '1.15em';
       input.insertAdjacentElement('afterend', fb);
     }
     return fb;
   }
-  function ok(input, fb, msg)  { input.classList.remove('is-invalid'); input.classList.add('is-valid');  fb.style.color = '#198754'; fb.textContent = msg; }
+  // Success shows no text of its own — Bootstrap's .is-valid draws a green tick
+  // inside the field, at the end, without moving anything. Only messages that say
+  // something useful (how a value will be normalised) get a line.
+  function ok(input, fb, msg)  { input.classList.remove('is-invalid'); input.classList.add('is-valid');  fb.style.color = '#198754'; fb.textContent = msg || ''; }
   function bad(input, fb, msg) { input.classList.remove('is-valid');   input.classList.add('is-invalid'); fb.style.color = '#dc3545'; fb.textContent = msg; }
   function neutral(input, fb)  { input.classList.remove('is-valid', 'is-invalid'); fb.textContent = ''; }
 
   // ── Validators — return true if valid ─────────────────────────────────────
   function requiredText(label) {
     return function (el, fb) {
-      if (el.value.trim()) { ok(el, fb, '✓'); return true; }
+      if (el.value.trim()) { ok(el, fb); return true; }
       bad(el, fb, label + ' is required'); return false;
     };
   }
@@ -31,14 +38,14 @@
   function validateEmail(el, fb) {
     var v = el.value.trim();
     if (!v) { bad(el, fb, 'Email is required'); return false; }
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { ok(el, fb, '✓'); return true; }
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { ok(el, fb); return true; }
     bad(el, fb, 'Enter a valid email address'); return false;
   }
 
   function validateZip(el, fb) {
     var v = el.value.trim();
     if (!v) { bad(el, fb, 'Zip code is required'); return false; }
-    if (/^\d{5}(-\d{4})?$/.test(v)) { ok(el, fb, '✓'); return true; }
+    if (/^\d{5}(-\d{4})?$/.test(v)) { ok(el, fb); return true; }
     bad(el, fb, 'Must be 5 digits (94710) or 9 digits (94710-1234)'); return false;
   }
 
@@ -69,7 +76,7 @@
     var clearBox = document.getElementById('id_image-clear');
     var cleared = clearBox && clearBox.checked;
     showPreview(el);
-    if (hasNew) { ok(el, fb, '✓'); return true; }
+    if (hasNew) { ok(el, fb); return true; }
     if (hasExisting && !cleared) { neutral(el, fb); return true; }
     bad(el, fb, 'Please add a photo of yourself — it appears in the show catalogue');
     return false;
@@ -81,7 +88,7 @@
     var international = v.startsWith('+');
     var digits = v.replace(/\D/g, '');
     if (international) {
-      if (digits.length >= 7 && digits.length <= 15) { ok(el, fb, '✓'); return true; }
+      if (digits.length >= 7 && digits.length <= 15) { ok(el, fb); return true; }
       bad(el, fb, 'International numbers: start with + and country code, e.g. +44 7911 123456'); return false;
     }
     if (digits.length === 11 && digits[0] === '1') digits = digits.slice(1);

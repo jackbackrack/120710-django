@@ -8,16 +8,25 @@
       fb = document.createElement('div');
       fb.className = 'ae-hint form-text mt-1';
       fb.style.fontSize = '0.82em';
+      // Reserve one line so the hint appearing or clearing never reflows the form.
+      // Without this every keystroke that flips a field between valid and invalid
+      // shunts everything below it up or down.
+      fb.style.minHeight = '1.15em';
       input.insertAdjacentElement('afterend', fb);
     }
     return fb;
   }
 
+  // Success shows no text of its own. Bootstrap's .is-valid already draws a green
+  // tick inside the field at its right-hand end, which is where a confirmation
+  // belongs — a line of text below the input only pushed the rest of the form around
+  // as fields flipped between states. A message is still shown when it says
+  // something useful, e.g. how a phone number will be normalised.
   function ok(input, fb, msg) {
     input.classList.remove('is-invalid');
     input.classList.add('is-valid');
     fb.style.color = '#198754';
-    fb.textContent = msg || '✓';
+    fb.textContent = msg || '';
   }
 
   function bad(input, fb, msg) {
@@ -127,7 +136,7 @@
     var required = f && f.dataset.imageRequired === '1';
     var clearBox = document.getElementById('id_image-clear');
     var cleared = clearBox && clearBox.checked;
-    if (hasNew) { ok(el, fb, '✓'); return true; }
+    if (hasNew) { ok(el, fb); return true; }
     if (hasExisting && !cleared) { neutral(el, fb); return true; }
     if (required) { bad(el, fb, 'An image is required'); return false; }
     neutral(el, fb); return true;
