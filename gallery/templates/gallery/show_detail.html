@@ -68,62 +68,38 @@
     {{ event.date }}: {{ event.time_range }}</h3>
     {% endfor %}
   </div>
-  <div class="card__info" style="flex-wrap:wrap">
-  {% if can_manage_show %}
-    <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
-  {% endif %}
-  {% if can_delete_show %}
-    <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
-  {% endif %}
-  {% if can_manage_show %}
-    <a class="card__link new-button" href="{% url 'gallery:event_new' %}?show={{ show.pk }}">New Event</a>
-  {% endif %}
-  {% if can_view_3d %}
-    <a class="card__link" href="{% url 'gallery:room_2d' show.slug %}">2D View</a>
-    <a class="card__link" href="{% url 'gallery:room_viewer' show.slug %}">3D View</a>
-  {% endif %}
-  {% if can_view_checklist %}
-    <a class="card__link" href="{% url 'gallery:show_checklist' show.slug %}" title="The show checklist — works, credits and artist bios">Checklist</a>
-  {% endif %}
-  {# Curatorial actions on their own line for admin / juror / curator #}
-  {% if can_view_reviews %}<div style="width:100%"></div>{% endif %}
-  {% if show.submission_type == 'invited' and can_manage_show %}
-    <a class="card__link" href="{% url 'gallery:invite_artists' show.slug %}">Invite Artists</a>
-  {% endif %}
-  {% if can_view_reviews %}
-    <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Submissions</a>
-  {% endif %}
-  {% if show.submission_type == 'open' and can_assign_jurors %}
-    <a class="card__link" href="{% url 'reviews:show_juror_assignment' show_slug=show.slug %}">Assign Jurors</a>
-  {% endif %}
-  {% if show.submission_type == 'open' and can_view_reviews %}
-    <a class="card__link" href="{% url 'reviews:show_review_dashboard' show_slug=show.slug %}">Reviews</a>
-  {% endif %}
-  {% if can_manage_show %}
-    <a class="card__link" href="{% url 'gallery:room_layout' show.slug %}">Layout</a>
-    <a class="card__link" href="{% url 'gallery:show_placards_detail' show.slug %}" title="Choose which placards to print, then download a PDF for Avery 5376 (2×3.5in) business-card sheets">Placards PDF</a>
-    <a class="card__link" href="{% url 'gallery:show_checklist_pdf' show.slug %}" title="Download the show checklist PDF (cover, works with images, artist & curator bios)">Checklist PDF</a>
-    {# Email actions on their own line so they don't overflow the row above #}
-    <div style="width:100%"></div>
-    {% if emails_pending or emails_sent %}<form method="post" action="{% url 'gallery:send_selection_emails' show.slug %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link p-0 card__link" onclick="return confirm('Send acceptance/rejection emails to {{ emails_pending }} artist(s)?')">Send Emails ({{ emails_pending }} pending{% if emails_sent %}, {{ emails_sent }} sent{% endif %})</button></form>{% endif %}
-    <a class="card__link" href="{% url 'gallery:show_artist_emails' show.slug %}">Emails</a>
-    <div style="width:100%"></div>
-    <a class="card__link" href="{% url 'gallery:show_schedule_windows' show.slug %}">Schedule Windows</a>
-    <a class="card__link" href="{% url 'gallery:show_schedule_tracker' show.slug %}">Schedule Tracker</a>
-  {% endif %}
-  {% if can_schedule_dropoff %}
-    <a class="card__link new-button" href="{% url 'gallery:artist_schedule' show.slug %}">Schedule My {% if show.self_install %}Install{% else %}Drop-off{% endif %} & Pickup</a>
-  {% endif %}
-  {% if can_show_print_controls %}
-  <div style="width:100%"></div>
-    <form method="post" action="{% url 'gallery:renumber_artworks' show.slug %}" style="display:inline">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-sm btn-link p-0 card__link" onclick="return confirm('Reassign artwork numbers from scratch?')">Renumber</button>
-    </form>
-    <a class="card__link" href="{% url 'gallery:show_catalog' show.slug %}">Catalog</a>
-    <a class="card__link" href="{{ show.get_placards_url }}">Placards</a>
-    <a class="card__link" href="{{ show.get_instagram_url }}">Instagram</a>
-  {% endif %}
+  {% comment %}
+    Controls come from gallery/show_actions.py already permission-filtered, so order
+    here is list order and an empty group simply is not rendered — no stray spacing
+    from a group the viewer cannot use. Plain buttons are the few self-explanatory
+    ones everybody gets; curator and admin tools sit in small menus so having more
+    permissions does not mean facing a wall of links.
+  {% endcomment %}
+  <div class="card__info show-actions">
+    {% for b in show_actions.buttons %}
+    <a class="card__link" href="{{ b.url }}"{% if b.title %} title="{{ b.title }}"{% endif %}>{{ b.label }}</a>
+    {% endfor %}
+    {% for menu in show_actions.menus %}
+    <div class="dropdown">
+      <button class="card__link dropdown-toggle" type="button" data-bs-toggle="dropdown"
+              aria-expanded="false">{{ menu.label }}</button>
+      <ul class="dropdown-menu">
+        {% for item in menu.items %}
+        <li>
+          {% if item.post_url %}
+          <form method="post" action="{{ item.post_url }}">{% csrf_token %}
+            <button type="submit" class="dropdown-item"
+                    onclick="return confirm('{{ item.confirm|escapejs }}')">{{ item.label }}</button>
+          </form>
+          {% else %}
+          <a class="dropdown-item" href="{{ item.url }}"{% if item.title %} title="{{ item.title }}"{% endif %}>{{ item.label }}</a>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
   </div>
 </div>
 </div>

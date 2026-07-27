@@ -943,6 +943,75 @@ class InvitationSubmissionFlowTests(TestCase):
         self.assertEqual(self.client.get(self.submit_url).status_code, 302)
 
 
+class ShowActionsTests(TestCase):
+    """Show-page controls: plain buttons for everyone, small menus for curators."""
+
+    def setUp(self):
+        today = datetime.date.today()
+        self.show = Show.objects.create(
+            name='Now Showing', status=Show.STATUS_PUBLISHED,
+            start=today - datetime.timedelta(days=1), end=today + datetime.timedelta(days=20))
+        art = Artwork.objects.create(name='W', end_year=2025)
+        art.shows.add(self.show)
+        from gallery.models import WallPlacement
+        WallPlacement.objects.create(show=self.show, artwork=art, wall='N',
+                                     x_in=0, y_in=60, z_in=-288)
+
+    def _controls(self):
+        body = self.client.get(self.show.get_absolute_url()).content.decode()
+        seg = body[body.index('show-actions'):body.index('section-label')]
+        buttons = [b.strip() for b in re.findall(
+            r'<a class="card__link" href="[^"]*"[^>]*>([^<]+)</a>', seg)]
+        menus = {}
+        for m in re.finditer(
+                r'dropdown-toggle[^>]*>\s*([^<]+?)\s*</button>.*?<ul class="dropdown-menu">(.*?)</ul>',
+                seg, re.S):
+            menus[m.group(1).strip()] = [i.strip() for i in re.findall(
+                r'dropdown-item[^>]*>\s*([^<]+?)\s*</', m.group(2))]
+        return buttons, menus
+
+    def test_visitor_gets_buttons_and_no_menus(self):
+        buttons, menus = self._controls()
+        self.assertEqual(buttons, ['2D View', '3D View', 'Checklist'])
+        self.assertEqual(menus, {})
+
+    def test_curator_gets_the_same_buttons_plus_grouped_menus(self):
+        staff = User.objects.create_user(
+            username='sa@example.com', email='sa@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        buttons, menus = self._controls()
+        self.assertEqual(buttons, ['2D View', '3D View', 'Checklist'])
+        self.assertEqual(list(menus), ['Curate', 'Produce', 'Logistics', 'Manage'])
+        # Instagram is a curator tool for preparing posts, not a way to view the show.
+        self.assertIn('Instagram', menus['Produce'])
+        self.assertNotIn('Instagram', buttons)
+        for label, items in menus.items():
+            self.assertLessEqual(len(items), 5, '%s menu is too long' % label)
+
+    def test_empty_groups_are_not_rendered(self):
+        """A group with nothing in it must not leave a stray control or spacing."""
+        from gallery.show_actions import show_actions
+        actions = show_actions(self.show)          # no permissions at all
+        self.assertEqual(actions['menus'], [])
+        actions = show_actions(self.show, can_manage=True)
+        self.assertNotIn('Curate', [m['label'] for m in actions['menus']])
+
+    def test_catalog_and_placards_buttons_are_gone_but_still_reachable(self):
+        staff = User.objects.create_user(
+            username='sb@example.com', email='sb@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        buttons, menus = self._controls()
+        flat = buttons + [i for items in menus.values() for i in items]
+        self.assertNotIn('Catalog', flat)
+        self.assertNotIn('Placards', flat)
+        self.assertEqual(self.client.get(
+            reverse('gallery:show_catalog', kwargs={'slug': self.show.slug})).status_code, 200)
+        self.assertEqual(self.client.get(
+            reverse('gallery:show_placards_detail', kwargs={'slug': self.show.slug})).status_code, 200)
+
+
 class SiteShowListTests(TestCase):
     """/site/<slug>/shows/ is the shows list scoped to one venue — same view and
     template, so it keeps New, Slideshow, tag filtering and the submit buttons."""

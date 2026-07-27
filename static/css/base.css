@@ -426,3 +426,33 @@ th, td {
     padding: 0 2px;
     line-height: 2.4;
 }
+
+/* Show-page controls: a wrapping row of buttons and small dropdown menus. Gap does
+   the spacing, so a group that is empty for this viewer costs no room at all —
+   the old layout used fixed full-width spacers and left holes instead. */
+.show-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem .9rem;
+}
+.show-actions .dropdown-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+}
+.show-actions .dropdown-menu {
+    font-size: .9rem;
+    --bs-dropdown-min-width: 11rem;
+}
+.show-actions .dropdown-menu form {
+    margin: 0;
+}
+.show-actions .dropdown-item {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+}

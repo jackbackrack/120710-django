@@ -17,6 +17,7 @@ from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Site, Tag
 from gallery.models.show_artwork_numbers import ShowArtworkNumber
 from gallery.permissions import can_delete_artist, can_delete_artwork, can_delete_show, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
+from gallery.show_actions import show_actions
 from gallery.submission_cta import submit_cta, submit_ctas
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 # Cards per Avery 5376 sheet — shown on the picker so a curator can see how many
@@ -168,6 +169,19 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         print_statuses = {Show.STATUS_PUBLISHED, Show.STATUS_CLOSED}
         context['can_show_print_controls'] = can_manage_show(user, show) and (
             user.is_superuser or _is_gallery_admin(user) or show.status in print_statuses
+        )
+        context['show_actions'] = show_actions(
+            show,
+            can_manage=context['can_manage_show'],
+            can_delete=context['can_delete_show'],
+            can_view_reviews=context['can_view_reviews'],
+            can_assign_jurors=context.get('can_assign_jurors', False),
+            can_view_3d=context['can_view_3d'],
+            can_view_checklist=context['can_view_checklist'],
+            can_schedule_dropoff=context['can_schedule_dropoff'],
+            can_print_controls=context.get('can_show_print_controls', False),
+            emails_pending=context.get('emails_pending', 0),
+            emails_sent=context.get('emails_sent', 0),
         )
         return context
 
