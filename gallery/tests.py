@@ -649,6 +649,105 @@ class AuthorizationWorkflowTests(MediaImageMixin, TestCase):
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
     },
 )
+class SubmissionOnboardingTests(TestCase):
+    """The first-timer path: every page states the next step, and the destination
+    survives signup, email verification and the profile detour."""
+
+    def setUp(self):
+        today = datetime.date.today()
+        self.show = Show.objects.create(
+            name='Open Call Show', status=Show.STATUS_OPEN_CALL, submission_type='open',
+            start=today + datetime.timedelta(days=30), end=today + datetime.timedelta(days=60))
+        self.submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        self.show_url = self.show.get_absolute_url()
+
+    def _cta(self):
+        import re
+        body = self.client.get(self.show_url).content.decode()
+        m = re.search(r'new-button" href="([^"]*)">([^<]*)</a>', body)
+        return (m.group(2).strip(), m.group(1).replace('&amp;', '&')) if m else (None, None)
+
+    def test_anonymous_visitor_is_told_to_sign_up(self):
+        """Previously the show page showed nothing at all to a signed-out visitor —
+        the one place every open-call announcement lands."""
+        label, url = self._cta()
+        self.assertEqual(label, 'Sign up to submit')
+        self.assertIn(reverse('account_signup'), url)
+        self.assertIn('next=', url)
+        self.assertIn('submit', url)
+
+    def test_cta_tracks_profile_completeness_then_offers_submit(self):
+        user = User.objects.create_user(
+            username='cta@example.com', email='cta@example.com', password='pw')
+        artist = Artist.objects.create(user=user, first_name='Cee', last_name='Tee',
+                                       email='cta@example.com')
+        self.client.force_login(user)
+        label, url = self._cta()
+        self.assertIn('Finish your profile', label)
+        self.assertIn('next=', url)
+
+        artist.zipcode = '94710'
+        artist.save()
+        label, _url = self._cta()
+        self.assertEqual(label, 'Submit Artwork')   # still no photo — not required
+
+    def test_submitting_needs_no_profile_photo(self):
+        user = User.objects.create_user(
+            username='nop@example.com', email='nop@example.com', password='pw')
+        Artist.objects.create(user=user, first_name='No', last_name='Photo',
+                              email='nop@example.com', zipcode='94710')
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(self.submit_url).status_code, 200)
+
+    def test_profile_detour_returns_to_the_submission(self):
+        user = User.objects.create_user(
+            username='ret@example.com', email='ret@example.com', password='pw')
+        artist = Artist.objects.create(user=user, first_name='Ree', last_name='Turn',
+                                       email='ret@example.com')   # no zipcode
+        self.client.force_login(user)
+        bounce = self.client.get(self.submit_url)
+        self.assertIn('next=', bounce.headers['Location'])
+        r = self.client.post(
+            reverse('gallery:artist_edit', kwargs={'pk': artist.pk}),
+            {'first_name': 'Ree', 'last_name': 'Turn', 'email': 'ret@example.com',
+             'zipcode': '94710', 'next': self.submit_url})
+        self.assertEqual(r.headers['Location'], self.submit_url)
+
+    def test_destination_survives_signup_and_email_verification(self):
+        """Mandatory verification bounces the user to their inbox and back to a bare
+        login page, where ?next= is long gone — the session carries it instead."""
+        from allauth.account.models import EmailAddress, EmailConfirmationHMAC
+        self.client.post(
+            '%s?next=%s' % (reverse('account_signup'), self.submit_url),
+            {'email': 'nina@example.com', 'password1': 'sup3rSecret!23',
+             'password2': 'sup3rSecret!23', 'first_name': 'Nina', 'last_name': 'Newcomer'},
+            follow=True)
+        ea = EmailAddress.objects.get(email='nina@example.com')
+        self.client.post('/accounts/confirm-email/%s/' % EmailConfirmationHMAC(ea).key,
+                         follow=True)
+        r = self.client.post('/accounts/login/',
+                             {'login': 'nina@example.com', 'password': 'sup3rSecret!23'},
+                             follow=True)
+        visited = [u for u, _code in r.redirect_chain]
+        self.assertTrue(any(self.submit_url in u for u in visited), visited)
+
+    def test_missing_catalogue_assets_reported_to_the_curator(self):
+        staff = User.objects.create_user(
+            username='cur@example.com', email='cur@example.com', password='pw')
+        add_staff_role(staff)
+        artist = Artist.objects.create(first_name='No', last_name='Assets',
+                                       email='na@example.com')
+        art = Artwork.objects.create(name='W', end_year=2025)
+        art.artists.add(artist)
+        self.show.artworks.add(art)
+        self.client.force_login(staff)
+        body = self.client.get(
+            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug})).content.decode()
+        self.assertIn('Missing catalogue entries', body)
+        self.assertIn('No Assets', body)
+        self.assertIn('photo', body)
+
+
 class ArtistVenmoVisibilityTests(TestCase):
     """Venmo is payment info, not a public profile field: only the artist, curators
     and gallery admins may see it — the same gate as phone and email."""
@@ -1213,7 +1312,8 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_incomplete_profile_redirects_to_artist_edit_with_highlight_params(self):
-        # Artist missing photo and zipcode → redirect to edit page with ?highlight=
+        # Missing zipcode → bounce to the editor, highlighting it and carrying a
+        # ?next= back here so finishing the profile resumes the submission.
         incomplete_user = User.objects.create_user(
             username='incomplete@example.com', email='incomplete@example.com', password='pw'
         )
@@ -1225,15 +1325,16 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
             # No image, no zipcode
         )
         self.client.force_login(incomplete_user)
-        response = self.client.get(
-            reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
-        )
+        submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        response = self.client.get(submit_url)
         self.assertEqual(response.status_code, 302)
         location = response.headers['Location']
         self.assertIn('artist', location)
         self.assertIn('highlight=', location)
-        self.assertIn('image', location)
         self.assertIn('zipcode', location)
+        self.assertIn('next=', location)
+        # A missing photo must NOT be what sent them here.
+        self.assertNotIn('image', location)
         # first_name and last_name are present so should NOT be in highlight
         self.assertNotIn('first_name', location)
         self.assertNotIn('last_name', location)
@@ -3042,8 +3143,19 @@ class ArtistFormRequiredTests(TestCase):
         )
         form = ArtistForm(data={'first_name': 'A', 'last_name': 'B'}, user=u)
         self.assertFalse(form.is_valid())
-        for f in ('email', 'zipcode', 'image'):
+        for f in ('email', 'zipcode'):
             self.assertIn(f, form.errors)
+        # The photo is a catalogue asset, requested at acceptance — it must never
+        # block a new artist from saving their very first profile.
+        self.assertNotIn('image', form.errors)
+
+    def test_profile_saves_without_a_photo(self):
+        from gallery.forms import ArtistForm
+        u = User.objects.create_user(
+            username='nophoto@example.com', email='nophoto@example.com', password='pw')
+        form = ArtistForm(data={'first_name': 'A', 'last_name': 'B',
+                                'email': 'nophoto@example.com', 'zipcode': '94710'}, user=u)
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_website_bare_domain_accepted_and_normalized(self):
         from gallery.forms import ArtistForm
@@ -3052,7 +3164,7 @@ class ArtistFormRequiredTests(TestCase):
         data = {'first_name': 'A', 'last_name': 'B', 'email': 'afw@example.com',
                 'zipcode': '94710', 'website': 'howardhersh.com'}
         form = ArtistForm(data=data, user=u)
-        form.is_valid()   # image still missing, but website must NOT be an error
+        form.is_valid()   # website must NOT be an error
         self.assertNotIn('website', form.errors)
         self.assertEqual(form.cleaned_data.get('website'), 'https://howardhersh.com')
 

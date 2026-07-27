@@ -128,8 +128,20 @@
 </div>
 </div>
 <div class="text-center section-label"><h2>Artworks ({{ artwork_data|length }}) <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
-{% if can_submit %}<div class="text-center"><a class="card__link new-button" href="{% url 'gallery:artwork_submit' show.slug %}">Submit Artwork</a></div>{% endif %}
-{% if show.is_accepting_submissions and not can_submit %}<p class="text-center text-muted small mt-2"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">Help submitting</a></p>{% endif %}
+{% comment %}
+  One call to action that always names the real next step, whoever is looking —
+  signed out, half-way through a profile, or ready to submit. This page is where
+  every open-call announcement and invitation lands, so it must never be a dead end.
+{% endcomment %}
+{% if submit_cta %}
+<div class="text-center submit-cta">
+  <a class="card__link new-button" href="{{ submit_cta.url }}">{{ submit_cta.label }}</a>
+  {% if submit_cta.hint %}<p class="text-muted small mt-1 mb-0">{{ submit_cta.hint }}</p>{% endif %}
+  <p class="text-muted small mt-1"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">How submitting works</a></p>
+</div>
+{% elif show.is_accepting_submissions %}
+<p class="text-center text-muted small mt-2"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">Help submitting</a></p>
+{% endif %}
 <div class="cards">
 {% for entry in artwork_data %}
 {% with artwork=entry.artwork sub=entry.submission %}

@@ -1,0 +1,30 @@
+{% comment %}
+  Three-step tracker for the submission flow, so a first-timer can see where they
+  are and that the path is finite. Expects `progress_step` (1 account, 2 profile,
+  3 artwork). Steps before the current one read as done.
+{% endcomment %}
+<ol class="sub-steps" aria-label="Submission progress">
+  <li class="{% if progress_step > 1 %}done{% elif progress_step == 1 %}now{% endif %}">
+    <span class="sub-steps__n">1</span> Account
+  </li>
+  <li class="{% if progress_step > 2 %}done{% elif progress_step == 2 %}now{% endif %}">
+    <span class="sub-steps__n">2</span> Your details
+  </li>
+  <li class="{% if progress_step == 3 %}now{% endif %}">
+    <span class="sub-steps__n">3</span> Your artwork
+  </li>
+</ol>
+<style>
+  .sub-steps { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem 1.25rem;
+               padding: 0; margin: 0 0 1.1rem; font-size: .9rem; color: #6b6b6b; }
+  .sub-steps li { display: flex; align-items: center; gap: .4rem; }
+  .sub-steps__n { display: inline-flex; align-items: center; justify-content: center;
+                  width: 1.5rem; height: 1.5rem; border-radius: 50%;
+                  border: 1.5px solid currentColor; font-size: .78rem; font-weight: 600; }
+  .sub-steps .now { color: #2f9e6f; font-weight: 600; }
+  .sub-steps .done { color: #2f9e6f; }
+  .sub-steps .done .sub-steps__n { background: #2f9e6f; border-color: #2f9e6f; color: #fff; }
+  .sub-steps .done .sub-steps__n::after { content: "✓"; }
+  .sub-steps .done .sub-steps__n { font-size: 0; }
+  .sub-steps .done .sub-steps__n::after { font-size: .8rem; }
+</style>

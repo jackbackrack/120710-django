@@ -34,6 +34,13 @@ class CustomSignupForm(SignupForm):
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
         user.save(update_fields=["first_name", "last_name"])
+        # Mandatory email verification sends them off to their inbox and back via a
+        # confirm link, which lands on a bare login page — ?next= does not survive
+        # that. Park the destination in the session so the eventual login still
+        # finishes the journey they started.
+        nxt = request.POST.get('next') or request.GET.get('next')
+        if nxt:
+            request.session['post_auth_next'] = nxt
         artist, status = ensure_signup_profile(user)
         if artist and status == 'claimed':
             request.session['claimed_artist_pk'] = artist.pk

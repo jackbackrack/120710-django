@@ -11,6 +11,11 @@
 {% if schedule_url %}
 <p>Please <a href="{{ schedule_url }}">schedule your {% if show.self_install %}install{% else %}drop-off{% endif %} and pickup times</a> for the show. Once the available windows are posted you can pick a specific time (and add it to your calendar).</p>
 {% endif %}
+{% if profile_url %}
+<p>Your work will appear in the printed show catalogue alongside a short artist entry.
+We still need {% for item in missing_assets %}{{ item }}{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %} —
+please <a href="{{ profile_url }}">add {% if missing_assets|length == 1 %}it{% else %}them{% endif %} to your profile</a> before the catalogue goes to print.</p>
+{% endif %}
 <p>— The 120710 Team</p>
 </body>
 </html>

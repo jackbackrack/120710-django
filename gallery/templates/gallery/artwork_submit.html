@@ -5,6 +5,7 @@
 {% block block_title %}Submit Artwork to {{ show.name }}{% endblock %}
 
 {% block content %}
+{% include 'gallery/_submission_progress.html' %}
 <div class="col-8 mx-auto mt-4">
   <div class="text-center">
   {% if show.submission_deadline %}

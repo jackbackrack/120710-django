@@ -1,5 +1,7 @@
 import logging
 
+from urllib.parse import urlencode
+
 from django.core.exceptions import MultipleObjectsReturned
 
 from allauth.account.adapter import DefaultAccountAdapter
@@ -9,6 +11,18 @@ from accounts.signup import apply_google_profile_data, ensure_signup_profile
 
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_next(request):
+    """The ?next= destination if it is a safe same-host path, else None."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = (request.POST.get('next') or request.GET.get('next')
+           or request.session.pop('post_auth_next', None))
+    if nxt and url_has_allowed_host_and_scheme(
+            nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return nxt
+    return None
+
 
 class NoNewUsersAccountAdapter(DefaultAccountAdapter):
 
@@ -39,15 +53,25 @@ class NoNewUsersAccountAdapter(DefaultAccountAdapter):
             except Artist.DoesNotExist:
                 pass
         new_pk = request.session.pop('new_artist_pk', None)
+        artist = None
         if new_pk:
-            return reverse('gallery:artist_edit', kwargs={'pk': new_pk})
-        artist = request.user.artists.order_by('-created_at').first()
-        if artist:
-            return reverse('gallery:artist_edit', kwargs={'pk': artist.pk})
-        return super().get_signup_redirect_url(request)
+            from gallery.models import Artist
+            artist = Artist.objects.filter(pk=new_pk).first()
+        if artist is None:
+            artist = request.user.artists.order_by('-created_at').first()
+        if artist is None:
+            return super().get_signup_redirect_url(request)
+        # Send them to the profile step, but chain any destination through it so
+        # signing up on the way to a submission ends at the submission, not here.
+        url = reverse('gallery:artist_edit', kwargs={'pk': artist.pk})
+        nxt = _safe_next(request)
+        return f'{url}?{urlencode({"next": nxt})}' if nxt else url
 
     def get_login_redirect_url(self, request):
         from django.urls import reverse
+        nxt = _safe_next(request)
+        if nxt:
+            return nxt
         new_pk = request.session.pop('new_artist_pk', None)
         if new_pk:
             return reverse('gallery:artist_edit', kwargs={'pk': new_pk})

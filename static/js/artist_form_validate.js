@@ -42,16 +42,13 @@
     bad(el, fb, 'Must be 5 digits (94710) or 9 digits (94710-1234)'); return false;
   }
 
-  // Photo is required, but on the Edit page an existing photo already satisfies
-  // it (the file input is empty then). data-has-image="1" marks that case.
+  // The photo is optional here: it is a catalogue asset, asked for at acceptance
+  // rather than as a wall on the first screen a new artist sees. Confirm a new
+  // upload, stay quiet otherwise — never block the save.
   function validateImage(el, fb) {
     var hasNew = el.files && el.files.length > 0;
-    var hasExisting = form.dataset.hasImage === '1';
-    var clearBox = document.getElementById('id_image-clear');
-    var cleared = clearBox && clearBox.checked;
     if (hasNew) { ok(el, fb, '✓'); return true; }
-    if (hasExisting && !cleared) { neutral(el, fb); return true; }
-    bad(el, fb, 'A profile photo is required'); return false;
+    neutral(el, fb); return true;
   }
 
   function validatePhone(el, fb) {

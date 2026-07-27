@@ -33,16 +33,31 @@ def _send_selection_email(submission, accepted):
     # Absolute link to the artist's scheduling page, built from the show's site
     # website (emails are sent without a request). Omitted if no site/website.
     schedule_url = None
+    profile_url = None
+    missing_assets = []
     if accepted:
         site = submission.show.sites.first()
         base = (site.website or '').rstrip('/') if site else ''
         if base:
             schedule_url = base + reverse('gallery:artist_schedule', kwargs={'slug': submission.show.slug})
+        # Acceptance is when the catalogue entry becomes real, so this is where we
+        # ask for the photo and bio rather than gating submission on them months
+        # earlier. Only mention what is actually missing.
+        artist = submission.artwork.artists.first()
+        if artist and base:
+            if not artist.image:
+                missing_assets.append('a photo of yourself')
+            if not (artist.bio or '').strip():
+                missing_assets.append('a short bio')
+            if missing_assets:
+                profile_url = base + reverse('gallery:artist_edit', kwargs={'pk': artist.pk})
     html = render_to_string(template, {
         'submission': submission,
         'show': submission.show,
         'artwork': submission.artwork,
         'schedule_url': schedule_url,
+        'profile_url': profile_url,
+        'missing_assets': missing_assets,
     })
     # CC the configured gallery address if set, otherwise the show's curator(s),
     # so someone at the gallery has a copy of every acceptance/rejection.
@@ -429,9 +444,9 @@ def artwork_submit(request, slug):
     if not artist:
         return redirect(show)
 
+    # The photo is deliberately absent from this gate: it is a catalogue asset,
+    # requested at acceptance. Only what is needed to credit the work is required.
     missing_fields = []
-    if not artist.image:
-        missing_fields.append('image')
     if not artist.first_name:
         missing_fields.append('first_name')
     if not artist.last_name:
@@ -439,15 +454,19 @@ def artwork_submit(request, slug):
     if not artist.zipcode:
         missing_fields.append('zipcode')
     if missing_fields:
-        labels = {'image': 'profile photo', 'first_name': 'first name',
-                  'last_name': 'last name', 'zipcode': 'zip code'}
+        labels = {'first_name': 'first name', 'last_name': 'last name',
+                  'zipcode': 'zip code'}
         missing_display = ', '.join(labels[f] for f in missing_fields)
-        messages.error(
+        messages.info(
             request,
-            f'Please complete your artist profile before submitting — missing: {missing_display}.',
+            f'One more step — we need your {missing_display} to credit your work. '
+            f'Save this and you will come straight back here.',
         )
+        # Carry the destination so finishing the profile returns them to submitting
+        # instead of stranding them on their own profile page.
         from urllib.parse import urlencode
-        qs = urlencode({'highlight': ','.join(missing_fields)})
+        qs = urlencode({'highlight': ','.join(missing_fields),
+                        'next': reverse('gallery:artwork_submit', kwargs={'slug': slug})})
         return redirect(f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}")
 
     if show.submission_type == Show.SUBMISSION_INVITED:
@@ -512,6 +531,7 @@ def artwork_submit(request, slug):
 
     return render(request, 'gallery/artwork_submit.html', {
         'show': show,
+        'progress_step': 3,
         'form': form,
         'quick_form': quick_form,
         'available_artworks': available_artworks,
@@ -622,8 +642,29 @@ def show_submissions(request, slug):
         'invited_submitted': invited_submitted,
         'invited_not_submitted': invited_not_submitted,
         'invited_total': len(invited_submitted) + len(invited_not_submitted),
+        'missing_catalogue_assets': _missing_catalogue_assets(show),
     }
     return render(request, 'gallery/show_submissions.html', context)
+
+
+def _missing_catalogue_assets(show):
+    """Artists in the show who still lack a photo or bio for the catalogue.
+
+    Nothing forces these: the checklist renders fine without them, it just looks
+    worse, so the gap is invisible until it is printed. Since the photo is no longer
+    demanded at submission, this is the curator's way of chasing the stragglers."""
+    from gallery.models import Artist
+    rows = []
+    for artist in (Artist.objects.filter(artworks__shows=show).distinct()
+                   .order_by('first_name', 'last_name')):
+        missing = []
+        if not artist.image:
+            missing.append('photo')
+        if not (artist.bio or '').strip():
+            missing.append('bio')
+        if missing:
+            rows.append({'artist': artist, 'missing': ', '.join(missing)})
+    return rows
 
 
 def _sync_show_artworks(show, artwork, decision):

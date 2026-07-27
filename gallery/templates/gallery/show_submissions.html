@@ -9,6 +9,18 @@
 {% block extra_head %}{% if can_manage %}<link rel="stylesheet" href="{% static 'css/curation_select.css' %}">{% endif %}{% endblock %}
 
 {% block content %}
+{% if missing_catalogue_assets %}
+<div class="alert alert-warning">
+  <strong>Missing catalogue entries ({{ missing_catalogue_assets|length }})</strong> —
+  these artists have work in the show but no photo or bio yet. The checklist prints
+  without them, it just looks emptier.
+  <ul class="mb-0 mt-2">
+    {% for row in missing_catalogue_assets %}
+    <li><a href="{{ row.artist.get_absolute_url }}">{{ row.artist }}</a> — needs {{ row.missing }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
 {% if invited_submitted or invited_not_submitted %}
 <div class="mb-3 p-3 border rounded text-center">

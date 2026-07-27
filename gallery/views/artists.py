@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
@@ -112,9 +113,12 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         if self.kwargs.get(self.pk_url_kwarg) is not None:
             return super().get(request, *args, **kwargs)
         self.object = self.get_object()
+        # Previously a missing photo bounced you into the editor every time you
+        # looked at your own profile — an inescapable loop once the photo stopped
+        # being required. The profile page now just nudges instead.
         if (request.user.is_authenticated
                 and self.object.user == request.user
-                and not self.object.image):
+                and not self.object.first_name and not self.object.last_name):
             return redirect(reverse('gallery:artist_edit', kwargs={'pk': self.object.pk}))
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
@@ -231,6 +235,14 @@ class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # Mid-flow (arrived here on the way to submitting): show the tracker and
+        # carry the destination across the POST.
+        nxt = self.request.POST.get('next') or self.request.GET.get('next')
+        if nxt and url_has_allowed_host_and_scheme(
+                nxt, allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure()):
+            context['next_url'] = nxt
+            context['progress_step'] = 2
         artist = self.object
         if artist.user == self.request.user:
             is_empty = (
@@ -242,8 +254,15 @@ class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             context['show_claim_hint'] = is_empty
         return context
 
-    def form_valid(self, form):
-        return super().form_valid(form)
+    def get_success_url(self):
+        # Return to wherever the artist was headed (usually a show's submit page)
+        # rather than dropping them on their own profile with no way back.
+        nxt = self.request.POST.get('next') or self.request.GET.get('next')
+        if nxt and url_has_allowed_host_and_scheme(
+                nxt, allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure()):
+            return nxt
+        return super().get_success_url()
 
     def test_func(self):
         obj = self.get_object()

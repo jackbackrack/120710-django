@@ -18,5 +18,11 @@
   <button class="btn btn-success" type="submit">Log in with email and password</button>
 </form>
 <hr>
-<p class="text-muted">Don't have an account? <a href="{% url 'account_signup' %}">Sign up</a></p>
+{% comment %}
+  Keep ?next= when crossing to signup: for an invited artist that query string
+  carries the invitation token, and dropping it silently loses the invitation
+  unless they happen to sign up with the exact address we invited.
+{% endcomment %}
+<p class="text-muted">Don't have an account?
+  <a href="{% url 'account_signup' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">Sign up</a></p>
 {% endblock content %}
