@@ -686,6 +686,41 @@ class SubmissionOnboardingTests(TestCase):
         self.assertIn('next=', url)
         self.assertIn('submit', url)
 
+    def test_returning_visitor_is_offered_sign_in_not_only_sign_up(self):
+        """Two audiences arrive from the same announcement. Offering only "Sign up"
+        left everyone who already had an account with no route in."""
+        body = self.client.get(self.show_url).content.decode()
+        self.assertIn('Sign up to submit', body)
+        self.assertIn('Already have an account?', body)
+        from urllib.parse import quote
+        self.assertIn('%s?next=%s' % (reverse('account_login'), quote(self.submit_url, safe='')),
+                      body)
+
+    def test_signed_in_visitor_is_led_through_every_remaining_step(self):
+        user = User.objects.create_user(
+            username='led@example.com', email='led@example.com', password='pw')
+        self.client.force_login(user)
+
+        # No profile at all
+        self.assertIn('Set up your artist profile', self._cta()[0])
+
+        artist = Artist.objects.create(user=user, first_name='Led', last_name='Through',
+                                       email='led@example.com')
+        self.assertIn('Finish your profile', self._cta()[0])
+
+        artist.zipcode = '94710'
+        artist.save()
+        self.assertIn('Finish your profile', self._cta()[0])   # photo outstanding
+
+        artist.image = _test_jpg('led.jpg')
+        artist.save()
+        self.assertEqual(self._cta()[0], 'Submit Artwork')
+
+        art = Artwork.objects.create(name='Piece', end_year=2025)
+        art.artists.add(artist)
+        ArtworkSubmission.objects.create(show=self.show, artwork=art, submitted_by=user)
+        self.assertEqual(self._cta()[0], 'Submit another work')
+
     def test_cta_tracks_profile_completeness_then_offers_submit(self):
         user = User.objects.create_user(
             username='cta@example.com', email='cta@example.com', password='pw')

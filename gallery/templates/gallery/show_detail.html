@@ -137,6 +137,7 @@
 <div class="text-center submit-cta">
   <a class="card__link new-button" href="{{ submit_cta.url }}">{{ submit_cta.label }}</a>
   {% if submit_cta.hint %}<p class="text-muted small mt-1 mb-0">{{ submit_cta.hint }}</p>{% endif %}
+  {% if submit_cta.alt_url %}<p class="mt-1 mb-0"><a class="card__link" href="{{ submit_cta.alt_url }}">{{ submit_cta.alt_label }}</a></p>{% endif %}
   <p class="text-muted small mt-1"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">How submitting works</a></p>
 </div>
 {% elif show.is_accepting_submissions %}

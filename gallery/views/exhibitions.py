@@ -180,9 +180,15 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
         user = self.request.user
 
         if not user.is_authenticated:
+            # Two audiences arrive here from the same announcement: people who need an
+            # account, and people who already have one from a previous show. Offering
+            # only "Sign up" left the returning half with no route in at all.
             return {'label': 'Sign up to submit', 'url':
                     f"{reverse('account_signup')}?{urlencode({'next': submit_url})}",
                     'hint': 'Takes a minute — you will come straight back here.',
+                    'alt_label': 'Already have an account? Sign in',
+                    'alt_url':
+                    f"{reverse('account_login')}?{urlencode({'next': submit_url})}",
                     'step': 1}
 
         if artist is None:
@@ -205,7 +211,9 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
                 hint = ('Just a photo of you left — it prints in the show catalogue. '
                         'A phone snapshot is fine.')
             else:
-                hint = 'We need your ' + ', '.join(missing) + ' before you can submit.'
+                listed = (' and '.join(missing) if len(missing) == 2
+                          else ', '.join(missing[:-1]) + ' and ' + missing[-1])
+                hint = f'We need your {listed} before you can submit.'
             return {'label': f'Finish your profile ({len(missing)} to go)',
                     'url': f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}",
                     'hint': hint, 'step': 2}
