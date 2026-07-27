@@ -943,6 +943,51 @@ class InvitationSubmissionFlowTests(TestCase):
         self.assertEqual(self.client.get(self.submit_url).status_code, 302)
 
 
+class HowToAnchorTests(TestCase):
+    """Every in-page link to the how-to guide must land on a real section.
+
+    The show page linked #how-to-submit-artwork-to-an-open-call-show long after that
+    guide had been retitled, so the link silently dumped people at the top of the
+    page. Anchors are derived from guide titles, so a retitle breaks every link to it
+    with nothing to notice.
+    """
+
+    def _valid_anchors(self):
+        from django.utils.text import slugify
+        from eatart.role_docs import HOW_TO_GUIDES
+        return {g.get('anchor') or slugify(g['title']) for g in HOW_TO_GUIDES}
+
+    def test_submit_guide_renders_for_signed_out_and_signed_in_readers(self):
+        """Guides are role-filtered, and the submit guide exists in two mutually
+        exclusive versions — a public one and a signed-in one, with different titles.
+        They share an explicit anchor so the one link on the show page works for both;
+        a slugified-title anchor could only ever match one of them."""
+        self.assertIn('id="submit-artwork"',
+                      self.client.get(reverse('howto')).content.decode())
+
+        user = User.objects.create_user(
+            username='hw@example.com', email='hw@example.com', password='pw')
+        Artist.objects.create(user=user, first_name='How', last_name='To',
+                              email='hw@example.com')
+        self.client.force_login(user)
+        self.assertIn('id="submit-artwork"',
+                      self.client.get(reverse('howto')).content.decode())
+
+    def test_no_template_links_to_a_missing_section(self):
+        import pathlib
+        valid = self._valid_anchors()
+        broken = []
+        root = pathlib.Path(__file__).resolve().parent.parent
+        for path in root.rglob('*.html'):
+            if any(part in ('env', 'node_modules', '.claude') for part in path.parts):
+                continue
+            for m in re.finditer(r"\{%\s*url\s*'howto'\s*%\}#([a-z0-9-]+)",
+                                 path.read_text()):
+                if m.group(1) not in valid:
+                    broken.append('%s → #%s' % (path.name, m.group(1)))
+        self.assertEqual(broken, [], 'links to non-existent how-to sections')
+
+
 class ShowActionsTests(TestCase):
     """Show-page controls: plain buttons for everyone, small menus for curators."""
 

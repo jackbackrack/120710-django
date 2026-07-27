@@ -115,10 +115,10 @@
 <div class="text-center submit-cta">
   <a class="card__link new-button" href="{{ submit_cta.url }}">{{ submit_cta.label }}</a>
   {% if submit_cta.hint %}<p class="text-muted small mt-1 mb-0">{{ submit_cta.hint }}</p>{% endif %}
-  <p class="text-muted small mt-1"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">How submitting works</a></p>
+  <p class="text-muted small mt-1"><a href="{% url 'howto' %}#submit-artwork">How submitting works</a></p>
 </div>
 {% elif show.is_accepting_submissions %}
-<p class="text-center text-muted small mt-2"><a href="{% url 'howto' %}#how-to-submit-artwork-to-an-open-call-show">Help submitting</a></p>
+<p class="text-center text-muted small mt-2"><a href="{% url 'howto' %}#submit-artwork">Help submitting</a></p>
 {% endif %}
 <div class="cards">
 {% for entry in artwork_data %}

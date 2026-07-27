@@ -34,6 +34,9 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to submit artwork to a show (open call or invitation-only)',
+        # Stable anchor: the show page links here, and the public and signed-in
+        # versions of this guide are mutually exclusive, so they share one id.
+        'anchor': 'submit-artwork',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'The submission steps are the same for open call and invitation-only shows. The only difference: for an invitation-only show you must first have been invited. You receive an invitation email with a personal accept link — open it (after signing in, or signing up with any email) to link the invitation to your account. If your account email already matches the invited address you are recognized automatically, no link needed.',
@@ -326,6 +329,9 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to submit artwork to a show, open call or invitation-only (new to the site)',
+        # Stable anchor: the show page links here, and the public and signed-in
+        # versions of this guide are mutually exclusive, so they share one id.
+        'anchor': 'submit-artwork',
         'roles': None,
         'public_only': True,
         'steps': [
