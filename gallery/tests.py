@@ -677,24 +677,26 @@ class SubmissionOnboardingTests(TestCase):
         m = re.search(r'new-button" href="([^"]*)">([^<]*)</a>', body)
         return (m.group(2).strip(), m.group(1).replace('&amp;', '&')) if m else (None, None)
 
-    def test_anonymous_visitor_is_told_to_sign_up(self):
+    def test_anonymous_visitor_is_offered_a_way_in(self):
         """Previously the show page showed nothing at all to a signed-out visitor —
-        the one place every open-call announcement lands."""
+        the one place every open-call announcement lands. The label names neither
+        audience: the submit view is login-required, so it routes to sign-in, which
+        offers sign-up with the destination preserved."""
         label, url = self._cta()
-        self.assertEqual(label, 'Sign up to submit')
-        self.assertIn(reverse('account_signup'), url)
-        self.assertIn('next=', url)
-        self.assertIn('submit', url)
+        self.assertEqual(label, 'Submit')
+        self.assertEqual(url, self.submit_url)
 
-    def test_returning_visitor_is_offered_sign_in_not_only_sign_up(self):
-        """Two audiences arrive from the same announcement. Offering only "Sign up"
-        left everyone who already had an account with no route in."""
+        r = self.client.get(self.submit_url)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('next=', r.headers['Location'])
+        body = self.client.get(r.headers['Location']).content.decode()
+        self.assertIn('%s?next=' % reverse('account_signup'), body)
+
+    def test_label_names_neither_audience(self):
+        """"Sign up to submit" was wrong for everyone who already had an account."""
         body = self.client.get(self.show_url).content.decode()
-        self.assertIn('Sign up to submit', body)
-        self.assertIn('Already have an account?', body)
-        from urllib.parse import quote
-        self.assertIn('%s?next=%s' % (reverse('account_login'), quote(self.submit_url, safe='')),
-                      body)
+        self.assertNotIn('Sign up to submit', body)
+        self.assertIn('sign in or create an account', body)
 
     def test_signed_in_visitor_is_led_through_every_remaining_step(self):
         user = User.objects.create_user(
@@ -860,8 +862,8 @@ class HomePageSubmitEntryTests(TestCase):
 
     def test_anonymous_visitor_is_offered_a_way_in(self):
         body = self.client.get('/').content.decode()
-        self.assertIn('Sign up to submit', body)
-        self.assertIn('Already have an account', body)
+        self.assertIn('>Submit<', body)
+        self.assertIn(self.submit_url, body)
 
     def test_no_action_offered_for_a_show_that_is_closed(self):
         body = self.client.get('/').content.decode()
@@ -886,7 +888,31 @@ class HomePageSubmitEntryTests(TestCase):
     def test_show_list_offers_the_same_action(self):
         """One helper drives every surface, so they cannot drift apart."""
         body = self.client.get(reverse('gallery:show_list')).content.decode()
-        self.assertIn('Sign up to submit', body)
+        self.assertIn(self.submit_url, body)
+
+    def test_invitation_only_shows_offer_nothing_to_outsiders(self):
+        """Telling a stranger to submit to a show they cannot enter is worse than
+        saying nothing."""
+        today = datetime.date.today()
+        invited_show = Show.objects.create(
+            name='Working Craft', status=Show.STATUS_OPEN_CALL, submission_type='invited',
+            start=today + datetime.timedelta(days=60), end=today + datetime.timedelta(days=90))
+        invited_url = reverse('gallery:artwork_submit', kwargs={'slug': invited_show.slug})
+
+        self.assertNotIn(invited_url, self.client.get('/').content.decode())
+
+        user = User.objects.create_user(
+            username='inv@example.com', email='inv@example.com', password='pw')
+        artist = Artist.objects.create(user=user, first_name='In', last_name='Vited',
+                                       email='inv@example.com', zipcode='94710',
+                                       image=_test_jpg('inv.jpg'))
+        self.client.force_login(user)
+        self.assertNotIn(invited_url, self.client.get('/').content.decode())
+
+        from gallery.models import ShowInvitation
+        ShowInvitation.objects.create(show=invited_show, email='inv@example.com',
+                                      artist=artist)
+        self.assertIn(invited_url, self.client.get('/').content.decode())
 
 
 class ArtistPageSubmitEntryTests(TestCase):

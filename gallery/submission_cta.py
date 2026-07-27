@@ -42,15 +42,26 @@ def submit_cta(request, show, artist=None, artist_loaded=False):
     submit_url = reverse('gallery:artwork_submit', kwargs={'slug': show.slug})
     user = request.user
 
+    # Invitation-only shows offer nothing to anyone who is not a signed-in invitee.
+    # Checked before the signed-out branch: telling a stranger to sign up so they can
+    # submit to a show they cannot submit to is worse than saying nothing. Invitees
+    # arrive through the emailed accept link, which signs them in and returns here.
+    if show.submission_type == Show.SUBMISSION_INVITED:
+        from gallery.permissions import user_invited_to_show
+        if not user.is_authenticated or not user_invited_to_show(show, user):
+            return None
+
     if not user.is_authenticated:
-        # Two audiences arrive from the same announcement: people who need an account,
-        # and people who already have one from a previous show. Offering only "Sign
-        # up" left the returning half with no route in at all.
-        return {'label': 'Sign up to submit',
-                'url': f"{reverse('account_signup')}?{urlencode({'next': submit_url})}",
-                'hint': 'Takes a minute — you will come straight back here.',
-                'alt_label': 'Already have an account? Sign in',
-                'alt_url': f"{reverse('account_login')}?{urlencode({'next': submit_url})}",
+        # Just "Submit", for both audiences. Two kinds of people arrive from the same
+        # announcement — those who need an account and those who already have one from
+        # a previous show — and any label naming one of them is wrong for the other.
+        # The submit view is login-required, so this lands on the sign-in page carrying
+        # ?next=, and that page offers sign-up with the destination preserved. One
+        # button, no guess about who is reading.
+        return {'label': 'Submit', 'url': submit_url,
+                'hint': 'You will sign in or create an account first — it takes a minute, '
+                        'and you will come straight back here.',
+                'short_label': 'Submit', 'short_url': submit_url,
                 'step': 1}
 
     if not artist_loaded:
@@ -60,12 +71,7 @@ def submit_cta(request, show, artist=None, artist_loaded=False):
         return {'label': 'Set up your artist profile',
                 'url': f"{reverse('gallery:artist_new')}?{urlencode({'next': submit_url})}",
                 'hint': 'Just a few details so we can credit your work.',
-                'step': 2}
-
-    if show.submission_type == Show.SUBMISSION_INVITED:
-        from gallery.permissions import user_invited_to_show
-        if not user_invited_to_show(show, user):
-            return None
+                'short_label': 'Submit', 'short_url': submit_url, 'step': 2}
 
     missing = [label for field, label in SUBMIT_REQUIRED
                if not getattr(artist, field, None)]
@@ -83,16 +89,18 @@ def submit_cta(request, show, artist=None, artist_loaded=False):
             hint = f'We need your {listed} before you can submit.'
         return {'label': f'Finish your profile ({len(missing)} to go)',
                 'url': f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}",
-                'hint': hint, 'step': 2}
+                'hint': hint,
+                'short_label': 'Submit', 'short_url': submit_url, 'step': 2}
 
     submitted = ArtworkSubmission.objects.filter(show=show, artwork__artists=artist).count()
     if submitted:
         return {'label': 'Submit another work', 'url': submit_url,
                 'hint': f'You have submitted {submitted} '
                         f'work{"s" if submitted != 1 else ""} to this show.',
-                'step': 3}
+                'short_label': 'Submit another', 'short_url': submit_url, 'step': 3}
     return {'label': 'Submit Artwork', 'url': submit_url,
-            'hint': 'Upload your work and send it in.', 'step': 3}
+            'hint': 'Upload your work and send it in.',
+            'short_label': 'Submit', 'short_url': submit_url, 'step': 3}
 
 
 def submit_ctas(request, shows):
