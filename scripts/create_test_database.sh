@@ -5,6 +5,34 @@ set -e
 
 DIR="$(dirname "$0")"
 
+# Every show date is derived from the day the database is built, so a freshly seeded
+# database always has a show you can actually submit to. Hard-coded dates silently rot:
+# a show whose submission deadline has passed accepts nothing, which looks like a bug
+# in the submission flow rather than stale fixtures.
+eval "$(python - <<'PYDATES'
+import datetime
+today = datetime.date.today()
+def d(n):
+    return (today + datetime.timedelta(days=n)).isoformat()
+vals = {
+    # Past show: ran and closed last year.
+    'PAST_YEAR':          str((today - datetime.timedelta(days=300)).year),
+    'PAST_START':         d(-330), 'PAST_END': d(-240), 'PAST_DEADLINE': d(-360),
+    # Invitation-only show, open for submissions right now.
+    'INVITED_START':      d(60),  'INVITED_END': d(90),  'INVITED_DEADLINE': d(30),
+    # Open call currently in jury review — deadline just passed.
+    'REVIEW_START':       d(45),  'REVIEW_END': d(75),   'REVIEW_DEADLINE': d(-3),
+    # Open call accepting submissions right now — the one to test the flow against.
+    'OPEN_START':         d(90),  'OPEN_END': d(120),    'OPEN_DEADLINE': d(45),
+    'OPEN_DECISION':      d(55),
+}
+for k, v in vals.items():
+    print(f'{k}={v}')
+PYDATES
+)"
+PAST_SHOW_NAME="Autumn Open $PAST_YEAR"
+PAST_SHOW_SLUG="autumn-open-$PAST_YEAR"
+
 ARTIST="python $DIR/create_test_artist.py"
 ARTWORK="python $DIR/create_test_artwork.py"
 SHOW="python $DIR/create_test_show.py"
@@ -131,14 +159,35 @@ $ARTIST --email oliver@hawk.com --password b8 --curator \
 $ARTIST --email jonathan@bachrach.com --password b8 --curator \
         --first Jonathan --last Bachrach --image test_fixtures/artist_images/jrb-400.png
 
-$ARTIST --email miguel@novelo.com --password b8 --artist \
+$ARTIST --email miguel@novelo.com --password b8 --artist --zipcode 94710 \
         --first Miguel --last Novelo --image test_fixtures/artist_images/miguel-novelo.jpg
 
-$ARTIST --email laura@rokas.com --password b8 --artist \
+$ARTIST --email laura@rokas.com --password b8 --artist --zipcode 94710 \
         --first Laura --last Rokas --image test_fixtures/artist_images/laura-rokas.jpg
 
-$ARTIST --email dave@carter.com --password b8 --artist \
+$ARTIST --email dave@carter.com --password b8 --artist --zipcode 94710 \
         --first Dave --last Carter --image test_fixtures/artist_images/dave-carter.jpg
+
+# Accounts positioned at each step of the submission flow, so every state can be
+# exercised without replaying signup. What blocks submission is a missing photo or
+# zip code, so those are what differ between them.
+$ARTIST --email ready@example.com --password b8 --artist \
+        --first Sam --last Ready --zipcode 94710 \
+        --image test_fixtures/artist_images/dave-carter.jpg
+
+$ARTIST --email nophoto@example.com --password b8 --artist \
+        --first Nadia --last Nophoto --zipcode 94710
+
+$ARTIST --email newcomer@example.com --password b8 --artist \
+        --first Ned --last Newcomer
+
+$ARTIST --email invited@example.com --password b8 --artist \
+        --first Ivy --last Invited --zipcode 94710 \
+        --image test_fixtures/artist_images/laura-rokas.jpg
+
+$ARTIST --email uninvited@example.com --password b8 --artist \
+        --first Ursula --last Uninvited --zipcode 94710 \
+        --image test_fixtures/artist_images/miguel-novelo.jpg
 
 # Dedicated juror accounts for testing the jury workflow
 $ARTIST --email juror1@example.com --password b8 --artist \
@@ -147,11 +196,11 @@ $ARTIST --email juror1@example.com --password b8 --artist \
 $ARTIST --email juror2@example.com --password b8 --artist \
         --first Bob --last Juror
 
-echo "=== Creating past show (Autumn Open 2025, closed) ==="
+echo "=== Creating past show ($PAST_SHOW_NAME, closed) ==="
 
-$SHOW --name "Autumn Open 2025" \
-      --start 2025-09-01 --end 2025-11-30 \
-      --submission-deadline 2025-08-15 \
+$SHOW --name "$PAST_SHOW_NAME" \
+      --start "$PAST_START" --end "$PAST_END" \
+      --submission-deadline "$PAST_DEADLINE" \
       --status closed \
       --curator oliver@hawk.com \
       --site 120710 \
@@ -162,32 +211,32 @@ echo "=== Creating artworks (submitted to Autumn Open 2025) ==="
 $ARTWORK --email oliver@hawk.com --name "Oliver" \
          --year 2024 --width 12 --height 16 \
          --medium "Oil on canvas" \
-         --show autumn-open-2025 \
+         --show "$PAST_SHOW_SLUG" \
          --image test_fixtures/piece_images/Imaged_two_-_Oliver_Holden.jpg
 
 $ARTWORK --email dave@carter.com --name "Drawing" \
          --year 2024 --width 12 --height 16 \
          --medium "Graphite on paper" \
-         --show autumn-open-2025 \
+         --show "$PAST_SHOW_SLUG" \
          --image test_fixtures/piece_images/IMG_2448_-_David_Carter.jpeg
 
 $ARTWORK --email laura@rokas.com --name "Quilt" \
          --year 2025 --width 18 --height 24 \
          --medium "Textile" \
-         --show autumn-open-2025 \
+         --show "$PAST_SHOW_SLUG" \
          --image test_fixtures/piece_images/LR2201_Tinsignia_60_x_45-sm_-_Laura_Rokas_Berube.jpg
 
 $ARTWORK --email miguel@novelo.com --name "Rock Worship" \
          --year 2025 --width 18 --height 24 \
          --medium "Mixed media" \
-         --show autumn-open-2025 \
+         --show "$PAST_SHOW_SLUG" \
          --image test_fixtures/piece_images/miguel-rock_small.jpg
 
-echo "=== Promoting all artworks into Autumn Open 2025 ==="
+echo "=== Promoting all artworks into $PAST_SHOW_NAME ==="
 
 python manage.py shell -c "
 from gallery.models import Show, ArtworkSubmission
-show = Show.objects.get(slug='autumn-open-2025')
+show = Show.objects.get(slug='$PAST_SHOW_SLUG')
 for sub in ArtworkSubmission.objects.filter(show=show):
     sub.curator_decision = ArtworkSubmission.CURATOR_SELECTED
     sub.save()
@@ -198,8 +247,8 @@ for sub in ArtworkSubmission.objects.filter(show=show):
 echo "=== Creating active shows ==="
 
 $SHOW --name "Working Craft" \
-      --start 2026-07-01 --end 2026-07-25 \
-      --submission-deadline 2026-06-15 \
+      --start "$INVITED_START" --end "$INVITED_END" \
+      --submission-deadline "$INVITED_DEADLINE" \
       --curator oliver@hawk.com \
       --image test_fixtures/show_images/234tgrwith_logo_copy.jpg \
       --site 120710 \
@@ -207,8 +256,8 @@ $SHOW --name "Working Craft" \
       --invited
 
 $SHOW --name "Feel-Full" \
-      --start 2026-08-01 --end 2026-08-25 \
-      --submission-deadline 2026-07-15 \
+      --start "$REVIEW_START" --end "$REVIEW_END" \
+      --submission-deadline "$REVIEW_DEADLINE" \
       --image test_fixtures/show_images/far-away-is-now-updated.jpg \
       --curator jonathan@bachrach.com \
       --site 120710 \
@@ -336,6 +385,39 @@ for sub in submissions:
     print(f'  {sub.artwork.name}: {avg:.1f}')
 "
 
+echo "=== Creating an open call that is accepting submissions now ==="
+
+# Feel-Full ends up in jury review above, and Working Craft is invitation-only, so
+# neither can be used to walk the open-call submission flow. This one stays open.
+$SHOW --name "Open Studio" \
+      --start "$OPEN_START" --end "$OPEN_END" \
+      --submission-deadline "$OPEN_DEADLINE" \
+      --decision-date "$OPEN_DECISION" \
+      --curator oliver@hawk.com \
+      --site 120710 \
+      --status open_call \
+      --image test_fixtures/show_images/far-away-is-now-updated.jpg
+
+echo "=== Inviting artists to Working Craft (invitation only) ==="
+
+python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from gallery.models import Show, ShowInvitation
+User = get_user_model()
+show = Show.objects.get(slug='working-craft')
+show.status = Show.STATUS_OPEN_CALL
+show.save(update_fields=['status'])
+for email in ['invited@example.com', 'ready@example.com']:
+    inv, created = ShowInvitation.objects.get_or_create(show=show, email=email)
+    user = User.objects.filter(email=email).first()
+    artist = user.artists.first() if user else None
+    if artist and inv.artist_id is None:
+        inv.artist = artist
+        inv.save(update_fields=['artist'])
+    print(f'Invited {email} to Working Craft' + ('' if created else ' (already invited)'))
+print('uninvited@example.com deliberately NOT invited — use it to test the block')
+"
+
 echo "=== Setting up collectors and pinned artworks ==="
 
 python manage.py shell -c "
@@ -397,10 +479,24 @@ echo "=== Done ==="
 echo ""
 echo "Test accounts (all password: b8):"
 echo "  admin@example.com      — superuser"
-echo "  oliver@hawk.com        — curator of Autumn Open 2025 (closed); owns 3 works, pinned 2"
+echo "  oliver@hawk.com        — curator of $PAST_SHOW_NAME (closed) and Open Studio; owns 3 works"
 echo "  jonathan@bachrach.com  — curator of Feel-Full (in_review, 4 submissions, all scored)"
 echo "  juror1@example.com     — juror on Feel-Full"
 echo "  juror2@example.com     — juror on Feel-Full"
 echo "  dave@carter.com        — artist; owns 2 works"
 echo "  laura@rokas.com        — artist; owns 1 work, pinned 1"
 echo "  miguel@novelo.com      — artist; pinned 3 artworks"
+echo ""
+echo "Submission-flow accounts — log in, open a show, follow the button:"
+echo "  ready@example.com      — complete profile      → 'Submit Artwork'"
+echo "  nophoto@example.com    — no photo              → 'Finish your profile (1 to go)'"
+echo "  newcomer@example.com   — no photo, no zip      → 'Finish your profile (2 to go)'"
+echo "  invited@example.com    — complete + invited    → can submit to Working Craft"
+echo "  uninvited@example.com  — complete, NOT invited → no CTA on Working Craft"
+echo "  (or sign up fresh: the confirmation email prints to the runserver console)"
+echo ""
+echo "Shows, dated relative to today ($(date +%Y-%m-%d)):"
+echo "  open-studio     open call, ACCEPTING now      (deadline $OPEN_DEADLINE)"
+echo "  working-craft   invitation only, ACCEPTING    (deadline $INVITED_DEADLINE)"
+echo "  feel-full       open call, in jury review     (deadline $REVIEW_DEADLINE, passed)"
+echo "  $PAST_SHOW_SLUG   closed"

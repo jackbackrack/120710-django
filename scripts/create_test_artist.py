@@ -6,7 +6,7 @@ Usage:
     python create_test_artist.py --email EMAIL [--password PASSWORD]
                                [--artist] [--curator]
                                [--first FIRST] [--last LAST]
-                               [--image IMAGE_PATH]
+                               [--image IMAGE_PATH] [--zipcode ZIP]
 
 Defaults to test@example.com / testpass123 if not provided.
 
@@ -17,6 +17,10 @@ Defaults to test@example.com / testpass123 if not provided.
   --first FIRST       Set artist first name (requires --artist or --curator).
   --last LAST         Set artist last name (requires --artist or --curator).
   --image IMAGE_PATH  Optional path to an artist profile image (requires --artist or --curator).
+  --zipcode ZIP       Set the artist zip code. Together with --image this is what
+                      makes a seeded artist able to submit: both are required before
+                      submission, so an artist seeded without them is stuck at the
+                      profile step (which is useful to seed on purpose).
 """
 import os
 import sys
@@ -54,6 +58,7 @@ password   = _pop_flag_value(args, '--password') or 'testpass123'
 first_name = _pop_flag_value(args, '--first')
 last_name  = _pop_flag_value(args, '--last')
 image_path = _pop_flag_value(args, '--image')
+zipcode    = _pop_flag_value(args, '--zipcode')
 make_curator = _pop_flag(args, '--curator')
 make_artist  = _pop_flag(args, '--artist') or make_curator
 
@@ -73,12 +78,15 @@ if make_artist:
     from accounts.signup import ensure_signup_profile
     from django.core.files import File
     artist, _ = ensure_signup_profile(user)
-    if artist and (first_name or last_name):
+    if artist and (first_name or last_name or zipcode):
         if first_name:
             artist.first_name = first_name
         if last_name:
             artist.last_name = last_name
-        update = [f for f, v in (('first_name', first_name), ('last_name', last_name)) if v]
+        if zipcode:
+            artist.zipcode = zipcode
+        update = [f for f, v in (('first_name', first_name), ('last_name', last_name),
+                                 ('zipcode', zipcode)) if v]
         artist.save(update_fields=update)
     if image_path and artist:
         if not os.path.exists(image_path):
@@ -96,4 +104,11 @@ if make_curator:
     user.groups.add(curator_group)
 
 role = 'curator' if make_curator else ('artist' if make_artist else 'user')
-print(f'Created {role}: {email} / {password}')
+gaps = []
+if make_artist:
+    if not image_path:
+        gaps.append('no photo')
+    if not zipcode:
+        gaps.append('no zip')
+suffix = f'  [{", ".join(gaps)} — cannot submit yet]' if gaps else ''
+print(f'Created {role}: {email} / {password}{suffix}')
