@@ -25,6 +25,19 @@ def sanitize(value):
     return mark_safe(nh3.clean(str(value), tags=_ALLOWED_TAGS, attributes=_ALLOWED_ATTRS))
 
 
+@register.filter
+def get_item(mapping, key):
+    """Look a key up in a dict from a template: {{ mapping|get_item:key }}.
+
+    Django templates cannot subscript by a variable key, and rendering a list of
+    shows needs a per-show value (its submission call to action) computed once in the
+    view rather than re-derived per card.
+    """
+    if not hasattr(mapping, 'get'):
+        return None
+    return mapping.get(key)
+
+
 @register.simple_tag(takes_context=True)
 def surl(context, obj):
     """Return a site-scoped URL for obj when current_site is active, else the canonical URL."""

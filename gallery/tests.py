@@ -844,6 +844,51 @@ class SubmissionOnboardingTests(TestCase):
         self.assertIn('photo', body)
 
 
+class HomePageSubmitEntryTests(TestCase):
+    """The home page is where most people arrive; it has to offer a way in."""
+
+    def setUp(self):
+        today = datetime.date.today()
+        self.open_show = Show.objects.create(
+            name='Open Studio', status=Show.STATUS_OPEN_CALL, submission_type='open',
+            start=today + datetime.timedelta(days=60), end=today + datetime.timedelta(days=90))
+        self.past = Show.objects.create(
+            name='Past Thing', status=Show.STATUS_CLOSED,
+            start=today - datetime.timedelta(days=300), end=today - datetime.timedelta(days=280))
+        self.submit_url = reverse('gallery:artwork_submit',
+                                  kwargs={'slug': self.open_show.slug})
+
+    def test_anonymous_visitor_is_offered_a_way_in(self):
+        body = self.client.get('/').content.decode()
+        self.assertIn('Sign up to submit', body)
+        self.assertIn('Already have an account', body)
+
+    def test_no_action_offered_for_a_show_that_is_closed(self):
+        body = self.client.get('/').content.decode()
+        self.assertNotIn(reverse('gallery:artwork_submit', kwargs={'slug': self.past.slug}),
+                         body)
+
+    def test_action_tracks_the_signed_in_artist_state(self):
+        user = User.objects.create_user(
+            username='home@example.com', email='home@example.com', password='pw')
+        artist = Artist.objects.create(user=user, first_name='Home', last_name='Body',
+                                       email='home@example.com')
+        self.client.force_login(user)
+        self.assertIn('Finish your profile', self.client.get('/').content.decode())
+
+        artist.zipcode = '94710'
+        artist.image = _test_jpg('home.jpg')
+        artist.save()
+        body = self.client.get('/').content.decode()
+        self.assertIn('Submit Artwork', body)
+        self.assertIn(self.submit_url, body)
+
+    def test_show_list_offers_the_same_action(self):
+        """One helper drives every surface, so they cannot drift apart."""
+        body = self.client.get(reverse('gallery:show_list')).content.decode()
+        self.assertIn('Sign up to submit', body)
+
+
 class ArtistPageSubmitEntryTests(TestCase):
     """An incomplete profile no longer becomes homework on the artist's own page."""
 

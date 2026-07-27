@@ -17,6 +17,7 @@ from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
 from gallery.models.show_artwork_numbers import ShowArtworkNumber
 from gallery.permissions import can_delete_artist, can_delete_artwork, can_delete_show, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
+from gallery.submission_cta import submit_cta, submit_ctas
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 # Cards per Avery 5376 sheet — shown on the picker so a curator can see how many
 # sheets a selection will need.
@@ -43,6 +44,7 @@ class ShowListView(ListView):
         context['active_tag'] = self.request.GET.get('tag', '')
         context['can_manage_show'] = {s.id for s in all_shows if can_manage_show(self.request.user, s)}
         context['can_delete_show'] = {s.id for s in all_shows if can_delete_show(self.request.user, s)}
+        context['submit_ctas'] = submit_ctas(self.request, all_shows)
         return context
 
 
@@ -140,7 +142,8 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             aw.id for aw in artworks if can_delete_artwork(user, aw)
         }
         context['pending_submissions'] = pending_submissions
-        context['submit_cta'] = self._submit_cta(show, artist_profile)
+        context['submit_cta'] = submit_cta(self.request, show,
+                                           artist=artist_profile, artist_loaded=True)
         from reviews.models import ShowJuror
         context['jurors'] = list(ShowJuror.objects.filter(show=show).select_related('user').order_by('user__last_name'))
         context['rubric_criteria_count'] = show.rubric_criteria.count()
@@ -155,77 +158,6 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             user.is_superuser or _is_gallery_admin(user) or show.status in print_statuses
         )
         return context
-
-
-    # Everything needed before submitting, named here so the show page can state the
-    # requirement up front instead of bouncing someone mid-submission.
-    SUBMIT_REQUIRED = (('first_name', 'first name'),
-                       ('last_name', 'last name'),
-                       ('zipcode', 'zip code'),
-                       ('image', 'photo'))
-
-    def _submit_cta(self, show, artist):
-        """The single next action for this visitor, or None.
-
-        The show page is where every open-call announcement and invitation lands, so
-        it has to answer "what do I do now?" in every state. It previously showed a
-        Submit button only to people who were already signed in with a complete
-        profile — the ones who needed no guidance — and nothing at all to newcomers.
-        """
-        from django.urls import reverse
-        from urllib.parse import urlencode
-        if not show.is_accepting_submissions:
-            return None
-        submit_url = reverse('gallery:artwork_submit', kwargs={'slug': show.slug})
-        user = self.request.user
-
-        if not user.is_authenticated:
-            # Two audiences arrive here from the same announcement: people who need an
-            # account, and people who already have one from a previous show. Offering
-            # only "Sign up" left the returning half with no route in at all.
-            return {'label': 'Sign up to submit', 'url':
-                    f"{reverse('account_signup')}?{urlencode({'next': submit_url})}",
-                    'hint': 'Takes a minute — you will come straight back here.',
-                    'alt_label': 'Already have an account? Sign in',
-                    'alt_url':
-                    f"{reverse('account_login')}?{urlencode({'next': submit_url})}",
-                    'step': 1}
-
-        if artist is None:
-            return {'label': 'Set up your artist profile', 'url':
-                    f"{reverse('gallery:artist_new')}?{urlencode({'next': submit_url})}",
-                    'hint': 'Just a few details so we can credit your work.', 'step': 2}
-
-        if show.submission_type == Show.SUBMISSION_INVITED:
-            from gallery.permissions import user_invited_to_show
-            if not user_invited_to_show(show, user):
-                return None
-
-        missing = [label for field, label in self.SUBMIT_REQUIRED
-                   if not getattr(artist, field, None)]
-        if missing:
-            qs = urlencode({'highlight': ','.join(
-                f for f, _l in self.SUBMIT_REQUIRED if not getattr(artist, f, None)),
-                'next': submit_url})
-            if missing == ['photo']:
-                hint = ('Just a photo of you left — it prints in the show catalogue. '
-                        'A phone snapshot is fine.')
-            else:
-                listed = (' and '.join(missing) if len(missing) == 2
-                          else ', '.join(missing[:-1]) + ' and ' + missing[-1])
-                hint = f'We need your {listed} before you can submit.'
-            return {'label': f'Finish your profile ({len(missing)} to go)',
-                    'url': f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}",
-                    'hint': hint, 'step': 2}
-
-        submitted = ArtworkSubmission.objects.filter(show=show, artwork__artists=artist).count()
-        if submitted:
-            return {'label': 'Submit another work', 'url': submit_url,
-                    'hint': f'You have submitted {submitted} '
-                            f'work{"s" if submitted != 1 else ""} to this show.',
-                    'step': 3}
-        return {'label': 'Submit Artwork', 'url': submit_url,
-                'hint': 'Upload your work and send it in.', 'step': 3}
 
 
 def redirect_to_latest_show(request, site_slug=None, target='detail'):

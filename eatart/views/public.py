@@ -5,6 +5,7 @@ from django.shortcuts import render
 from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import LinkTreeEntry, Show
+from gallery.submission_cta import submit_cta, submit_ctas
 from gallery.permissions import can_delete_show, can_manage_show, is_curator_user, is_juror_user, is_staff_user, visible_show_queryset
 
 
@@ -26,6 +27,11 @@ def index(request):
 
     return render(request, 'public/index.html', {
         'hero_show': hero_show,
+        # Same call to action the show page uses, so the home page is a real entry
+        # point into the submission flow rather than a dead end that makes a visitor
+        # hunt for the show first.
+        'submit_ctas': submit_ctas(request, all_shows),
+        'hero_cta': submit_cta(request, hero_show) if hero_show else None,
         'hero_is_current': hero_is_current,
         'current_shows': current_shows,
         'future_shows': display_future_shows,

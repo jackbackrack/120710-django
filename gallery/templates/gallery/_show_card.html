@@ -29,7 +29,14 @@
       {% endwith %}
     </h4>
   </div>
-  {% if show.id in can_manage_show or show.id in can_delete_show or show.id in submittable_show_ids %}
+{% comment %}
+  submit_ctas holds the same state-aware action the show page uses, keyed by show id,
+  so a card offers exactly the right next step — sign up, finish your profile, or
+  submit — instead of a bare "Submit" that dead-ends for anyone not ready. Pages that
+  do not supply it simply show no submit action.
+{% endcomment %}
+{% with cta=submit_ctas|get_item:show.id %}
+  {% if show.id in can_manage_show or show.id in can_delete_show or show.id in submittable_show_ids or cta %}
   <div class="card__info">
     {% if show.id in can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
@@ -37,9 +44,12 @@
     {% if show.id in can_delete_show %}
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
     {% endif %}
-    {% if show.id in submittable_show_ids %}
+    {% if cta %}
+    <a class="card__link new-button" href="{{ cta.url }}" title="{{ cta.hint }}">{{ cta.label }}</a>
+    {% elif show.id in submittable_show_ids %}
     <a class="card__link" href="{% url 'gallery:artwork_submit' show.slug %}">Submit</a>
     {% endif %}
   </div>
   {% endif %}
+{% endwith %}
 </div>
