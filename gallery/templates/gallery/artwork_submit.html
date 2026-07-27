@@ -5,7 +5,11 @@
 {% block block_title %}Submit Artwork to {{ show.name }}{% endblock %}
 
 {% block content %}
-<div class="col-8 mx-auto mt-4">
+{% comment %}
+  Full width: the artist and artwork forms elsewhere in the flow are unconstrained,
+  and the artwork picker below is a card grid that wants the room.
+{% endcomment %}
+<div class="mt-4">
   {% include 'gallery/_submission_progress.html' %}
   <div class="text-center">
   {% if show.submission_deadline %}
