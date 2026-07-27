@@ -19,14 +19,15 @@
   {% endif %}
 
   {% if not available_artworks and not has_any_artworks %}
-  <p>You have no artworks yet. Add one below or <a class="card__link" href="{{ show.get_absolute_url }}">go back to the show</a>.</p>
+  <p>You have no artworks yet — add one below to submit it.</p>
   {% elif not available_artworks %}
   <p>All of your artworks have already been submitted to this show. You can add a new artwork below.</p>
   {% endif %}
   </div>
 
   {% if at_limit %}
-  <p class="text-center">You have reached the submission limit for this show. <a class="card__link" href="{{ show.get_absolute_url }}">Back to the show</a>.</p>
+  <p class="text-center">You have reached the submission limit for this show.
+    <a class="card__link" href="{{ show.get_absolute_url }}">Return to {{ show.name }}</a>.</p>
   {% elif available_artworks %}
   <form method="post" id="submit-form">
     {% csrf_token %}
@@ -53,13 +54,8 @@
     {% endif %}
     <div class="text-center mt-3">
       <button type="submit" class="btn btn-primary" id="submit-btn">Submit</button>
-      <a class="card__link ms-3" href="{{ show.get_absolute_url }}">Cancel</a>
     </div>
   </form>
-  {% else %}
-  <div class="text-center mt-3">
-    <a class="card__link" href="{{ show.get_absolute_url }}">Cancel</a>
-  </div>
   {% endif %}
 
   <div class="mt-4 text-center">
