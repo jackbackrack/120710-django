@@ -1069,9 +1069,29 @@ class SiteShowListTests(TestCase):
         self.assertIn(reverse('gallery:artwork_submit', kwargs={'slug': show.slug}),
                       self.client.get(self.url).content.decode())
 
-    def test_linked_from_the_site_page_and_unknown_site_is_404(self):
-        self.assertIn(self.url, self.client.get(self.site.get_absolute_url()).content.decode())
+    def test_unknown_site_is_404(self):
         self.assertEqual(self.client.get('/site/no-such/shows/').status_code, 404)
+
+    def test_nav_shows_link_is_site_scoped_when_a_site_is_current(self):
+        """Shows in the nav used to go to the site's detail page, because no
+        site-scoped list existed. Artists and Artworks already scoped this way."""
+        def nav_shows(path):
+            body = self.client.get(path, follow=True).content.decode()
+            m = re.search(r'href="([^"]*)">Shows</a>', body)
+            return m.group(1) if m else None
+
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            import importlib
+            from eatart import context_processors
+            importlib.reload(context_processors)
+            try:
+                # Pinned to a site: even the home page's nav scopes to it.
+                self.assertEqual(nav_shows('/'), self.url)
+            finally:
+                importlib.reload(context_processors)
+
+        # On a site's own pages, scoped regardless of the pin.
+        self.assertEqual(nav_shows(self.site.get_absolute_url()), self.url)
 
 
 class CuratorOrderingTests(TestCase):

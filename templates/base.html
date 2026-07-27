@@ -67,7 +67,7 @@
 
           <li class="nav-item">
             {% if current_site %}
-            <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{{ current_site.get_absolute_url }}">Shows</a>
+            <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{% url 'gallery:site_show_list' current_site.slug %}">Shows</a>
             {% else %}
             <a class="nav-link{% if 'show' in u %} active{% endif %}" href="{% url 'gallery:show_list' %}">Shows</a>
             {% endif %}
