@@ -8,6 +8,7 @@ import tempfile
 from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -806,6 +807,55 @@ class SubmissionOnboardingTests(TestCase):
         self.assertIn('Missing catalogue entries', body)
         self.assertIn('No Assets', body)
         self.assertIn('photo', body)
+
+
+class MakeTestArtistCommandTests(TestCase):
+    """Dev helper for entering the submission flow at a chosen step."""
+
+    def _run(self, **opts):
+        from io import StringIO
+        out = StringIO()
+        with override_settings(LOCAL_DEV=True):
+            call_command('make_test_artist', stdout=out, **opts)
+        return out.getvalue()
+
+    def test_refuses_to_run_outside_local_development(self):
+        """It sets a known password and marks an email verified without sending any —
+        that must never be possible against a real deployment."""
+        from django.core.management.base import CommandError
+        with override_settings(LOCAL_DEV=False):
+            with self.assertRaises(CommandError):
+                call_command('make_test_artist')
+        self.assertFalse(User.objects.filter(email='test-artist@example.com').exists())
+
+    def test_states_produce_the_intended_gaps(self):
+        expected = {'new-signup': (False, ''), 'no-photo': (False, '94710'),
+                    'complete': (True, '94710')}
+        for state, (has_photo, zipcode) in expected.items():
+            with self.subTest(state=state):
+                self._run(state=state, reset=True)
+                artist = Artist.objects.get(email='test-artist@example.com')
+                self.assertEqual(bool(artist.image), has_photo)
+                self.assertEqual(artist.zipcode, zipcode)
+
+    def test_account_is_usable_without_touching_the_console(self):
+        self._run(state='complete', reset=True)
+        self.assertTrue(self.client.login(
+            username='test-artist@example.com', password='testpass123'))
+        from allauth.account.models import EmailAddress
+        self.assertTrue(EmailAddress.objects.get(
+            email='test-artist@example.com').verified)
+
+    def test_no_account_state_creates_nothing(self):
+        out = self._run(state='no-account', reset=True)
+        self.assertFalse(User.objects.filter(email='test-artist@example.com').exists())
+        self.assertIn('No account created', out)
+
+    def test_rerunning_without_reset_is_refused(self):
+        from django.core.management.base import CommandError
+        self._run(state='complete', reset=True)
+        with self.assertRaises(CommandError):
+            self._run(state='complete')
 
 
 class ArtistVenmoVisibilityTests(TestCase):
