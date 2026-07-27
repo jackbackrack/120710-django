@@ -24,10 +24,6 @@ header {
 
 #status-bar {
     padding: 3px 12px;
-    /* Centred to match the page content below it, which is centred on nearly every
-       page (cards grid, .col-8.mx-auto forms, .text-center section labels). Left
-       alignment made the title read as detached from the page it names. */
-    text-align: center;
     font-size: 0.82em;
     color: #666;
     background-color: #f8f8f8;   /* fallback shown under the texture */

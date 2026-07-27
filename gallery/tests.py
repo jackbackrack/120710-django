@@ -13,7 +13,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.roles import add_staff_role
-from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, Site
+from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, ShowInvitation, Site
 
 
 def _make_test_image_dir():
@@ -844,6 +844,103 @@ class SubmissionOnboardingTests(TestCase):
         self.assertIn('Missing catalogue entries', body)
         self.assertIn('No Assets', body)
         self.assertIn('photo', body)
+
+
+class InvitationSubmissionFlowTests(TestCase):
+    """An invited artist gets the same guided path as an open-call one — the longest
+    chain in the app, and the one where the invitation token is easiest to drop."""
+
+    def setUp(self):
+        today = datetime.date.today()
+        self.show = Show.objects.create(
+            name='Working Craft', status=Show.STATUS_OPEN_CALL, submission_type='invited',
+            start=today + datetime.timedelta(days=60), end=today + datetime.timedelta(days=90))
+        self.submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+
+    def _cta(self, client):
+        body = client.get(self.show.get_absolute_url()).content.decode()
+        m = re.search(r'new-button" href="([^"]*)">([^<]*)</a>', body)
+        return (m.group(2).strip(), m.group(1).replace('&amp;', '&')) if m else (None, None)
+
+    def test_brand_new_artist_can_follow_the_link_all_the_way(self):
+        """Signed out with no account: the token has to survive sign-up AND the
+        mandatory email-verification round trip, which lands on a bare login page."""
+        from allauth.account.models import EmailAddress, EmailConfirmationHMAC
+        inv = ShowInvitation.objects.create(show=self.show, email='newbie@example.com')
+
+        r = self.client.get(inv.get_accept_url(), follow=True)
+        self.assertIn('next=', r.redirect_chain[0][0])
+        signup = re.search(r'href="(/accounts/signup/[^"]*next[^"]*)"',
+                           r.content.decode())
+        self.assertIsNotNone(signup, 'login page must carry the token into sign-up')
+
+        self.client.post(signup.group(1).replace('&amp;', '&'),
+                         {'email': 'newbie@example.com', 'password1': 'sup3rSecret!23',
+                          'password2': 'sup3rSecret!23', 'first_name': 'New',
+                          'last_name': 'Bie'}, follow=True)
+        ea = EmailAddress.objects.get(email='newbie@example.com')
+        self.client.post('/accounts/confirm-email/%s/' % EmailConfirmationHMAC(ea).key,
+                         follow=True)
+        r = self.client.post('/accounts/login/',
+                             {'login': 'newbie@example.com', 'password': 'sup3rSecret!23'},
+                             follow=True)
+        visited = [u for u, _c in r.redirect_chain]
+        self.assertTrue(any('accept-invite' in u for u in visited), visited)
+
+        inv.refresh_from_db()
+        self.assertIsNotNone(inv.claimed_by)
+        self.assertIsNotNone(inv.artist)
+
+        label, url = self._cta(self.client)
+        self.assertIn('Finish your profile', label)
+        self.assertIn('next=', url)
+
+    def test_existing_artist_signing_in_keeps_the_invitation(self):
+        user = User.objects.create_user(
+            username='ex@example.com', email='ex@example.com', password='pw123456!x')
+        from allauth.account.models import EmailAddress
+        EmailAddress.objects.create(user=user, email='ex@example.com',
+                                    primary=True, verified=True)
+        Artist.objects.create(user=user, first_name='Ex', last_name='Isting',
+                              email='ex@example.com', zipcode='94710',
+                              image=_test_jpg('ex.jpg'))
+        inv = ShowInvitation.objects.create(show=self.show, email='ex@example.com')
+
+        r = self.client.get(inv.get_accept_url(), follow=True)
+        login_url = r.redirect_chain[0][0]
+        # A browser posts the sign-in form back to the same URL, query string intact.
+        self.client.post(login_url, {'login': 'ex@example.com',
+                                     'password': 'pw123456!x'}, follow=True)
+        inv.refresh_from_db()
+        self.assertIsNotNone(inv.claimed_by)
+        self.assertEqual(self._cta(self.client)[0], 'Submit Artwork')
+
+    def test_signed_in_invitee_completes_the_profile_and_submits(self):
+        user = User.objects.create_user(
+            username='in@example.com', email='in@example.com', password='pw')
+        artist = Artist.objects.create(user=user, first_name='In', last_name='Vitee',
+                                       email='in@example.com')   # no zip, no photo
+        inv = ShowInvitation.objects.create(show=self.show, email='in@example.com')
+        self.client.force_login(user)
+        self.client.get(inv.get_accept_url(), follow=True)
+
+        self.assertIn('Finish your profile', self._cta(self.client)[0])
+        r = self.client.post(
+            reverse('gallery:artist_edit', kwargs={'pk': artist.pk}),
+            {'first_name': 'In', 'last_name': 'Vitee', 'email': 'in@example.com',
+             'zipcode': '94710', 'next': self.submit_url, 'image': _test_jpg('in.jpg')})
+        self.assertEqual(r.headers['Location'], self.submit_url)
+        self.assertEqual(self.client.get(self.submit_url).status_code, 200)
+
+    def test_uninvited_artist_is_offered_nothing(self):
+        user = User.objects.create_user(
+            username='out@example.com', email='out@example.com', password='pw')
+        Artist.objects.create(user=user, first_name='Out', last_name='Sider',
+                              email='out@example.com', zipcode='94710',
+                              image=_test_jpg('out.jpg'))
+        self.client.force_login(user)
+        self.assertIsNone(self._cta(self.client)[0])
+        self.assertEqual(self.client.get(self.submit_url).status_code, 302)
 
 
 class HomePageSubmitEntryTests(TestCase):
