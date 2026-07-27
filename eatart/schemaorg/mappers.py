@@ -131,7 +131,7 @@ def artwork_to_schema(artwork, request) -> VisualArtwork:
 
 def show_to_schema(show, request) -> VisualArtsEvent:
     public_url = build_absolute_url(request, show.get_absolute_url())
-    performers = [artist_to_schema(curator, request) for curator in show.curators.all()]
+    performers = [artist_to_schema(curator, request) for curator in show.ordered_curators]
     works = [artwork_to_schema(artwork, request) for artwork in show.artworks.all()]
 
     return VisualArtsEvent(
@@ -169,7 +169,7 @@ def event_to_schema(event, request) -> VisualArtsEvent:
         endDate=end_date,
         location=gallery_place(),
         organizer=gallery_place(),
-        performer=[artist_to_schema(curator, request) for curator in event.show.curators.all()] or None,
+        performer=[artist_to_schema(curator, request) for curator in event.show.ordered_curators] or None,
         workFeatured=[artwork_to_schema(artwork, request) for artwork in event.show.artworks.all()] or None,
         superEvent=EventReference(
             id=build_absolute_url(request, event.show.get_absolute_url()),

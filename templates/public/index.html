@@ -18,10 +18,10 @@
     <div class="card__content">
       <h2 class="text-2xl"><a class="card__link" href="{{ hero_show.get_absolute_url }}">{{ hero_show.name }}</a></h2>
       <h4 class="mb-6">
-        {% for curator in hero_show.curators.all %}
+        {% for curator in hero_show.ordered_curators %}
           <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
         {% endfor %}
-        {% if hero_show.curators.all %}<br>{% endif %}
+        {% if hero_show.ordered_curators %}<br>{% endif %}
         {% if hero_show.location %}<small>{{ hero_show.location }}</small><br>{% endif %}
         {{ hero_show.date_range }}
         {% if hero_show.status == hero_show.STATUS_OPEN_CALL and hero_show.submission_type == 'open' %}<br>Open Call{% if hero_show.submission_deadline %} &middot; <strong>Deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ hero_show.submission_deadline }}</span>{% endif %}{% endif %}

@@ -943,6 +943,85 @@ class InvitationSubmissionFlowTests(TestCase):
         self.assertEqual(self.client.get(self.submit_url).status_code, 302)
 
 
+class SiteShowListTests(TestCase):
+    """/site/<slug>/shows/ is the shows list scoped to one venue — same view and
+    template, so it keeps New, Slideshow, tag filtering and the submit buttons."""
+
+    def setUp(self):
+        today = datetime.date.today()
+        from gallery.models import Site
+        self.site = Site.objects.create(name='120710', slug='120710',
+                                        status=Site.STATUS_PUBLISHED)
+        other = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                    status=Site.STATUS_PUBLISHED)
+        self.mine = Show.objects.create(
+            name='Mine Now', status=Show.STATUS_PUBLISHED,
+            start=today - datetime.timedelta(days=1), end=today + datetime.timedelta(days=20))
+        self.mine.sites.add(self.site)
+        self.theirs = Show.objects.create(
+            name='Theirs', status=Show.STATUS_PUBLISHED,
+            start=today - datetime.timedelta(days=1), end=today + datetime.timedelta(days=20))
+        self.theirs.sites.add(other)
+        self.url = reverse('gallery:site_show_list', kwargs={'site_slug': self.site.slug})
+
+    def test_lists_only_that_sites_shows(self):
+        body = self.client.get(self.url).content.decode()
+        self.assertIn('Mine Now', body)
+        self.assertNotIn('Theirs', body)
+        self.assertIn('Shows at 120710', body)
+
+    def test_keeps_the_controls_the_global_list_has(self):
+        body = self.client.get(self.url).content.decode()
+        self.assertIn('ss-status-btn', body)          # slideshow
+        staff = User.objects.create_user(
+            username='sst@example.com', email='sst@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        self.assertIn('>New</a>', self.client.get(self.url).content.decode())
+
+    def test_offers_the_submit_action_for_an_open_call(self):
+        today = datetime.date.today()
+        show = Show.objects.create(
+            name='Open Studio', status=Show.STATUS_OPEN_CALL, submission_type='open',
+            start=today + datetime.timedelta(days=60), end=today + datetime.timedelta(days=90))
+        show.sites.add(self.site)
+        self.assertIn(reverse('gallery:artwork_submit', kwargs={'slug': show.slug}),
+                      self.client.get(self.url).content.decode())
+
+    def test_linked_from_the_site_page_and_unknown_site_is_404(self):
+        self.assertIn(self.url, self.client.get(self.site.get_absolute_url()).content.decode())
+        self.assertEqual(self.client.get('/site/no-such/shows/').status_code, 404)
+
+
+class CuratorOrderingTests(TestCase):
+    """Curators read in last-name order wherever a show lists them."""
+
+    def test_ordered_by_last_name_not_account_age(self):
+        today = datetime.date.today()
+        show = Show.objects.create(name='Ordered', start=today, end=today,
+                                   status=Show.STATUS_PUBLISHED)
+        for first, last in [('Zoe', 'Adams'), ('Al', 'Zimmer'), ('Bea', 'Mendez')]:
+            show.curators.add(Artist.objects.create(
+                name='%s %s' % (first, last), first_name=first, last_name=last,
+                email='%s@example.com' % first.lower()))
+        self.assertEqual([str(c) for c in show.ordered_curators],
+                         ['Zoe Adams', 'Bea Mendez', 'Al Zimmer'])
+        # Artist.Meta.ordering is by creation date, so the raw relation differs.
+        self.assertNotEqual([str(c) for c in show.curators.all()],
+                            [str(c) for c in show.ordered_curators])
+
+    def test_show_page_lists_them_in_that_order(self):
+        today = datetime.date.today()
+        show = Show.objects.create(name='Ordered Page', start=today, end=today,
+                                   status=Show.STATUS_PUBLISHED)
+        for first, last in [('Zoe', 'Adams'), ('Al', 'Zimmer')]:
+            show.curators.add(Artist.objects.create(
+                name='%s %s' % (first, last), first_name=first, last_name=last,
+                email='%s@example.com' % first.lower()))
+        body = self.client.get(show.get_absolute_url()).content.decode()
+        self.assertLess(body.index('Zoe Adams'), body.index('Al Zimmer'))
+
+
 class HomePageSubmitEntryTests(TestCase):
     """The home page is where most people arrive; it has to offer a way in."""
 

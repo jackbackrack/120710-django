@@ -14,7 +14,7 @@ from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from gallery.forms import ShowForm
-from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Tag
+from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Site, Tag
 from gallery.models.show_artwork_numbers import ShowArtworkNumber
 from gallery.permissions import can_delete_artist, can_delete_artwork, can_delete_show, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
 from gallery.submission_cta import submit_cta, submit_ctas
@@ -25,12 +25,23 @@ from gallery.views.placards import PER_PAGE as PLACARDS_PER_PAGE
 
 
 class ShowListView(ListView):
+    """All shows, or — at /site/<slug>/shows/ — just one venue's.
+
+    The site-scoped form reuses this view and its template so a venue's list is the
+    same page with the same controls (New, Slideshow, tag filter, submit buttons)
+    rather than a thinner copy that drifts.
+    """
     model = Show
     template_name = 'gallery/show_list.html'
+    site = None
 
     def get_queryset(self):
         qs = Show.objects.prefetch_related('curators', 'tags', 'events', 'sites')
         qs = visible_show_queryset(qs, self.request.user)
+        site_slug = self.kwargs.get('site_slug')
+        if site_slug:
+            self.site = get_object_or_404(Site, slug=site_slug)
+            qs = qs.filter(sites=self.site)
         return tag_filter_queryset(qs, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
@@ -45,6 +56,7 @@ class ShowListView(ListView):
         context['can_manage_show'] = {s.id for s in all_shows if can_manage_show(self.request.user, s)}
         context['can_delete_show'] = {s.id for s in all_shows if can_delete_show(self.request.user, s)}
         context['submit_ctas'] = submit_ctas(self.request, all_shows)
+        context['site'] = self.site
         return context
 
 

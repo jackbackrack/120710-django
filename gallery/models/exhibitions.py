@@ -157,6 +157,19 @@ class Show(models.Model):
         return None
 
     @property
+    def ordered_curators(self):
+        """Curators by last name, for anywhere they are listed.
+
+        Artist.Meta.ordering is ['-created_at'], so a plain curators.all() lists them
+        in reverse account-creation order — meaningless as a credit, and it shifts
+        when an unrelated account is made. Sorted in Python so
+        prefetch_related('curators') still applies.
+        """
+        return sorted(self.curators.all(),
+                      key=lambda a: ((a.last_name or a.name or '').casefold(),
+                                     (a.first_name or '').casefold()))
+
+    @property
     def curator_artist(self):
         return self.curators.order_by('-created_at').first()
 

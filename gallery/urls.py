@@ -167,6 +167,7 @@ urlpatterns = [
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', SiteDetailView.as_view(), name='site_detail'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/edit/$', SiteUpdateView.as_view(), name='site_edit'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/delete/$', SiteDeleteView.as_view(), name='site_delete'),
+    re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/shows/$', ShowListView.as_view(), name='site_show_list'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artists/$', SiteArtistListView.as_view(), name='site_artist_list'),
     re_path(r'^site/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artworks/$', SiteArtworkListView.as_view(), name='site_artwork_list'),
     # Must precede site_show_detail: otherwise ".../show/latest/" is captured as a

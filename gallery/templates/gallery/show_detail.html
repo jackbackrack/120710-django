@@ -16,7 +16,7 @@
     {% with show_sites=show.sites.all %}{% if show_sites %}<p class="text-gray-500 text-sm"><strong>{% if show_sites|length == 1 %}Site{% else %}Sites{% endif %}:</strong> {% for s in show_sites %}<a class="card__link" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}{% endwith %}
     <p class="mb-6 text-3xl">{{ show.date_range }}</p>
     <h3 class="mb-6">Curators:
-    {% with curators=show.curators.all %}
+    {% with curators=show.ordered_curators %}
     {% if curators %}
     {% for curator in curators %}<a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}
     {% else %}

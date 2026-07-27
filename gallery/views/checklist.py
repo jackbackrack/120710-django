@@ -266,7 +266,7 @@ def _footer(canvas, doc, site, logo):
 
 def _cover(show, site, works, styles, content_w, cache=None):
     story = [Paragraph(escape(show.name), styles['title'])]
-    curators = list(show.curators.all())
+    curators = show.ordered_curators
     if curators:
         names = ', '.join(str(c) for c in curators)
         story.append(Paragraph('Curated by ' + escape(names), styles['curator']))
@@ -369,7 +369,7 @@ def _checklist_data(show, user=None):
                 seen.add(a.pk)
                 artists.append(a)
     artists.sort(key=lambda a: str(a).casefold())   # bios in the same order as the cover
-    return site, works, artists, list(show.curators.all())
+    return site, works, artists, show.ordered_curators
 
 
 @login_required

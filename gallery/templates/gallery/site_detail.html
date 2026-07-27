@@ -30,7 +30,7 @@
 </div>
 
 {% if shows %}
-<div class="text-center section-label"><h2>Shows</h2></div>
+<div class="text-center section-label"><h2>Shows <a class="card__link" style="font-size:.6em" href="{% url 'gallery:site_show_list' site.slug %}">See all</a></h2></div>
 <div class="cards" data-grid-count="shows">
   {% for show in shows %}
     {% include 'gallery/_show_card.html' with hide_site=True %}

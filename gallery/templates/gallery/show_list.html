@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
-{% block title %}Shows{% endblock title %}
-{% block block_title %}Shows
+{% block title %}{% if site %}Shows at {{ site.name }}{% else %}Shows{% endif %}{% endblock title %}
+{% block block_title %}{% if site %}Shows at <a class="card__link" href="{{ site.get_absolute_url }}">{{ site.name }}</a>{% else %}Shows{% endif %}
 {% if is_staff_user %}
   <a class="card__link new-button" href="{% url 'gallery:show_new' %}">New</a>
 {% endif %}
