@@ -982,7 +982,8 @@ class ShowActionsTests(TestCase):
         self.client.force_login(staff)
         buttons, menus = self._controls()
         self.assertEqual(buttons, ['2D View', '3D View', 'Checklist'])
-        self.assertEqual(list(menus), ['Curate', 'Produce', 'Logistics', 'Manage'])
+        # Manage comes first, immediately after the Checklist button.
+        self.assertEqual(list(menus), ['Manage', 'Curate', 'Produce', 'Logistics'])
         # Instagram is a curator tool for preparing posts, not a way to view the show.
         self.assertIn('Instagram', menus['Produce'])
         self.assertNotIn('Instagram', buttons)

@@ -99,9 +99,11 @@ def show_actions(show, *, can_manage=False, can_delete=False, can_view_reviews=F
     if can_delete:
         manage.append(_link('Delete', reverse('gallery:show_delete', kwargs={'pk': pk})))
 
+    # Manage sits first, straight after the Checklist button: editing the show is the
+    # action a curator reaches for most, so it belongs nearest the plain buttons.
     menus = [{'label': label, 'items': items} for label, items in (
-        ('Curate', curate), ('Produce', produce),
-        ('Logistics', logistics), ('Manage', manage),
+        ('Manage', manage), ('Curate', curate),
+        ('Produce', produce), ('Logistics', logistics),
     ) if items]
 
     return {'buttons': buttons, 'menus': menus}
