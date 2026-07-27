@@ -990,6 +990,17 @@ class ShowActionsTests(TestCase):
         for label, items in menus.items():
             self.assertLessEqual(len(items), 5, '%s menu is too long' % label)
 
+    def test_no_action_bar_at_all_when_the_viewer_has_nothing(self):
+        """An open call seen by a non-curator offers no controls; the bar must not
+        render, or its padding and borders leave an empty strip on the card."""
+        today = datetime.date.today()
+        oc = Show.objects.create(
+            name='Open Studio', status=Show.STATUS_OPEN_CALL, submission_type='open',
+            start=today + datetime.timedelta(days=60), end=today + datetime.timedelta(days=90))
+        body = self.client.get(oc.get_absolute_url(), follow=True).content.decode()
+        self.assertNotIn('show-actions', body)
+        self.assertIsNone(re.search(r'<div class="card__info[^"]*">\s*</div>', body))
+
     def test_empty_groups_are_not_rendered(self):
         """A group with nothing in it must not leave a stray control or spacing."""
         from gallery.show_actions import show_actions

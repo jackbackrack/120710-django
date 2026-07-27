@@ -75,6 +75,7 @@
     ones everybody gets; curator and admin tools sit in small menus so having more
     permissions does not mean facing a wall of links.
   {% endcomment %}
+  {% if show_actions.buttons or show_actions.menus %}
   <div class="card__info show-actions">
     {% for b in show_actions.buttons %}
     <a class="card__link" href="{{ b.url }}"{% if b.title %} title="{{ b.title }}"{% endif %}>{{ b.label }}</a>
@@ -100,6 +101,7 @@
     </div>
     {% endfor %}
   </div>
+  {% endif %}
   </div>
 </div>
 </div>

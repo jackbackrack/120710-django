@@ -430,6 +430,12 @@ th, td {
 /* Show-page controls: a wrapping row of buttons and small dropdown menus. Gap does
    the spacing, so a group that is empty for this viewer costs no room at all —
    the old layout used fixed full-width spacers and left holes instead. */
+/* Must not defeat the .card__info:not(:has(*)) hide-when-empty rule above: equal
+   specificity, and this comes later in the file. The template also refuses to emit
+   the element when there is nothing in it, which is the real guard. */
+.show-actions:not(:has(*)) {
+    display: none;
+}
 .show-actions {
     display: flex;
     flex-wrap: wrap;
