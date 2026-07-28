@@ -205,6 +205,26 @@
       "width": 176
     }
   },
+  "how-to-run-a-public-art-site-open-call": {
+    "2": {
+      "bytes": 253532,
+      "height": 1816,
+      "key": "how-to-run-a-public-art-site-open-call/02.b78bcadc8357.webp",
+      "width": 1084
+    },
+    "3": {
+      "bytes": 35420,
+      "height": 267,
+      "key": "how-to-run-a-public-art-site-open-call/03.002d8fc37f68.webp",
+      "width": 1084
+    },
+    "4": {
+      "bytes": 6604,
+      "height": 58,
+      "key": "how-to-run-a-public-art-site-open-call/04.3518d0f869f9.webp",
+      "width": 388
+    }
+  },
   "how-to-run-an-invitation-only-show": {
     "1": {
       "bytes": 48246,
@@ -267,6 +287,68 @@
       "width": 1100
     }
   },
+  "how-to-run-an-open-call-show": {
+    "1": {
+      "bytes": 48246,
+      "height": 439,
+      "key": "how-to-run-an-open-call-show/01.89404aeb6652.webp",
+      "width": 1084
+    },
+    "11": {
+      "bytes": 292996,
+      "height": 900,
+      "key": "how-to-run-an-open-call-show/11.60536894ab86.webp",
+      "width": 1100
+    },
+    "12": {
+      "bytes": 14528,
+      "height": 38,
+      "key": "how-to-run-an-open-call-show/12.cd38e486686b.webp",
+      "width": 936
+    },
+    "13": {
+      "bytes": 6428,
+      "height": 106,
+      "key": "how-to-run-an-open-call-show/13.1aa832305ee4.webp",
+      "width": 176
+    },
+    "2": {
+      "bytes": 3838,
+      "height": 15,
+      "key": "how-to-run-an-open-call-show/02.26f17e2e6dcd.webp",
+      "width": 388
+    },
+    "3": {
+      "bytes": 339334,
+      "height": 900,
+      "key": "how-to-run-an-open-call-show/03.894be668802a.webp",
+      "width": 1100
+    },
+    "4": {
+      "bytes": 270166,
+      "height": 900,
+      "key": "how-to-run-an-open-call-show/04.5457203f1c54.webp",
+      "width": 1100
+    },
+    "5": {
+      "bytes": 291940,
+      "height": 900,
+      "key": "how-to-run-an-open-call-show/05.66786e9ea916.webp",
+      "width": 1100
+    },
+    "7": {
+      "bytes": 46614,
+      "height": 142,
+      "key": "how-to-run-an-open-call-show/07.cdfbcb27bcc9.webp",
+      "width": 903
+    },
+    "9": {
+      "bytes": 382116,
+      "height": 900,
+      "key": "how-to-run-an-open-call-show/09.c5c340479beb.webp",
+      "width": 1100
+    }
+  },
   "how-to-sign-up-for-an-account": {
     "1": {
       "bytes": 3086,
@@ -313,9 +395,9 @@
       "width": 903
     },
     "3": {
-      "bytes": 262946,
+      "bytes": 262546,
       "height": 900,
-      "key": "how-to-use-the-curation-slideshow/03.4188aa9cead2.webp",
+      "key": "how-to-use-the-curation-slideshow/03.0fdad4a7035d.webp",
       "width": 1100
     },
     "4": {
@@ -363,9 +445,9 @@
       "width": 324
     },
     "2": {
-      "bytes": 133680,
+      "bytes": 133700,
       "height": 900,
-      "key": "how-to-use-the-review-slideshow/02.e597a1932151.webp",
+      "key": "how-to-use-the-review-slideshow/02.781321ea915c.webp",
       "width": 1100
     },
     "3": {
@@ -385,6 +467,50 @@
       "height": 50,
       "key": "how-to-use-the-review-slideshow/07.ae356c2a90fe.webp",
       "width": 1084
+    }
+  },
+  "show-lifecycle-and-status": {
+    "2": {
+      "bytes": 5066,
+      "height": 15,
+      "key": "show-lifecycle-and-status/02.d62784f3e9f3.webp",
+      "width": 388
+    },
+    "3": {
+      "bytes": 18310,
+      "height": 147,
+      "key": "show-lifecycle-and-status/03.0aa8cc324113.webp",
+      "width": 388
+    },
+    "4": {
+      "bytes": 26534,
+      "height": 208,
+      "key": "show-lifecycle-and-status/04.a7e8bfec25bb.webp",
+      "width": 388
+    },
+    "5": {
+      "bytes": 21740,
+      "height": 177,
+      "key": "show-lifecycle-and-status/05.b36e41a71adc.webp",
+      "width": 388
+    },
+    "6": {
+      "bytes": 16444,
+      "height": 147,
+      "key": "show-lifecycle-and-status/06.98fe7b29af16.webp",
+      "width": 388
+    },
+    "7": {
+      "bytes": 16754,
+      "height": 147,
+      "key": "show-lifecycle-and-status/07.1b7e154d7a92.webp",
+      "width": 388
+    },
+    "8": {
+      "bytes": 15420,
+      "height": 147,
+      "key": "show-lifecycle-and-status/08.8da7bc2c15f0.webp",
+      "width": 388
     }
   },
   "submit-artwork": {

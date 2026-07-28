@@ -159,7 +159,6 @@ HOW_TO_GUIDES = [
         'steps': [
             'A physical gallery location (called a "venue" in these docs, a "site" in the system) must exist before you create the show. If it does not exist yet, a staff member must create it first — see "How to create and manage sites" for those steps.',
             'Create the show (staff only). Set Show Type to "Public Art Site". In the Sites field, select the venue this show is associated with — the show will then appear on that venue\'s detail page.',
-            'Optionally fill in the Location text field with any supplementary address or installation notes to display on the show detail page.',
             'Set Submission Type to "Open" (or "Invited") and set a submission deadline as you would for a regular open call.',
             'The show will display a "Public Art" badge on its card and detail page.',
             'All other open call steps (status transitions, submissions, jury, promote) work the same as a gallery open call.',

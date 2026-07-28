@@ -1418,6 +1418,185 @@ def _advance_capture_show(slug, status):
     Show.objects.filter(slug=slug).update(status=status)
 
 
+# ── show-lifecycle-and-status ────────────────────────────────────────────────
+
+# The status row on the show detail page: the current status and the → transition button
+# live in one form, which is exactly what steps 2-8 are about.
+STATUS_CONTROL = 'form[action*="transition"]'
+
+
+def prepare_show_lifecycle():
+    _cleanup_capture_shows()
+    show = _create_capture_show('Lifecycle', Show.SUBMISSION_OPEN)
+    return {'slug': show.slug}
+
+
+def capture_show_lifecycle(rec, facts):
+    """One show walked through every status, photographed at each.
+
+    Statuses are set through the ORM rather than by clicking the → button six times.
+    Several transitions have side effects the guide describes elsewhere — In Review emails
+    every juror, Published redirects to the publish confirmation — and firing those to
+    take six pictures of a status line would be slow and would send mail.
+    """
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+    show_url = f'/show/{facts["slug"]}/'
+
+    def at_status(step, status):
+        _db(_advance_capture_show, facts['slug'], status)
+        rec.at_step(step)
+        rec.goto(show_url)
+        # Title through the status row, not the status row alone: these steps are about
+        # what each status *means*, and the show header carries the badge and the
+        # status-dependent line ("Open Call — Accepting submissions", "In jury review")
+        # that actually differ. Seven crops of a bare status line all looked the same.
+        rec.shot_region(step, 'h1', STATUS_CONTROL)
+
+    # Step 1 is what a status is for — no screen of its own.
+
+    # Step 2 — "Change the status using the → button shown next to the current status."
+    rec.at_step(2)
+    rec.goto(show_url)
+    rec.shot(2, selector=STATUS_CONTROL)
+
+    # Steps 3-8 — one per status, each showing what the control reads at that point.
+    at_status(3, Show.STATUS_UNDER_CONSIDERATION)
+    at_status(4, Show.STATUS_OPEN_CALL)
+    at_status(5, Show.STATUS_IN_REVIEW)
+    at_status(6, Show.STATUS_DRAFT)
+    at_status(7, Show.STATUS_PUBLISHED)
+    at_status(8, Show.STATUS_CLOSED)
+
+    # Step 9 is who can see which status — a rule, not a screen.
+
+
+# ── how-to-run-an-open-call-show ─────────────────────────────────────────────
+
+def prepare_open_call_show():
+    _cleanup_capture_shows()
+    show = _create_capture_show('Open Call', Show.SUBMISSION_OPEN,
+                                Show.STATUS_OPEN_CALL)
+    return {'slug': show.slug}
+
+
+def capture_open_call_show(rec, facts):
+    """A public open call, start to finish. Sibling of the invitation-only guide."""
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+    show_url = f'/show/{facts["slug"]}/'
+
+    # Step 1 — "creates the show with Submission Type set to 'Open' and a submission
+    #           deadline."
+    rec.at_step(1)
+    rec.goto('/show/new/')
+    rec.shot_region(1, '#div_id_submission_type', '#div_id_decision_date')
+
+    # Step 2 — "Change the show status to Open Call on the show detail page."
+    rec.at_step(2)
+    rec.goto(show_url)
+    rec.shot(2, selector=STATUS_CONTROL)
+
+    # Step 3 — "define a rubric ... Click 'Manage Rubric Criteria' ... or 'Copy rubric
+    #           from another show'."
+    rec.at_step(3)
+    rec.goto(f'/show/{facts["slug"]}/reviews/rubric/')
+    rec.shot(3)
+
+    # Step 4 — "assign jurors now via Assign Jurors on the show detail page."
+    rec.at_step(4)
+    rec.goto(f'/show/{facts["slug"]}/reviews/jurors/')
+    rec.shot(4)
+
+    # Step 5 — "monitor submissions at any time via Submissions on the show detail page."
+    rec.at_step(5)
+    rec.goto(f'{show_url}submissions/')
+    rec.shot(5)
+
+    # Step 6 is another use of the status control, shown in step 2.
+
+    # Step 7 — "Monitor progress on the Reviews dashboard. Use the per-juror Slideshow
+    #           buttons in the Juror Progress table." Shown on the seeded show, which has
+    #           two jurors with real progress; a show made for this run has none.
+    rec.at_step(7)
+    rec.goto(f'/show/{JURY_SHOW_SLUG}/reviews/')
+    rec.shot_region(7, '.section-label:has-text("Juror Progress")',
+                    'table:has(.cs-launch-btn)')
+
+    # Step 8 is another status change.
+
+    # Step 9 — "Artwork cards are sorted by weighted score ... a bar appears at the bottom
+    #           ... → Undecided, → Selected, or → Rejected."
+    rec.at_step(9)
+    rec.goto(f'/show/{JURY_SHOW_SLUG}/submissions/')
+    rec.shot(9)
+
+    # Step 10 points at the curation slideshow guide.
+
+    # Step 11 — "change the show status to Published ... redirects to the Publish Show
+    #            confirmation page showing what will be added and removed."
+    rec.at_step(11)
+    _db(_advance_capture_show, facts['slug'], Show.STATUS_DRAFT)
+    rec.goto(f'{show_url}promote/')
+    rec.shot(11)
+
+    # Step 12 — "Review the diff and click 'Confirm & Publish Show'."
+    rec.at_step(12)
+    rec.shot_region(12, 'form:has(button:has-text("Confirm"))')
+
+    # Step 13 — "click 'Send Emails' ... shows pending vs. sent counts."
+    rec.at_step(13)
+    _db(_advance_capture_show, facts['slug'], Show.STATUS_PUBLISHED)
+    rec.goto(show_url)
+    rec.click('open the Logistics menu', rec.control('Logistics'))
+    rec.expect_visible('see Send Emails in the menu', '.dropdown-menu.show')
+    rec.shot_region(13, '.dropdown-menu.show')
+
+    # Step 14 is the final status change, again the control from step 2.
+
+
+# ── how-to-run-a-public-art-site-open-call ───────────────────────────────────
+
+def prepare_public_art_show():
+    _cleanup_capture_shows()
+    show = _create_capture_show('Public Art', Show.SUBMISSION_OPEN,
+                                Show.STATUS_OPEN_CALL)
+    _db(_make_public_art, show.slug)
+    return {'slug': show.slug}
+
+
+def _make_public_art(slug):
+    if not slug.startswith(CAPTURE_SHOW_PREFIX):
+        raise CommandError(f'refusing to modify "{slug}" — not a capture show')
+    Show.objects.filter(slug=slug).update(show_type=Show.SHOW_TYPE_PUBLIC_ART)
+
+
+def capture_public_art_show(rec, facts):
+    """A show tied to a physical venue: what differs from a gallery open call."""
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+
+    # Step 1 is that the venue must exist first — its own guide.
+
+    # Step 2 — "Set Show Type to 'Public Art Site'. In the Sites field, select the venue."
+    rec.at_step(2)
+    rec.goto('/show/new/')
+    rec.shot_region(2, '#div_id_show_type', '#div_id_sites')
+
+    # The guide used to have a step here for a "Location text field" for supplementary
+    # address notes. Show has no such field and the form has never rendered one, so the
+    # step was describing a control that does not exist; it has been removed rather than
+    # reworded. The venue's own address comes from the Sites field above.
+
+    # Step 3 — "Set Submission Type to 'Open' ... and set a submission deadline."
+    rec.at_step(3)
+    rec.shot_region(3, '#div_id_submission_type', '#div_id_submission_deadline')
+
+    # Step 4 — "The show will display a 'Public Art' badge on its card and detail page."
+    rec.at_step(4)
+    rec.goto(f'/show/{facts["slug"]}/')
+    rec.shot_region(4, 'h1', 'p:has-text("Public Art Site")')
+
+    # Step 5 is that everything else matches a gallery open call.
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -1521,6 +1700,31 @@ CAPTURE_SCRIPTS = {
         # 5 is the invitation email's contents; 7 points at the on-behalf guide; 8 and 13
         # are further uses of the status control photographed in step 6.
         'prose_only': {5, 7, 8, 13},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
+    },
+    'show-lifecycle-and-status': {
+        'prepare': prepare_show_lifecycle,
+        'run': capture_show_lifecycle,
+        # 1 is what a status is for; 9 is who can see which — rules, not screens.
+        'prose_only': {1, 9},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
+    },
+    'how-to-run-an-open-call-show': {
+        'prepare': prepare_open_call_show,
+        'run': capture_open_call_show,
+        # 6, 8 and 14 are further uses of the status control shown in step 2; 10 points
+        # at the curation slideshow guide.
+        'prose_only': {6, 8, 10, 14},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
+    },
+    'how-to-run-a-public-art-site-open-call': {
+        'prepare': prepare_public_art_show,
+        'run': capture_public_art_show,
+        # 1 is the venue prerequisite (its own guide); 5 says the rest is unchanged.
+        'prose_only': {1, 5},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },

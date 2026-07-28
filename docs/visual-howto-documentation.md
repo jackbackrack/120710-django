@@ -1,11 +1,12 @@
 # Visual how-to documentation
 
-**Status: 12 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
+**Status: 15 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
 in git. The whole artist path is illustrated (sign up → complete profile → add artworks →
 submit, that last one for every reader signed in or not), plus pinning, buying and the
 card-size control, and now the jury cluster: jurying a show, the review slideshow and the
 curation slideshow, plus adding artwork on behalf of an artist and running an
-invitation-only show end to end. 18 guides still need a capture script each. Plan agreed
+invitation-only show end to end, the open-call equivalent, the show lifecycle and public
+art site shows. Half the guides are done; 15 still need a capture script each. Plan agreed
 2026-07-28.
 
 **Guides that mutate shared state must build their own.** The lifecycle guides drive a
