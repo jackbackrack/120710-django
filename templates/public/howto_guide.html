@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ guide.title }}{% endblock %}
+{% block block_title %}Help{% endblock %}
+
+{% block content %}
+<style>
+  /* base.css sizes .card as a 175px grid tile (width AND max-width), which is right for
+     card grids and catastrophic for a page of prose — without this the whole guide renders
+     in a 175px column. The old combined help page carried the same override; it has to be
+     repeated per page because it is defeating a global rule, not inheriting one. */
+  #howto-guide .card {
+    width: 100%;
+    max-width: 100%;
+    background-color: #fff;
+  }
+
+  /* Screenshots carry explicit width/height in CSS pixels (see below), so they render at
+     the size the reader saw in the browser and stay readable. max-width only applies on a
+     narrow screen, where a shrunk-but-present screenshot beats a horizontal scrollbar.
+     Never scale one *up*: these are already 1:1. */
+  #howto-guide .howto-shot img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #dee2e6;
+    border-radius: .375rem;
+  }
+  #howto-guide ol > li { margin-bottom: .75rem; }
+</style>
+
+<div id="howto-guide" class="container-fluid py-4">
+  <p class="mb-2"><a href="{% url 'howto' %}">&larr; All help guides</a></p>
+
+  <article class="card mb-3" id="{{ guide.anchor }}">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h1 class="card-title h3 mb-1">{{ guide.title }}</h1>
+          {% if guide.summary %}
+          <p class="text-muted mb-0">{{ guide.summary }}</p>
+          {% endif %}
+        </div>
+        <button class="btn btn-sm btn-outline-primary ms-3 walkthrough-btn" type="button"
+                data-title="{{ guide.title }}"
+                data-steps="{{ guide.steps|join:'|||' }}">Walk me through it</button>
+      </div>
+
+      <ol class="mb-0 mt-3">
+        {% for step in guide.steps_with_images %}
+        <li{% if step.image %} class="mb-3"{% endif %}>
+          {{ step.text }}
+          {% if step.image %}
+          <figure class="howto-shot mt-2 mb-0">
+            {% comment %}
+              width/height are the CSS pixel size the region had in the browser, so the
+              screenshot renders 1:1 and stays legible. The file itself is
+              higher-resolution than that, which a retina display uses. Also stops the
+              page reflowing as lazily-loaded images arrive.
+            {% endcomment %}
+            <img src="{{ step.image }}" loading="lazy"
+                 width="{{ step.width }}" height="{{ step.height }}"
+                 alt="Screenshot of step {{ forloop.counter }}: {{ guide.title }}">
+          </figure>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </article>
+
+</div>
+
+<script>
+document.querySelectorAll('.walkthrough-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var steps = btn.dataset.steps.split('|||');
+    var wt = { title: btn.dataset.title, steps: steps, step: 0 };
+    localStorage.setItem('activeWalkthrough', JSON.stringify(wt));
+    // trigger the global widget without a page reload
+    var event = new Event('wt-start');
+    document.dispatchEvent(event);
+    btn.textContent = 'Walkthrough started — see panel →';
+    btn.disabled = true;
+    setTimeout(function () { btn.textContent = 'Walk me through it'; btn.disabled = false; }, 3000);
+  });
+});
+document.addEventListener('wt-start', function () {
+  var wt; try { wt = JSON.parse(localStorage.getItem('activeWalkthrough')); } catch(e) {}
+  if (wt && window.wtRender) window.wtRender(wt);
+});
+</script>
+{% endblock %}

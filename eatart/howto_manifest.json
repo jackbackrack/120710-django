@@ -1,0 +1,168 @@
+{
+  "how-to-add-artworks": {
+    "1": {
+      "bytes": 2964,
+      "height": 64,
+      "key": "how-to-add-artworks/01.4096b9385580.webp",
+      "width": 1084
+    },
+    "2": {
+      "bytes": 194222,
+      "height": 874,
+      "key": "how-to-add-artworks/02.7a1c0b4af1be.webp",
+      "width": 1084
+    },
+    "3": {
+      "bytes": 8070,
+      "height": 169,
+      "key": "how-to-add-artworks/03.5d22c29bd866.webp",
+      "width": 1084
+    },
+    "4": {
+      "bytes": 10086,
+      "height": 40,
+      "key": "how-to-add-artworks/04.35c2542420d4.webp",
+      "width": 826
+    },
+    "5": {
+      "bytes": 21006,
+      "height": 116,
+      "key": "how-to-add-artworks/05.a32b0b276f0f.webp",
+      "width": 1084
+    }
+  },
+  "how-to-complete-your-artist-profile": {
+    "1": {
+      "bytes": 243490,
+      "height": 886,
+      "key": "how-to-complete-your-artist-profile/01.d83dd7f0f958.webp",
+      "width": 1084
+    },
+    "2": {
+      "bytes": 9672,
+      "height": 78,
+      "key": "how-to-complete-your-artist-profile/02.0b37de45cbe3.webp",
+      "width": 400
+    },
+    "3": {
+      "bytes": 85538,
+      "height": 1118,
+      "key": "how-to-complete-your-artist-profile/03.164ada71661c.webp",
+      "width": 1084
+    },
+    "4": {
+      "bytes": 38070,
+      "height": 114,
+      "key": "how-to-complete-your-artist-profile/04.b9cc3ce208f2.webp",
+      "width": 1084
+    }
+  },
+  "how-to-pin-artworks": {
+    "1": {
+      "bytes": 342732,
+      "height": 900,
+      "key": "how-to-pin-artworks/01.f614894d20b2.webp",
+      "width": 1100
+    },
+    "2": {
+      "bytes": 31010,
+      "height": 306,
+      "key": "how-to-pin-artworks/02.47cb042b2077.webp",
+      "width": 175
+    },
+    "4": {
+      "bytes": 30014,
+      "height": 337,
+      "key": "how-to-pin-artworks/04.3407820739e6.webp",
+      "width": 1084
+    },
+    "6": {
+      "bytes": 29958,
+      "height": 288,
+      "key": "how-to-pin-artworks/06.7e8bb2676942.webp",
+      "width": 176
+    }
+  },
+  "how-to-sign-up-for-an-account": {
+    "1": {
+      "bytes": 3086,
+      "height": 82,
+      "key": "how-to-sign-up-for-an-account/01.997d8184081b.webp",
+      "width": 160
+    },
+    "2": {
+      "bytes": 168302,
+      "height": 557,
+      "key": "how-to-sign-up-for-an-account/02.9b8ba21c957a.webp",
+      "width": 1084
+    },
+    "3": {
+      "bytes": 22166,
+      "height": 113,
+      "key": "how-to-sign-up-for-an-account/03.aa9efba0c3da.webp",
+      "width": 1084
+    },
+    "4": {
+      "bytes": 214676,
+      "height": 717,
+      "key": "how-to-sign-up-for-an-account/04.62a3237e3c99.webp",
+      "width": 1084
+    },
+    "5": {
+      "bytes": 35022,
+      "height": 82,
+      "key": "how-to-sign-up-for-an-account/05.ab417c8b6931.webp",
+      "width": 1084
+    }
+  },
+  "submit-artwork": {
+    "10": {
+      "bytes": 2852,
+      "height": 32,
+      "key": "submit-artwork/10.5ceb9bb96731.webp",
+      "width": 174
+    },
+    "2": {
+      "bytes": 168332,
+      "height": 557,
+      "key": "submit-artwork/02.516fc98465cb.webp",
+      "width": 1084
+    },
+    "3": {
+      "bytes": 21840,
+      "height": 113,
+      "key": "submit-artwork/03.fe008cb2b7d2.webp",
+      "width": 1084
+    },
+    "4": {
+      "bytes": 153690,
+      "height": 492,
+      "key": "submit-artwork/04.c400cbeea7b5.webp",
+      "width": 1084
+    },
+    "5": {
+      "bytes": 220348,
+      "height": 886,
+      "key": "submit-artwork/05.6e89d7789b57.webp",
+      "width": 1084
+    },
+    "6": {
+      "bytes": 202832,
+      "height": 1043,
+      "key": "submit-artwork/06.02e1432fa597.webp",
+      "width": 1084
+    },
+    "7": {
+      "bytes": 97998,
+      "height": 363,
+      "key": "submit-artwork/07.5b00fc7f7e05.webp",
+      "width": 1084
+    },
+    "9": {
+      "bytes": 9816,
+      "height": 339,
+      "key": "submit-artwork/09.0ce9df060ed8.webp",
+      "width": 176
+    }
+  }
+}

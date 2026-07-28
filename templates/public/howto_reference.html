@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Forms and fields reference{% endblock %}
+{% block block_title %}Help{% endblock %}
+
+{% block content %}
+<style>
+  /* See the note in howto_guide.html: base.css sizes .card as a 175px grid tile, which
+     would squeeze every field table into a 175px column. */
+  #howto-reference .card {
+    width: 100%;
+    max-width: 100%;
+    background-color: #fff;
+  }
+</style>
+
+<div id="howto-reference" class="container-fluid py-4">
+  <p class="mb-2"><a href="{% url 'howto' %}">&larr; All help guides</a></p>
+  <h1 class="mb-3">Forms and fields</h1>
+  <p class="text-muted">
+    What each field on each form does. The step-by-step guides cover the common tasks;
+    this is the detail behind them.
+  </p>
+
+  <section class="mb-5">
+    <h2>{{ general_guide.title }}</h2>
+    <p>{{ general_guide.summary }}</p>
+    <ul>
+      {% for action in general_guide.allowed_actions %}
+      <li>{{ action }}</li>
+      {% endfor %}
+    </ul>
+    {% for form_doc in general_guide.forms %}
+    {% include 'public/_howto_form_doc.html' %}
+    {% endfor %}
+  </section>
+
+  {% if user.is_authenticated and role_guides %}
+  {% for guide in role_guides %}
+  <section class="mb-5">
+    <h2>{{ guide.title }}</h2>
+    <p>{{ guide.summary }}</p>
+    <h3>What You Can Do</h3>
+    <ul>
+      {% for action in guide.allowed_actions %}
+      <li>{{ action }}</li>
+      {% endfor %}
+    </ul>
+    <h3>Forms and Fields</h3>
+    {% for form_doc in guide.forms %}
+    {% include 'public/_howto_form_doc.html' %}
+    {% endfor %}
+  </section>
+  {% endfor %}
+  {% elif not user.is_authenticated %}
+  <section class="alert alert-secondary">
+    <a href="{% url 'account_login' %}">Sign in</a> to see role-specific documentation for
+    artist, juror, curator, and staff workflows.
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

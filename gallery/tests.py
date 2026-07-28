@@ -944,48 +944,202 @@ class InvitationSubmissionFlowTests(TestCase):
 
 
 class HowToAnchorTests(TestCase):
-    """Every in-page link to the how-to guide must land on a real section.
+    """Every link into the help system must land on a guide that exists.
 
     The show page linked #how-to-submit-artwork-to-an-open-call-show long after that
-    guide had been retitled, so the link silently dumped people at the top of the
-    page. Anchors are derived from guide titles, so a retitle breaks every link to it
-    with nothing to notice.
+    guide had been retitled, so the link silently dumped people at the top of the page.
+    Anchors default to a slug of the title, so a retitle breaks every link to it with
+    nothing to notice.
+
+    Guides now live on their own pages (`howto_guide`), which changes the failure mode
+    rather than removing it: a wrong anchor is now a 404 instead of a silent no-op, but
+    only if something checks that the anchor is real, because `{% url %}` will happily
+    reverse `howto_guide` with any string at all.
     """
 
     def _valid_anchors(self):
-        from django.utils.text import slugify
         from eatart.role_docs import HOW_TO_GUIDES
-        return {g.get('anchor') or slugify(g['title']) for g in HOW_TO_GUIDES}
+        from eatart.views.public import guide_anchor
+        return {guide_anchor(g) for g in HOW_TO_GUIDES}
 
-    def test_submit_guide_renders_for_signed_out_and_signed_in_readers(self):
-        """Guides are role-filtered, and the submit guide exists in two mutually
-        exclusive versions — a public one and a signed-in one, with different titles.
-        They share an explicit anchor so the one link on the show page works for both;
-        a slugified-title anchor could only ever match one of them."""
-        self.assertIn('id="submit-artwork"',
-                      self.client.get(reverse('howto')).content.decode())
+    def _templates(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent
+        for path in root.rglob('*.html'):
+            if any(part in ('env', 'node_modules', '.claude') for part in path.parts):
+                continue
+            yield path
+
+    def test_submit_guide_is_one_illustrated_guide_for_every_reader(self):
+        """Submitting is one task, documented once, illustrated for everyone.
+
+        It used to ship as two mutually exclusive versions — a beginner one for
+        signed-out readers and a shorter one for signed-in readers. That meant a
+        signed-in artist following the show page's "How submitting works" link got the
+        un-illustrated version of the very flow the app walks them through, because only
+        the public variant had screenshots. The app drives a new submitter through signup
+        and sign-in as part of submitting, so the whole arc is one guide now and readers
+        who already have an account skip the first steps.
+        """
+        url = reverse('howto_guide', args=['submit-artwork'])
 
         user = User.objects.create_user(
             username='hw@example.com', email='hw@example.com', password='pw')
         Artist.objects.create(user=user, first_name='How', last_name='To',
                               email='hw@example.com')
-        self.client.force_login(user)
-        self.assertIn('id="submit-artwork"',
-                      self.client.get(reverse('howto')).content.decode())
 
-    def test_no_template_links_to_a_missing_section(self):
-        import pathlib
+        bodies = {}
+        for label in ('signed out', 'signed in'):
+            if label == 'signed in':
+                self.client.force_login(user)
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, f'{label} cannot open the guide')
+            bodies[label] = response.content.decode()
+
+        self.assertIn('Create an account', bodies['signed out'])
+        self.assertEqual(
+            'Create an account' in bodies['signed in'], True,
+            'a signed-in reader must get the same guide, including the account steps '
+            'they can skip — not a separate stripped-down version')
+
+    def test_visible_guide_anchors_are_unique_per_reader(self):
+        """Routing resolves an anchor against the guides a reader can see.
+
+        Anchors are allowed to repeat across HOW_TO_GUIDES — that is how a `public_only`
+        guide and its role-gated counterpart can share one link. What must hold is that
+        no single reader ever sees two guides with the same anchor, because `howto_guide`
+        would silently serve whichever came first in the list and the other would be
+        unreachable. That is exactly the bug the submit guide had.
+        """
+        from collections import Counter
+        from eatart.views.public import _visible_guides, guide_anchor
+
+        for role in (None, 'artist', 'juror', 'curator', 'staff'):
+            counts = Counter(guide_anchor(g) for g in _visible_guides(role))
+            clashes = {a: n for a, n in counts.items() if n > 1}
+            self.assertEqual(
+                clashes, {},
+                f'a reader with role {role!r} sees more than one guide at {clashes} — '
+                f'only the first would ever be reachable')
+
+    def test_every_guide_has_its_own_reachable_page(self):
+        """The index only lists guides, so an unreachable one is invisible, not obvious."""
+        from eatart.role_docs import HOW_TO_GUIDES
+        from eatart.views.public import guide_anchor
+
+        public = [g for g in HOW_TO_GUIDES if g['roles'] is None]
+        for guide in public:
+            url = reverse('howto_guide', args=[guide_anchor(guide)])
+            self.assertEqual(self.client.get(url).status_code, 200,
+                             f'{guide["title"]} is listed but does not resolve')
+
+    def test_a_guide_for_another_role_is_not_readable_by_url(self):
+        """Visibility has to be enforced on the page, not just in the listing.
+
+        Otherwise both submit-artwork versions would be readable at the same URL
+        depending on nothing, and the role filtering on the index would be decorative.
+        """
+        self.assertEqual(
+            self.client.get(reverse('howto_guide',
+                                    args=['regenerate-howto-screenshots'])).status_code,
+            404)
+        self.assertEqual(
+            self.client.get(reverse('howto_guide', args=['no-such-guide'])).status_code,
+            404)
+
+    def test_index_lists_guides_with_descriptions(self):
+        from eatart.role_docs import HOW_TO_GUIDES
+        missing = [g['title'] for g in HOW_TO_GUIDES if not g.get('summary')]
+        self.assertEqual(
+            missing, [],
+            'the index shows only a title and a summary, so a guide without one is '
+            f'undescribed to every reader: {missing}')
+
+        body = self.client.get(reverse('howto')).content.decode()
+        self.assertIn(reverse('howto_guide', args=['submit-artwork']), body)
+        self.assertIn(reverse('howto_reference'), body)
+
+    def test_no_template_links_to_a_missing_guide(self):
         valid = self._valid_anchors()
         broken = []
-        root = pathlib.Path(__file__).resolve().parent.parent
-        for path in root.rglob('*.html'):
-            if any(part in ('env', 'node_modules', '.claude') for part in path.parts):
-                continue
-            for m in re.finditer(r"\{%\s*url\s*'howto'\s*%\}#([a-z0-9-]+)",
-                                 path.read_text()):
+        for path in self._templates():
+            text = path.read_text()
+            # New form: {% url 'howto_guide' 'anchor' %}
+            for m in re.finditer(
+                    r"\{%\s*url\s*'howto_guide'\s*'([a-z0-9-]+)'\s*%\}", text):
                 if m.group(1) not in valid:
-                    broken.append('%s → #%s' % (path.name, m.group(1)))
-        self.assertEqual(broken, [], 'links to non-existent how-to sections')
+                    broken.append(f'{path.name} → howto_guide {m.group(1)}')
+            # Old form: {% url 'howto' %}#anchor. Guides are no longer sections on the
+            # index, so this now silently lands the reader on a list of links instead of
+            # the guide they asked for — worth failing on rather than tolerating.
+            for m in re.finditer(r"\{%\s*url\s*'howto'\s*%\}#([a-z0-9-]+)", text):
+                broken.append(
+                    f'{path.name} → #{m.group(1)} (guides have their own pages now; '
+                    f"use {{% url 'howto_guide' '{m.group(1)}' %}})")
+        self.assertEqual(broken, [], 'broken links into the help system')
+
+
+class HowToImageKeyTests(TestCase):
+    """Each guide's screenshots must belong to exactly one guide.
+
+    Screenshots are addressed by step number under an image key, so two guides sharing
+    a key caption each other's prose with the wrong pictures — and silently, since both
+    directories exist and both render. The submit-artwork guide is the live hazard: its
+    public and signed-in versions deliberately share an `anchor` (one link has to serve
+    either reader), and the image key falls back to the anchor, so the public one has to
+    override it. See eatart/howto_images.py.
+    """
+
+    def test_image_keys_are_unique(self):
+        from collections import Counter
+        from eatart.howto_images import image_key
+        from eatart.role_docs import HOW_TO_GUIDES
+
+        counts = Counter(image_key(g) for g in HOW_TO_GUIDES)
+        clashes = {k: n for k, n in counts.items() if n > 1}
+        self.assertEqual(
+            clashes, {},
+            'these image keys are used by more than one guide, so their screenshots '
+            "would appear under another guide's steps — give each an explicit "
+            "'image_key'")
+
+    def test_captured_images_are_paired_with_their_steps(self):
+        """A published image only renders against the step it was captured for.
+
+        Guides gain and lose steps; images are numbered, so a stale manifest would shift
+        every picture onto the wrong sentence. The images live on S3 and only the
+        manifest is committed, so this is the one check that can catch that in CI —
+        nothing else in the repo knows what was published.
+        """
+        from eatart.howto_images import image_key, load_manifest, steps_with_images
+        from eatart.role_docs import HOW_TO_GUIDES
+
+        by_key = {image_key(g): g for g in HOW_TO_GUIDES}
+        manifest = load_manifest()
+
+        unknown = sorted(set(manifest) - set(by_key))
+        self.assertEqual(
+            unknown, [],
+            'eatart/howto_manifest.json has entries for guides that no longer exist: '
+            f'{unknown} — was a guide renamed without its image_key?')
+
+        for key, entries in manifest.items():
+            steps = by_key[key]['steps']
+            overrun = sorted(int(n) for n in entries if int(n) > len(steps))
+            self.assertEqual(
+                overrun, [],
+                f'{key}: manifest has images for steps {overrun} but the guide only has '
+                f'{len(steps)} — re-run `manage.py capture_howto {key}` and --publish')
+            for number, entry in entries.items():
+                self.assertTrue(
+                    entry.get('key') and entry.get('width') and entry.get('height'),
+                    f'{key} step {number}: needs key, width and height — width/height '
+                    f'are what keep the screenshot rendering at a legible 1:1 size')
+
+        for guide in HOW_TO_GUIDES:
+            self.assertEqual(
+                [s['text'] for s in steps_with_images(guide)], list(guide['steps']),
+                f'{image_key(guide)}: step prose must survive pairing with its images')
 
 
 class ShowActionsTests(TestCase):

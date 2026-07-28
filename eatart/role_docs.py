@@ -1,16 +1,19 @@
 HOW_TO_GUIDES = [
     {
         'title': 'How to sign up for an account',
+        'summary': 'Create an account with an email and password, or with Google, and confirm your address.',
         'roles': None,
         'steps': [
             'Open the Account menu in the navigation and choose Sign Up.',
             'Enter your first name, last name, email address, and password — or use the "Continue with Google" option to skip the password. There is no separate username; your email address is how you log in.',
+            'If you signed up with an email address and password, you must confirm the address before you can do anything: you land on a "Verify Your Email Address" page, and we email you a confirmation link. Open it, click Confirm, then log in with the email and password you chose. Signing up with Google skips this — it signs you in immediately.',
             'After signing up, an artist profile is automatically created for you using your name and email. If your email matches an existing artist record you were added under, the link is made for you automatically.',
             'If you were added under a different email, visit your artist edit page after signing in — you will see a link to claim your existing record. See "Linking your account to an existing artist profile" in the how-to guides for full details.',
         ],
     },
     {
         'title': 'How to complete your artist profile',
+        'summary': 'Fill in the name, zip code and profile photo that a show needs before you can submit work.',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'After signing up you are taken directly to your artist profile edit page — fill in your details there.',
@@ -22,11 +25,12 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to add artworks',
+        'summary': 'Add a piece to your catalogue: title, year, medium, dimensions, an image, and how it is priced.',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in — you will be taken to your Me page. Find the Artworks section and click the New button.',
             'Fill in the title, year, medium, dimensions (width × height × depth), and upload an image — image is required for new artworks.',
-            'Optionally set the pricing type (For Sale, Price on Request, Best Offer, or Not For Sale), add a price if applicable, set a replacement cost, and add a description.',
+            'Choose the Pricing option (For Sale, Price on Request, Best Offer, or Not For Sale). This is required — the form starts on "Choose how this piece is priced…" and will not save until you pick one, so choose "Not For Sale" if pricing does not apply. "For Sale" also requires a price. Optionally set a replacement cost and add a description.',
             'If the piece is framed and its outer size differs from the artwork dimensions, fill in the optional "Framed size" (width × height × depth) under Additional details. The layout editor and 3D view use the framed size when present (otherwise the artwork dimensions); placards still show the artwork dimensions. Leave blank for unframed work.',
             'Optionally record the "Hang drop" (under Additional details): the distance from the bottom edge of the piece up to its hanging point (wire pulled taut, or hook). Measure it once; the layout tool\'s Hang Info then shows the exact screw-hole height for wherever the piece is placed.',
             'Newly added artworks are private until they are included in a show whose status is Published or Closed.',
@@ -34,14 +38,25 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to submit artwork to a show (open call or invitation-only)',
-        # Stable anchor: the show page links here, and the public and signed-in
-        # versions of this guide are mutually exclusive, so they share one id.
+        'summary': 'Everything from creating an account to submitting a piece and tracking it. With screenshots.',
+        # Stable anchor: the show page links here.
         'anchor': 'submit-artwork',
-        'roles': {'artist', 'curator', 'juror', 'staff'},
+        # One guide for everyone, signed in or not. This deliberately used to be two
+        # mutually exclusive versions — a beginner one for signed-out readers and a
+        # shorter one for signed-in readers — which meant a signed-in artist following
+        # the show page's "How submitting works" link got the un-illustrated version of
+        # the very flow the app walks them through. The app drives a new submitter
+        # through signup and sign-in as part of submitting, so the whole arc is one task;
+        # readers who already have an account skip the first few steps.
+        'roles': None,
         'steps': [
-            'The submission steps are the same for open call and invitation-only shows. The only difference: for an invitation-only show you must first have been invited. You receive an invitation email with a personal accept link — open it (after signing in, or signing up with any email) to link the invitation to your account. If your account email already matches the invited address you are recognized automatically, no link needed.',
-            'Sign in — you will be taken to your Me page. Find the show you want to submit to under "Shows Accepting Submissions" and click the Submit button. (Invitation-only shows appear there once you have been invited and the show is accepting submissions.)',
-            'Select the one artwork card you want to submit (click it to highlight it), then click Submit. You submit one artwork at a time — repeat for each piece. Each artwork can only be submitted once per show.',
+            'The steps are the same for open call and invitation-only shows. The only difference: for an invitation-only show you must first have been invited. You receive an invitation email with a personal accept link — open it (after signing in, or signing up with any email) to link the invitation to your account. If your account email already matches the invited address you are recognized automatically, no link needed.',
+            'Create an account — skip to "Add your artwork" below if you already have one. Open the Account menu in the navigation and choose Sign Up, then enter your first name, last name, email address, and password. Choosing "Continue with Google" instead signs you straight in and skips the next two steps.',
+            'Confirm your email address. Signing up does not sign you in: you land on a "Verify Your Email Address" page, and we send you an email with a confirmation link — open it and click the Confirm button. Nothing else works until you do, so check your spam folder if it has not arrived.',
+            'Log in. Confirming your address takes you to the log-in page. Sign in with the email address and password you just chose.',
+            'Complete your artist profile. Logging in for the first time takes you to your artist profile edit page. Fill in your first name, last name, and zip code. Then upload a profile photo — this must be a photo of YOU (the artist), not a photo of your artwork. Your profile photo appears on your public artist page. Click Update to save.',
+            'Add your artwork. Go to your Me page, scroll down to the Artworks section, and click New. Fill in the title, year, medium, and dimensions, and upload an image of the artwork itself. You must also choose a Pricing option before the form will save — pick "Not For Sale" if you would rather not name a price, or "Price on Request" to invite enquiries. "For Sale" additionally requires a price. Then Save.',
+            'Submit. On your Me page the show appears under "Shows Accepting Submissions" with a Submit button; the show detail page has one too. Click it, select the artwork card you want to submit (click it to highlight it), then click Submit. You submit one artwork at a time — repeat for each piece, and each artwork can only be submitted once per show.',
             'Some shows cap how many artworks each artist may submit. When a limit is set, the submit page shows your allowance (e.g. "up to 3 per artist — you can submit 2 more"); once you reach it, the page tells you and you cannot submit more.',
             'You will receive a confirmation email. Your submission appears on your Me page and on the show detail page as "Submitted".',
             'You can remove your submission while the show is still accepting submissions by clicking Retract next to your artwork on your Me page or the show detail page. Retracting permanently removes the submission — you can resubmit a different artwork while the show is still open.',
@@ -51,6 +66,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to create a show (staff only)',
+        'summary': 'Set up a new show: name, dates, hero image, submission type, deadlines and curators.',
         'roles': {'staff'},
         'steps': [
             'Sign in as a staff user, then go to Shows in the navigation.',
@@ -66,6 +82,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'Show lifecycle and status',
+        'summary': 'What each show status means, who can see it, and how advancing one changes what people can do.',
         'roles': {'curator', 'staff'},
         'steps': [
             'Every show has a status that controls who can see it and what actions are available.',
@@ -81,6 +98,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to run an invitation-only show',
+        'summary': 'The whole arc of a curated show, from inviting named artists through to notifying them.',
         'roles': {'curator', 'staff'},
         'steps': [
             'Create the show (staff only) with Submission Type set to "Invited" and a submission deadline.',
@@ -101,6 +119,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to add artwork on behalf of an artist (curator/staff)',
+        'summary': 'Enter work for an artist who cannot submit it themselves, bypassing the invitation requirement.',
         'roles': {'curator', 'staff'},
         'steps': [
             'Use this when an artist cannot self-submit — for example a person you manage who has no email or account (such as an artist with a caregiver acting for them), or any artist you want to add to an invitation-only show directly. The artist needs no account, email, or submission of their own.',
@@ -114,6 +133,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to run an open call show',
+        'summary': 'The whole arc of a public open call, from accepting submissions through jurying to publishing.',
         'roles': {'curator', 'staff'},
         'steps': [
             'A staff member creates the show with Submission Type set to "Open" and a submission deadline. As curator you can then edit the show name, dates, description, and hero image.',
@@ -134,6 +154,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to run a public art site open call',
+        'summary': 'An open call tied to a physical venue, including the site setup it depends on.',
         'roles': {'curator', 'staff'},
         'steps': [
             'A physical gallery location (called a "venue" in these docs, a "site" in the system) must exist before you create the show. If it does not exist yet, a staff member must create it first — see "How to create and manage sites" for those steps.',
@@ -146,6 +167,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to jury a show',
+        'summary': 'Score submitted work as an assigned juror, and what your scores are used for.',
         'roles': {'juror', 'curator', 'staff'},
         'steps': [
             'Make sure you have an account on this site and that your artist profile information is complete — the curator will need to assign you by name.',
@@ -162,6 +184,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to use the Review Slideshow',
+        'summary': 'Score submissions full-screen, one piece at a time, instead of working through the grid.',
         'roles': {'juror', 'curator', 'staff'},
         'steps': [
             'From the Reviews page for your show, click the "Review Slideshow" button next to the "Pending Review" heading. The slideshow opens full-screen.',
@@ -179,6 +202,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to use the Curation Slideshow',
+        'summary': 'Sort submissions into selected, rejected or undecided full-screen, highest-scoring first.',
         'roles': {'curator', 'staff'},
         'steps': [
             'From the Reviews page for your show, click the "Curation Slideshow" button next to the "Artworks" heading, or click a "Slideshow" button next to any individual decision section (Undecided, Selected, or Rejected) to start from that group.',
@@ -198,6 +222,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to place artwork in the room layout editor',
+        'summary': 'Hang a show virtually: place pieces on walls, add pedestals, and read off exact hanging heights.',
         'roles': {'curator', 'staff'},
         'steps': [
             'From the show detail page, click "Layout" in the curatorial button row. This opens the room layout editor for the show\'s associated site.',
@@ -225,6 +250,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to save and restore layout snapshots',
+        'summary': 'Keep named versions of a room layout so you can try an arrangement and go back.',
         'roles': {'curator', 'staff'},
         'steps': [
             'In the room layout editor toolbar, click "Snapshots" to open the snapshot panel.',
@@ -239,6 +265,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to print placards for a show (Avery 5376 cards)',
+        'summary': 'Generate wall labels for every piece in a show, ready to print onto Avery 5376 card stock.',
         'roles': {'curator', 'staff'},
         'steps': [
             'On the show detail page, click "Placards PDF" (visible to curators/staff). This downloads a PDF with one placard per artwork in the show.',
@@ -250,6 +277,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to download a show checklist PDF',
+        'summary': 'Get a print-ready checklist of every piece in a show, for install day or for insurance.',
         'roles': {'curator', 'staff'},
         'steps': [
             'On the show detail page, click "Checklist PDF" (visible to curators/staff). This downloads a print-ready exhibition checklist for the whole show.',
@@ -262,6 +290,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to view a show in 3D',
+        'summary': 'Walk through a laid-out show in the browser to see how it reads before anything is hung.',
         'roles': {'curator', 'staff'},
         'steps': [
             'From the show detail page, click "3D View". This button is only visible when at least one artwork has been placed in the room layout (or you are a curator or staff member).',
@@ -277,6 +306,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to set up install / drop-off and pickup times (curator)',
+        'summary': 'Offer artists time windows to deliver and collect their work, and track who has booked.',
         'roles': {'curator', 'staff'},
         'steps': [
             'Decide who installs the work: on the show\'s Edit page, the "Artists install their own work" setting controls this. When ON (the default), artists schedule an INSTALL time (which is also when they bring the work — there is no separate drop-off). When OFF, the curator installs and artists schedule a DROP-OFF time instead.',
@@ -291,7 +321,8 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to schedule your art install / drop-off and pickup',
-        'roles': None,
+        'summary': 'Book your delivery and collection times once your work is accepted into a show.',
+        'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'After your work is accepted into a show and the curator has set up windows, open the show detail page and click "Schedule My Install & Pickup" (it may say "Drop-off & Pickup" if the curator installs the work).',
             'For the first event (Install or Drop-off), choose one of the available windows from the dropdown, enter a specific time within that window\'s range, and click Set.',
@@ -303,6 +334,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to configure a site\'s room and walls (staff only)',
+        'summary': 'Describe a venue\'s room geometry so the layout editor and 3D view can represent it.',
         'roles': {'staff'},
         'steps': [
             'Open the site detail page and click Edit, then scroll to the Room Configuration section.',
@@ -318,7 +350,8 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'Linking your account to an existing artist profile',
-        'roles': None,
+        'summary': 'Claim an artist record the gallery created for you, including under a different email.',
+        'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'There are three cases — figure out which one applies, then follow the matching steps.',
             'Case 1 — Same email: You were already in the system and you signed up using the same email address that is on your artist record. The system linked your account automatically. No extra steps needed — just fill in your profile.',
@@ -328,25 +361,9 @@ HOW_TO_GUIDES = [
         ],
     },
     {
-        'title': 'How to submit artwork to a show, open call or invitation-only (new to the site)',
-        # Stable anchor: the show page links here, and the public and signed-in
-        # versions of this guide are mutually exclusive, so they share one id.
-        'anchor': 'submit-artwork',
-        'roles': None,
-        'public_only': True,
-        'steps': [
-            'This works the same for open call and invitation-only shows. For an invitation-only show, first open the accept link in your invitation email — you can sign up with any email and it will link the invitation to your new account.',
-            'Step 1 — Create an account: open the Account menu in the navigation and choose Sign Up. Enter your name, email, and password (or continue with Google).',
-            'Step 2 — Complete your artist profile: after signing up you land on your artist profile edit page. Fill in your first name, last name, and zip code. Then upload a profile photo — this must be a photo of YOU (the artist), not a photo of your artwork. Your profile photo appears on your public artist page.',
-            'Step 3 — Add your artwork: scroll down to the Artworks section on your Me page and click New. Fill in the title, year, medium, and dimensions, and upload an image of the artwork itself. Save.',
-            'Step 4 — Submit: go to the show detail page. You will see a Submit button under "Shows Accepting Submissions" on your Me page, or directly on the show page. Click it, select the artwork card you just added, and click Submit.',
-            'You will receive a confirmation email. Your submission appears on your Me page and on the show detail page.',
-            'To remove a submission, click Retract next to your artwork. This permanently deletes that submission — you can resubmit a different artwork while the show is still open.',
-        ],
-    },
-    {
         'title': 'How to pin artworks',
-        'roles': None,
+        'summary': 'Save pieces you like to a private pinboard on your profile and arrange them.',
+        'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in. Browse any show or the Artworks gallery.',
             'On any artwork card, click the 📌 Pin button in the card footer. The button turns orange and shows "Pinned" to confirm it has been saved.',
@@ -358,6 +375,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to browse sites and use the site map',
+        'summary': 'Find gallery locations on a map and browse the shows, artists and work at each one.',
         'roles': None,
         'steps': [
             'Click Sites in the navigation bar to open the Sites list page.',
@@ -371,6 +389,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to create and manage sites (staff only)',
+        'summary': 'Add and edit venues: address, contact details, map position, images and icon.',
         'roles': {'staff'},
         'steps': [
             'Sign in as a staff user, then click Sites in the navigation.',
@@ -388,7 +407,8 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to record artwork ownership',
-        'roles': None,
+        'summary': 'Register that you own a piece so it can be credited and requested for future shows.',
+        'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'Sign in. Navigate to the artwork detail page for a piece you own — purchased, received as a gift, or otherwise acquired.',
             'Click "Claim" in the button bar at the bottom of the artwork card. You cannot claim your own artwork — the Claim button is hidden for artworks you created.',
@@ -401,6 +421,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to buy a piece of artwork',
+        'summary': 'Enquire about a piece that is for sale, and what happens after you do.',
         'roles': None,
         'steps': [
             'Find the artwork you are interested in — browse Shows or Artists from the navigation, or ask the gallery for a direct link.',
@@ -416,6 +437,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to adjust card sizes',
+        'summary': 'Resize the card grids across the site, and reset them to the default.',
         'roles': None,
         'steps': [
             'On any page that shows a card grid (artists, artworks, shows, submissions, etc.) a ▦ icon appears in the bottom-right corner of the browser window.',
@@ -426,6 +448,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to link an artist profile to a user (staff only)',
+        'summary': 'Connect an unlinked artist record to a user account so that person can manage it.',
         'roles': {'staff'},
         'steps': [
             'Sign in as a staff user, then go to /accounts/link-artists/.',
@@ -433,6 +456,26 @@ HOW_TO_GUIDES = [
             'Select the user account to link it to from the second dropdown.',
             'Click Link. The artist record is immediately associated with that user account.',
             'After linking, the user can sign in and manage that artist profile.',
+        ],
+    },
+    {
+        'title': 'How to regenerate the visual documentation screenshots (staff only)',
+        'summary': 'Regenerate and publish the screenshots in these guides after a UI change. Command line.',
+        # Stable anchor: this guide's title is long and likely to be reworded.
+        'anchor': 'regenerate-howto-screenshots',
+        'roles': {'staff'},
+        'steps': [
+            'The screenshots under the how-to guides are generated, not maintained by hand — a script drives a real browser through each guide and photographs every step. Regenerate them after any UI change that touches an illustrated flow. This runs from a local development checkout, not from the website, so it needs a terminal in the project directory rather than a page in the app.',
+            'One-time setup, if you have never run it on this machine: ./env/bin/pip install playwright   then   ./env/bin/playwright install chromium',
+            'Check which guides have a capture script: ./env/bin/python manage.py capture_howto --list',
+            'Generate the screenshots for one guide, for example the public submission guide: RECAPTCHA_ENABLED=false ./env/bin/python manage.py capture_howto submit-artwork-public . The RECAPTCHA_ENABLED=false part is only needed for guides that walk the sign-up form, because an automated browser cannot solve a reCAPTCHA; the command tells you if you have left it off.',
+            'Look at the result before publishing anything: start the site with ./env/bin/python manage.py runserver , then open that guide on its own page (for example /howto/submit-artwork/) signed out and hard-reload. In local development the freshly captured images take precedence over the published ones, so you are seeing exactly what you just generated.',
+            'Preview what would be uploaded, without uploading: ./env/bin/python manage.py capture_howto submit-artwork-public --publish --dry-run . This lists the exact files and their sizes.',
+            'Upload for real: ./env/bin/python manage.py capture_howto submit-artwork-public --publish . The images go to S3, not into the repository. This needs AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME set in your environment. It is safe to re-run — unchanged screenshots upload to the same place and cost nothing.',
+            'Commit the manifest, or nothing changes for readers: git add eatart/howto_manifest.json and commit it. Uploading only puts the files on S3; the manifest is the small file that tells the live site which images exist and how large they are.',
+            'If the capture stops with a "DocumentationMismatch", that is the tool working as intended, not a broken screenshot. It means a button or link the guide names by its wording is no longer there — so the written guide is now wrong for readers too. Fix the wording of that step in the guide, then run the capture again.',
+            'If the capture reports that no open call is accepting submissions, the test database has gone stale. Back it up first, because reseeding wipes it: cp db.sqlite3 db.sqlite3.bak   then   bash scripts/create_test_database.sh',
+            'Full background, including how to add a capture script for a guide that does not have one yet, is in docs/visual-howto-documentation.md.',
         ],
     },
 ]

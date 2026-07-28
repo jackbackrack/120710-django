@@ -20,3 +20,8 @@ media/
 staticfiles/
 .DS_Store
 db.sqlite3.*
+
+# Locally captured how-to screenshots (manage.py capture_howto). Published to S3 and
+# described by eatart/howto_manifest.json — the binaries themselves never enter git;
+# see docs/visual-howto-documentation.md.
+static/img/howto/

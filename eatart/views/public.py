@@ -1,7 +1,10 @@
 import datetime as dt
 
+from django.http import Http404
 from django.shortcuts import render
+from django.utils.text import slugify
 
+from eatart.howto_images import steps_with_images
 from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import LinkTreeEntry, Show
@@ -77,32 +80,142 @@ def linktree(request):
     })
 
 
-def howto(request):
-    active_role_keys = []
+def _reader_role(user):
+    """The single role key a reader's documentation is filtered by, or None.
 
-    if request.user.is_authenticated:
-        if is_staff_user(request.user):
-            active_role_keys.append('staff')
-        elif is_curator_user(request.user):
-            active_role_keys.append('curator')
-        elif is_juror_user(request.user):
-            active_role_keys.append('juror')
-        else:
-            active_role_keys.append('artist')
+    First match wins, most privileged first — a staff user who is also a curator sees
+    the staff documentation, not both.
+    """
+    if not user.is_authenticated:
+        return None
+    if is_staff_user(user):
+        return 'staff'
+    if is_curator_user(user):
+        return 'curator'
+    if is_juror_user(user):
+        return 'juror'
+    return 'artist'
 
-    role_guides = [ROLE_DOCUMENTATION[key] for key in active_role_keys if key in ROLE_DOCUMENTATION]
 
-    user_role = active_role_keys[0] if active_role_keys else None
-    visible_how_tos = [
+def _visible_guides(user_role):
+    """The how-to guides this reader may see, in HOW_TO_GUIDES order.
+
+    Shared by the index and the per-guide page so a guide can never be listed but not
+    openable, or openable but not listed. `public_only` guides are hidden from signed-in
+    readers on purpose: they are the beginner-facing version of a guide that also exists
+    in a role-gated form, and the two are mutually exclusive.
+    """
+    return [
         g for g in HOW_TO_GUIDES
         if (g['roles'] is None and not (g.get('public_only') and user_role))
         or (user_role and g['roles'] and user_role in g['roles'])
     ]
 
-    context = {
-        'how_to_guides': visible_how_tos,
+
+def guide_anchor(guide):
+    """The guide's URL segment — its stable anchor, else a slug of the title.
+
+    Not unique across HOW_TO_GUIDES, and deliberately so: the public and signed-in
+    submit-artwork guides share one anchor, so a single link and a single URL serve
+    either reader. It is unique *per reader*, which is what `_visible_guides` guarantees
+    and what makes routing on it safe.
+    """
+    return guide.get('anchor') or slugify(guide['title'])
+
+
+# Index headings, keyed by a guide's *audience* rather than by the reader's role.
+#
+# Grouping by the reader's role puts every guide they can see under one heading — a staff
+# reader would find "How to add artworks" filed under "For staff", because staff is one of
+# that guide's four roles. What distinguishes guides is how narrow their audience is, so
+# that is what the headings say.
+HOWTO_AUDIENCE_LABELS = {
+    frozenset({'artist', 'curator', 'juror', 'staff'}): 'For anyone signed in',
+    frozenset({'curator', 'juror', 'staff'}): 'For jurors and curators',
+    frozenset({'curator', 'staff'}): 'For curators and staff',
+    frozenset({'staff'}): 'For staff only',
+}
+HOWTO_PUBLIC_LABEL = 'For everyone'
+HOWTO_ROLE_NAMES = {'artist': 'artists', 'curator': 'curators',
+                    'juror': 'jurors', 'staff': 'staff'}
+
+
+def _audience_label(roles):
+    """Heading for a guide's audience, general to specific.
+
+    Falls back to naming the roles rather than dropping the guide, so adding a new role
+    combination to HOW_TO_GUIDES puts it under a reasonable heading instead of silently
+    omitting it from the index — which, now that the index is the only way to find a
+    guide, would make it unreachable.
+    """
+    if not roles:
+        return HOWTO_PUBLIC_LABEL
+    key = frozenset(roles)
+    if key in HOWTO_AUDIENCE_LABELS:
+        return HOWTO_AUDIENCE_LABELS[key]
+    named = [HOWTO_ROLE_NAMES.get(r, r) for r in sorted(roles)]
+    return 'For ' + (', '.join(named[:-1]) + ' and ' + named[-1]
+                     if len(named) > 1 else named[0])
+
+
+def howto(request):
+    """Index: every guide this reader can open, grouped by role, with descriptions.
+
+    Purely navigational. The guides moved to their own pages because illustrating all
+    31 would have put a few hundred screenshots on one URL; the reference tables moved
+    to `howto_reference` so this page stays scannable.
+    """
+    user_role = _reader_role(request.user)
+    visible = _visible_guides(user_role)
+
+    grouped = {}
+    for guide in visible:
+        grouped.setdefault(_audience_label(guide['roles']), []).append({
+            'title': guide['title'],
+            'summary': guide.get('summary', ''),
+            'anchor': guide_anchor(guide),
+        })
+
+    # Widest audience first, so a reader meets the guides most likely to apply to them
+    # before the specialised ones. Public guides lead; anything unrecognised sorts last
+    # by name rather than jumping the queue.
+    order = [HOWTO_PUBLIC_LABEL] + list(HOWTO_AUDIENCE_LABELS.values())
+    sections = [{'heading': heading, 'guides': grouped[heading]}
+                for heading in order if heading in grouped]
+    sections += [{'heading': heading, 'guides': guides}
+                 for heading, guides in sorted(grouped.items())
+                 if heading not in order]
+
+    return render(request, 'public/howto.html', {
+        'sections': sections,
+        'user_role': user_role,
+    })
+
+
+def howto_guide(request, anchor):
+    """One guide, with its screenshots.
+
+    404s on a guide this reader may not see, rather than rendering it: the visibility
+    rules exist so that exactly one of the two submit-artwork versions resolves for any
+    given reader, and honouring them here is what keeps that true.
+    """
+    for guide in _visible_guides(_reader_role(request.user)):
+        if guide_anchor(guide) == anchor:
+            return render(request, 'public/howto_guide.html', {
+                # Copied, not mutated: HOW_TO_GUIDES is module-level state shared across
+                # requests. `steps` stays for the walkthrough widget's data-steps.
+                'guide': {**guide, 'steps_with_images': steps_with_images(guide),
+                          'anchor': anchor},
+            })
+    raise Http404(f'No how-to guide "{anchor}" is available to you.')
+
+
+def howto_reference(request):
+    """Account Basics plus the form-and-field tables for this reader's role."""
+    user_role = _reader_role(request.user)
+    return render(request, 'public/howto_reference.html', {
         'general_guide': GENERAL_GUIDE,
-        'role_guides': role_guides,
-        'active_roles': active_role_keys,
-    }
-    return render(request, 'public/howto.html', context)
+        'role_guides': ([ROLE_DOCUMENTATION[user_role]]
+                        if user_role in ROLE_DOCUMENTATION else []),
+        'user_role': user_role,
+    })

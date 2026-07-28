@@ -1,0 +1,28 @@
+{% comment %}
+  One form's field table. Extracted because the reference page renders the same block for
+  Account Basics and for each role's forms, and the two copies had already drifted apart
+  once. Expects `form_doc` in context.
+{% endcomment %}
+<article class="card mb-3" style="background-color:#fff">
+  <div class="card-body">
+    <h4 class="card-title">{{ form_doc.name }}</h4>
+    <p class="card-subtitle mb-2 text-muted">{{ form_doc.where_used }}</p>
+    {% if form_doc.breadcrumb %}
+    <p class="mb-2"><strong>Page path:</strong> {{ form_doc.breadcrumb }}</p>
+    {% endif %}
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Field</th><th>Input Type</th><th>What It Does</th></tr></thead>
+        <tbody>
+          {% for field_doc in form_doc.fields %}
+          <tr>
+            <td><code>{{ field_doc.name }}</code></td>
+            <td>{{ field_doc.input_type }}</td>
+            <td>{{ field_doc.purpose }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</article>

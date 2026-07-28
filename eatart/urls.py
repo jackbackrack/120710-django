@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 
 from accounts.views import ArtistUserCreateView, CustomPasswordResetView, CustomSignupView, UserNameUpdateView, claim_artist, link_artist_to_user
-from eatart.views.public import index, visit, contact, about, howto, linktree
+from eatart.views.public import (index, visit, contact, about, howto, howto_guide,
+                                 howto_reference, linktree)
 from eatart.views.subscribe import subscribe, subscribe_kiosk
 
 #temporary hack as well as + static(...) below
@@ -18,6 +19,9 @@ urlpatterns = [
     path('contact/', contact, name='contact'),
     path('about/', about, name='about'),
     path('howto/', howto, name='howto'),
+    # Before the <slug:anchor> route, which would otherwise swallow "reference".
+    path('howto/reference/', howto_reference, name='howto_reference'),
+    path('howto/<slug:anchor>/', howto_guide, name='howto_guide'),
     path('links/', linktree, name='linktree'),
     path('subscribe/', subscribe, name='subscribe'),
     path('subscribe/kiosk/<str:token>/', subscribe_kiosk, name='subscribe_kiosk'),
