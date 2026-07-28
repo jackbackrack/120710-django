@@ -1,10 +1,20 @@
 # Visual how-to documentation
 
-**Status: 10 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
+**Status: 12 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
 in git. The whole artist path is illustrated (sign up → complete profile → add artworks →
 submit, that last one for every reader signed in or not), plus pinning, buying and the
 card-size control, and now the jury cluster: jurying a show, the review slideshow and the
-curation slideshow. 20 guides still need a capture script each. Plan agreed 2026-07-28.
+curation slideshow, plus adding artwork on behalf of an artist and running an
+invitation-only show end to end. 18 guides still need a capture script each. Plan agreed
+2026-07-28.
+
+**Guides that mutate shared state must build their own.** The lifecycle guides drive a
+show through its statuses, invite artists and add work; doing that to a seeded show would
+change what every other capture sees. `_create_capture_show()` makes one per run and
+`_cleanup_capture_shows()` deletes it. Note the prefix has to be in the show's **name**:
+`Show.save()` regenerates the slug from the name, so a slug set at creation is discarded
+and a `slug__startswith` cleanup silently matches nothing — that left seven orphaned shows
+before it was spotted. After adding such a script, check the DB is unchanged after `--all`.
 
 ## What Jack wants
 

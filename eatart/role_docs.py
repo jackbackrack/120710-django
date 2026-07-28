@@ -123,7 +123,7 @@ HOW_TO_GUIDES = [
         'roles': {'curator', 'staff'},
         'steps': [
             'Use this when an artist cannot self-submit — for example a person you manage who has no email or account (such as an artist with a caregiver acting for them), or any artist you want to add to an invitation-only show directly. The artist needs no account, email, or submission of their own.',
-            'If the artist does not exist yet, create their profile first (Artists → New): fill their name, first/last name, a profile photo and zip code (required to appear in shows), and leave "Linked user account" blank. The email field can be a caregiver\'s address or left blank — it is never sent to the artist.',
+            'If the artist does not exist yet, create their profile first (Artists → New — curators and staff see this link): fill their first and last name, an email address, a profile photo and a zip code. All five are required by the form. Use a caregiver\'s address, or your own, if the artist has no email of their own — nothing is ever sent to it automatically. Leave "Linked user account" blank so they can claim the profile later.',
             'Go to the show\'s Submissions page and click "Add artwork on behalf of an artist".',
             'Choose the artist from the dropdown. The page then lists that artist\'s existing artworks.',
             'Either select one of their existing artworks and click "Add selected artwork to show", OR fill in the "Create a new artwork" form (title, medium, dimensions, image, price) and click "Create & add to show".',

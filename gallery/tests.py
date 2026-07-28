@@ -943,6 +943,90 @@ class InvitationSubmissionFlowTests(TestCase):
         self.assertEqual(self.client.get(self.submit_url).status_code, 302)
 
 
+class ArtistCreationPermissionTests(TestCase):
+    """Who may create an artist profile, and whose account it gets attached to.
+
+    Curators need to create records for artists who cannot sign up — someone a caregiver
+    acts for, or anyone added to an invitation-only show directly. They were locked out:
+    the view allowed creation only when you had no profile of your own, which every
+    curator does, so /artist/new/ 403d for them. The "Create the artist profile first"
+    link on the add-artwork-on-behalf page pointed straight at it.
+    """
+
+    def _user(self, email, **kwargs):
+        return User.objects.create_user(
+            username=email, email=email, password='pw', **kwargs)
+
+    def test_user_without_a_profile_can_create_their_own(self):
+        self.client.force_login(self._user('nobody@example.com'))
+        self.assertEqual(self.client.get(reverse('gallery:artist_new')).status_code, 200)
+
+    def test_plain_artist_with_a_profile_cannot_create_another(self):
+        user = self._user('mine@example.com')
+        Artist.objects.create(user=user, first_name='Al', last_name='Ready',
+                              email='mine@example.com')
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(reverse('gallery:artist_new')).status_code, 403)
+
+    def test_curator_with_a_profile_can_create_one_for_someone_else(self):
+        curator = self._user('cur@example.com', is_staff=True)
+        Artist.objects.create(user=curator, first_name='Cura', last_name='Tor',
+                              email='cur@example.com')
+        self.client.force_login(curator)
+        self.assertEqual(self.client.get(reverse('gallery:artist_new')).status_code, 200)
+
+    def test_curator_created_profile_is_not_linked_to_the_curator(self):
+        """The whole point is a record for someone who has no account.
+
+        form_valid used to attach request.user unconditionally, so every artist a curator
+        added came out owned by the curator — and on a staff form it silently overwrote
+        whatever "Linked user account" said, including blank.
+        """
+        curator = self._user('cur2@example.com', is_staff=True)
+        Artist.objects.create(user=curator, first_name='Cura', last_name='Tor',
+                              email='cur2@example.com')
+        self.client.force_login(curator)
+        # email and image are both required by ArtistForm — a caregiver's address is
+        # what the guide suggests for an artist who has none of their own.
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image as PILImage
+
+        buf = io.BytesIO()
+        PILImage.new('RGB', (40, 40), (120, 140, 130)).save(buf, 'JPEG')
+        self.client.post(reverse('gallery:artist_new'), {
+            'first_name': 'Wren', 'last_name': 'Halloway',
+            'email': 'caregiver@example.com', 'zipcode': '94710',
+            'bio': '', 'statement': '', 'phone': '', 'website': '',
+            'instagram': '', 'venmo': '',
+            'image': SimpleUploadedFile('w.jpg', buf.getvalue(), 'image/jpeg'),
+        })
+        created = Artist.objects.filter(first_name='Wren').first()
+        self.assertIsNotNone(created, 'the curator could not create the artist at all')
+        self.assertIsNone(
+            created.user,
+            'a profile a curator creates for another artist must not be linked to the '
+            'curator — that is what makes it claimable later')
+
+    def test_artists_page_offers_New_to_exactly_those_who_can_use_it(self):
+        curator = self._user('cur3@example.com', is_staff=True)
+        Artist.objects.create(user=curator, first_name='Cura', last_name='Tor',
+                              email='cur3@example.com')
+        artist_user = self._user('art3@example.com')
+        Artist.objects.create(user=artist_user, first_name='Ann', last_name='Artist',
+                              email='art3@example.com')
+
+        self.client.force_login(curator)
+        self.assertIn('new-button',
+                      self.client.get(reverse('gallery:artist_list')).content.decode(),
+                      'a curator should be offered New on the Artists page')
+        self.client.force_login(artist_user)
+        self.assertNotIn('new-button',
+                         self.client.get(reverse('gallery:artist_list')).content.decode(),
+                         'an artist who already has a profile should not be')
+
+
 class HowToAnchorTests(TestCase):
     """Every link into the help system must land on a guide that exists.
 

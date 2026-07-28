@@ -1,4 +1,36 @@
 {
+  "how-to-add-artwork-on-behalf-of-an-artist-curatorstaff": {
+    "2": {
+      "bytes": 226150,
+      "height": 717,
+      "key": "how-to-add-artwork-on-behalf-of-an-artist-curatorstaff/02.5d1bb1c3e569.webp",
+      "width": 1084
+    },
+    "3": {
+      "bytes": 5526,
+      "height": 18,
+      "key": "how-to-add-artwork-on-behalf-of-an-artist-curatorstaff/03.c06a28c8de38.webp",
+      "width": 241
+    },
+    "4": {
+      "bytes": 28316,
+      "height": 95,
+      "key": "how-to-add-artwork-on-behalf-of-an-artist-curatorstaff/04.f2794138e3fa.webp",
+      "width": 722
+    },
+    "5": {
+      "bytes": 19892,
+      "height": 88,
+      "key": "how-to-add-artwork-on-behalf-of-an-artist-curatorstaff/05.a170818233cf.webp",
+      "width": 722
+    },
+    "6": {
+      "bytes": 5516,
+      "height": 73,
+      "key": "how-to-add-artwork-on-behalf-of-an-artist-curatorstaff/06.8603fb5de184.webp",
+      "width": 200
+    }
+  },
   "how-to-add-artworks": {
     "1": {
       "bytes": 2964,
@@ -173,6 +205,68 @@
       "width": 176
     }
   },
+  "how-to-run-an-invitation-only-show": {
+    "1": {
+      "bytes": 48246,
+      "height": 439,
+      "key": "how-to-run-an-invitation-only-show/01.89404aeb6652.webp",
+      "width": 1084
+    },
+    "10": {
+      "bytes": 294008,
+      "height": 900,
+      "key": "how-to-run-an-invitation-only-show/10.d49d490e76d1.webp",
+      "width": 1100
+    },
+    "11": {
+      "bytes": 14528,
+      "height": 38,
+      "key": "how-to-run-an-invitation-only-show/11.cd38e486686b.webp",
+      "width": 936
+    },
+    "12": {
+      "bytes": 6428,
+      "height": 106,
+      "key": "how-to-run-an-invitation-only-show/12.1aa832305ee4.webp",
+      "width": 176
+    },
+    "14": {
+      "bytes": 2504,
+      "height": 77,
+      "key": "how-to-run-an-invitation-only-show/14.e3c0782fd8f1.webp",
+      "width": 176
+    },
+    "2": {
+      "bytes": 120456,
+      "height": 344,
+      "key": "how-to-run-an-invitation-only-show/02.7c7cd7937ec8.webp",
+      "width": 903
+    },
+    "3": {
+      "bytes": 39824,
+      "height": 237,
+      "key": "how-to-run-an-invitation-only-show/03.86f46515ab71.webp",
+      "width": 903
+    },
+    "4": {
+      "bytes": 10270,
+      "height": 68,
+      "key": "how-to-run-an-invitation-only-show/04.5b8f4e770924.webp",
+      "width": 903
+    },
+    "6": {
+      "bytes": 5116,
+      "height": 15,
+      "key": "how-to-run-an-invitation-only-show/06.da042a9e51c1.webp",
+      "width": 388
+    },
+    "9": {
+      "bytes": 321214,
+      "height": 900,
+      "key": "how-to-run-an-invitation-only-show/09.48688345b797.webp",
+      "width": 1100
+    }
+  },
   "how-to-sign-up-for-an-account": {
     "1": {
       "bytes": 3086,
@@ -219,9 +313,9 @@
       "width": 903
     },
     "3": {
-      "bytes": 261512,
+      "bytes": 262946,
       "height": 900,
-      "key": "how-to-use-the-curation-slideshow/03.3957f0785fa3.webp",
+      "key": "how-to-use-the-curation-slideshow/03.4188aa9cead2.webp",
       "width": 1100
     },
     "4": {
@@ -269,9 +363,9 @@
       "width": 324
     },
     "2": {
-      "bytes": 133694,
+      "bytes": 133680,
       "height": 900,
-      "key": "how-to-use-the-review-slideshow/02.9b7bd6190784.webp",
+      "key": "how-to-use-the-review-slideshow/02.e597a1932151.webp",
       "width": 1100
     },
     "3": {
@@ -287,9 +381,9 @@
       "width": 1100
     },
     "7": {
-      "bytes": 54310,
+      "bytes": 54234,
       "height": 50,
-      "key": "how-to-use-the-review-slideshow/07.cff5d5f1cabf.webp",
+      "key": "how-to-use-the-review-slideshow/07.ae356c2a90fe.webp",
       "width": 1084
     }
   },

@@ -51,6 +51,14 @@ class ArtistListView(ListView):
         context['active_tag'] = self.request.GET.get('tag', '')
         context['can_manage_artist'] = {a.id for a in artists if can_manage_artist(self.request.user, a)}
         context['can_delete_artist'] = {a.id for a in artists if can_delete_artist(self.request.user, a)}
+        # Mirrors ArtistCreateView.test_func: your own profile if you have none, or a
+        # record for another artist if you are a curator or staff.
+        user = self.request.user
+        context['can_create_artist'] = bool(
+            user.is_authenticated
+            and (not user.artists.exists()
+                 or is_curator_user(user)
+                 or is_staff_user(user)))
         context['anon_grid_cache_seconds'] = settings.ANON_GRID_CACHE_SECONDS
         return context
 
@@ -288,8 +296,22 @@ class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        form.instance.user = self.request.user
+        # Only claim the new profile for its creator when they have none of their own.
+        # A curator adding a record for someone who cannot sign up must not have their
+        # own account silently attached to it — and for staff the form has a "Linked user
+        # account" field, whose value (including blank) this would otherwise overwrite.
+        if not self.request.user.artists.exists():
+            form.instance.user = self.request.user
         return super().form_valid(form)
 
     def test_func(self):
-        return not self.request.user.artists.exists()
+        # Two separate reasons to be here: you have no profile and are creating your own,
+        # or you are a curator/staff member creating a record for an artist who has no
+        # account — someone a caregiver acts for, or anyone being added to an
+        # invitation-only show directly. Curators used to be locked out of the second
+        # case entirely, which also made the "Create the artist profile first" link on
+        # the add-artwork-on-behalf page 403 for exactly the people it was aimed at.
+        user = self.request.user
+        return (not user.artists.exists()
+                or is_curator_user(user)
+                or is_staff_user(user))

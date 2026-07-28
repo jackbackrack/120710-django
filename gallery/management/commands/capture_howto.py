@@ -36,6 +36,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.staticfiles.handlers import StaticFilesHandler
 from django.core.management.base import BaseCommand, CommandError
 from django.test.testcases import LiveServerThread
+from django.utils.text import slugify
 
 from eatart.howto_images import (HOWTO_CAPTURE_SCALE, image_key, load_manifest,
                                  save_manifest, staging_dir, step_filename)
@@ -131,8 +132,6 @@ class Recorder:
         self.click(phrasing, self.page.locator(
             f'{form} button[type="submit"], {form} input[type="submit"]'))
         self.page.wait_for_load_state('load')
-        if self.page.url != before:
-            return
         # Crispy marks the offending widgets, which names the fields; the message text
         # alone is often just a bare "This field is required."
         fields = self.page.locator('.is-invalid, [aria-invalid="true"]').evaluate_all(
@@ -140,14 +139,18 @@ class Recorder:
         messages = [t.strip().replace('\n', ' ') for t in self.page.locator(
             '.errorlist, .invalid-feedback, .alert-danger'
         ).all_inner_texts() if t.strip()]
+        if not fields and not messages:
+            # No evidence of rejection. Landing back on the same URL is not evidence
+            # either: several views post-redirect-get to themselves, and treating that as
+            # a failure made a working invitation form look broken.
+            return
         detail = []
         if fields:
             detail.append(f'rejected fields: {sorted(set(fields))}')
         detail.extend(messages)
         raise CommandError(
-            f'step {self.step}: the form on {before} was rejected and re-rendered.\n'
-            + ('    ' + '\n    '.join(detail) if detail
-               else '    No error text found on the page — re-run with --headed.'))
+            f'step {self.step}: the form on {before} was rejected.\n'
+            + '    ' + '\n    '.join(detail))
 
     # -- interaction ------------------------------------------------------------
 
@@ -174,10 +177,20 @@ class Recorder:
         except PlaywrightError as exc:
             self._mismatch(phrasing, exc)
 
-    def select(self, phrasing, selector, value):
+    def select(self, phrasing, selector, value, navigates=False):
+        """Choose an option. Set `navigates` when the select submits its form on change.
+
+        Some pickers reload the page from an onchange handler; without waiting for that
+        the next call runs mid-navigation and Playwright reports "Execution context was
+        destroyed", which says nothing about which control caused it.
+        """
         from playwright.sync_api import Error as PlaywrightError
         try:
-            self.page.select_option(selector, value, timeout=self.timeout)
+            if navigates:
+                with self.page.expect_navigation():
+                    self.page.select_option(selector, value, timeout=self.timeout)
+            else:
+                self.page.select_option(selector, value, timeout=self.timeout)
         except PlaywrightError as exc:
             self._mismatch(phrasing, exc)
 
@@ -1191,6 +1204,220 @@ def capture_curation_slideshow(rec, facts):
     # Step 13 is closing and the separate publish workflow.
 
 
+# ── Curator lifecycle guides ─────────────────────────────────────────────────
+# These drive a show through real status changes, invite artists, and add work. They must
+# not do any of that to a seeded show: `working-craft` is the invitation-only fixture other
+# guides and the submission flows depend on, and publishing or closing it would quietly
+# change what every other capture sees. So each run builds its own show and deletes it
+# afterwards. The slug prefix is what makes cleanup reliable even after a failed run.
+
+CAPTURE_SHOW_PREFIX = 'howto-capture'
+CAPTURE_SHOW_NAME_PREFIX = 'Howto Capture'
+
+
+def _create_capture_show(name, submission_type, status=None, days_open=30):
+    """A throwaway show owned by this capture run, deleted in cleanup.
+
+    Dates are relative to today for the same reason the seed script's are: a hard-coded
+    deadline in the past makes a show accept nothing, which looks like a bug in the flow
+    rather than a stale fixture.
+    """
+    import datetime as dt
+
+    from gallery.models import Site
+
+    today = dt.date.today()
+    # The prefix goes in the *name*: Show.save() regenerates the slug from the name, so a
+    # slug set here is discarded and cleanup's slug__startswith filter matches nothing.
+    show = Show.objects.create(
+        name=f'{CAPTURE_SHOW_NAME_PREFIX} {name}',
+        start=today + dt.timedelta(days=days_open + 30),
+        end=today + dt.timedelta(days=days_open + 60),
+        submission_deadline=today + dt.timedelta(days=days_open),
+        submission_type=submission_type,
+        status=status or Show.STATUS_UNDER_CONSIDERATION,
+    )
+    site = Site.objects.first()
+    if site is not None:
+        show.sites.add(site)
+    curator = Artist.objects.filter(user__email=CURATOR_EMAIL).first()
+    if curator is not None:
+        show.curators.add(curator)
+    return show
+
+
+def _cleanup_capture_shows():
+    """Delete every show this capture machinery has ever created, then the account."""
+    Show.objects.filter(slug__startswith=CAPTURE_SHOW_PREFIX).delete()
+    Artist.objects.filter(name=ON_BEHALF_ARTIST_NAME, user__isnull=True).delete()
+    _reset_capture_account()
+
+
+# ── how-to-add-artwork-on-behalf-of-an-artist ────────────────────────────────
+
+ON_BEHALF_ARTIST_NAME = 'Wren Halloway'
+
+
+def prepare_add_on_behalf():
+    """An invitation-only show plus an artist with no account — the guide's whole premise.
+
+    The artist is created here rather than through the UI because step 2 is about the
+    Artists → New form, which the script photographs empty; creating a second one through
+    it would leave a duplicate behind.
+    """
+    _cleanup_capture_shows()
+    show = _create_capture_show('Howto On Behalf', Show.SUBMISSION_INVITED,
+                                Show.STATUS_OPEN_CALL)
+    artist = Artist.objects.create(
+        name=ON_BEHALF_ARTIST_NAME, first_name='Wren', last_name='Halloway',
+        zipcode='94710', email='')
+    artwork = Artwork.objects.create(
+        name='Folded Light', end_year=2025, medium='Paper and thread',
+        width_inches=18, height_inches=24,
+        pricing_type=Artwork.PRICING_ON_REQUEST)
+    artwork.artists.add(artist)
+    return {'slug': show.slug, 'artist_pk': artist.pk,
+            'artist_name': ON_BEHALF_ARTIST_NAME}
+
+
+def capture_add_on_behalf(rec, facts):
+    """Adding work for an artist who has no account of their own."""
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+
+    # Step 1 is when to use this at all — no screen.
+
+    # Step 2 — "create their profile first (Artists → New) ... Leave 'Linked user
+    #           account' blank." This 403d for curators until the capture found it.
+    rec.at_step(2)
+    rec.goto('/artist/new/')
+    rec.shot_region(2, 'fieldset:has(#div_id_zipcode)')
+
+    # Step 3 — "Go to the show's Submissions page and click 'Add artwork on behalf of an
+    #           artist'."
+    rec.at_step(3)
+    rec.goto(f'/show/{facts["slug"]}/submissions/')
+    rec.shot_region(3, 'a:has-text("Add artwork on behalf")')
+
+    # Step 4 — "Choose the artist from the dropdown. The page then lists that artist's
+    #           existing artworks."
+    rec.at_step(4)
+    rec.click('click "Add artwork on behalf of an artist"',
+              rec.page.get_by_role('link', name='Add artwork on behalf of an artist'))
+    rec.select('choose the artist from the dropdown', '#artist-select',
+               str(facts['artist_pk']), navigates=True)
+    rec.shot_region(4, 'form:has(#artist-select)')
+
+    # Step 5 — "Either select one of their existing artworks ... OR fill in the 'Create a
+    #           new artwork' form."
+    rec.at_step(5)
+    rec.shot_region(5, 'form:has(button[value="add_existing"])')
+
+    # Step 6 — "The piece is added to the show as a curator-selected submission."
+    rec.at_step(6)
+    rec.click('select one of their existing artworks',
+              rec.page.locator('input[name="artwork"]').first)
+    rec.submit('click "Add selected artwork to show"',
+               'form:has(button[value="add_existing"])')
+    rec.goto(f'/show/{facts["slug"]}/submissions/')
+    rec.expect_text('see the piece on the Submissions page', facts['artist_name'])
+    rec.shot_region(6, f'.card:has-text("{facts["artist_name"]}")')
+
+    # Step 7 is linking the profile to an account later — a staff page, its own guide.
+
+
+# ── how-to-run-an-invitation-only-show ───────────────────────────────────────
+
+def prepare_invitation_show():
+    _cleanup_capture_shows()
+    show = _create_capture_show('Howto Invitational', Show.SUBMISSION_INVITED)
+    return {'slug': show.slug, 'pk': show.pk}
+
+
+def capture_invitation_show(rec, facts):
+    """A whole invitation-only show, start to finish, on a show made for the run."""
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+    show_url = f'/show/{facts["slug"]}/'
+
+    # Step 1 — "Create the show (staff only) with Submission Type set to 'Invited' and a
+    #           submission deadline."
+    rec.at_step(1)
+    rec.goto('/show/new/')
+    # The whole form runs to ~1960px. This step names Submission Type and the deadline,
+    # so crop to that run of fields — the form has no fieldsets to lean on.
+    rec.shot_region(1, '#div_id_submission_type', '#div_id_decision_date')
+
+    # Step 2 — "click 'Invite Artists' to add artists by email address."
+    rec.at_step(2)
+    rec.goto(f'{show_url}invite/')
+    rec.fill('add artists by email address', 'textarea',
+             'wren@example.com\nsasha@example.com\nlee@example.com')
+    rec.shot_region(2, 'form:has(textarea)')
+    rec.submit('save the invitations', rec.form_with('textarea'))
+
+    # Step 3 — "a progress table: account, profile, artworks, submitted, emailed,
+    #           Accepted."
+    rec.at_step(3)
+    rec.shot_region(3, 'table')
+
+    # Step 4 — "controls to fix a wrong email in place, Resend, or Copy link."
+    rec.at_step(4)
+    rec.shot_region(4, 'table tbody tr')
+
+    # Step 5 is what the invitation email contains — not a page in the app.
+
+    # Step 6 — "Change the show status to Open Call on the show detail page."
+    rec.at_step(6)
+    rec.goto(show_url)
+    rec.shot(6, selector='form[action*="transition-status"], form[action*="transition"]')
+
+    # Step 7 points at the add-on-behalf guide.
+
+    # Steps 8, 10, 11 are further status changes and the publish confirmation. Drive the
+    # show forward through the ORM rather than the status control: the control is already
+    # photographed in step 6, and clicking through six transitions makes the run slow and
+    # fragile for pictures that would all look the same.
+    _db(_advance_capture_show, facts['slug'], Show.STATUS_DRAFT)
+
+    # Step 9 — "Go to the Submissions page ... bulk select ... The action bar at the
+    #           bottom moves all selected cards in one step."
+    rec.at_step(9)
+    rec.goto(f'{show_url}submissions/')
+    rec.shot(9)
+
+    # Step 10 — "change the show status to Published ... redirects to the Publish Show
+    #            confirmation page."
+    rec.at_step(10)
+    rec.goto(f'{show_url}promote/')
+    rec.shot(10)
+
+    # Step 11 — "Review the diff and click 'Confirm & Publish Show'."
+    rec.at_step(11)
+    rec.shot_region(11, 'form:has(button:has-text("Confirm"))')
+
+    # Step 12 — "click 'Send Emails' ... The button shows how many are pending."
+    rec.at_step(12)
+    _db(_advance_capture_show, facts['slug'], Show.STATUS_PUBLISHED)
+    rec.goto(show_url)
+    rec.click('open the Logistics menu', rec.control('Logistics'))
+    rec.expect_visible('see Send Emails in the menu', '.dropdown-menu.show')
+    rec.shot_region(12, '.dropdown-menu.show')
+
+    # Step 13 is closing the show — the same status control as step 6.
+
+    # Step 14 — "add events using the New Event link on the show detail page."
+    rec.at_step(14)
+    rec.click('open the Manage menu', rec.control('Manage'))
+    rec.expect_visible('see New Event in the menu', '.dropdown-menu.show')
+    rec.shot_region(14, '.dropdown-menu.show')
+
+
+def _advance_capture_show(slug, status):
+    """Move a capture-owned show to a status, refusing to touch anything else."""
+    if not slug.startswith(CAPTURE_SHOW_PREFIX):
+        raise CommandError(f'refusing to change the status of "{slug}" — not a capture show')
+    Show.objects.filter(slug=slug).update(status=status)
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -1279,6 +1506,23 @@ CAPTURE_SCRIPTS = {
         'prose_only': {2, 9, 10, 11, 13},
         'reset': _reset_capture_account,
         'cleanup': _cleanup_jury,
+    },
+    'how-to-add-artwork-on-behalf-of-an-artist-curatorstaff': {
+        'prepare': prepare_add_on_behalf,
+        'run': capture_add_on_behalf,
+        # 1 is when to use it at all; 7 is linking the profile to an account later.
+        'prose_only': {1, 7},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
+    },
+    'how-to-run-an-invitation-only-show': {
+        'prepare': prepare_invitation_show,
+        'run': capture_invitation_show,
+        # 5 is the invitation email's contents; 7 points at the on-behalf guide; 8 and 13
+        # are further uses of the status control photographed in step 6.
+        'prose_only': {5, 7, 8, 13},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
     },
     'how-to-pin-artworks': {
         'prepare': prepare_pin_artworks,
