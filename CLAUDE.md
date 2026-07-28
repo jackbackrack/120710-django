@@ -30,6 +30,13 @@ for signed-out readers and a role-gated one for signed-in readers). Both need th
 `gallery/tests.py::HowToAnchorTests` scans the templates and fails if any
 `{% url 'howto' %}#anchor` points at a section that does not exist.
 
+## Visual how-to documentation (planned, not started)
+
+Screenshots for each step of the `HOW_TO_GUIDES` walkthroughs, generated
+automatically and regenerated as the UI changes. The plan, what already exists, and
+the open decisions are in **`docs/visual-howto-documentation.md`** — read that before
+starting work on it.
+
 ## Running the tests
 
 ```
