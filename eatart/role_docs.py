@@ -172,7 +172,7 @@ HOW_TO_GUIDES = [
         'steps': [
             'Make sure you have an account on this site and that your artist profile information is complete — the curator will need to assign you by name.',
             'A curator or staff member assigns you as a juror. You will receive an email when the show moves to In Review status.',
-            'Sign in and go to Shows. Open the show you are jurying and click Reviews on the show detail page.',
+            'Sign in and go to Shows. Open the show you are jurying, then open the Curate menu on the show detail page and choose Reviews. (Reviews is inside that menu, not a button on the page itself.)',
             'You will see a Pending Review section listing all artworks you have not yet scored. The fastest way to score is the Review Slideshow — see "How to use the Review Slideshow" for step-by-step instructions.',
             'Alternatively, click Review on any individual artwork to score it on its own page.',
             'If the curator has defined a rubric, score each criterion individually. Otherwise rate the artwork overall.',

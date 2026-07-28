@@ -347,58 +347,94 @@ ShowJuror.objects.get_or_create(show=show, user=juror1, defaults={'assigned_by':
 ShowJuror.objects.get_or_create(show=show, user=juror2, defaults={'assigned_by': curator_user})
 print('Assigned juror1@example.com and juror2@example.com as jurors on Feel-Full')
 
-# Create rubric with two criteria
-orig, _ = RubricCriterion.objects.get_or_create(
-    show=show, name='Originality', defaults={'percentage': 60.0, 'order': 0}
-)
-exec_, _ = RubricCriterion.objects.get_or_create(
-    show=show, name='Technical Execution', defaults={'percentage': 40.0, 'order': 1}
-)
-print('Created rubric: Originality (60%) + Technical Execution (40%)')
+# The rubric used by the real All Form No Function show: four equally weighted
+# criteria, no descriptions. Copied rather than invented so the jury and curation
+# screenshots show a rubric a curator actually wrote.
+# Criteria names come from the real All Form No Function rubric. The weights and
+# descriptions are written for the fixture: unequal, because a real curator weights a
+# themed show towards fit with the premise, and equal weights make the curator overview
+# look like a spreadsheet rather than a judgement. Must total 100.
+# Descriptions avoid apostrophes on purpose — this whole block is a single-quoted Python
+# string inside a double-quoted shell string.
+RUBRIC = [
+    ('Theme resonance', 30.0,
+     'How strongly the work engages the premise of the show: form pursued for its own '
+     'sake, with function set aside or actively subverted. A well-made object that is '
+     'simply useful scores low here.'),
+    ('Originality', 25.0,
+     'Whether we have seen this before. Reward an unfamiliar approach, material or '
+     'framing; discount competent work that restates a familiar idea.'),
+    ('Conceptual strength', 25.0,
+     'How well the idea holds together and rewards a second look. Does the thinking '
+     'survive being described out loud to someone else?'),
+    ('Technical skill', 20.0,
+     'Craft and control of material: finish, construction and command of the medium. '
+     'Judge what the work took to make, not what it cost.'),
+]
+assert sum(r[1] for r in RUBRIC) == 100.0, 'rubric weights must total 100'
+criteria = []
+for order, (name, pct, desc) in enumerate(RUBRIC):
+    crit, _ = RubricCriterion.objects.get_or_create(
+        show=show, name=name,
+        defaults={'percentage': pct, 'order': order, 'description': desc}
+    )
+    criteria.append(crit)
+print('Created rubric: ' + ', '.join(f'{n} ({p:.0f}%)' for n, p, _ in RUBRIC))
 
-# Scores use the five button values: 10=poor, 30=below avg, 50=avg, 70=good, 90=excellent
-# Jurors disagree on Rock Worship to show interesting curation tension
+# Scores use the five button values: 10=poor, 30=below avg, 50=avg, 70=good, 90=excellent.
+# Only the four original submissions are scored. The twenty catalogue pieces are left
+# unscored on purpose: the jury guide's first screen is a Pending Review list, which needs
+# something actually pending, and the curation guide needs both scored and unscored work.
+# Jurors disagree on the fourth piece, so the curator view shows real tension rather than
+# four rows of consensus.
 juror_scores = {
     juror1: [
-        (70, 70),   # Oliver       — good across the board
-        (50, 30),   # Drawing      — average originality, below-avg execution
-        (90, 70),   # Quilt        — excellent originality, good execution
-        (30, 50),   # Rock Worship — below-avg originality, average execution
+        (70, 70, 70, 50),   # good across the board, weaker concept
+        (50, 30, 50, 50),   # average, below-average execution
+        (90, 70, 90, 70),   # strongest on theme and originality
+        (10, 50, 30, 30),   # 10 is the lowest button: the curation guide documents that
+                            # the weakest rating renders in red, so at least one has to
+                            # exist or that step has nothing to point at.
     ],
     juror2: [
-        (70, 90),   # Oliver       — good originality, excellent execution
-        (50, 70),   # Drawing      — average originality, good execution
-        (70, 90),   # Quilt        — good originality, excellent execution
-        (90, 70),   # Rock Worship — juror2 rates this best: excellent originality
+        (70, 90, 70, 70),
+        (50, 70, 50, 30),
+        (70, 90, 70, 90),
+        (90, 70, 90, 70),   # juror2 rates this one the best in the show
     ],
 }
 
 submissions = list(ArtworkSubmission.objects.filter(show=show).order_by('submitted_at'))
 for juror, scores in juror_scores.items():
-    for sub, (o_score, e_score) in zip(submissions, scores):
+    for sub, row in zip(submissions, scores):
         review, _ = ArtworkReview.objects.get_or_create(
             show=show, artwork=sub.artwork, juror=juror,
             defaults={'rating': None, 'body': ''}
         )
-        CriterionScore.objects.get_or_create(review=review, criterion=orig, defaults={'score': o_score})
-        CriterionScore.objects.get_or_create(review=review, criterion=exec_, defaults={'score': e_score})
-    print(f'All 4 artworks scored by {juror.email}')
+        for crit, score in zip(criteria, row):
+            CriterionScore.objects.get_or_create(
+                review=review, criterion=crit, defaults={'score': score})
+    print(f'{len(scores)} artworks scored by {juror.email} '
+          f'({len(submissions) - len(scores)} left pending)')
 
 # Advance show to In Review so jury scoring is immediately active
 show.status = Show.STATUS_IN_REVIEW
 show.save(update_fields=['status'])
 print('Set Feel-Full status to In Review')
 print()
-print('Weighted scores (Originality 60% + Execution 40%):')
+print('Weighted scores (' + ', '.join(f'{n} {p:.0f}%' for n, p, _ in RUBRIC) + '):')
+weights = {c.pk: c.percentage / 100.0 for c in criteria}
 for sub in submissions:
     reviews = ArtworkReview.objects.filter(show=show, artwork=sub.artwork).prefetch_related('criterion_scores')
     totals = []
     for r in reviews:
-        scores_map = {cs.criterion_id: cs.score for cs in r.criterion_scores.all()}
-        w = scores_map.get(orig.pk, 0) * 0.6 + scores_map.get(exec_.pk, 0) * 0.4
-        totals.append(w)
-    avg = sum(totals) / len(totals) if totals else 0
-    print(f'  {sub.artwork.name}: {avg:.1f}')
+        scored = list(r.criterion_scores.all())
+        if not scored:
+            continue
+        totals.append(sum(cs.score * weights.get(cs.criterion_id, 0) for cs in scored))
+    if not totals:
+        continue   # the catalogue pieces are deliberately left pending
+    print(f'  {sub.artwork.name}: {sum(totals) / len(totals):.1f}')
 "
 
 echo "=== Creating an open call that is accepting submissions now ==="

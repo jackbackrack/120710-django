@@ -1,10 +1,10 @@
 # Visual how-to documentation
 
-**Status: 7 of 30 guides captured** — 35 screenshots, 3.2 MB on S3, ~5 KB of manifest in
-git. The whole artist path is illustrated: sign up → complete profile → add artworks →
-submit (that one for every reader, signed in or not), plus pinning, buying, and the
-card-size control. 23 guides still need a capture script each. The machinery is general; every other guide just needs a capture script. Plan
-agreed 2026-07-28; first guide and the S3 pipeline landed the same day.
+**Status: 10 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
+in git. The whole artist path is illustrated (sign up → complete profile → add artworks →
+submit, that last one for every reader signed in or not), plus pinning, buying and the
+card-size control, and now the jury cluster: jurying a show, the review slideshow and the
+curation slideshow. 20 guides still need a capture script each. Plan agreed 2026-07-28.
 
 ## What Jack wants
 
@@ -207,6 +207,24 @@ the step list and obvious in the image.
 text engine is available: `.section-label:has-text("Artworks")` picks the right one of
 several identical sections. Plain CSS can only take the first match, which silently
 cropped the wrong half of the Me page.
+
+**`.first` is a trap when a page has several of the same control.** The reviews dashboard
+carries a `.cs-launch-btn` per juror *before* the one beside the Artworks heading, and the
+per-juror ones pass `?juror=<id>`, so `locator('.cs-launch-btn').first` opened the
+slideshow restricted to one juror — producing a "REVIEWS (1)" panel for a step about
+seeing *every* juror's scores. Nothing failed; the picture was just quietly wrong. Match
+the label the guide names (`get_by_role('button', name='Curation Slideshow')`).
+
+**A capture that performs a real action must undo it.** The review-slideshow script scores
+an artwork, which is the step it illustrates — and left the review behind on the seeded
+show, so runs accumulated and the jury data every other guide is captured against drifted.
+The jury scripts snapshot the existing reviews in `prepare` and delete anything new in
+`cleanup`. Check the DB is unchanged after `--all` when a script writes to shared fixtures
+rather than to its own throwaway account.
+
+**Slideshow overlays are built in JS with element *ids*, not classes** (`#rs-criteria`,
+`#cs-scores`, `#cs-thumbs`). The class names that look equivalent are on the repeated rows
+inside them.
 
 **Locate controls by the words the guide uses.** `rec.control('Sign Up')` matches a link
 *or* a button with that text, because the reader cannot tell the difference and the guide

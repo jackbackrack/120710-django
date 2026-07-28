@@ -41,6 +41,7 @@ from eatart.howto_images import (HOWTO_CAPTURE_SCALE, image_key, load_manifest,
                                  save_manifest, staging_dir, step_filename)
 from eatart.role_docs import HOW_TO_GUIDES
 from gallery.models import Artist, Artwork, Show
+from reviews.models import ArtworkReview
 
 # Long enough to cover a cold first page load and an image upload, short enough that a
 # genuinely missing control fails the run instead of hanging it.
@@ -286,9 +287,12 @@ class Recorder:
             if box and box['width'] and box['height']:
                 boxes.append(box)
         if not boxes:
+            present = [sel for sel in selectors if self.page.locator(sel).first.count()]
+            hidden = (f' {present} exist but are not rendered (hidden, zero-size, or '
+                      f'behind a menu that has not been opened).' if present else '')
             raise DocumentationMismatch(
-                f'step {self.step}: none of {list(selectors)} are on {self.page.url}, '
-                f'so there is no region to show.\n'
+                f'step {self.step}: nothing to clip from {list(selectors)} on '
+                f'{self.page.url}.{hidden}\n'
                 f'    The page changed shape — check what this step is describing.')
 
         # bounding_box() is viewport-relative; the clip is document-relative. Nothing
@@ -957,6 +961,236 @@ def capture_adjust_card_sizes(rec, facts):
     # happened, so there is no second picture worth taking.
 
 
+# ── Jury and curation ────────────────────────────────────────────────────────
+# All three run against the seeded Feel-Full show, which is in review with 26
+# submissions: four scored by both jurors and twenty-two deliberately left pending, so
+# "Pending Review" has something in it and the curator view has both scored and unscored
+# work. The rubric is the real All Form No Function one. See create_test_database.sh.
+
+JURY_SHOW_SLUG = 'feel-full'
+JUROR_EMAIL = 'juror1@example.com'
+CURATOR_EMAIL = 'jonathan@bachrach.com'
+SEEDED_PASSWORD = 'b8'
+
+
+def _jury_show():
+    """The seeded in-review show, checked rather than assumed."""
+    show = Show.objects.filter(slug=JURY_SHOW_SLUG).first()
+    if show is None or show.status != Show.STATUS_IN_REVIEW:
+        raise CommandError(
+            f'"{JURY_SHOW_SLUG}" is missing or not in review, so there is nothing to '
+            f'jury. Re-seed with `bash scripts/create_test_database.sh`.')
+    if not show.rubric_criteria.exists():
+        raise CommandError(
+            f'"{JURY_SHOW_SLUG}" has no rubric, so the per-criterion scoring these '
+            f'guides describe does not appear. Re-seed.')
+    return show
+
+
+# Reviews that existed before a capture started. The review-slideshow script scores an
+# artwork for real — that is the step it is illustrating — which would otherwise leave a
+# review behind on the seeded show, accumulating across runs and quietly changing the
+# jury data every other guide is captured against. Module-level because the registry's
+# cleanup hook takes no arguments, and the runner is strictly sequential.
+_JURY_REVIEW_BASELINE = set()
+
+
+def prepare_jury():
+    show = _jury_show()
+    global _JURY_REVIEW_BASELINE
+    _JURY_REVIEW_BASELINE = set(
+        ArtworkReview.objects.filter(show=show).values_list('pk', flat=True))
+    return {'slug': show.slug,
+            'reviews_url': f'/show/{show.slug}/reviews/',
+            'criteria': show.rubric_criteria.count()}
+
+
+def _cleanup_jury():
+    """Undo scoring done during the run, then the usual throwaway-account cleanup."""
+    show = Show.objects.filter(slug=JURY_SHOW_SLUG).first()
+    if show is not None and _JURY_REVIEW_BASELINE is not None:
+        (ArtworkReview.objects
+         .filter(show=show)
+         .exclude(pk__in=_JURY_REVIEW_BASELINE)
+         .delete())
+    _reset_capture_account()
+
+
+def _open_review_slideshow(rec):
+    """Launch the review slideshow and wait for it to finish loading."""
+    rec.click('click the "Review Slideshow" button',
+              rec.page.locator('.rs-launch-btn'))
+    rec.expect_visible('see the slideshow open full-screen', '#review-overlay.rs-open')
+    # The first artwork arrives over fetch, so the panel is empty for a moment.
+    rec.expect_visible('see the artwork and its scoring rows', '#rs-criteria .rs-score-row')
+
+
+def capture_jury_a_show(rec, facts):
+    """The juror's path: Reviews page, pending list, and scoring one piece on its own."""
+    _log_in(rec, JUROR_EMAIL, SEEDED_PASSWORD)
+
+    # Steps 1-2 are having an account and being assigned by a curator — no screen.
+
+    # Step 3 — "go to Shows. Open the show you are jurying and click Reviews."
+    rec.at_step(3)
+    rec.goto(f'/show/{facts["slug"]}/')
+    # Reviews is a dropdown item under "Curate", not a button on the page — which is what
+    # this step used to claim. Open the menu so the screenshot shows where it actually is.
+    rec.click('open the Curate menu', rec.control('Curate'))
+    rec.expect_visible('see Reviews in the menu', '.dropdown-menu.show')
+    rec.shot_region(3, '.dropdown-menu.show')
+
+    # Step 4 — "a Pending Review section listing all artworks you have not yet scored."
+    rec.at_step(4)
+    rec.goto(facts['reviews_url'])
+    rec.shot_region(4, '.section-label:has-text("Pending Review")')
+
+    # Step 5 — "click Review on any individual artwork to score it on its own page."
+    rec.at_step(5)
+    rec.shot_region(5, '.card:has(a:has-text("Review"))')
+
+    # Step 6 — "If the curator has defined a rubric, score each criterion individually."
+    rec.at_step(6)
+    rec.click('click Review on an individual artwork',
+              rec.page.locator('a:has-text("Review")'))
+    # The scoring form, not `form` — the navbar's search form comes first in the DOM and
+    # has no bounding box, so a bare 'form' selector silently found nothing to clip.
+    review_form = rec.form_with('.score-radios')
+    rec.shot(6, selector=review_form)
+
+    # Step 7 — "Optionally add review notes ... click Submit review."
+    rec.at_step(7)
+    rec.shot_region(7, f'{review_form} textarea',
+                    f'{review_form} button[type="submit"]')
+
+    # Steps 8-10 are returning to change scores, how averaging is used, and the
+    # curator-who-is-also-a-juror case — none has a screen of its own.
+
+
+def capture_review_slideshow(rec, facts):
+    """The juror's full-screen scoring tool, including its help overlay."""
+    _log_in(rec, JUROR_EMAIL, SEEDED_PASSWORD)
+    rec.goto(facts['reviews_url'])
+
+    # Step 1 — "click the 'Review Slideshow' button next to the 'Pending Review' heading."
+    rec.at_step(1)
+    rec.shot_region(1, '.section-label:has-text("Pending Review")')
+    _open_review_slideshow(rec)
+
+    # Step 2 — "The artwork image fills the left side. The right side shows the title,
+    #           artists, and one scoring button row per rubric criterion."
+    rec.at_step(2)
+    rec.shot(2)
+
+    # Step 3 — "Click a score button ... Your score saves instantly."
+    rec.at_step(3)
+    rec.click('click a score button', rec.page.locator('.rs-score-btn').first)
+    rec.shot(3, selector='#rs-criteria')
+
+    # Step 4 — "advances to the next unscored artwork (if Auto is checked in the top bar)."
+    rec.at_step(4)
+    rec.shot(4, selector='#rs-topbar')
+
+    # Steps 5, 6 are arrow keys and number keys — gestures, not screens.
+
+    # Step 7 — "Thumbnail strip at the bottom: gold = partially scored, green = fully
+    #           scored, teal outline = current."
+    rec.at_step(7)
+    rec.shot(7, selector='#rs-thumbs')
+
+    # Steps 8-10 are opening the detail page, coming back, and closing.
+
+    # Step 11 — "Press ? for a quick keyboard reference."
+    rec.at_step(11)
+    rec.click('press ? for the keyboard reference',
+              rec.page.locator('#rs-help-btn'))
+    rec.expect_visible('see the keyboard reference', '#rs-help-inner')
+    rec.shot(11, selector='#rs-help-inner')
+
+
+def prepare_curation():
+    show = _jury_show()
+    global _JURY_REVIEW_BASELINE
+    _JURY_REVIEW_BASELINE = set(
+        ArtworkReview.objects.filter(show=show).values_list('pk', flat=True))
+    return {'slug': show.slug, 'reviews_url': f'/show/{show.slug}/reviews/'}
+
+
+def capture_curation_slideshow(rec, facts):
+    """The curator's decision tool: jury scores on the right, three decision buttons."""
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+    rec.goto(facts['reviews_url'])
+
+    # Step 1 — "click the 'Curation Slideshow' button next to the 'Artworks' heading."
+    rec.at_step(1)
+    rec.shot_region(1, '.section-label:has-text("Artworks")')
+    # By its label, not `.cs-launch-btn.first`: the Juror Progress table has its own
+    # launch buttons earlier in the DOM, labelled "Slideshow", and they pass ?juror=<id>
+    # so the panel shows a single juror's scores. That is step 12's control. Clicking it
+    # here quietly produced a "REVIEWS (1)" panel for a step about seeing every juror.
+    rec.click('click the "Curation Slideshow" button',
+              rec.page.get_by_role('button', name='Curation Slideshow'))
+    rec.expect_visible('see the slideshow open full-screen', '#cs-overlay.cs-open')
+    rec.expect_visible('see the jury scores panel', '#cs-scores')
+
+    # Step 2 is the ordering (highest score first) — a property of the sequence, not a
+    # screen.
+
+    # Step 3 — "image fills the left side. The right side shows title, artists, year,
+    #           medium, dimensions."
+    rec.at_step(3)
+    rec.shot(3)
+
+    # Step 4 — "each juror's name, their score on each criterion, and their weighted
+    #           total. The overall score ... at the top in teal."
+    rec.at_step(4)
+    rec.shot(4, selector='#cs-scores')
+
+    # Step 5 — "Weak scores (the lowest rating) are shown in red." The seed gives one
+    # artwork a lowest-rating score precisely so this has something to point at; if the
+    # sequence does not reach it, say so rather than shipping a picture of nothing.
+    rec.at_step(5)
+    # The sequence runs highest score first, so the piece carrying the lowest rating is
+    # near the end — advance until one is on screen rather than photographing whatever
+    # happens to be first and calling it red.
+    for _ in range(12):
+        if rec.page.locator('.cs-score-weak').count():
+            break
+        rec.page.keyboard.press('ArrowRight')
+        rec.page.wait_for_timeout(350)
+    else:
+        raise DocumentationMismatch(
+            'step 5: the guide says the weakest rating renders in red, but no '
+            '.cs-score-weak appeared in the first 12 artworks.\n'
+            '    The seed gives one piece a lowest-rating score for exactly this step — '
+            'check create_test_database.sh still does.')
+    rec.shot_region(5, '.cs-juror-block:has(.cs-score-weak)')
+
+    # Step 6 — "three decision buttons: Undecided, Selected, and Rejected."
+    rec.at_step(6)
+    rec.shot(6, selector='#cs-decision-area')
+
+    # Step 7 — "The top bar shows a running count."
+    rec.at_step(7)
+    rec.shot(7, selector='#cs-counter-area')
+
+    # Step 8 — "Thumbnail strip at the bottom: green = selected, red = rejected ..."
+    rec.at_step(8)
+    rec.shot(8, selector='#cs-thumbs')
+
+    # Steps 9-11 are keyboard and navigation.
+
+    # Step 12 — "click the 'Slideshow' button next to that juror's name in the Juror
+    #            Progress table."
+    rec.at_step(12)
+    rec.page.keyboard.press('Escape')
+    rec.goto(facts['reviews_url'])
+    rec.shot_region(12, '.section-label:has-text("Juror Progress")',
+                    'table:has(.cs-launch-btn)')
+
+    # Step 13 is closing and the separate publish workflow.
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -1020,6 +1254,31 @@ CAPTURE_SCRIPTS = {
         'prose_only': {4},
         'reset': _reset_capture_account,
         'cleanup': _reset_capture_account,
+    },
+    'how-to-jury-a-show': {
+        'prepare': prepare_jury,
+        'run': capture_jury_a_show,
+        # 1-2 are having an account and being assigned; 8-10 are revisiting scores, how
+        # averaging is used, and the curator-who-also-jurors case.
+        'prose_only': {1, 2, 8, 9, 10},
+        'reset': _reset_capture_account,
+        'cleanup': _cleanup_jury,
+    },
+    'how-to-use-the-review-slideshow': {
+        'prepare': prepare_jury,
+        'run': capture_review_slideshow,
+        # 5, 6, 8, 9, 10 are keyboard gestures and navigation, not screens.
+        'prose_only': {5, 6, 8, 9, 10},
+        'reset': _reset_capture_account,
+        'cleanup': _cleanup_jury,
+    },
+    'how-to-use-the-curation-slideshow': {
+        'prepare': prepare_curation,
+        'run': capture_curation_slideshow,
+        # 2 is the ordering of the sequence; 9-11 and 13 are keyboard and closing.
+        'prose_only': {2, 9, 10, 11, 13},
+        'reset': _reset_capture_account,
+        'cleanup': _cleanup_jury,
     },
     'how-to-pin-artworks': {
         'prepare': prepare_pin_artworks,

@@ -115,6 +115,38 @@
       "width": 1084
     }
   },
+  "how-to-jury-a-show": {
+    "3": {
+      "bytes": 3768,
+      "height": 77,
+      "key": "how-to-jury-a-show/03.8d64db5dcbe5.webp",
+      "width": 176
+    },
+    "4": {
+      "bytes": 17910,
+      "height": 43,
+      "key": "how-to-jury-a-show/04.2905553a7fb2.webp",
+      "width": 903
+    },
+    "5": {
+      "bytes": 10458,
+      "height": 228,
+      "key": "how-to-jury-a-show/05.ec370ee33474.webp",
+      "width": 175
+    },
+    "6": {
+      "bytes": 328292,
+      "height": 990,
+      "key": "how-to-jury-a-show/06.6f4cb213f381.webp",
+      "width": 542
+    },
+    "7": {
+      "bytes": 15702,
+      "height": 188,
+      "key": "how-to-jury-a-show/07.a08286a35d09.webp",
+      "width": 542
+    }
+  },
   "how-to-pin-artworks": {
     "1": {
       "bytes": 375712,
@@ -170,6 +202,94 @@
       "bytes": 35022,
       "height": 82,
       "key": "how-to-sign-up-for-an-account/05.ab417c8b6931.webp",
+      "width": 1084
+    }
+  },
+  "how-to-use-the-curation-slideshow": {
+    "1": {
+      "bytes": 19784,
+      "height": 43,
+      "key": "how-to-use-the-curation-slideshow/01.9cd1550e65e6.webp",
+      "width": 903
+    },
+    "12": {
+      "bytes": 46614,
+      "height": 142,
+      "key": "how-to-use-the-curation-slideshow/12.cdfbcb27bcc9.webp",
+      "width": 903
+    },
+    "3": {
+      "bytes": 261512,
+      "height": 900,
+      "key": "how-to-use-the-curation-slideshow/03.3957f0785fa3.webp",
+      "width": 1100
+    },
+    "4": {
+      "bytes": 27600,
+      "height": 597,
+      "key": "how-to-use-the-curation-slideshow/04.55bd6a49b42c.webp",
+      "width": 352
+    },
+    "5": {
+      "bytes": 12534,
+      "height": 112,
+      "key": "how-to-use-the-curation-slideshow/05.9f6a1a1fb2de.webp",
+      "width": 351
+    },
+    "6": {
+      "bytes": 4536,
+      "height": 46,
+      "key": "how-to-use-the-curation-slideshow/06.ee21a550c01a.webp",
+      "width": 352
+    },
+    "7": {
+      "bytes": 4728,
+      "height": 20,
+      "key": "how-to-use-the-curation-slideshow/07.53e82f2d7f98.webp",
+      "width": 287
+    },
+    "8": {
+      "bytes": 52748,
+      "height": 50,
+      "key": "how-to-use-the-curation-slideshow/08.a403e3c12de9.webp",
+      "width": 1084
+    }
+  },
+  "how-to-use-the-review-slideshow": {
+    "1": {
+      "bytes": 17910,
+      "height": 43,
+      "key": "how-to-use-the-review-slideshow/01.2905553a7fb2.webp",
+      "width": 903
+    },
+    "11": {
+      "bytes": 18712,
+      "height": 288,
+      "key": "how-to-use-the-review-slideshow/11.c75149cb183e.webp",
+      "width": 324
+    },
+    "2": {
+      "bytes": 133694,
+      "height": 900,
+      "key": "how-to-use-the-review-slideshow/02.9b7bd6190784.webp",
+      "width": 1100
+    },
+    "3": {
+      "bytes": 27456,
+      "height": 237,
+      "key": "how-to-use-the-review-slideshow/03.e5dcceff613e.webp",
+      "width": 342
+    },
+    "4": {
+      "bytes": 3772,
+      "height": 41,
+      "key": "how-to-use-the-review-slideshow/04.a5d34c56acaf.webp",
+      "width": 1100
+    },
+    "7": {
+      "bytes": 54310,
+      "height": 50,
+      "key": "how-to-use-the-review-slideshow/07.cff5d5f1cabf.webp",
       "width": 1084
     }
   },
