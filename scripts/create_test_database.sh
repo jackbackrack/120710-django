@@ -312,6 +312,22 @@ $ARTWORK --email miguel@novelo.com --name "Rock Worship (Feel-Full)" \
          --show feel-full \
          --image test_fixtures/piece_images/miguel-rock_small.jpg
 
+echo "=== Seeding the varied catalogue from the real Feel-Full show ==="
+
+# The four artworks above reuse four images, and the artists above reuse two photos, so
+# every card grid showed the same handful of pieces tiling — which reads as a broken page
+# rather than a gallery, and those grids appear in the published how-to screenshots.
+# This adds 20 real pieces by 20 different artists, each kept with its actual maker.
+# See scripts/create_catalogue.py.
+# Twice on purpose. A piece is only *publicly* visible once it is in a published or
+# closed show, so the first call is what makes the Artworks gallery look like a gallery
+# rather than four lonely cards; the second gives the jury and curation guides a realistic
+# number of submissions to score on a show that is still in review.
+python "$DIR/create_catalogue.py" test_fixtures/full_feel_catalogue.json \
+       --show "$PAST_SHOW_SLUG" --status accepted
+python "$DIR/create_catalogue.py" test_fixtures/full_feel_catalogue.json \
+       --show feel-full --status submitted
+
 echo "=== Setting up jury for Feel-Full ==="
 
 python manage.py shell -c "

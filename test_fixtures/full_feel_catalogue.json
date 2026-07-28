@@ -1,0 +1,202 @@
+[
+ {
+  "artist": "Alice Combs",
+  "title": "Hair Guitar",
+  "year": 2020,
+  "medium": "Guitar, Artist's hair, Modpodge",
+  "width": 16.0,
+  "height": 36.0,
+  "artwork_image": "test_fixtures/piece_images/alice-combs--hair-guitar.jpg",
+  "artist_image": "test_fixtures/artist_images/alice-combs.jpg"
+ },
+ {
+  "artist": "Alison Alstrom",
+  "title": "The Word, 'No\" Rose Up",
+  "year": 2026,
+  "medium": "Oil on Panel",
+  "width": 36.0,
+  "height": 36.0,
+  "artwork_image": "test_fixtures/piece_images/alison-alstrom--the-word-no-rose-up.jpg",
+  "artist_image": "test_fixtures/artist_images/alison-alstrom.jpg"
+ },
+ {
+  "artist": "Anna Lippert",
+  "title": "May the Warm Grass Swallow me Whole",
+  "year": 2025,
+  "medium": "Oil on canvas",
+  "width": 42.0,
+  "height": 56.0,
+  "artwork_image": "test_fixtures/piece_images/anna-lippert--may-the-warm-grass-swallow-me-whole.jpg",
+  "artist_image": "test_fixtures/artist_images/anna-lippert.jpg"
+ },
+ {
+  "artist": "Elena Low",
+  "title": "Guest",
+  "year": 2026,
+  "medium": "Oil on panell",
+  "width": 8.0,
+  "height": 10.0,
+  "artwork_image": "test_fixtures/piece_images/elena-low--guest.jpg",
+  "artist_image": "test_fixtures/artist_images/elena-low.jpg"
+ },
+ {
+  "artist": "Elizabeth Estrada",
+  "title": "give me a second",
+  "year": 2024,
+  "medium": "acrylic paint and morning pages on canvas",
+  "width": 16.0,
+  "height": 20.0,
+  "artwork_image": "test_fixtures/piece_images/elizabeth-estrada--give-me-a-second.jpg",
+  "artist_image": "test_fixtures/artist_images/elizabeth-estrada.jpg"
+ },
+ {
+  "artist": "Ember de Boer",
+  "title": "Movement of the River",
+  "year": 2026,
+  "medium": "upcycled altar fabric, resin, metalic enamel paint",
+  "width": 45.0,
+  "height": 23.0,
+  "artwork_image": "test_fixtures/piece_images/ember-de-boer--movement-of-the-river.jpg",
+  "artist_image": "test_fixtures/artist_images/ember-de-boer.jpg"
+ },
+ {
+  "artist": "Hope Fisher",
+  "title": "Self Portrait, Snowy Landscape",
+  "year": 2026,
+  "medium": "Chromira print",
+  "width": 12.0,
+  "height": 8.0,
+  "artwork_image": "test_fixtures/piece_images/hope-fisher--self-portrait-snowy-landscape.jpg",
+  "artist_image": "test_fixtures/artist_images/hope-fisher.jpg"
+ },
+ {
+  "artist": "Jaebin Lee",
+  "title": "The Day the Ears Came Out",
+  "year": 2025,
+  "medium": "Single-channel video, based on a performance, sound, 11min 22sec",
+  "width": 24.0,
+  "height": 30.0,
+  "artwork_image": "test_fixtures/piece_images/jaebin-lee--the-day-the-ears-came-out.jpg",
+  "artist_image": "test_fixtures/artist_images/jaebin-lee.jpg"
+ },
+ {
+  "artist": "Jan Blythe",
+  "title": "Akin",
+  "year": 2006,
+  "medium": "Textile, dirt and stains",
+  "width": 37.0,
+  "height": 35.0,
+  "artwork_image": "test_fixtures/piece_images/jan-blythe--akin.jpg",
+  "artist_image": "test_fixtures/artist_images/jan-blythe.jpg"
+ },
+ {
+  "artist": "Jan Blythe",
+  "title": "Conform 1",
+  "year": 2009,
+  "medium": "Textile and bleach",
+  "width": 24.0,
+  "height": 25.0,
+  "artwork_image": "test_fixtures/piece_images/jan-blythe--conform-1.jpg",
+  "artist_image": "test_fixtures/artist_images/jan-blythe.jpg"
+ },
+ {
+  "artist": "Jan Blythe",
+  "title": "First dance",
+  "year": 2006,
+  "medium": "Found shoes and wax",
+  "width": 12.0,
+  "height": 7.0,
+  "artwork_image": "test_fixtures/piece_images/jan-blythe--first-dance.jpg",
+  "artist_image": "test_fixtures/artist_images/jan-blythe.jpg"
+ },
+ {
+  "artist": "Jan Blythe",
+  "title": "Sister/sister",
+  "year": 2008,
+  "medium": "Oak chair and mirror",
+  "width": 30.0,
+  "height": 44.5,
+  "artwork_image": "test_fixtures/piece_images/jan-blythe--sister-sister.jpg",
+  "artist_image": "test_fixtures/artist_images/jan-blythe.jpg"
+ },
+ {
+  "artist": "Jeff Hurlow",
+  "title": "Call Dad",
+  "year": 2026,
+  "medium": "Vintage Western Electric 2500DMG desk phone (1984), Raspberry Pi, ringing generator, ElevenLabs voice synthesis, custom electronics, wooden pedestal",
+  "width": 12.0,
+  "height": 41.0,
+  "artwork_image": "test_fixtures/piece_images/jeff-hurlow--call-dad.jpg",
+  "artist_image": "test_fixtures/artist_images/jeff-hurlow.jpg"
+ },
+ {
+  "artist": "Jen Lothrigel",
+  "title": "Hinge",
+  "year": 2019,
+  "medium": "Limited edition archival photography print on Hahnemuhle Baryta paper",
+  "width": 24.0,
+  "height": 18.0,
+  "artwork_image": "test_fixtures/piece_images/jen-lothrigel--hinge.jpg",
+  "artist_image": "test_fixtures/artist_images/jen-lothrigel.jpg"
+ },
+ {
+  "artist": "Jordan Metz",
+  "title": "Meshing w myself #3",
+  "year": 2023,
+  "medium": "Melted PLA",
+  "width": 7.0,
+  "height": 4.0,
+  "artwork_image": "test_fixtures/piece_images/jordan-metz--meshing-w-myself-3.jpg",
+  "artist_image": "test_fixtures/artist_images/jordan-metz.jpg"
+ },
+ {
+  "artist": "Joseph Vaughn",
+  "title": "the waves",
+  "year": 2024,
+  "medium": "Egg tempera on panel",
+  "width": 12.0,
+  "height": 16.0,
+  "artwork_image": "test_fixtures/piece_images/joseph-vaughn--the-waves.jpg",
+  "artist_image": "test_fixtures/artist_images/joseph-vaughn.jpg"
+ },
+ {
+  "artist": "Karin Denson",
+  "title": "Last Breaths #01",
+  "year": 2018,
+  "medium": "acrylic on canvas",
+  "width": 24.0,
+  "height": 18.0,
+  "artwork_image": "test_fixtures/piece_images/karin-denson--last-breaths-01.jpg",
+  "artist_image": "test_fixtures/artist_images/karin-denson.jpg"
+ },
+ {
+  "artist": "Kayde Griffin",
+  "title": "Bruises III",
+  "year": 2021,
+  "medium": "Oil on canvas, cut and hand-sewn with waxed linen thread",
+  "width": 35.5,
+  "height": 44.0,
+  "artwork_image": "test_fixtures/piece_images/kayde-griffin--bruises-iii.jpg",
+  "artist_image": "test_fixtures/artist_images/kayde-griffin.jpg"
+ },
+ {
+  "artist": "Kim Boerner",
+  "title": "Girl, Baby and Trash",
+  "year": 2026,
+  "medium": "Oil on canvas",
+  "width": 23.25,
+  "height": 29.25,
+  "artwork_image": "test_fixtures/piece_images/kim-boerner--girl-baby-and-trash.jpg",
+  "artist_image": "test_fixtures/artist_images/kim-boerner.jpg"
+ },
+ {
+  "artist": "Kodandi Nithyananda",
+  "title": "Untitled Machine Knit 053026",
+  "year": 2026,
+  "medium": "cotton, acrylic and wool yarn, cotton fabric, paper",
+  "width": 16.75,
+  "height": 21.0,
+  "artwork_image": "test_fixtures/piece_images/kodandi-nithyananda--untitled-machine-knit-053026.jpg",
+  "artist_image": "test_fixtures/artist_images/kodandi-nithyananda.jpg"
+ }
+]
