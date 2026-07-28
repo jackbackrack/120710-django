@@ -1,9 +1,9 @@
 # Visual how-to documentation
 
-**Status: 5 of 30 guides captured** — 26 screenshots, 2.3 MB on S3, 3.7 KB of manifest in
-git. The whole artist onboarding path is illustrated: sign up → complete profile → add
-artworks → submit (that last one for every reader, signed in or not), plus pin artworks.
-25 guides still need a capture script each. The machinery is general; every other guide just needs a capture script. Plan
+**Status: 7 of 30 guides captured** — 35 screenshots, 3.2 MB on S3, ~5 KB of manifest in
+git. The whole artist path is illustrated: sign up → complete profile → add artworks →
+submit (that one for every reader, signed in or not), plus pinning, buying, and the
+card-size control. 23 guides still need a capture script each. The machinery is general; every other guide just needs a capture script. Plan
 agreed 2026-07-28; first guide and the S3 pipeline landed the same day.
 
 ## What Jack wants
@@ -37,6 +37,7 @@ found](#what-the-first-capture-found).
 
 # 1. capture locally — no network, no AWS credentials needed
 RECAPTCHA_ENABLED=false ./env/bin/python manage.py capture_howto submit-artwork
+RECAPTCHA_ENABLED=false ./env/bin/python manage.py capture_howto --all   # regenerate everything
 # 2. look at it on /howto/<anchor>/ (DEBUG prefers the local staging copies), then publish
 ./env/bin/python manage.py capture_howto submit-artwork --publish --dry-run
 ./env/bin/python manage.py capture_howto submit-artwork --publish
@@ -50,6 +51,25 @@ RECAPTCHA_ENABLED=false ./env/bin/python manage.py capture_howto submit-artwork
 
 Capture and publish are separate on purpose: a misframed screenshot should cost nothing,
 and capture has to keep working offline. Chain them freely once you trust a script.
+
+**`--all` regenerates every guide that has a capture script** — 7 guides in ~35 seconds,
+reusing one server and one browser for the batch, with a fresh browser context per guide so
+no session state leaks. A guide that fails does **not** abort the run: every failure is
+reported in the closing summary and the command exits non-zero, because a batch is exactly
+when several guides have drifted from their prose at once and you want the whole list.
+
+**Captures are byte-reproducible**, which is what makes `--publish` able to skip unchanged
+guides. Two things had to be fixed to get there, and both are easy to reintroduce:
+
+- Every shot blurs the focused element first (`Recorder._settle`). A focused input draws a
+  caret that blinks on a timer, so steps ending in a filled field were never identical
+  twice — and a caret sitting mid-field reads as a typo in documentation anyway.
+- Prefer one stable container over a computed union of several elements. `shot_region` on
+  two columns of a crispy row tracked whichever column happened to be tallest, varying by
+  2px between runs; `shot` on the row itself is stable.
+
+Without this, every `--all` republished all 35 images and orphaned the previous ones in the
+bucket.
 
 **`--publish` with no image key publishes everything staged**, skipping guides whose
 images are already on S3 byte-for-byte — content hashing makes that comparison free, so a

@@ -7,9 +7,9 @@
       "width": 1084
     },
     "2": {
-      "bytes": 194222,
+      "bytes": 193806,
       "height": 874,
-      "key": "how-to-add-artworks/02.7a1c0b4af1be.webp",
+      "key": "how-to-add-artworks/02.33e9030009ed.webp",
       "width": 1084
     },
     "3": {
@@ -19,23 +19,81 @@
       "width": 1084
     },
     "4": {
-      "bytes": 10086,
-      "height": 40,
-      "key": "how-to-add-artworks/04.35c2542420d4.webp",
-      "width": 826
+      "bytes": 29706,
+      "height": 71,
+      "key": "how-to-add-artworks/04.67982f04c2f1.webp",
+      "width": 1092
     },
     "5": {
-      "bytes": 21006,
+      "bytes": 51484,
       "height": 116,
-      "key": "how-to-add-artworks/05.a32b0b276f0f.webp",
+      "key": "how-to-add-artworks/05.4a5a4766e141.webp",
       "width": 1084
+    }
+  },
+  "how-to-adjust-card-sizes": {
+    "1": {
+      "bytes": 341690,
+      "height": 900,
+      "key": "how-to-adjust-card-sizes/01.086025a7f271.webp",
+      "width": 1100
+    },
+    "2": {
+      "bytes": 3400,
+      "height": 36,
+      "key": "how-to-adjust-card-sizes/02.e8d2cdebe993.webp",
+      "width": 223
+    },
+    "3": {
+      "bytes": 331858,
+      "height": 900,
+      "key": "how-to-adjust-card-sizes/03.c9d8910ec147.webp",
+      "width": 1100
+    }
+  },
+  "how-to-buy-a-piece-of-artwork": {
+    "1": {
+      "bytes": 341690,
+      "height": 900,
+      "key": "how-to-buy-a-piece-of-artwork/01.086025a7f271.webp",
+      "width": 1100
+    },
+    "2": {
+      "bytes": 107030,
+      "height": 645,
+      "key": "how-to-buy-a-piece-of-artwork/02.1bbd27de7a0b.webp",
+      "width": 400
+    },
+    "3": {
+      "bytes": 1084,
+      "height": 27,
+      "key": "how-to-buy-a-piece-of-artwork/03.f6b2af5fe1ed.webp",
+      "width": 398
+    },
+    "4": {
+      "bytes": 63246,
+      "height": 393,
+      "key": "how-to-buy-a-piece-of-artwork/04.dbe765d30ce4.webp",
+      "width": 560
+    },
+    "5": {
+      "bytes": 7528,
+      "height": 58,
+      "key": "how-to-buy-a-piece-of-artwork/05.4fc4bf088c84.webp",
+      "width": 936
+    },
+    "9": {
+      "bytes": 1776,
+      "height": 27,
+      "key": "how-to-buy-a-piece-of-artwork/09.92d8854636bf.webp",
+      "width": 398
     }
   },
   "how-to-complete-your-artist-profile": {
     "1": {
-      "bytes": 243490,
+      "bytes": 243892,
       "height": 886,
-      "key": "how-to-complete-your-artist-profile/01.d83dd7f0f958.webp",
+      "key": "how-to-complete-your-artist-profile/01.250dad081bcc.webp",
       "width": 1084
     },
     "2": {
@@ -45,9 +103,9 @@
       "width": 400
     },
     "3": {
-      "bytes": 85538,
+      "bytes": 205622,
       "height": 1118,
-      "key": "how-to-complete-your-artist-profile/03.164ada71661c.webp",
+      "key": "how-to-complete-your-artist-profile/03.b8586321da57.webp",
       "width": 1084
     },
     "4": {
@@ -65,9 +123,9 @@
       "width": 1100
     },
     "2": {
-      "bytes": 31010,
+      "bytes": 31046,
       "height": 306,
-      "key": "how-to-pin-artworks/02.47cb042b2077.webp",
+      "key": "how-to-pin-artworks/02.c5de3340f7c6.webp",
       "width": 175
     },
     "4": {
@@ -91,9 +149,9 @@
       "width": 160
     },
     "2": {
-      "bytes": 168302,
+      "bytes": 167670,
       "height": 557,
-      "key": "how-to-sign-up-for-an-account/02.9b8ba21c957a.webp",
+      "key": "how-to-sign-up-for-an-account/02.e86c9007dc7a.webp",
       "width": 1084
     },
     "3": {
@@ -123,9 +181,9 @@
       "width": 174
     },
     "2": {
-      "bytes": 168332,
+      "bytes": 167670,
       "height": 557,
-      "key": "submit-artwork/02.516fc98465cb.webp",
+      "key": "submit-artwork/02.e86c9007dc7a.webp",
       "width": 1084
     },
     "3": {
@@ -135,27 +193,27 @@
       "width": 1084
     },
     "4": {
-      "bytes": 153690,
+      "bytes": 153540,
       "height": 492,
-      "key": "submit-artwork/04.c400cbeea7b5.webp",
+      "key": "submit-artwork/04.cb47c419cd71.webp",
       "width": 1084
     },
     "5": {
-      "bytes": 220348,
+      "bytes": 220470,
       "height": 886,
-      "key": "submit-artwork/05.6e89d7789b57.webp",
+      "key": "submit-artwork/05.bf9c7484bf02.webp",
       "width": 1084
     },
     "6": {
-      "bytes": 202832,
+      "bytes": 202850,
       "height": 1043,
-      "key": "submit-artwork/06.02e1432fa597.webp",
+      "key": "submit-artwork/06.1b55a55a9f56.webp",
       "width": 1084
     },
     "7": {
-      "bytes": 97998,
+      "bytes": 98044,
       "height": 363,
-      "key": "submit-artwork/07.5b00fc7f7e05.webp",
+      "key": "submit-artwork/07.b779ae2cb22e.webp",
       "width": 1084
     },
     "9": {

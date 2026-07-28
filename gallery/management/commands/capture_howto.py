@@ -191,6 +191,20 @@ class Recorder:
         except PlaywrightError as exc:
             self._mismatch(phrasing, exc)
 
+    def expect_visible(self, phrasing, selector):
+        """Wait for `selector` to be visible, as a documentation-shaped assertion.
+
+        For controls that appear only once JS has run — the card-size widget is inserted
+        hidden and revealed when a card grid is present. Going through here rather than
+        calling `wait_for` directly is what turns a timeout into a message naming the step.
+        """
+        from playwright.sync_api import Error as PlaywrightError
+        try:
+            self.page.locator(selector).first.wait_for(
+                state='visible', timeout=self.timeout)
+        except PlaywrightError as exc:
+            self._mismatch(phrasing, exc)
+
     def expect_text(self, phrasing, text):
         """Assert the reader would see `text` — used for the outcomes steps promise."""
         from playwright.sync_api import Error as PlaywrightError
@@ -202,6 +216,31 @@ class Recorder:
 
     # -- capture ----------------------------------------------------------------
 
+    def _settle(self):
+        """Make a shot reproducible before taking it.
+
+        Two runs of the same script produced different bytes for exactly the steps that
+        ended with focus in a text field: a focused input draws a focus ring and a caret
+        that blinks on a timer. That made every `--all` republish everything and leave the
+        previous objects orphaned in the bucket — and a caret sitting mid-field also reads
+        as a typo in documentation. Dropping focus fixes both.
+
+        Also waits for in-flight image loads, so an uploaded preview is either there or
+        not rather than half-arrived.
+        """
+        from playwright.sync_api import Error as PlaywrightError
+
+        self.page.evaluate(
+            '() => { if (document.activeElement) document.activeElement.blur(); }')
+        try:
+            self.page.wait_for_load_state('networkidle', timeout=3_000)
+        except PlaywrightError:
+            # networkidle legitimately never settles on some pages; a shot taken anyway
+            # beats failing the run.
+            pass
+        # Long enough for the 0.1s card outline transition to finish.
+        self.page.wait_for_timeout(200)
+
     def shot(self, number, selector=None):
         """Write NN.webp for step `number`.
 
@@ -211,6 +250,7 @@ class Recorder:
         to the region the step is actually about.
         """
         self.at_step(number)
+        self._settle()
         if selector:
             from playwright.sync_api import Error as PlaywrightError
             try:
@@ -236,6 +276,7 @@ class Recorder:
         silently cropped the wrong section of the Me page.
         """
         self.at_step(number)
+        self._settle()
         boxes = []
         for selector in selectors:
             locator = self.page.locator(selector).first
@@ -325,12 +366,14 @@ def _reset_capture_account():
 def _db(fn, *args):
     """Run an ORM call from inside a running capture script.
 
-    Playwright's sync API drives the browser from an event loop, so Django treats the
-    whole script as an async context and raises SynchronousOnlyOperation on any query. A
-    worker thread gets its own context — the escape hatch that error message recommends.
+    Playwright's sync API drives the browser from an event loop, so Django treats
+    everything inside it as an async context and raises SynchronousOnlyOperation on any
+    query. A worker thread gets its own context — the escape hatch that error message
+    recommends.
 
-    Use `prepare` for anything knowable up front; this is for facts that do not exist
-    until the browser has done something, like an email-confirmation key.
+    Used for two things: facts that do not exist until the browser has done something
+    (an email-confirmation key), and each guide's reset/prepare/cleanup during a batch
+    run, which happens inside the loop because one browser serves the whole batch.
     """
     with ThreadPoolExecutor(max_workers=1) as pool:
         return pool.submit(fn, *args).result()
@@ -713,7 +756,13 @@ def capture_add_artworks(rec, facts):
     rec.at_step(4)
     rec.fill('fill in the framed width', '[name="framed_width_inches"]', '26')
     rec.fill('fill in the framed height', '[name="framed_height_inches"]', '38')
-    rec.shot_region(4, '#div_id_framed_width_inches', '#div_id_framed_depth_inches')
+    # Depth too, and not only for completeness: artwork_form_validate.js inserts its hint
+    # <div> lazily on a field's first input event, so leaving one of the three untouched
+    # left that column a different height and made the clip box vary by 2px between runs.
+    rec.fill('fill in the framed depth', '[name="framed_depth_inches"]', '2')
+    # The whole crispy row rather than a union of two of its columns: a computed union
+    # tracked whichever column happened to be tallest, which varied by 2px between runs.
+    rec.shot(4, selector='div.row:has(#div_id_framed_width_inches)')
 
     # Step 5 — "Optionally record the 'Hang drop' (under Additional details)."
     rec.at_step(5)
@@ -778,6 +827,136 @@ def capture_pin_artworks(rec, facts):
     # single still that shows them; both are declared prose-only.
 
 
+# ── how-to-buy-a-piece-of-artwork ────────────────────────────────────────────
+
+def prepare_buy_artwork():
+    """An inquirable artwork, plus an account for the optional Claim step at the end.
+
+    `can_inquire` is true only when one of the artwork's artists has an email address
+    (gallery/views/artworks.py), so this looks for that rather than assuming any seeded
+    piece will show the button.
+    """
+    artist = _create_verified_artist(CAPTURE_EMAIL, complete=True)
+    from gallery.permissions import visible_artwork_queryset
+
+    artwork = (Artwork.objects
+               .filter(visible_artwork_queryset(artist.user))
+               .filter(artists__email__isnull=False)
+               .exclude(artists__email='')
+               .exclude(artists__user=artist.user)
+               .distinct().order_by('pk').first())
+    if artwork is None:
+        raise CommandError(
+            'No publicly visible artwork has an artist with an email address, so the '
+            'Inquire button never appears. Re-seed with '
+            '`bash scripts/create_test_database.sh`.')
+    return {'artwork_url': artwork.get_absolute_url(), 'artwork_name': artwork.name}
+
+
+def capture_buy_artwork(rec, facts):
+    """Enquiring about a piece, and the optional claim once you own it.
+
+    The first five steps need no account — enquiring is deliberately open to anyone — so
+    the script stays signed out until the guide tells the reader to create one.
+    """
+    # Step 1 — "browse Shows or Artists from the navigation"
+    rec.at_step(1)
+    rec.goto('/artworks/')
+    rec.shot(1)
+
+    # Step 2 — "On the artwork detail page, check the price listed."
+    rec.at_step(2)
+    rec.goto(facts['artwork_url'])
+    # The whole detail card, not the bare price line: cropped to the <p> alone this was
+    # 388x14 px of text with nothing to say which piece it described.
+    rec.shot_region(2, '.card:has(p:has-text("Price:"))')
+
+    # Step 3 — "Click the Inquire button ... No account is required to inquire."
+    rec.at_step(3)
+    rec.shot_region(3, '.card__info:has(a:has-text("Inquire"))')
+    rec.click('click the Inquire button', rec.control('Inquire'))
+
+    # Step 4 — "Fill in your name, email address, and a message to the artist."
+    rec.at_step(4)
+    inquiry_form = rec.form_with('[name="message"]')
+    rec.fill('fill in your name', f'{inquiry_form} [name="sender_name"]', 'Jane Doe')
+    rec.fill('fill in your email address', f'{inquiry_form} [name="sender_email"]',
+             'jane@example.com')
+    rec.fill('write a message to the artist', f'{inquiry_form} [name="message"]',
+             'I saw this piece in the current show and would love to know more about it. '
+             'Is it still available?')
+    rec.shot(4, selector=inquiry_form)
+
+    # Step 5 — "Submit the form. Your message is sent directly to the artist."
+    # The inquiry view embeds a signed timestamp and rejects anything submitted within
+    # _INQUIRY_MIN_FILL_SECONDS (3s) as a bot. A script fills the form in milliseconds, so
+    # it has to wait — deliberately, not as a flake workaround.
+    rec.page.wait_for_timeout(3_500)
+    rec.submit('submit the form', inquiry_form)
+    rec.at_step(5)
+    rec.expect_text('see that the inquiry was sent', 'has been sent to the artist')
+    rec.shot_region(5, '.alert')
+
+    # Steps 6-8 are the email exchange afterwards and pointers to the account and profile
+    # guides — nothing on screen for any of them.
+
+    # Step 9 — "click 'Claim' in the button bar." Only signed-in readers see it, which is
+    # why the guide puts creating an account in step 8.
+    rec.at_step(9)
+    _log_in(rec)
+    rec.goto(facts['artwork_url'])
+    rec.shot_region(9, '.card__info:has(button:has-text("Claim"))')
+
+
+# ── how-to-adjust-card-sizes ─────────────────────────────────────────────────
+
+CARD_SIZE_WIDGET = '#card-size-control'
+
+
+def prepare_adjust_card_sizes():
+    return {}
+
+
+def capture_adjust_card_sizes(rec, facts):
+    """The card-size control: where it is, and what moving it does.
+
+    A drag cannot be photographed, so this sets the slider and photographs the *effect* —
+    which is the point of the control — rather than pretending to show a gesture.
+    """
+    def set_size(percent):
+        """Move the slider as a drag would, including the events its JS listens for."""
+        rec.page.evaluate(
+            """(pct) => {
+                 const s = document.getElementById('card-size-slider');
+                 s.value = String(pct / 100);
+                 s.dispatchEvent(new Event('input', {bubbles: true}));
+                 s.dispatchEvent(new Event('change', {bubbles: true}));
+               }""", percent)
+
+    # Step 1 — "On any page that shows a card grid ... a ▦ icon appears in the
+    #           bottom-right corner of the browser window."
+    rec.at_step(1)
+    rec.goto('/artworks/')
+    # A viewport shot, not the widget alone: this step is about *where* the control is, so
+    # the corner it sits in is as much the subject as the control.
+    rec.expect_visible('see the card size control appear in the corner',
+                       CARD_SIZE_WIDGET)
+    rec.shot(1)
+
+    # Step 2 — "Drag the slider ... The percentage label updates live."
+    rec.at_step(2)
+    set_size(150)
+    rec.shot(2, selector=CARD_SIZE_WIDGET)
+
+    # Step 3 — "The size range is 25% ... to 200% (large cards)."
+    rec.at_step(3)
+    set_size(200)
+    rec.shot(3)
+
+    # Step 4 — double-clicking the icon to reset looks exactly like step 1 once it has
+    # happened, so there is no second picture worth taking.
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -818,6 +997,27 @@ CAPTURE_SCRIPTS = {
         'run': capture_add_artworks,
         # Step 6 is about new work staying private until a show publishes it.
         'prose_only': {6},
+        'reset': _reset_capture_account,
+        'cleanup': _reset_capture_account,
+    },
+    'how-to-buy-a-piece-of-artwork': {
+        'prepare': prepare_buy_artwork,
+        'run': capture_buy_artwork,
+        # Steps 6-8 are the email exchange afterwards and pointers to other guides.
+        'prose_only': {6, 7, 8},
+        'reset': _reset_capture_account,
+        'cleanup': _reset_capture_account,
+        # ArtworkInquiryForm carries a ReCaptchaField, so submitting it headlessly needs
+        # the check off. The step 4 screenshot therefore shows the form *without* the
+        # "I'm not a robot" widget a real visitor sees — the guide says "may be asked",
+        # which covers it.
+        'needs_recaptcha_off': True,
+    },
+    'how-to-adjust-card-sizes': {
+        'prepare': prepare_adjust_card_sizes,
+        'run': capture_adjust_card_sizes,
+        # Step 4 is double-clicking to reset, whose result is step 1's picture again.
+        'prose_only': {4},
         'reset': _reset_capture_account,
         'cleanup': _reset_capture_account,
     },
@@ -885,6 +1085,11 @@ class Command(BaseCommand):
                             help='Which guide to capture (see --list).')
         parser.add_argument('--list', action='store_true',
                             help='List the guides that have a capture script.')
+        parser.add_argument('--all', action='store_true',
+                            help='Regenerate every guide that has a capture script. '
+                                 'Reuses one browser and one server for the batch, and '
+                                 'reports every failure at the end rather than stopping '
+                                 'at the first.')
         parser.add_argument('--publish', action='store_true',
                             help='Upload locally captured images to S3 and update the '
                                  'manifest. Does not re-capture; run the capture first, '
@@ -926,19 +1131,27 @@ class Command(BaseCommand):
                         '    Capture a guide first: manage.py capture_howto <image_key>\n'
                         '    (staged images live in static/img/howto/ and are gitignored, '
                         'so a fresh checkout starts empty.)')
-                self.stdout.write(
-                    f'Found {len(keys)} guide(s) captured locally.')
+                self.stdout.write(f'Found {len(keys)} guide(s) captured locally.')
             self._publish(keys, dry_run=opts['dry_run'], force=opts['force'])
             return
 
-        key = opts['image_key']
-        if not key:
-            raise CommandError('Which guide? Pass an image key, or --list to see them.')
-        # Only capturing needs a script; publishing works off whatever is staged, so a
-        # hand-made or hand-edited image directory can still be published.
-        if key not in CAPTURE_SCRIPTS:
+        # ── capture ──
+        if opts['all'] and opts['image_key']:
+            raise CommandError('Pass either an image key or --all, not both.')
+        if opts['all']:
+            keys = [image_key(g) for g in HOW_TO_GUIDES
+                    if image_key(g) in CAPTURE_SCRIPTS]
+        elif opts['image_key']:
+            keys = [opts['image_key']]
+        else:
             raise CommandError(
-                f'No capture script for "{key}". Run --list to see what there is.')
+                'Which guide? Pass an image key, --all to regenerate every guide that '
+                'has a script, or --list to see them.')
+
+        unknown = [k for k in keys if k not in CAPTURE_SCRIPTS]
+        if unknown:
+            raise CommandError(
+                f'No capture script for {unknown}. Run --list to see what there is.')
 
         if not getattr(settings, 'LOCAL_DEV', False):
             raise CommandError(
@@ -947,15 +1160,16 @@ class Command(BaseCommand):
                 'expose artist emails and phone numbers — never point it at a '
                 'deployment.')
 
-        script = CAPTURE_SCRIPTS[key]
-        if script.get('needs_recaptcha_off') and getattr(
-                settings, 'RECAPTCHA_ENABLED', False):
+        # Checked for the whole batch up front: finding out at guide 4 of 7 that the
+        # reCAPTCHA is on would waste the three that already ran.
+        needs_off = [k for k in keys
+                     if CAPTURE_SCRIPTS[k].get('needs_recaptcha_off')]
+        if needs_off and getattr(settings, 'RECAPTCHA_ENABLED', False):
             raise CommandError(
-                'This guide walks the real signup form, which carries a reCAPTCHA while '
-                'keys are configured — and a headless browser cannot solve one. Re-run '
-                'with it switched off:\n'
+                f'{needs_off} walk forms carrying a reCAPTCHA, which a headless browser '
+                f'cannot solve. Re-run with it switched off:\n'
                 f'    RECAPTCHA_ENABLED=false ./env/bin/python manage.py capture_howto '
-                f'{key}')
+                + ('--all' if opts['all'] else keys[0]))
 
         try:
             from playwright.sync_api import sync_playwright
@@ -965,7 +1179,41 @@ class Command(BaseCommand):
                 '    ./env/bin/pip install playwright\n'
                 '    ./env/bin/playwright install chromium')
 
+        # One server and one browser for the whole batch — starting them per guide is most
+        # of the wall-clock cost of a full regeneration. Each guide still gets a fresh
+        # browser context, so no session, cookie or localStorage state leaks between them.
+        server = LiveServerThread('localhost', StaticFilesHandler, port=0)
+        server.daemon = True
+        server.start()
+        server.is_ready.wait()
+        if server.error:
+            raise CommandError(f'Could not start the capture server: {server.error}')
+        base_url = f'http://localhost:{server.port}'
+
+        results = []
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(headless=not opts['headed'])
+                try:
+                    for key in keys:
+                        results.append(
+                            self._capture_one(key, browser, base_url, opts))
+                finally:
+                    browser.close()
+        finally:
+            server.terminate()
+
+        self._report_batch(results, keys)
+
+    def _capture_one(self, key, browser, base_url, opts):
+        """Capture one guide. Returns a result dict; never raises for a capture failure.
+
+        A failure in guide 3 of 7 must not throw away the other six — a batch run reports
+        every problem at the end instead, which is also more useful when several guides
+        have drifted from their prose at once. `handle` still exits non-zero.
+        """
         guide = self._guide_for(key)
+        script = CAPTURE_SCRIPTS[key]
         out_dir = staging_dir(key)
 
         # Wiped, not merged: a guide that lost a step would otherwise keep the orphaned
@@ -975,47 +1223,68 @@ class Command(BaseCommand):
         out_dir.mkdir(parents=True, exist_ok=True)
 
         self.stdout.write(self.style.MIGRATE_HEADING(
-            f'Capturing "{guide["title"]}"'))
+            f'\nCapturing "{guide["title"]}"'))
         self.stdout.write(f'  {len(guide["steps"])} steps → {out_dir}')
 
-        script['reset']()
-        # Before the browser exists: see prepare_submit_artwork's docstring.
-        facts = script['prepare']()
-
-        server = LiveServerThread('localhost', StaticFilesHandler, port=0)
-        server.daemon = True
-        server.start()
-        server.is_ready.wait()
-        if server.error:
-            raise CommandError(f'Could not start the capture server: {server.error}')
-        base_url = f'http://localhost:{server.port}'
-
+        rec = None
         try:
-            with sync_playwright() as pw:
-                browser = pw.chromium.launch(headless=not opts['headed'])
-                context = browser.new_context(
-                    viewport={'width': opts['width'], 'height': opts['height']},
-                    # Rendered at 1:1 on the help page, so this is spare resolution
-                    # for retina rather than something that gets scaled away. Shared
-                    # with howto_images so the two cannot drift.
-                    device_scale_factor=HOWTO_CAPTURE_SCALE,
-                )
-                page = context.new_page()
-                rec = Recorder(page, base_url, out_dir, self.stdout.write)
-                try:
-                    script['run'](rec, facts)
-                finally:
-                    context.close()
-                    browser.close()
+            # Through _db(): a batch run holds the Playwright event loop open across every
+            # guide, so even this per-guide setup is inside an async context as far as
+            # Django is concerned. Reset and prepare must still run per guide rather than
+            # all up front — each one creates an account at the same CAPTURE_EMAIL.
+            _db(script['reset'])
+            facts = _db(script['prepare'])
+            context = browser.new_context(
+                viewport={'width': opts['width'], 'height': opts['height']},
+                # Rendered at 1:1 on the help page, so this is spare resolution for
+                # retina rather than something that gets scaled away. Shared with
+                # howto_images so the two cannot drift.
+                device_scale_factor=HOWTO_CAPTURE_SCALE,
+            )
+            try:
+                rec = Recorder(context.new_page(), base_url, out_dir, self.stdout.write)
+                script['run'](rec, facts)
+            finally:
+                context.close()
+        except Exception as exc:
+            # Deliberately broad. A script can fail in ways the Recorder does not wrap —
+            # a bare Playwright timeout, a selector typo — and in a batch those must not
+            # discard the guides that already succeeded or skip the summary. The type is
+            # included so a genuine programming error is still recognisable as one.
+            label = (str(exc) if isinstance(exc, CommandError)
+                     else f'{type(exc).__name__}: {exc}')
+            self.stdout.write(self.style.ERROR(f'  {label}'))
+            return {'key': key, 'guide': guide, 'script': script, 'rec': rec,
+                    'error': label}
         finally:
-            server.terminate()
-            if not opts['keep']:
-                script['cleanup']()
+            if opts['keep']:
+                self.stdout.write(f'  --keep: left {CAPTURE_EMAIL} in the database.')
             else:
-                self.stdout.write(
-                    f'  --keep: left {CAPTURE_EMAIL} in the database.')
+                _db(script['cleanup'])
 
         self._report(guide, script, rec)
+        return {'key': key, 'guide': guide, 'script': script, 'rec': rec, 'error': None}
+
+    def _report_batch(self, results, keys):
+        """One summary for the whole run, and a non-zero exit if anything failed."""
+        failed = [r for r in results if r['error']]
+        if len(results) > 1:
+            self.stdout.write(self.style.MIGRATE_HEADING(
+                f'\n{len(results) - len(failed)} of {len(results)} guides captured'))
+            for r in results:
+                if r['error']:
+                    self.stdout.write(self.style.ERROR(f'  failed   {r["key"]}'))
+                else:
+                    n = len(r['rec'].captured) if r['rec'] else 0
+                    self.stdout.write(f'  ok       {r["key"]}  ({n} images)')
+            self.stdout.write(
+                '\nPublish what changed:\n'
+                '    ./env/bin/python manage.py capture_howto --publish')
+        if failed:
+            raise CommandError(
+                f'{len(failed)} guide(s) failed: {[r["key"] for r in failed]}. '
+                f'A DocumentationMismatch means that guide\'s prose is now wrong too — '
+                f'fix the wording in eatart/role_docs.py, then re-run.')
 
     def _guide_for(self, key):
         for guide in HOW_TO_GUIDES:
