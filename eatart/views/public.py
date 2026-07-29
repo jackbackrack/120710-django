@@ -1,5 +1,7 @@
 import datetime as dt
 
+from django.conf import settings
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import render
 from django.utils.text import slugify
@@ -9,6 +11,7 @@ from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import LinkTreeEntry, Show
 from gallery.submission_cta import submit_cta, submit_ctas
+from gallery.views.mixins import visible_site_or_404
 from gallery.permissions import can_delete_show, can_manage_show, is_curator_user, is_juror_user, is_staff_user, visible_show_queryset
 
 
@@ -45,39 +48,85 @@ def index(request):
     })
 
 
-def contact(request):
-    return render(request, 'public/contact.html')
+# The four public info pages take no arguments and read everything from `info_site`,
+# which the navigation_roles context processor resolves: the site in the URL when there is
+# one (/site/<slug>/about/), otherwise the deployment's default site. So the same view
+# serves the network page and each venue's, and neither has anything hard-coded in it.
+#
+# A scoped URL is validated before rendering. The context processor resolves the site from
+# the path without checking status, so without this an unpublished venue's info pages would
+# be publicly readable at /site/<slug>/about/ even though the venue is hidden everywhere
+# else. Same rule as the site-scoped artist and artwork lists.
+
+def contact(request, site_slug=None):
+    if site_slug:
+        visible_site_or_404(request, site_slug)
+    return render(request, 'public/contact.html', {
+        # Only advertise a mailing list when one is actually wired up. Subscribing is
+        # still a single shared Mailchimp audience, deliberately left alone for now.
+        'mailing_list_enabled': bool(settings.MAILCHIMP_AUDIENCE_ID),
+    })
 
 
-def visit(request):
+def visit(request, site_slug=None):
+    if site_slug:
+        visible_site_or_404(request, site_slug)
     return render(request, 'public/visit.html')
 
 
-def about(request):
+def about(request, site_slug=None):
+    if site_slug:
+        visible_site_or_404(request, site_slug)
     return render(request, 'public/about.html')
 
 
-def linktree(request):
+def linktree(request, site_slug=None):
     today = dt.date.today()
+    if site_slug:
+        visible_site_or_404(request, site_slug)
+    site = _info_site(request, site_slug)
+
+    shows = Show.objects.all()
+    if site is not None:
+        shows = shows.filter(sites=site)
     current_shows = list(
-        Show.objects.filter(
+        shows.filter(
             status=Show.STATUS_PUBLISHED,
             start__lte=today,
             end__gte=today,
-        ).order_by('-start')
+        ).order_by('-start').distinct()
     )
     open_call_shows = list(
-        Show.objects.filter(
+        shows.filter(
             status=Show.STATUS_OPEN_CALL,
             submission_type=Show.SUBMISSION_OPEN,
-        ).order_by('start')
+        ).order_by('start').distinct()
     )
-    custom_links = list(LinkTreeEntry.objects.filter(is_active=True))
+    # A venue's own links, plus the ones with no site — those are network-level and
+    # belong on every venue's page. Site-first so a venue leads with itself.
+    links = LinkTreeEntry.objects.filter(is_active=True)
+    if site is not None:
+        links = links.filter(Q(site=site) | Q(site__isnull=True))
+    custom_links = sorted(links, key=lambda l: (l.site_id is None, l.order, l.name))
     return render(request, 'public/linktree.html', {
         'current_shows': current_shows,
         'open_call_shows': open_call_shows,
         'custom_links': custom_links,
     })
+
+
+def _info_site(request, site_slug=None):
+    """The site whose content a public info page should show.
+
+    Mirrors `info_site` in the context processor, for the one view that needs to *query*
+    by it rather than just print it.
+    """
+    from gallery.models import Site
+
+    slug = site_slug or getattr(settings, 'GALLERY_DEFAULT_SITE_SLUG', None)
+    if not slug:
+        return None
+    return Site.objects.filter(slug=slug, status=Site.STATUS_PUBLISHED).first()
 
 
 def _reader_role(user):

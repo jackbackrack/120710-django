@@ -257,6 +257,57 @@ Details worth remembering:
   share one entry and a signed-out visitor to a venue sees the network's artists.
 - The scoped context object is `artist_list` / `artwork_list` now, not `artists` / `artworks`.
 
+**The public info pages** (2026-07-29). Info, Visit, Contact and Links were hard-coded
+templates naming one gallery — `contact` and `visit` were literally
+`render(request, 'public/contact.html')` with no context at all. They now read from the
+`Site`, so a second gallery gets its own without a deploy.
+
+Decisions taken while building it:
+
+- **`default_site` is a third context variable, not a reuse of `current_site`.** The
+  temptation is to point `GALLERY_DEFAULT_SITE_SLUG` at the reset.art row and let
+  `current_site` fall back to it. That breaks `surl`, which scopes URLs whenever
+  `current_site` is set — every show card on the network home would link to
+  `/site/reset-art/show/foo/`. So: `current_site` is what the URL is scoped to (None at the
+  network level), `default_site` is the deployment's own identity, and `info_site` is
+  `current_site or default_site` — what the four pages read.
+- **The existing `current_site` fallback is untouched.** Removing it is cutover step 2, and
+  doing it early would strip 120710's branding from the live site. `info_site` is correct
+  before and after, which is the point of introducing it separately.
+- **Fallback is per page, not per field** (as agreed). A venue with no phone shows no phone
+  rather than the umbrella's. The one exception is About, which falls back to
+  `description`, because a venue with neither has nothing to say at all.
+- **Rich text, not structured models.** `Site.about` holds mission, story and people as one
+  field. `SitePerson` / `SitePressMention` were considered and deferred: structure earns its
+  keep at the second gallery with staff to list. Needed a second template filter,
+  `sanitize_rich`, because the existing `sanitize` allowlist strips `table`, `h1`, `h2` and
+  `img`. Kept separate rather than widening `sanitize`, since that one governs
+  artist-editable bios where `<img>` would permit tracking pixels from anyone with an
+  account. nh3 still strips event handlers and dangerous schemes in both.
+- **Links carry a nullable site.** Null means network-level and appears on every venue's
+  page; a venue's own links carry its site, so joining the network does not mean inheriting
+  another gallery's link list. `LinkTreeEntry` had zero rows, so there was nothing to
+  migrate.
+- **Subscribing was left alone**, per the decision to move mailing lists onto the site
+  itself later. Contact only advertises a list when `MAILCHIMP_AUDIENCE_ID` is set, rather
+  than pointing every venue at one shared audience.
+- **The map is generated from the venue's own coordinates** instead of the committed
+  `120710-map.png`. `120710-street-view.png` becomes the optional `visit_image` upload.
+
+Two bugs found while testing it:
+
+- The scoped pages leaked drafts. The context processor resolves a site from the path
+  *without* checking status, so `/site/<draft>/about/` rendered an unpublished venue's copy
+  to the public. The four views now call `visible_site_or_404` themselves.
+- `{% if info_site.formatted_address %}` never fired, because `country` defaults to `US` and
+  is therefore always set — a venue with no address would have printed its name and
+  "United States of America". Guarded on `street or city` instead.
+
+`0070_seed_120710_public_info` carries 120710's existing wording into its `Site` row. Without
+it the deployed pages would come back blank, since at that point the content exists only in
+git history. Every write is guarded on the field being empty, so it is safe to re-run and
+will not overwrite anything edited through the site form afterwards.
+
 ## Cutover order
 
 1. Make `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` env-driven; add reset.art in Railway with

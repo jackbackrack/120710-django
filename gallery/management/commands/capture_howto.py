@@ -1951,42 +1951,47 @@ def capture_manage_sites(rec, facts):
     rec.goto('/site/new/')
     rec.shot_region(3, '#div_id_name', '#div_id_icon')
 
-    # Step 4 — "Optionally fill in 'Local area name' and 'Local postal codes'."
+    # Step 4 — "Fill in the public information pages while you are here: Opening hours,
+    #           About, Getting here, and a Visit photo."
     rec.at_step(4)
-    rec.shot_region(4, '#div_id_submission_area_label', '#div_id_submission_zipcodes')
+    rec.shot_region(4, '#div_id_hours', '#div_id_visit_image')
 
-    # Step 5 — "click 'Look up coordinates from address' ... review the matched address
-    #           shown beneath the button."
+    # Step 5 — "Optionally fill in 'Local area name' and 'Local postal codes'."
     rec.at_step(5)
-    rec.shot_region(5, '#geocode-btn', '#geocode-status')
+    rec.shot_region(5, '#div_id_submission_area_label', '#div_id_submission_zipcodes')
 
-    # Step 6 — "enter the latitude and longitude values manually."
+    # Step 6 — "click 'Look up coordinates from address' ... review the matched address
+    #           shown beneath the button."
     rec.at_step(6)
-    rec.shot_region(6, '#div_id_latitude', '#div_id_longitude')
+    rec.shot_region(6, '#geocode-btn', '#geocode-status')
 
-    # Step 7 — "Set Status to Published."
+    # Step 7 — "enter the latitude and longitude values manually."
     rec.at_step(7)
-    rec.shot_region(7, '#div_id_status')
+    rec.shot_region(7, '#div_id_latitude', '#div_id_longitude')
 
-    # Step 8 — "In the Gallery Room section ... enter the room dimensions ... and
-    #           optionally upload texture images."
+    # Step 8 — "Set Status to Published."
     rec.at_step(8)
-    rec.shot_region(8, '#div_id_width_in', '#div_id_ceiling_image')
+    rec.shot_region(8, '#div_id_status')
 
-    # Step 9 — "In the Obstacles table, add obstacles such as doors or windows."
+    # Step 9 — "In the Gallery Room section ... enter the room dimensions ... and
+    #           optionally upload texture images."
     rec.at_step(9)
-    rec.shot_region(9, '#obstacle-table')
+    rec.shot_region(9, '#div_id_width_in', '#div_id_ceiling_image')
 
-    # Step 10 is saving.
+    # Step 10 — "In the Obstacles table, add obstacles such as doors or windows."
+    rec.at_step(10)
+    rec.shot_region(10, '#obstacle-table')
 
-    # Step 11 — "To edit an existing site, open the site detail page and click Edit."
-    rec.at_step(11)
+    # Step 11 is saving.
+
+    # Step 12 — "To edit an existing site, open the site detail page and click Edit."
+    rec.at_step(12)
     rec.goto('/site/120710/')
     # The card that carries the link, not the link: cropped to the <a> this was 22x19 px
     # of the word Edit, which does not tell anyone where to find it.
-    rec.shot_region(11, '.card:has(a[href*="/edit/"])')
+    rec.shot_region(12, '.card:has(a[href*="/edit/"])')
 
-    # Step 12 is deleting, which lives behind that same Edit page.
+    # Step 13 is deleting, which lives behind that same Edit page.
 
 
 # ── how-to-configure-a-sites-room-and-walls-staff-only ───────────────────────
@@ -2695,8 +2700,8 @@ CAPTURE_SCRIPTS = {
     'how-to-create-and-manage-sites-staff-only': {
         'prepare': prepare_manage_sites,
         'run': capture_manage_sites,
-        # 10 is saving; 12 is deleting, behind the Edit page shown in step 11.
-        'prose_only': {10, 12},
+        # 11 is saving; 13 is deleting, behind the Edit page shown in step 12.
+        'prose_only': {11, 13},
         'reset': _cleanup_capture_sites,
         'cleanup': _cleanup_capture_sites,
     },

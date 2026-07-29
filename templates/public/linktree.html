@@ -1,14 +1,19 @@
 {% extends 'base.html' %}
-{% load static %}
 
-{% block title %}Links{% endblock %}
+{% block title %}Links{% if info_site %} — {{ info_site.name }}{% endif %}{% endblock %}
 {% block block_title %}Links{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column align-items-center gap-3 py-3" style="max-width: 480px; margin: 0 auto;">
 
-  <a href="https://120710.art" class="btn btn-outline-dark w-100 py-3">120710.art</a>
-  <a href="https://reset.art" class="btn btn-outline-dark w-100 py-3">reset.art</a>
+  {% comment %}
+    The two site buttons used to be hard-coded 120710.art and reset.art. They are
+    LinkTreeEntry rows now — the venue's own, plus any with no site, which are the
+    network-level ones every venue shows.
+  {% endcomment %}
+  {% for link in custom_links %}
+  <a href="{{ link.url }}" class="btn {% if link.site_id %}btn-outline-dark{% else %}btn-outline-secondary{% endif %} w-100 py-3">{{ link.name }}</a>
+  {% endfor %}
 
   {% for show in current_shows %}
   <a href="{{ show.get_absolute_url }}" class="btn btn-dark w-100 py-3">{{ show.name }}</a>
@@ -18,9 +23,9 @@
   <a href="{{ show.get_absolute_url }}" class="btn btn-outline-primary w-100 py-3">Open Call: {{ show.name }}</a>
   {% endfor %}
 
-  {% for link in custom_links %}
-  <a href="{{ link.url }}" class="btn btn-outline-secondary w-100 py-3">{{ link.name }}</a>
-  {% endfor %}
+  {% if not custom_links and not current_shows and not open_call_shows %}
+  <p class="text-muted">No links yet.</p>
+  {% endif %}
 
 </div>
 {% endblock %}

@@ -16,6 +16,7 @@ from django.urls import reverse
 
 from accounts.roles import add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, ShowInvitation, Site
+from gallery.models import LinkTreeEntry
 from gallery import submission_area
 
 
@@ -5728,3 +5729,157 @@ class SubmissionAreaCurationTests(TestCase):
         response = self._get()
         self.assertEqual(response.context['n_out_of_area'], 0)
         self.assertNotContains(response, 'outside area')
+
+
+class SitePublicInfoTests(TestCase):
+    """The Info / Visit / Contact / Links pages, read from the Site rather than hard-coded.
+
+    The point of these is the second gallery: every assertion here is about a venue
+    getting *its own* content, or degrading sensibly when it has none.
+    """
+
+    def setUp(self):
+        self.gallery = Site.objects.create(
+            name='First Gallery', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA',
+            postal_code='94710', country='US',
+            email='hello@first.example', phone='555-0100', instagram='@first',
+            hours='Sun 1-4p', about='<h1>Mission</h1><p>First gallery mission.</p>',
+            visit_notes='<p>Street parking available</p>',
+            latitude='37.881613', longitude='-122.297071',
+        )
+        self.other = Site.objects.create(
+            name='Second Gallery', status=Site.STATUS_PUBLISHED,
+            city='Oakland', state='CA', country='US',
+            about='<p>Second gallery mission.</p>',
+        )
+        self.bare = Site.objects.create(
+            name='Bare Gallery', status=Site.STATUS_PUBLISHED, country='US')
+
+    def _page(self, page, site=None):
+        if site is None:
+            return self.client.get(reverse(page))
+        return self.client.get(reverse(f'site_{page}', kwargs={'site_slug': site.slug}))
+
+    # --- Each venue gets its own ---
+
+    def test_each_venue_shows_its_own_about(self):
+        first = self._page('about', self.gallery)
+        second = self._page('about', self.other)
+        self.assertContains(first, 'First gallery mission.')
+        self.assertNotContains(first, 'Second gallery mission.')
+        self.assertContains(second, 'Second gallery mission.')
+        self.assertNotContains(second, 'First gallery mission.')
+
+    def test_visit_shows_the_venues_own_address_and_hours(self):
+        response = self._page('visit', self.gallery)
+        self.assertContains(response, '1207 Tenth Street')
+        self.assertContains(response, 'Sun 1-4p')
+        self.assertContains(response, 'Street parking available')
+
+    def test_contact_shows_the_venues_own_details(self):
+        response = self._page('contact', self.gallery)
+        self.assertContains(response, 'hello@first.example')
+        self.assertContains(response, '555-0100')
+
+    def test_map_link_comes_from_the_venues_coordinates(self):
+        """Generated, not a committed screenshot of one gallery."""
+        response = self._page('visit', self.gallery)
+        self.assertContains(response, '37.881613,-122.297071')
+
+    # --- Degrading when a venue has nothing ---
+
+    def test_a_venue_with_no_details_omits_the_sections(self):
+        """Silence, not an empty mailto: link or a bare address block."""
+        response = self._page('contact', self.bare)
+        # The labels, not "mailto:" — base.html's footer carries a commented-out one.
+        self.assertNotContains(response, '<b>email:</b>')
+        self.assertNotContains(response, '<b>phone:</b>')
+        self.assertNotContains(response, '<b>address:</b>')
+        self.assertNotContains(response, 'Gallery Hours')
+
+    def test_a_venue_with_no_about_says_so(self):
+        response = self._page('about', self.bare)
+        self.assertContains(response, 'No information has been added yet')
+
+    def test_about_falls_back_to_the_description(self):
+        self.bare.description = 'A short description.'
+        self.bare.save()
+        response = self._page('about', self.bare)
+        self.assertContains(response, 'A short description.')
+
+    def test_about_markup_is_sanitized(self):
+        self.bare.about = '<h1>Fine</h1><script>bad()</script><img src="/x.png" onerror="pwn()">'
+        self.bare.save()
+        response = self._page('about', self.bare)
+        self.assertContains(response, '<h1>Fine</h1>')       # headings and tables survive
+        self.assertContains(response, '<img src="/x.png">')  # the image, minus the handler
+        # Assert on the payloads, not on "<script>" — base.html has script tags of its own.
+        self.assertNotContains(response, 'bad()')
+        self.assertNotContains(response, 'onerror')
+        self.assertNotContains(response, 'pwn()')
+
+    # --- Links ---
+
+    def test_links_shows_the_venues_own_plus_network_wide_ones(self):
+        LinkTreeEntry.objects.create(name='First site', url='https://first.example',
+                                     site=self.gallery)
+        LinkTreeEntry.objects.create(name='Second site', url='https://second.example',
+                                     site=self.other)
+        LinkTreeEntry.objects.create(name='The network', url='https://network.example')
+        response = self._page('linktree', self.gallery)
+        self.assertContains(response, 'https://first.example')
+        self.assertContains(response, 'https://network.example')   # no site = everywhere
+        self.assertNotContains(response, 'https://second.example')
+
+    def test_links_only_lists_shows_at_that_venue(self):
+        mine = Show.objects.create(
+            name='Mine', start=datetime.date.today() - datetime.timedelta(days=1),
+            end=datetime.date.today() + datetime.timedelta(days=1),
+            status=Show.STATUS_PUBLISHED)
+        mine.sites.add(self.gallery)
+        theirs = Show.objects.create(
+            name='Theirs', start=datetime.date.today() - datetime.timedelta(days=1),
+            end=datetime.date.today() + datetime.timedelta(days=1),
+            status=Show.STATUS_PUBLISHED)
+        theirs.sites.add(self.other)
+        response = self._page('linktree', self.gallery)
+        self.assertContains(response, 'Mine')
+        self.assertNotContains(response, 'Theirs')
+
+    # --- Publication ---
+
+    def test_a_draft_venues_info_pages_are_not_public(self):
+        """The context processor resolves a site from the path without checking status, so
+        these four routes have to check it themselves or a hidden venue becomes readable."""
+        draft = Site.objects.create(name='Draft Gallery', status=Site.STATUS_DRAFT,
+                                    about='<p>Not yet public.</p>', country='US')
+        for page in ('about', 'visit', 'contact', 'linktree'):
+            response = self._page(page, draft)
+            self.assertEqual(response.status_code, 404, page)
+            self.assertNotContains(response, 'Not yet public.', status_code=404)
+
+    # --- The network level, i.e. after the reset.art cutover ---
+
+    def test_unscoped_pages_read_the_default_site(self):
+        with override_settings(GALLERY_DEFAULT_SITE_SLUG=self.other.slug):
+            import eatart.context_processors as cp
+            original = cp._DEFAULT_SITE_SLUG
+            cp._DEFAULT_SITE_SLUG = self.other.slug
+            try:
+                response = self._page('about')
+                self.assertContains(response, 'Second gallery mission.')
+            finally:
+                cp._DEFAULT_SITE_SLUG = original
+
+    def test_unscoped_pages_survive_having_no_default_site(self):
+        """Post-cutover safety net: nothing 500s if the default site is unset or missing."""
+        with override_settings(GALLERY_DEFAULT_SITE_SLUG=None):
+            import eatart.context_processors as cp
+            original = cp._DEFAULT_SITE_SLUG
+            cp._DEFAULT_SITE_SLUG = None
+            try:
+                for page in ('about', 'visit', 'contact', 'linktree'):
+                    self.assertEqual(self._page(page).status_code, 200, page)
+            finally:
+                cp._DEFAULT_SITE_SLUG = original

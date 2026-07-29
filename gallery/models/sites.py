@@ -31,6 +31,24 @@ class Site(models.Model):
     instagram = models.CharField(max_length=100, blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     description = models.TextField(blank=True)
+    # The four public info pages (/about/, /visit/, /contact/, /links/) used to be
+    # hard-coded templates naming one gallery. They read from here now, falling back to
+    # the deployment's default site — so a second gallery gets its own without a deploy.
+    hours = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='Opening hours',
+        help_text='Shown on the Visit and Contact pages, e.g. '
+                  '"Sun 1-4p or by Appt MWF 12-6p".')
+    about = models.TextField(
+        blank=True, default='',
+        help_text='The Info page: mission, story, people. Accepts formatting, headings, '
+                  'tables and images.')
+    visit_notes = models.TextField(
+        blank=True, default='', verbose_name='Getting here',
+        help_text='Parking, transit and directions, shown on the Visit page below the '
+                  'address.')
+    visit_image = models.ImageField(
+        upload_to='site_visit', blank=True, null=True, verbose_name='Visit photo',
+        help_text='A street view or storefront photo for the Visit page.')
     image = models.ImageField(upload_to='site_images', blank=True, null=True)
     card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
     card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})

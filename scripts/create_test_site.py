@@ -15,6 +15,10 @@ Usage:
   --state STATE         State / province / region.
   --postal-code CODE    Postal / zip code.
   --country COUNTRY     ISO 3166 alpha-2 country code (default: US).
+  --hours HOURS         Opening hours, shown on the Visit and Contact pages.
+  --about-file PATH     HTML for the venue's Info page (mission, story, people).
+  --visit-notes-file PATH  HTML for "Getting here" — parking and transit.
+  --visit-image PATH    Street view / storefront photo for the Visit page.
   --email EMAIL         Contact email.
   --phone PHONE         Phone number.
   --instagram HANDLE    Instagram handle (with or without @).
@@ -70,8 +74,25 @@ description = _pop_flag_value(args, '--description') or ''
 image_path  = _pop_flag_value(args, '--image')
 icon_path   = _pop_flag_value(args, '--icon')
 status      = _pop_flag_value(args, '--status') or Site.STATUS_PUBLISHED
+hours       = _pop_flag_value(args, '--hours') or ''
+about_file  = _pop_flag_value(args, '--about-file')
+notes_file  = _pop_flag_value(args, '--visit-notes-file')
+visit_image_path = _pop_flag_value(args, '--visit-image')
 lat         = _pop_flag_value(args, '--lat')
 lng         = _pop_flag_value(args, '--lng')
+
+def _read(path, label):
+    """Read a public-info fixture. These are files rather than flags because the Info page
+    is a few thousand characters of markup, which is unreadable inline in a shell script."""
+    if not path:
+        return ''
+    path = os.path.expanduser(path)
+    if not os.path.exists(path):
+        print(f'{label} file not found: {path}')
+        sys.exit(1)
+    with open(path, encoding='utf-8') as fh:
+        return fh.read().strip()
+
 
 if not name:
     print('--name is required')
@@ -95,6 +116,9 @@ site = Site(
     instagram=instagram,
     website=website,
     description=description,
+    hours=hours,
+    about=_read(about_file, '--about-file'),
+    visit_notes=_read(notes_file, '--visit-notes-file'),
     status=status,
     latitude=float(lat) if lat else None,
     longitude=float(lng) if lng else None,
@@ -107,6 +131,14 @@ if image_path:
         sys.exit(1)
     with open(image_path, 'rb') as f:
         site.image.save(os.path.basename(image_path), File(f), save=False)
+
+if visit_image_path:
+    visit_image_path = os.path.expanduser(visit_image_path)
+    if not os.path.exists(visit_image_path):
+        print(f'Visit image file not found: {visit_image_path}')
+        sys.exit(1)
+    with open(visit_image_path, 'rb') as f:
+        site.visit_image.save(os.path.basename(visit_image_path), File(f), save=False)
 
 if icon_path:
     icon_path = os.path.expanduser(icon_path)

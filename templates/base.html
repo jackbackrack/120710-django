@@ -103,11 +103,25 @@
             <a class="nav-link dropdown-toggle{% if u == 'about' or u == 'visit' or u == 'contact' or u == 'subscribe' or u == 'linktree' %} active{% endif %}"
                href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">About</a>
             <ul class="dropdown-menu">
+              {% comment %}
+                Scoped while browsing a venue, so About/Visit/Contact/Links stay that
+                venue's — the same thing Shows/Artists/Artworks above already do. Without
+                this, stepping into a venue and clicking Visit silently returned the
+                reader to the default site's address.
+              {% endcomment %}
+              {% if current_site %}
+              <li><a class="dropdown-item{% if u == 'about' %} active{% endif %}" href="{% url 'site_about' current_site.slug %}">Info</a></li>
+              <li><a class="dropdown-item{% if u == 'visit' %} active{% endif %}" href="{% url 'site_visit' current_site.slug %}">Visit</a></li>
+              <li><a class="dropdown-item{% if u == 'contact' %} active{% endif %}" href="{% url 'site_contact' current_site.slug %}">Contact</a></li>
+              {% else %}
               <li><a class="dropdown-item{% if u == 'about' %} active{% endif %}" href="{% url 'about' %}">Info</a></li>
               <li><a class="dropdown-item{% if u == 'visit' %} active{% endif %}" href="{% url 'visit' %}">Visit</a></li>
               <li><a class="dropdown-item{% if u == 'contact' %} active{% endif %}" href="{% url 'contact' %}">Contact</a></li>
+              {% endif %}
+              {% if mailing_list_enabled or not current_site %}
               <li><a class="dropdown-item{% if u == 'subscribe' %} active{% endif %}" href="{% url 'subscribe' %}">Subscribe</a></li>
-              <li><a class="dropdown-item{% if u == 'linktree' %} active{% endif %}" href="{% url 'linktree' %}">Links</a></li>
+              {% endif %}
+              <li><a class="dropdown-item{% if u == 'linktree' %} active{% endif %}" href="{% if current_site %}{% url 'site_linktree' current_site.slug %}{% else %}{% url 'linktree' %}{% endif %}">Links</a></li>
             </ul>
           </li>
 

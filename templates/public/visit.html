@@ -1,31 +1,60 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load site_tags %}
 
-{% block title %}Visit{% endblock %}
+{% block title %}Visit{% if info_site %} — {{ info_site.name }}{% endif %}{% endblock %}
 {% block block_title %}Visit{% endblock %}
 
 {% block content %}
 <div class="text-center">
 
-<p>Sun 1-4p or by Appt MWF 12-6p<br>
-by calling <a href="tel:+1341-205-1331">341-205-1331</a><br>
-or emailing <a href="mailto:info@120710.art">info@120710.art</a>
-</p>
+{% if info_site %}
+  {% if info_site.hours %}<p>{{ info_site.hours }}</p>{% endif %}
 
-<address>
-120710<br>
-1207 Tenth Street<br>
-Berkeley, CA 94710<br>
-USA
-</address>
+  {% comment %}
+    Phone and email only when they exist. This page used to state both unconditionally
+    because there was only ever one gallery; a venue with neither should say nothing
+    rather than offer an empty link.
+  {% endcomment %}
+  {% if info_site.phone or info_site.email %}
+  <p>
+    {% if info_site.phone %}by calling <a href="tel:{{ info_site.phone }}">{{ info_site.phone }}</a>{% endif %}
+    {% if info_site.phone and info_site.email %}<br>{% endif %}
+    {% if info_site.email %}or emailing <a href="mailto:{{ info_site.email }}">{{ info_site.email }}</a>{% endif %}
+  </p>
+  {% endif %}
 
-<p>
-Street parking available<br>
-<br>
-Nearby AC Transit bus stop at San Pablo and Gilman<br>
-<br>
-<a href="https://www.google.com/maps/place/120710+Art+Gallery+and+Studios/@37.881613,-122.297071,17z/data=!3m1!4b1!4m6!3m5!1s0x80857fe33939de33:0xa98f578d5581c405!8m2!3d37.881613!4d-122.297071!16s%2Fg%2F11vz4_kgbg?entry=ttu&g_ep=EgoyMDI1MDkyMS4wIKXMDSoASAFQAw%3D%3D"><img loading="lazy" width=400px src="{% static 'img/120710-map.png' %}"></a>
-<br>
-<img loading="lazy" width=400px src="{% static 'img/120710-street-view.png' %}">
+  {% comment %}
+    Guarded on street/city, not on formatted_address: country defaults to US and is
+    effectively always set, so formatted_address is never empty — a venue with no address
+    would print its name and "United States of America" and nothing else.
+  {% endcomment %}
+  {% if info_site.street or info_site.city %}
+  <address>
+    {{ info_site.name }}<br>
+    {{ info_site.formatted_address|linebreaksbr }}
+  </address>
+  {% endif %}
+
+  {% if info_site.visit_notes %}<div>{{ info_site.visit_notes|sanitize_rich }}</div>{% endif %}
+
+  {% comment %}
+    The map link is generated from the venue's own coordinates rather than being a
+    committed screenshot of one gallery — the same lat/long the Sites map pins use.
+  {% endcomment %}
+  {% if info_site.latitude and info_site.longitude %}
+  <p>
+    <a href="https://www.google.com/maps/search/?api=1&amp;query={{ info_site.latitude }},{{ info_site.longitude }}"
+       target="_blank" rel="noopener">Open in Google Maps</a>
+  </p>
+  {% endif %}
+
+  {% if info_site.visit_image %}
+  <p><img loading="lazy" width="400" src="{{ info_site.visit_image.url }}"
+          alt="{{ info_site.name }}"></p>
+  {% endif %}
+{% else %}
+  <p>Visiting information is not available.</p>
+{% endif %}
+
 </div>
 {% endblock %}

@@ -1,24 +1,49 @@
 {% extends 'base.html' %}
 
-{% block title %}Contact{% endblock %}
+{% block title %}Contact{% if info_site %} — {{ info_site.name }}{% endif %}{% endblock %}
 {% block block_title %}Contact{% endblock %}
 
 {% block content %}
 <div class="text-center">
 Please contact us if you would like more information.
 <br><br>
+{% comment %}
+  Guarded on street/city, not on formatted_address: country defaults to US and is
+  effectively always set, so formatted_address is never empty — a venue with no address
+  would print its name and "United States of America" and nothing else.
+{% endcomment %}
+{% if info_site.street or info_site.city %}
 <b>address:</b>
-120710, 1207 Tenth Street, Berkeley, CA 94710, USA
+{{ info_site.name }}, {{ info_site.formatted_address|linebreaksbr }}
 <br>
-<b>email:</b> <a href="mailto:info@120710.art">info@120710.art</a>
-<br>
-<b>phone:</b> <a href="tel:+1341-205-1331">341-205-1331</a>
+{% endif %}
+{% if info_site.email %}<b>email:</b> <a href="mailto:{{ info_site.email }}">{{ info_site.email }}</a><br>{% endif %}
+{% if info_site.phone %}<b>phone:</b> <a href="tel:{{ info_site.phone }}">{{ info_site.phone }}</a><br>{% endif %}
+
+{% if info_site.hours %}
 <h2>Gallery Hours</h2>
-Sun 1-4p or by Appt MWF 12-6p
+{{ info_site.hours }}
 <br>
+{% endif %}
+
+{% comment %}
+  The mailing list section is conditional on the list actually being configured. Per the
+  decision to leave subscribing alone for now: rather than link every venue at one shared
+  Mailchimp audience, a venue with no list simply does not advertise one.
+{% endcomment %}
+{% if mailing_list_enabled %}
 <h2>Mailing List</h2>
-<a href="https://www.120710.art/subscribe/">Upcoming shows mailing list signup</a>
+<a href="{% url 'subscribe' %}">Upcoming shows mailing list signup</a>
+{% endif %}
+
+{% if info_site.instagram %}
 <h2>Instagram</h2>
-<a href="https://www.instagram.com/120710.art/">@120710.art</a>
+<a href="https://www.instagram.com/{{ info_site.instagram|cut:'@' }}/">{{ info_site.instagram }}</a>
+{% endif %}
+
+{% if info_site.website %}
+<h2>Website</h2>
+<a href="{{ info_site.website }}" target="_blank" rel="noopener">{{ info_site.website }}</a>
+{% endif %}
 </div>
 {% endblock %}

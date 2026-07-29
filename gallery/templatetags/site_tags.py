@@ -17,6 +17,32 @@ _ALLOWED_TAGS = {
 _ALLOWED_ATTRS = {'a': {'href', 'title', 'target'}}
 
 
+# A second, wider allowlist for staff-authored site copy (Site.about, Site.visit_notes).
+# Deliberately not merged into _ALLOWED_TAGS: that one governs artist-editable bios and
+# statements, where <img> would permit tracking pixels and hotlinking from anyone with an
+# account. These fields are only editable through SiteForm, which is staff-only.
+_RICH_TAGS = _ALLOWED_TAGS | {
+    'h1', 'h2', 'h6', 'hr', 'img', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    'figure', 'figcaption', 'small', 'div',
+}
+_RICH_ATTRS = dict(_ALLOWED_ATTRS)
+_RICH_ATTRS['img'] = {'src', 'alt', 'width', 'height', 'loading'}
+_RICH_ATTRS['th'] = {'scope', 'colspan', 'rowspan'}
+_RICH_ATTRS['td'] = {'colspan', 'rowspan'}
+
+
+@register.filter
+def sanitize_rich(value):
+    """Render staff-authored site copy: the formatting subset plus headings, tables, images.
+
+    nh3 still strips event handlers and dangerous URL schemes, so the widening is about
+    which *elements* are permitted, not about trusting the input.
+    """
+    if not value:
+        return ''
+    return mark_safe(nh3.clean(str(value), tags=_RICH_TAGS, attributes=_RICH_ATTRS))
+
+
 @register.filter
 def sanitize(value):
     """Render user HTML safely: allow a small formatting subset, strip the rest."""

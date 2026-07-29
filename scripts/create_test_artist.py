@@ -6,7 +6,7 @@ Usage:
     python create_test_artist.py --email EMAIL [--password PASSWORD]
                                [--artist] [--curator]
                                [--first FIRST] [--last LAST]
-                               [--image IMAGE_PATH] [--zipcode ZIP]
+                               [--image IMAGE_PATH] [--zipcode ZIP] [--bio TEXT]
                                [--country ISO]
 
 Defaults to test@example.com / testpass123 if not provided.
@@ -22,6 +22,9 @@ Defaults to test@example.com / testpass123 if not provided.
                       makes a seeded artist able to submit: both are required before
                       submission, so an artist seeded without them is stuck at the
                       profile step (which is useful to seed on purpose).
+  --bio TEXT          Short artist bio. Worth setting: a show whose artists have no bio
+                      raises a "missing catalogue entries" warning on the Submissions
+                      page and prints a thinner checklist.
   --country ISO       Two-letter country code (default US). With the zip code this is
                       what decides whether a submission is flagged as outside a venue's
                       area, so seeding a non-local artist means setting both.
@@ -64,6 +67,7 @@ last_name  = _pop_flag_value(args, '--last')
 image_path = _pop_flag_value(args, '--image')
 zipcode    = _pop_flag_value(args, '--zipcode')
 country    = _pop_flag_value(args, '--country')
+bio        = _pop_flag_value(args, '--bio')
 make_curator = _pop_flag(args, '--curator')
 make_artist  = _pop_flag(args, '--artist') or make_curator
 
@@ -83,7 +87,7 @@ if make_artist:
     from accounts.signup import ensure_signup_profile
     from django.core.files import File
     artist, _ = ensure_signup_profile(user)
-    if artist and (first_name or last_name or zipcode or country):
+    if artist and (first_name or last_name or zipcode or country or bio):
         if first_name:
             artist.first_name = first_name
         if last_name:
@@ -92,8 +96,11 @@ if make_artist:
             artist.zipcode = zipcode
         if country:
             artist.country = country
+        if bio:
+            artist.bio = bio
         update = [f for f, v in (('first_name', first_name), ('last_name', last_name),
-                                 ('zipcode', zipcode), ('country', country)) if v]
+                                 ('zipcode', zipcode), ('country', country),
+                                 ('bio', bio)) if v]
         artist.save(update_fields=update)
     if image_path and artist:
         if not os.path.exists(image_path):

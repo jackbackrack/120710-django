@@ -78,7 +78,28 @@ $SITE --name "120710" \
       --lng -122.297147 \
       --image test_fixtures/site_images/120710.jpg \
       --icon test_fixtures/site_icons/120710.png \
+      --hours "Sun 1-4p or by Appt MWF 12-6p" \
+      --about-file test_fixtures/site_info/120710_about.html \
+      --visit-notes-file test_fixtures/site_info/120710_visit_notes.html \
+      --visit-image test_fixtures/site_info/120710_street_view.png \
       --status published
+
+echo "=== Creating link tree entries ==="
+
+# /links/ reads LinkTreeEntry rather than hard-coded buttons. A row with no site is
+# network-level and shows on every venue's page; reset.art is the network, so it has none.
+python manage.py shell -c "
+from gallery.models import Site, LinkTreeEntry
+
+site = Site.objects.get(slug='120710')
+for name, url, order, owner in [
+    ('120710.art', 'https://120710.art', 10, site),
+    ('reset.art', 'https://reset.art', 20, None),
+]:
+    LinkTreeEntry.objects.get_or_create(
+        url=url, defaults={'name': name, 'order': order, 'site': owner, 'is_active': True})
+print('Link tree entries:', LinkTreeEntry.objects.count())
+"
 
 echo "=== Creating room config and obstacles for 120710 ==="
 
@@ -153,26 +174,40 @@ print(f'Support catalog: {len(supports)} entries (3 pedestals, 2 shelves; {n_tex
 
 echo "=== Creating artists ==="
 
+
+# A bio for every artist with work in a show. Without one, the Submissions page raises a
+# "missing catalogue entries" warning and the printed checklist comes out thinner — both of
+# which appear in the how-to screenshots.
+#
+# Miguel Novelo, Laura Rokas, Dave Carter and Oliver Hawk are real artists who showed at
+# 120710, and these fixtures use their real photographs and works. Their bios therefore say
+# only what is true of the seeded data. Inventing biography for a named real person would be
+# a fabrication, and it would end up in published documentation looking authoritative.
 $ARTIST --email oliver@hawk.com --password b8 --curator \
-        --first Oliver --last Hawk --image test_fixtures/artist_images/oliver-hawk.jpg
+        --first Oliver --last Hawk --image test_fixtures/artist_images/oliver-hawk.jpg \
+        --bio "Oliver Hawk has shown work at 120710 and curated for the gallery."
 
 $ARTIST --email jonathan@bachrach.com --password b8 --curator \
         --first Jonathan --last Bachrach --image test_fixtures/artist_images/jrb-400.png
 
 $ARTIST --email miguel@novelo.com --password b8 --artist --zipcode 94710 \
-        --first Miguel --last Novelo --image test_fixtures/artist_images/miguel-novelo.jpg
+        --first Miguel --last Novelo --image test_fixtures/artist_images/miguel-novelo.jpg \
+        --bio "Miguel Novelo is one of the artists in the Feel-Full show at 120710."
 
 $ARTIST --email laura@rokas.com --password b8 --artist --zipcode 94710 \
-        --first Laura --last Rokas --image test_fixtures/artist_images/laura-rokas.jpg
+        --first Laura --last Rokas --image test_fixtures/artist_images/laura-rokas.jpg \
+        --bio "Laura Rokas is one of the artists in the Feel-Full show at 120710."
 
 $ARTIST --email dave@carter.com --password b8 --artist --zipcode 94710 \
-        --first Dave --last Carter --image test_fixtures/artist_images/dave-carter.jpg
+        --first Dave --last Carter --image test_fixtures/artist_images/dave-carter.jpg \
+        --bio "Dave Carter is one of the artists in the Feel-Full show at 120710."
 
 # Accounts positioned at each step of the submission flow, so every state can be
 # exercised without replaying signup. What blocks submission is a missing photo or
 # zip code, so those are what differ between them.
 $ARTIST --email ready@example.com --password b8 --artist \
         --first Sam --last Ready --zipcode 94710 \
+        --bio "Sam Ready is a seeded test account whose profile is complete enough to submit." \
         --image test_fixtures/artist_images/dave-carter.jpg
 
 $ARTIST --email nophoto@example.com --password b8 --artist \
@@ -183,10 +218,12 @@ $ARTIST --email newcomer@example.com --password b8 --artist \
 
 $ARTIST --email invited@example.com --password b8 --artist \
         --first Ivy --last Invited --zipcode 94710 \
+        --bio "Ivy Invited is a seeded test account for the invitation-only submission flow." \
         --image test_fixtures/artist_images/laura-rokas.jpg
 
 $ARTIST --email uninvited@example.com --password b8 --artist \
         --first Ursula --last Uninvited --zipcode 94710 \
+        --bio "Ursula Uninvited is a seeded test account for an artist without an invitation." \
         --image test_fixtures/artist_images/miguel-novelo.jpg
 
 # Artists outside the venue's catchment. Every show defaults to "local", so these are
@@ -196,11 +233,13 @@ $ARTIST --email uninvited@example.com --password b8 --artist \
 # curator and only the domestic one would pass a national-scope show.
 $ARTIST --email rowan@example.com --password b8 --artist \
         --first Rowan --last Ashby --zipcode 97205 --country US \
-        --image test_fixtures/artist_images/laura-rokas.jpg
+        --image test_fixtures/artist_images/laura-rokas.jpg \
+        --bio "Rowan Ashby is a watercolourist working out of a shared studio in northwest Portland, Oregon. Their work follows water — rivers, culverts, rain on glass — and how a city arranges itself around it. Invented for the seed data, and deliberately outside the Bay Area."
 
 $ARTIST --email neve@example.com --password b8 --artist \
         --first Neve --last Carlow --zipcode "EC1V 9BD" --country GB \
-        --image test_fixtures/artist_images/miguel-novelo.jpg
+        --image test_fixtures/artist_images/miguel-novelo.jpg \
+        --bio "Neve Carlow paints small oils of London at night from a flat in Clerkenwell, mostly of the half-hour after the offices empty. Invented for the seed data, and deliberately outside the United States."
 
 # Dedicated juror accounts for testing the jury workflow
 $ARTIST --email juror1@example.com --password b8 --artist \
