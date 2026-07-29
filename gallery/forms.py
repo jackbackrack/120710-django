@@ -551,6 +551,15 @@ def _make_support_formset(**kwargs):
 
 
 class SiteForm(UserAwareModelForm):
+    # The zone is filled in from the state on save when that settles it, so this select is
+    # for the venues it cannot: the split states, and anywhere outside the US. Built here
+    # rather than as model `choices` because 600 names in the field definition get copied
+    # into every migration that touches it.
+    def _timezone_choices(self):
+        from zoneinfo import available_timezones
+        return [('', '— derive from the state —')] + [
+            (name, name) for name in sorted(available_timezones())]
+
     class Meta:
         model = Site
         fields = (
@@ -571,6 +580,7 @@ class SiteForm(UserAwareModelForm):
             'about',
             'visit_notes',
             'visit_image',
+            'timezone',
             'image',
             'icon',
             'status',
@@ -580,6 +590,13 @@ class SiteForm(UserAwareModelForm):
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['timezone'] = forms.ChoiceField(
+            choices=self._timezone_choices(), required=False,
+            label=self.fields['timezone'].label,
+            help_text=self.fields['timezone'].help_text)
 
 
 class ArtworkSubmissionForm(forms.ModelForm):

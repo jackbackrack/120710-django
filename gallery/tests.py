@@ -17,6 +17,7 @@ from django.urls import reverse
 from accounts.roles import add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, ShowInvitation, Site
 from gallery.models import LinkTreeEntry
+from gallery import calendars
 from gallery import submission_area
 
 
@@ -5915,3 +5916,170 @@ class SitePublicInfoTests(TestCase):
                     self.assertEqual(self._page(page).status_code, 200, page)
             finally:
                 cp._DEFAULT_SITE_SLUG = original
+
+
+class CalendarTests(TestCase):
+    """The merged agenda and the iCalendar feed.
+
+    Weighted towards the things that are quietly wrong rather than obviously broken: the
+    exclusive DTEND, the time zone conversion, and what a public feed must not contain.
+    """
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            name='Cal Venue', status=Site.STATUS_PUBLISHED, state='CA', country='US',
+            street='1207 Tenth Street', city='Berkeley', postal_code='94710')
+        self.other_site = Site.objects.create(
+            name='Other Venue', status=Site.STATUS_PUBLISHED, state='NY', country='US')
+        self.show = Show.objects.create(
+            name='Summer Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 8, 1), end=datetime.date(2026, 8, 31))
+        self.show.sites.add(self.site)
+        self.event = Event.objects.create(
+            show=self.show, name='Opening Reception', date=datetime.date(2026, 8, 2),
+            start=datetime.time(18, 0), end=datetime.time(21, 0))
+
+    def _ics(self, site=None):
+        url = (reverse('gallery:site_shows_ics', kwargs={'site_slug': site.slug}) if site
+               else reverse('gallery:shows_ics'))
+        return self.client.get(url).content.decode()
+
+    # --- Time zone, derived and applied ---
+
+    def test_timezone_is_derived_from_an_unambiguous_state(self):
+        self.assertEqual(self.site.timezone, 'America/Los_Angeles')
+        self.assertEqual(self.other_site.timezone, 'America/New_York')
+
+    def test_timezone_is_left_blank_for_a_split_state(self):
+        """Florida is Eastern except the western panhandle. A guess would be an hour wrong."""
+        split = Site.objects.create(name='Panhandle', state='FL', country='US',
+                                    status=Site.STATUS_PUBLISHED)
+        self.assertEqual(split.timezone, '')
+
+    def test_an_explicit_timezone_survives_an_address_edit(self):
+        self.site.timezone = 'America/Phoenix'
+        self.site.save()
+        self.site.state = 'CA'
+        self.site.save()
+        self.site.refresh_from_db()
+        self.assertEqual(self.site.timezone, 'America/Phoenix')
+
+    def test_event_times_are_published_as_utc_instants(self):
+        """18:00 in Berkeley in August is PDT, so 01:00Z the following day."""
+        self.assertIn('DTSTART:20260803T010000Z', self._ics())
+        self.assertIn('DTEND:20260803T040000Z', self._ics())
+
+    def test_daylight_saving_is_applied_per_date(self):
+        """The same wall-clock time is a different instant in winter — hence zoneinfo."""
+        winter = Show.objects.create(
+            name='Winter Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2027, 1, 10), end=datetime.date(2027, 1, 20))
+        winter.sites.add(self.site)
+        Event.objects.create(show=winter, name='Winter Opening',
+                             date=datetime.date(2027, 1, 11),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        body = self._ics()
+        self.assertIn('DTSTART:20260803T010000Z', body)   # August, PDT (-7)
+        self.assertIn('DTSTART:20270112T020000Z', body)   # January, PST (-8)
+
+    # --- The exclusive DTEND ---
+
+    def test_all_day_show_end_is_exclusive(self):
+        """A show ending 31 Aug must publish DTEND 1 Sep, or clients draw it a day short."""
+        body = self._ics()
+        self.assertIn('DTSTART;VALUE=DATE:20260801', body)
+        self.assertIn('DTEND;VALUE=DATE:20260901', body)
+
+    def test_a_single_day_show_still_has_a_days_length(self):
+        one_day = Show.objects.create(
+            name='One Day', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 5), end=datetime.date(2026, 9, 5))
+        one_day.sites.add(self.site)
+        body = self._ics()
+        self.assertIn('DTSTART;VALUE=DATE:20260905', body)
+        self.assertIn('DTEND;VALUE=DATE:20260906', body)
+
+    # --- What a public feed must not leak ---
+
+    def test_unpublished_shows_are_absent_even_for_staff(self):
+        """The feed URL is unauthenticated and cacheable, so it must not vary by viewer."""
+        draft = Show.objects.create(
+            name='Secret Show', status=Show.STATUS_DRAFT,
+            start=datetime.date(2026, 8, 5), end=datetime.date(2026, 8, 20))
+        draft.sites.add(self.site)
+        staff = User.objects.create_user(username='s@e.com', email='s@e.com', password='p')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        body = self._ics()
+        self.assertNotIn('Secret Show', body)
+        self.assertIn('Summer Show', body)
+
+    def test_a_venues_feed_excludes_another_venues_shows(self):
+        theirs = Show.objects.create(
+            name='Their Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 8, 3), end=datetime.date(2026, 8, 9))
+        theirs.sites.add(self.other_site)
+        body = self._ics(site=self.site)
+        self.assertIn('Summer Show', body)
+        self.assertNotIn('Their Show', body)
+
+    # --- Serving it ---
+
+    def test_feed_is_served_as_a_subscribable_calendar(self):
+        response = self.client.get(reverse('gallery:shows_ics'))
+        self.assertEqual(response['Content-Type'], 'text/calendar; charset=utf-8')
+        # Not an attachment: most clients save a dead snapshot instead of subscribing.
+        self.assertNotIn('attachment', response['Content-Disposition'])
+
+    def test_feed_answers_304_when_nothing_has_changed(self):
+        first = self.client.get(reverse('gallery:shows_ics'))
+        self.assertEqual(first.status_code, 200)
+        again = self.client.get(reverse('gallery:shows_ics'),
+                                HTTP_IF_MODIFIED_SINCE=first['Last-Modified'])
+        self.assertEqual(again.status_code, 304)
+
+    def test_lines_are_folded_and_crlf_terminated(self):
+        self.show.name = 'A show with a deliberately very long name indeed ' * 3
+        self.show.save()
+        body = self._ics()
+        self.assertIn('\r\n', body)
+        for line in body.split('\r\n'):
+            self.assertLessEqual(len(line.encode('utf-8')), 75, line[:40])
+        # Folded continuations start with a single space, per RFC 5545.
+        self.assertTrue(any(l.startswith(' ') for l in body.split('\r\n')))
+
+    def test_uids_are_stable_across_regeneration(self):
+        """Unstable UIDs make every client poll create duplicates instead of updating."""
+        first = [l for l in self._ics().split('\r\n') if l.startswith('UID:')]
+        second = [l for l in self._ics().split('\r\n') if l.startswith('UID:')]
+        self.assertEqual(first, second)
+        self.assertIn(f'UID:show-{self.show.pk}@testserver', first)
+
+    # --- The agenda page ---
+
+    def test_calendar_page_lists_shows_and_their_events(self):
+        response = self.client.get(reverse('gallery:calendar'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Summer Show')
+        self.assertContains(response, 'Opening Reception')
+
+    def test_a_show_sorts_before_its_own_events_on_a_shared_date(self):
+        Event.objects.create(show=self.show, name='Same Day Talk',
+                             date=self.show.start,
+                             start=datetime.time(19, 0), end=datetime.time(20, 0))
+        entries = calendars.timeline()
+        first_two = [e.kind for e in entries if e.sort_date == self.show.start]
+        self.assertEqual(first_two[0], calendars.KIND_SHOW)
+
+    def test_scoped_calendar_page_names_the_venue(self):
+        response = self.client.get(
+            reverse('gallery:site_calendar', kwargs={'site_slug': self.site.slug}))
+        self.assertContains(response, f'Calendar at {self.site.name}')
+
+    def test_draft_venue_calendar_is_not_public(self):
+        draft = Site.objects.create(name='Draft Venue', status=Site.STATUS_DRAFT,
+                                    state='CA', country='US')
+        for name in ('site_calendar', 'site_shows_ics'):
+            response = self.client.get(
+                reverse(f'gallery:{name}', kwargs={'site_slug': draft.slug}))
+            self.assertEqual(response.status_code, 404, name)

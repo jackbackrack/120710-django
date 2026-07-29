@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Calendar{% if site %} — {{ site.name }}{% endif %}{% endblock %}
+{% block block_title %}Calendar{% if site %} at {{ site.name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px">
+
+{% comment %}
+  An agenda rather than a month grid, on purpose. Shows run for weeks, so a grid fills with
+  long bars that say little; the things that would use grid cells are the events, and there
+  are rarely enough of them on one page to need it. Month headings give the scanning a grid
+  would have provided.
+{% endcomment %}
+
+<p class="text-center" id="calendar-subscribe">
+  <a class="card__link" href="{{ feed_webcal }}">Subscribe to this calendar</a>
+  <span class="mx-2">·</span>
+  <a class="card__link" href="{{ feed_url }}">download .ics</a>
+</p>
+
+<div id="calendar-agenda">
+{% if upcoming_months %}
+  {% for month, entries in upcoming_months %}
+  <h2 class="mt-4">{{ month|date:"F Y" }}</h2>
+  <ul class="list-unstyled">
+    {% for entry in entries %}
+    <li class="mb-2 d-flex gap-3">
+      <span class="text-muted" style="min-width:7.5em;font-variant-numeric:tabular-nums">
+        {% if entry.is_show %}
+          {% if entry.spans_days %}{{ entry.sort_date|date:"j M" }}–{{ entry.end_date|date:"j M" }}{% else %}{{ entry.sort_date|date:"D j M" }}{% endif %}
+        {% else %}
+          {{ entry.sort_date|date:"D j M" }}
+        {% endif %}
+      </span>
+      <span>
+        <a class="card__link" href="{{ entry.url }}">{{ entry.name }}</a>
+        {% if entry.is_show %}
+          {% if entry.sort_date <= today and entry.end_date >= today %}<span class="badge bg-success">on now</span>{% endif %}
+        {% else %}
+          <span class="text-muted">· {{ entry.obj.time_range }}</span>
+          <br><span class="text-muted small">{{ entry.obj.show.name }}</span>
+        {% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+{% else %}
+  <p class="text-center text-muted">Nothing scheduled yet.</p>
+{% endif %}
+</div>
+
+{% if past_months %}
+<details class="mt-5" id="calendar-past">
+  <summary class="card__link" style="cursor:pointer">Past ({{ past_count }})</summary>
+  {% for month, entries in past_months %}
+  <h2 class="mt-4">{{ month|date:"F Y" }}</h2>
+  <ul class="list-unstyled">
+    {% for entry in entries %}
+    <li class="mb-2 d-flex gap-3">
+      <span class="text-muted" style="min-width:7.5em;font-variant-numeric:tabular-nums">
+        {% if entry.is_show and entry.spans_days %}{{ entry.sort_date|date:"j M" }}–{{ entry.end_date|date:"j M" }}{% else %}{{ entry.sort_date|date:"D j M" }}{% endif %}
+      </span>
+      <span>
+        <a class="card__link" href="{{ entry.url }}">{{ entry.name }}</a>
+        {% if not entry.is_show %}<br><span class="text-muted small">{{ entry.obj.show.name }}</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+</details>
+{% endif %}
+
+</div>
+{% endblock %}

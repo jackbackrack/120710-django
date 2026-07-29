@@ -545,6 +545,34 @@ for email in ['invited@example.com', 'ready@example.com']:
 print('uninvited@example.com deliberately NOT invited — use it to test the block')
 "
 
+echo "=== Creating events (openings and talks) ==="
+
+# The calendar merges shows with their events, and with no Event rows the page and the .ics
+# feed only ever showed date ranges — the timed half, which is also the part that has to be
+# converted through the venue's time zone, went unexercised.
+python manage.py shell -c "
+import datetime as dt
+from gallery.models import Event, Show
+
+for slug, offsets in [('feel-full', [(2, 'Opening Reception', 18, 21),
+                                     (16, 'Artist Talk', 19, 20)]),
+                      ('$PAST_SHOW_SLUG', [(1, 'Opening Reception', 18, 21)])]:
+    show = Show.objects.filter(slug=slug).first()
+    if show is None or show.start is None:
+        continue
+    for days, name, start_hour, end_hour in offsets:
+        date = show.start + dt.timedelta(days=days)
+        if show.end and date > show.end:
+            date = show.end
+        Event.objects.get_or_create(
+            show=show, name=name,
+            defaults={'date': date,
+                      'start': dt.time(start_hour, 0),
+                      'end': dt.time(end_hour, 0),
+                      'description': f'{name} for {show.name}.'})
+print('Events:', Event.objects.count())
+"
+
 echo "=== Setting up collectors and pinned artworks ==="
 
 python manage.py shell -c "

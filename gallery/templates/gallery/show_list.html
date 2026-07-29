@@ -6,6 +6,11 @@
   <a class="card__link new-button" href="{% url 'gallery:show_new' %}">New</a>
 {% endif %}
 <button class="ss-status-btn" data-ss-first-cards type="button">Slideshow</button>
+{% comment %}
+  The shows page groups by current/upcoming/past; the calendar puts shows and their events
+  on one dated timeline, which is the view that answers "what is happening when".
+{% endcomment %}
+<a class="card__link" href="{% if site %}{% url 'gallery:site_calendar' site.slug %}{% else %}{% url 'gallery:calendar' %}{% endif %}">Calendar</a>
 {% endblock block_title %}
 
 {% block content %}

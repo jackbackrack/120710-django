@@ -308,6 +308,40 @@ it the deployed pages would come back blank, since at that point the content exi
 git history. Every write is guarded on the field being empty, so it is safe to re-run and
 will not overwrite anything edited through the site form afterwards.
 
+**The shows calendar and its feed** (2026-07-29). `/calendar/` merges shows and their events
+onto one dated timeline, and `/shows.ics` publishes it as a subscribable calendar. Both take
+the same optional site scope as the listings — `/site/<slug>/calendar/`,
+`/site/<slug>/shows.ics` — so a venue's feed carries only its own shows.
+
+The decision that mattered was `Site.timezone`. `Event.date`/`start`/`end` are naive fields
+and `TIME_ZONE` is `UTC`, so nothing in the database said where "6pm" *is*. That is harmless
+while every page renders it verbatim to local readers, and wrong the moment a feed publishes
+an instant — 18:00 emitted as UTC lands at 11am in Berkeley. So the venue's zone is stored,
+derived from the state on save, and events are converted to UTC instants through it. No
+`VTIMEZONE` block needed, and a subscriber in New York sees a 6pm Berkeley opening at 9pm.
+
+Derivation covers US states that lie wholly in one zone. The split states — FL, IN, KY, TN,
+TX, KS, NE, ND, SD, ID, OR, NV, MI, AK — are deliberately left blank rather than guessed,
+because a venue in Pensacola is Central while the rest of Florida is Eastern, and being
+quietly an hour wrong in a published feed is worse than asking. The ZIP code was considered
+as the key and rejected: ZIPs cross county and occasionally state lines, PO-box ZIPs have no
+geography, and the Census data already cached for the submission catchment carries centroids
+but no zones. Latitude and longitude would settle it exactly, but only with tens of megabytes
+of timezone-boundary polygons — too much to answer a question a dropdown answers for the
+handful of venues the state cannot.
+
+An agenda rather than a month grid: shows run for weeks, so a grid fills with long bars that
+say little, and the entries that would use grid cells are the events, which are rarely dense
+enough on one page to need it.
+
+Feed details worth not relearning: `DTEND` is *exclusive* for all-day events, so a show
+ending 31 August publishes 1 September; UIDs are stable (`show-<pk>@domain`) or every client
+poll creates duplicates instead of updating; lines fold at 75 octets, and an unfolded long
+`SUMMARY` makes some clients drop the whole event; the response is `inline`, not an
+attachment, because most clients save a dead snapshot instead of subscribing when told to
+download; and it is generated as the anonymous public sees it regardless of who is signed
+in, since the URL is shared and cacheable.
+
 ## Cutover order
 
 1. Make `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` env-driven; add reset.art in Railway with

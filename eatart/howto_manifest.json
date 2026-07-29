@@ -951,6 +951,32 @@
       "width": 388
     }
   },
+  "shows-calendar": {
+    "1": {
+      "bytes": 12548,
+      "height": 26,
+      "key": "shows-calendar/01.85193bcd0710.webp",
+      "width": 1084
+    },
+    "2": {
+      "bytes": 81972,
+      "height": 270,
+      "key": "shows-calendar/02.a418bda6fe13.webp",
+      "width": 736
+    },
+    "3": {
+      "bytes": 48452,
+      "height": 155,
+      "key": "shows-calendar/03.511eba22cdd6.webp",
+      "width": 736
+    },
+    "4": {
+      "bytes": 10572,
+      "height": 24,
+      "key": "shows-calendar/04.366c0b902c33.webp",
+      "width": 736
+    }
+  },
   "submit-artwork": {
     "10": {
       "bytes": 2640,

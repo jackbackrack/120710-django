@@ -391,6 +391,23 @@ HOW_TO_GUIDES = [
         ],
     },
     {
+        'title': 'How to use the shows calendar and subscribe to it',
+        'anchor': 'shows-calendar',
+        'summary': 'See shows and events on one timeline, and subscribe so they appear in your own calendar.',
+        # roles=None is "everyone, signed in or not" — a visitor subscribing to the
+        # calendar is the main audience, and staff need the same steps.
+        'roles': None,
+        'steps': [
+            'Click Shows in the navigation, then Calendar at the top of the page. The calendar is also at /calendar/ directly.',
+            'Shows and events appear together on one timeline, grouped by month. A show spans a range of dates \u2014 "12 Sep\u201312 Oct" \u2014 while an event shows the day and its times, with the show it belongs to underneath. A show running today is marked "on now".',
+            'Past shows and events are collected behind the "Past" toggle at the bottom. Click it to expand them.',
+            'Click "Subscribe to this calendar" to add it to Apple Calendar, Outlook, Google Calendar or anything else that reads calendar subscriptions. Your calendar will then check for changes on its own \u2014 new shows and events appear without you doing anything.',
+            'Use "download .ics" instead if you want a one-off snapshot rather than a live subscription. A downloaded file does not update when the gallery adds a show.',
+            'A note on Google Calendar: it caches subscriptions for a long time, sometimes many hours, so a change made today may not appear there until tomorrow. Apple Calendar and Outlook refresh more often. This is Google\u2019s behaviour and there is nothing the gallery can change about it.',
+            'To follow just one venue, open that venue from Sites and use its own Calendar link. Its feed contains only that venue\u2019s shows.',
+        ],
+    },
+    {
         'title': 'How to browse sites and use the site map',
         'summary': 'Find gallery locations on a map and browse the shows, artists and work at each one.',
         'roles': None,
@@ -413,6 +430,7 @@ HOW_TO_GUIDES = [
             'Click New Site to open the site creation form.',
             'Enter the site name, address fields (street, city, state, postal code, country), description, contact details, and optionally a hero image and an icon (small logo shown in the nav bar and site cards). The country matters beyond the address: a show that accepts work from anywhere in the country compares an artist\u2019s country against this one.',
             'Fill in the public information pages while you are here: Opening hours, About (the venue\u2019s Info page \u2014 mission, story, people), Getting here (parking and transit), and a Visit photo. These are what /site/<slug>/about/, /visit/, /contact/ and /links/ show for this venue. Anything left blank is simply left out of the page rather than borrowed from another venue \u2014 except About, which falls back to the description.',
+            'Check the Time zone. It is filled in from the state for a US venue that lies in one time zone, and left blank when the state cannot settle it \u2014 Florida, Indiana, Texas and the like, or anywhere outside the US. Set it by hand in that case, because it is what makes event times correct for anyone subscribed to the calendar feed.',
             'Optionally fill in "Local area name" and "Local postal codes" to define the area this venue draws artists from. Shows at this venue then flag submissions from outside it. Leave both blank to switch that off. See "How to flag submissions from outside your area" for the command that generates the postal code list.',
             'To set the map coordinates automatically, fill in at least the street address or city, then click "Look up coordinates from address". The latitude and longitude fields are filled from the OpenStreetMap geocoder — review the matched address shown beneath the button before saving.',
             'If geocoding fails or returns the wrong location, enter the latitude and longitude values manually.',
@@ -880,6 +898,7 @@ ROLE_DOCUMENTATION = {
                     {'name': 'about', 'input_type': 'multi-line text area', 'purpose': 'The venue\u2019s Info page \u2014 mission, story, people. Accepts formatting, headings, tables and images. Falls back to the description if left blank.'},
                     {'name': 'visit_notes', 'input_type': 'multi-line text area', 'purpose': 'Parking, transit and directions, shown on the Visit page below the address. Accepts formatting.'},
                     {'name': 'visit_image', 'input_type': 'file upload', 'purpose': 'A street view or storefront photo for the Visit page.'},
+                    {'name': 'timezone', 'input_type': 'dropdown select', 'purpose': 'The venue\u2019s local time zone, used to publish event times correctly in the calendar feed. Filled in automatically from the state for US venues in a single time zone; choose it by hand for a venue in a split state (Florida, Indiana, Texas and the like) or outside the US.'},
                     {'name': 'image', 'input_type': 'file upload', 'purpose': 'Hero image shown on the site card and detail page.'},
                     {'name': 'icon', 'input_type': 'file upload', 'purpose': 'Small logo or icon (ideally square, at least 32 × 32 px) shown in the navbar and site list cards when browsing within that site.'},
                     {'name': 'status', 'input_type': 'dropdown select', 'purpose': 'Draft — site is hidden from public visitors. Published — site is visible to everyone and appears on the map.'},

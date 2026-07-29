@@ -455,6 +455,11 @@ def _reset_capture_account():
     Artist.objects.filter(email__iexact=CAPTURE_EMAIL).delete()
 
 
+def _no_setup():
+    """The default reset/prepare/cleanup: a guide that only reads existing pages."""
+    return {}
+
+
 def _db(fn, *args):
     """Run an ORM call from inside a running capture script.
 
@@ -1793,6 +1798,38 @@ def capture_create_show(rec, facts):
     # Step 9 is saving, and what the curator does next.
 
 
+# ── shows-calendar ───────────────────────────────────────────────────────────
+
+def capture_shows_calendar(rec, facts):
+    """The agenda and the subscribe links. Signed out, which is the main audience."""
+    # Step 1 — "Click Shows in the navigation, then Calendar at the top of the page."
+    # The whole status bar, not just the link: cropped to the <a> this was 170x16 px of
+    # the word Calendar, which does not tell anyone where to find it.
+    rec.at_step(1)
+    rec.goto('/shows/')
+    rec.shot_region(1, '#status-bar')
+
+    # Step 2 — "Shows and events appear together on one timeline, grouped by month."
+    rec.at_step(2)
+    rec.click('click Calendar', rec.page.get_by_role('link', name='Calendar').first)
+    rec.expect_text('see the calendar', 'Subscribe to this calendar')
+    rec.shot_region(2, '#calendar-agenda')
+
+    # Step 3 — "Past shows and events are collected behind the 'Past' toggle."
+    # Opened first: collapsed, the <details> is one line and the step is about what is
+    # inside it.
+    rec.at_step(3)
+    rec.click('open the Past toggle', rec.page.locator('#calendar-past summary'))
+    rec.shot_region(3, '#calendar-past')
+
+    # Step 4 — "Click 'Subscribe to this calendar'."
+    rec.at_step(4)
+    rec.shot_region(4, '#calendar-subscribe')
+
+    # Steps 5-7 are the difference between subscribing and downloading, Google's caching,
+    # and following one venue — none of which is a screen of its own.
+
+
 # ── out-of-area-submissions ──────────────────────────────────────────────────
 
 OUT_OF_AREA_ARTISTS = [
@@ -2689,6 +2726,11 @@ CAPTURE_SCRIPTS = {
         'reset': _reset_capture_account,
         'cleanup': _reset_capture_account,
     },
+    'shows-calendar': {
+        'run': capture_shows_calendar,
+        # 5 is download-vs-subscribe, 6 is Google's cache, 7 is a venue's own feed.
+        'prose_only': {5, 6, 7},
+    },
     'out-of-area-submissions': {
         'prepare': prepare_out_of_area,
         'run': capture_out_of_area,
@@ -3003,8 +3045,11 @@ class Command(BaseCommand):
             # guide, so even this per-guide setup is inside an async context as far as
             # Django is concerned. Reset and prepare must still run per guide rather than
             # all up front — each one creates an account at the same CAPTURE_EMAIL.
-            _db(script['reset'])
-            facts = _db(script['prepare'])
+            # reset/prepare/cleanup are optional: a guide that only reads seeded pages —
+            # the calendar, say — has nothing to set up, and requiring three no-op lambdas
+            # to say so is boilerplate that invites copy-paste mistakes.
+            _db(script.get('reset', _no_setup))
+            facts = _db(script.get('prepare', _no_setup)) or {}
             context = browser.new_context(
                 viewport={'width': opts['width'], 'height': opts['height']},
                 # Rendered at 1:1 on the help page, so this is spare resolution for
@@ -3031,7 +3076,7 @@ class Command(BaseCommand):
             if opts['keep']:
                 self.stdout.write(f'  --keep: left {CAPTURE_EMAIL} in the database.')
             else:
-                _db(script['cleanup'])
+                _db(script.get('cleanup', _no_setup))
 
         self._report(guide, script, rec)
         return {'key': key, 'guide': guide, 'script': script, 'rec': rec, 'error': None}

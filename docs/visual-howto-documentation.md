@@ -1,6 +1,6 @@
 # Visual how-to documentation
 
-**Status: 27 of 31 guides captured** — 157 screenshots, ~12 MB on S3, ~25 KB of manifest
+**Status: 28 of 32 guides captured** — 162 screenshots, ~12 MB on S3, ~25 KB of manifest
 in git. The whole artist path is illustrated (sign up → complete profile → add artworks →
 submit, that last one for every reader signed in or not), plus pinning, buying and the
 card-size control, and now the jury cluster: jurying a show, the review slideshow and the
@@ -9,7 +9,8 @@ invitation-only show end to end, the open-call equivalent, the show lifecycle an
 art site shows, and the staff setup cluster (creating a show, creating and managing
 venues, configuring a venue's room, and linking an artist profile to an account),
 the install/pickup scheduling pair, recording artwork ownership, claiming an existing
-artist profile, layout snapshots, out-of-area submission flagging, and both generated
+artist profile, layout snapshots, out-of-area submission flagging, the shows calendar,
+and both generated
 PDFs. Only four remain, and all four are deliberate: the layout editor's canvas
 drag-and-drop, the WebGL 3D view, the site map's live OpenStreetMap tiles, and the
 command-line guide for this system itself. Plan agreed 2026-07-28.

@@ -1,3 +1,6 @@
+from zoneinfo import available_timezones
+
+from django.core.exceptions import ValidationError
 from django.db import models
 from django_countries.fields import CountryField
 from django.urls import reverse
@@ -5,6 +8,62 @@ from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit, Transpose
 
 from gallery.models.slugs import build_unique_slug
+
+
+def validate_timezone(value):
+    """An IANA zone name, e.g. America/Los_Angeles."""
+    if value and value not in available_timezones():
+        raise ValidationError(
+            f'{value!r} is not an IANA time zone name (e.g. America/Los_Angeles).')
+
+
+# US states that lie wholly in one zone, so the venue's address answers the question and
+# nobody has to. Deliberately incomplete: the split states — FL, IN, KY, TN, TX, KS, NE, ND,
+# SD, ID, OR, NV, MI, AK — are left out rather than guessed at, because a venue in Pensacola
+# is Central while the rest of Florida is Eastern, and being quietly an hour wrong in a
+# published calendar feed is worse than asking. Those fall back to the dropdown.
+_STATE_TIMEZONES = {
+    'America/Los_Angeles': ['CA', 'WA'],
+    'America/Denver': ['CO', 'MT', 'NM', 'UT', 'WY'],
+    'America/Phoenix': ['AZ'],
+    'America/Chicago': ['AL', 'AR', 'IA', 'IL', 'LA', 'MN', 'MS', 'MO', 'OK', 'WI'],
+    'America/New_York': ['CT', 'DC', 'DE', 'GA', 'MA', 'MD', 'ME', 'NC', 'NH', 'NJ', 'NY',
+                         'OH', 'PA', 'RI', 'SC', 'VA', 'VT', 'WV'],
+    'Pacific/Honolulu': ['HI'],
+}
+_STATE_TO_TIMEZONE = {
+    state: zone for zone, states in _STATE_TIMEZONES.items() for state in states
+}
+
+# Full state names too, since the field is free text and people type either.
+_STATE_NAMES = {
+    'california': 'CA', 'washington': 'WA', 'colorado': 'CO', 'montana': 'MT',
+    'new mexico': 'NM', 'utah': 'UT', 'wyoming': 'WY', 'arizona': 'AZ',
+    'alabama': 'AL', 'arkansas': 'AR', 'iowa': 'IA', 'illinois': 'IL',
+    'louisiana': 'LA', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+    'oklahoma': 'OK', 'wisconsin': 'WI', 'connecticut': 'CT', 'delaware': 'DE',
+    'georgia': 'GA', 'massachusetts': 'MA', 'maryland': 'MD', 'maine': 'ME',
+    'north carolina': 'NC', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new york': 'NY',
+    'ohio': 'OH', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+    'virginia': 'VA', 'vermont': 'VT', 'west virginia': 'WV', 'hawaii': 'HI',
+}
+
+
+def timezone_from_address(state, country):
+    """The venue's zone derived from its address, or '' when the address cannot settle it.
+
+    Only US states, and only the ones that lie in a single zone. The ZIP code is a worse key
+    than the state for this: ZIPs cross county and occasionally state lines, PO-box ZIPs have
+    no geography at all, and the Census data already cached for the submission catchment
+    carries centroids but no zones. Latitude and longitude *would* settle it exactly, but
+    only with a timezone-boundary dataset — tens of megabytes of polygons to answer a
+    question a dropdown answers for the handful of venues that need it.
+    """
+    if str(country or '') != 'US':
+        return ''
+    text = (state or '').strip()
+    code = text.upper() if len(text) == 2 else _STATE_NAMES.get(text.lower(), '')
+    return _STATE_TO_TIMEZONE.get(code, '')
 
 
 class Site(models.Model):
@@ -72,6 +131,19 @@ class Site(models.Model):
         max_length=120, blank=True, default='',
         verbose_name='Local area name',
         help_text='How the area is described to a curator, e.g. "Bay Area (9 counties)".')
+    # The venue's wall-clock zone. Event.date/start/end are naive fields — a 6pm opening is
+    # stored as 18:00 with no zone — and TIME_ZONE is UTC, so nothing in the database says
+    # where 6pm *is*. That is harmless while every page renders it verbatim to local
+    # readers, and wrong the moment a calendar feed publishes an instant: without this,
+    # 18:00 published as UTC shows up as 11am in Berkeley. Validated rather than given
+    # `choices`, because 600 zone names in the field definition would be copied into every
+    # migration that touches it; the form supplies the dropdown instead.
+    timezone = models.CharField(
+        max_length=64, blank=True, default='', validators=[validate_timezone],
+        verbose_name='Time zone',
+        help_text='IANA name for the venue\u2019s local time, e.g. America/Los_Angeles. '
+                  'Used to publish event times correctly in the calendar feed. Filled in '
+                  'from the state when that settles it; set it by hand otherwise.')
     latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -92,6 +164,11 @@ class Site(models.Model):
 
     def save(self, *args, **kwargs):
         self.slug = build_unique_slug(self, self.name)
+        # Derived only when unset, so an explicit choice is never overwritten by an address
+        # edit. Blank stays blank when the address cannot settle it — the feed falls back to
+        # the gallery's own zone and the form asks.
+        if not self.timezone:
+            self.timezone = timezone_from_address(self.state, self.country)
         super().save(*args, **kwargs)
 
     def __str__(self):

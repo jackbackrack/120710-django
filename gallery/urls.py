@@ -4,6 +4,7 @@ from gallery.views.placards import placard_html, placard_json, placard_json_for_
 from gallery.views.checklist import show_checklist_html, show_checklist_pdf
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer, room_camera_save, room_2d, save_support_to_catalog, layout_snapshots, restore_layout_snapshot, delete_layout_snapshot
+from gallery.views.calendars import calendar_view, shows_ics
 from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker, schedule_ics
 from gallery.views import (
     artwork_autocomplete,
@@ -182,6 +183,12 @@ urlpatterns = [
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ShowDetailView.as_view(), name='site_show_detail'),
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artist/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ArtistDetailView.as_view(), name='site_artist_detail'),
     re_path(r'^site/(?P<site_slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artwork/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/$', ArtworkDetailView.as_view(), name='site_artwork_detail'),
+    # One timeline of shows and events, and the feed of it. Scoped the same way the
+    # listings are: no prefix is the network, /site/<slug>/ is one venue.
+    path('calendar/', calendar_view, name='calendar'),
+    path('site/<slug:site_slug>/calendar/', calendar_view, name='site_calendar'),
+    path('shows.ics', shows_ics, name='shows_ics'),
+    path('site/<slug:site_slug>/shows.ics', shows_ics, name='site_shows_ics'),
     path('events/', EventListView.as_view(), name='event_list'),
     path('event/<int:pk>/', EventDetailView.as_view(), name='event_detail'),
     path('event/<int:pk>/edit/', EventUpdateView.as_view(), name='event_edit'),
