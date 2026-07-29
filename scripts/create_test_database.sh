@@ -70,7 +70,7 @@ $SITE --name "120710" \
       --city "Berkeley" \
       --state "CA" \
       --postal-code "94710" \
-      --country "USA" \
+      --country "US" \
       --email "info@120710.art" \
       --instagram "@120710.art" \
       --website "https://www.120710.art" \
@@ -189,6 +189,19 @@ $ARTIST --email uninvited@example.com --password b8 --artist \
         --first Ursula --last Uninvited --zipcode 94710 \
         --image test_fixtures/artist_images/miguel-novelo.jpg
 
+# Artists outside the venue's catchment. Every show defaults to "local", so these are
+# what makes the out-of-area flag on the Submissions page visible in seeded data — with
+# every artist at 94710 the feature is invisible and its screenshots have nothing in
+# them. One is domestic but far away, one is abroad, because those read differently to a
+# curator and only the domestic one would pass a national-scope show.
+$ARTIST --email rowan@example.com --password b8 --artist \
+        --first Rowan --last Ashby --zipcode 97205 --country US \
+        --image test_fixtures/artist_images/laura-rokas.jpg
+
+$ARTIST --email neve@example.com --password b8 --artist \
+        --first Neve --last Carlow --zipcode "EC1V 9BD" --country GB \
+        --image test_fixtures/artist_images/miguel-novelo.jpg
+
 # Dedicated juror accounts for testing the jury workflow
 $ARTIST --email juror1@example.com --password b8 --artist \
         --first Alice --last Juror
@@ -263,6 +276,16 @@ $SHOW --name "Feel-Full" \
       --site 120710 \
       --status published
 
+echo "=== Setting 120710's local area (Bay Area) ==="
+
+# Without this every show at the venue has nothing to compare an artist against, so the
+# out-of-area flag never appears and the seeded non-local artists below look local.
+# --from-file rather than --counties so seeding needs no network; see the file's header
+# for the command that generated it.
+python manage.py set_site_catchment 120710 \
+       --from-file test_fixtures/bay_area_zipcodes.txt \
+       --label "Bay Area (9 counties)"
+
 echo "=== Creating artworks ==="
 
 $ARTWORK --email oliver@hawk.com --name "Oliver" \
@@ -309,6 +332,19 @@ $ARTWORK --email laura@rokas.com --name "Quilt (Feel-Full)" \
 $ARTWORK --email miguel@novelo.com --name "Rock Worship (Feel-Full)" \
          --year 2025 --width 18 --height 24 \
          --medium "Mixed media" \
+         --show feel-full \
+         --image test_fixtures/piece_images/miguel-rock_small.jpg
+
+# Submissions from outside the area, so the Submissions page has something to flag.
+$ARTWORK --email rowan@example.com --name "Cascade Study" \
+         --year 2025 --width 14 --height 18 \
+         --medium "Watercolour on paper" \
+         --show feel-full \
+         --image test_fixtures/piece_images/IMG_2448_-_David_Carter.jpeg
+
+$ARTWORK --email neve@example.com --name "Clerkenwell Nocturne" \
+         --year 2025 --width 16 --height 20 \
+         --medium "Oil on board" \
          --show feel-full \
          --image test_fixtures/piece_images/miguel-rock_small.jpg
 

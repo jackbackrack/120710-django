@@ -67,10 +67,27 @@
 {% endif %}
 
 {% if submissions %}
-<div class="d-flex gap-4 mb-3 justify-content-center align-items-center">
+<div id="submission-counts" class="d-flex gap-4 mb-3 justify-content-center align-items-center">
   <span><strong>{{ n_undecided }}</strong> undecided</span>
   <span class="text-success"><strong>{{ n_selected }}</strong> selected</span>
   <span class="text-danger"><strong>{{ n_rejected }}</strong> rejected</span>
+  {% if n_out_of_area %}
+  {% comment %}
+    A filter, not just a count. On a large open call the useful move is: narrow to the
+    out-of-area ones, select them all, and move them in one action — which the existing
+    bulk bar already supports.
+  {% endcomment %}
+  <span>&middot;</span>
+  <span><a class="card__link" href="?{% if area_filter == 'out' %}{% else %}area=out{% endif %}" title="{{ area_scope_label }}"><strong>{{ n_out_of_area }}</strong> outside area{% if area_filter == 'out' %} &times;{% endif %}</a></span>
+  {% endif %}
+  {% comment %}
+    Separate from the count above, because "we cannot tell" is a different problem from
+    "they are elsewhere" — it usually means a profile predating the postal code field,
+    and the answer is to ask the artist rather than to reject them.
+  {% endcomment %}
+  {% if n_unplaced %}
+  <span><a class="card__link" href="?{% if area_filter == 'unknown' %}{% else %}area=unknown{% endif %}"><strong>{{ n_unplaced }}</strong> location not given{% if area_filter == 'unknown' %} &times;{% endif %}</a></span>
+  {% endif %}
   {% if n_withdrawn %}<span class="text-secondary"><strong>{{ n_withdrawn }}</strong> withdrawn</span>{% endif %}
   <span class="text-muted">{{ submissions|length }} total</span>
 </div>

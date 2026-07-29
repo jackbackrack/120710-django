@@ -12,7 +12,11 @@ def _site_location(show):
     site = show.sites.first()
     if not site:
         return ''
-    parts = [site.street, site.city, site.state, site.postal_code, site.country]
+    # .name, not the field: Site.country is a CountryField, which is not a string and
+    # stringifies to a two-letter code. This goes into a calendar invite, where an
+    # address ending in "US" reads like a bug.
+    country = site.country.name if site.country else ''
+    parts = [site.street, site.city, site.state, site.postal_code, country]
     return ', '.join([p for p in parts if p]) or site.name
 
 

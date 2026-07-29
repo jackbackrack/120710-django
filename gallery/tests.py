@@ -8,12 +8,15 @@ import tempfile
 from django.contrib.auth.models import Group, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.roles import add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, ShowInvitation, Site
+from gallery import submission_area
 
 
 def _make_test_image_dir():
@@ -2441,6 +2444,7 @@ class OpenCallFlowTests(MediaImageMixin, TestCase):
             'end': self.show.end,
             'status': Show.STATUS_PUBLISHED,
             'submission_type': Show.SUBMISSION_OPEN,
+            'submission_scope': Show.SCOPE_LOCAL,
             'submission_deadline': self.show.submission_deadline,
             'curators': [self.curator_artist.pk],
             'tags': [],
@@ -3929,13 +3933,14 @@ class SiteFeatureTests(TestCase):
             'city': 'Berkeley',
             'state': 'CA',
             'postal_code': '94710',
-            'country': 'USA',
+            'country': 'US',
             'email': '',
             'phone': '',
             'instagram': '',
             'website': '',
             'description': '',
             'status': Site.STATUS_DRAFT,
+            'country': 'US',
             'latitude': '',
             'longitude': '',
             # Room dimensions (RoomConfigMixin form) are required to save.
@@ -3970,7 +3975,7 @@ class SiteFeatureTests(TestCase):
                 self.client.force_login(self.staff_user)
                 self.client.post(reverse('gallery:site_new'), {
                     'name': 'Texture Site', 'street': '', 'city': '', 'state': '',
-                    'postal_code': '', 'country': 'USA', 'email': '', 'phone': '',
+                    'postal_code': '', 'country': 'US', 'email': '', 'phone': '',
                     'instagram': '', 'website': '', 'description': '',
                     'status': Site.STATUS_DRAFT, 'latitude': '', 'longitude': '',
                     'width_in': '384', 'depth_in': '576', 'height_in': '120',
@@ -3996,7 +4001,7 @@ class SiteFeatureTests(TestCase):
         self.client.force_login(self.staff_user)
         self.client.post(reverse('gallery:site_edit', kwargs={'slug': self.published_site.slug}), {
             'name': self.published_site.name, 'street': '', 'city': '', 'state': '',
-            'postal_code': '', 'country': 'USA', 'email': '', 'phone': '',
+            'postal_code': '', 'country': 'US', 'email': '', 'phone': '',
             'instagram': '', 'website': '', 'description': '',
             'status': Site.STATUS_PUBLISHED, 'latitude': '', 'longitude': '',
             'width_in': '384', 'depth_in': '576', 'height_in': '120',
@@ -5452,3 +5457,226 @@ class ArtworkLayoutImageTests(TestCase):
     def test_form_includes_layout_image(self):
         from gallery.forms import ArtworkForm
         self.assertIn('layout_image', ArtworkForm.base_fields)
+
+
+class SubmissionAreaTests(TestCase):
+    """Flagging submissions from outside the show's allowed area.
+
+    The check never blocks a submission — every assertion here is about what the curator
+    is told, not about what an artist is allowed to do.
+    """
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            name='Area Test Venue', country='US',
+            submission_zipcodes='94710 94702\n94110, 94609',
+            submission_area_label='Bay Area',
+        )
+        self.show = Show.objects.create(
+            name='Area Test Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=30),
+            submission_type=Show.SUBMISSION_OPEN,
+            status=Show.STATUS_OPEN_CALL,
+        )
+        self.show.sites.add(self.site)
+
+    def _artist(self, **kwargs):
+        fields = dict(name='A', first_name='A', last_name='B', email='a@example.com', phone='')
+        fields.update(kwargs)
+        return Artist.objects.create(**fields)
+
+    # --- Parsing ---
+
+    def test_catchment_accepts_spaces_commas_and_newlines(self):
+        codes, label = submission_area.site_catchment(self.show)
+        self.assertEqual(codes, {'94710', '94702', '94110', '94609'})
+        self.assertEqual(label, 'Bay Area')
+
+    def test_notes_in_the_catchment_are_not_treated_as_postal_codes(self):
+        self.site.submission_zipcodes = '94710  # dropped 94132, wrong side of the bay'
+        self.site.save()
+        codes, _ = submission_area.site_catchment(self.show)
+        self.assertEqual(codes, {'94710'})
+
+    def test_zip_plus_four_matches_its_five_digit_code(self):
+        artist = self._artist(country='US', zipcode='94710-1234')
+        self.assertEqual(submission_area.check_artist(self.show, artist),
+                         submission_area.IN_AREA)
+
+    # --- Local scope ---
+
+    def test_local_artist_is_in_area(self):
+        artist = self._artist(country='US', zipcode='94702')
+        self.assertEqual(submission_area.check_artist(self.show, artist),
+                         submission_area.IN_AREA)
+
+    def test_distant_domestic_artist_is_out_of_area(self):
+        artist = self._artist(country='US', zipcode='97205')
+        self.assertEqual(submission_area.check_artist(self.show, artist),
+                         submission_area.OUT_OF_AREA)
+
+    def test_foreign_artist_is_out_of_area_not_unknown(self):
+        """A UK postcode cannot be in a US catchment, so this is a fact, not a shrug."""
+        artist = self._artist(country='GB', zipcode='EC1V 9BD')
+        self.assertEqual(submission_area.check_artist(self.show, artist),
+                         submission_area.OUT_OF_AREA)
+
+    def test_missing_zipcode_is_unknown(self):
+        artist = self._artist(country='US', zipcode='')
+        self.assertEqual(submission_area.check_artist(self.show, artist),
+                         submission_area.UNKNOWN)
+
+    def test_unconfigured_catchment_says_nothing(self):
+        """No badge at all, rather than quietly asserting everyone is local."""
+        self.site.submission_zipcodes = ''
+        self.site.save()
+        artist = self._artist(country='US', zipcode='97205')
+        self.assertIsNone(submission_area.check_artist(self.show, artist))
+
+    # --- National and anywhere ---
+
+    def test_national_show_compares_countries(self):
+        self.show.submission_scope = Show.SCOPE_NATIONAL
+        self.show.save()
+        self.assertEqual(
+            submission_area.check_artist(self.show, self._artist(country='US', zipcode='97205')),
+            submission_area.IN_AREA)
+        self.assertEqual(
+            submission_area.check_artist(self.show, self._artist(country='GB', zipcode='')),
+            submission_area.OUT_OF_AREA)
+
+    def test_anywhere_show_never_flags(self):
+        self.show.submission_scope = Show.SCOPE_ANYWHERE
+        self.show.save()
+        artist = self._artist(country='GB', zipcode='EC1V 9BD')
+        self.assertIsNone(submission_area.check_artist(self.show, artist))
+
+    # --- Labels ---
+
+    def test_description_names_the_area_and_where_they_are(self):
+        artist = self._artist(country='GB', zipcode='EC1V 9BD')
+        text = submission_area.describe(
+            self.show, artist, submission_area.OUT_OF_AREA)
+        self.assertEqual(text, 'Outside Bay Area · EC1V 9BD · United Kingdom')
+
+    def test_description_omits_the_country_when_it_matches_the_venue(self):
+        """"United States of America" on every badge of a Berkeley show is pure noise."""
+        artist = self._artist(country='US', zipcode='97205')
+        text = submission_area.describe(
+            self.show, artist, submission_area.OUT_OF_AREA)
+        self.assertEqual(text, 'Outside Bay Area · 97205')
+
+    def test_blind_review_withholds_the_location(self):
+        """A location identifies an artist the same way a name does."""
+        artist = self._artist(country='GB', zipcode='EC1V 9BD')
+        text = submission_area.describe(
+            self.show, artist, submission_area.OUT_OF_AREA, blind=True)
+        self.assertEqual(text, 'Outside area')
+        self.assertNotIn('EC1V', text)
+
+    def test_in_area_artists_get_no_label(self):
+        artist = self._artist(country='US', zipcode='94710')
+        self.assertEqual(
+            submission_area.describe(self.show, artist, submission_area.IN_AREA), '')
+
+
+class SubmissionAreaCurationTests(TestCase):
+    """The out-of-area flag as a curator actually meets it, on the submissions page."""
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            name='Curation Area Venue', country='US',
+            submission_zipcodes='94710', submission_area_label='Bay Area',
+        )
+        self.curator_user = User.objects.create_user(
+            username='cur@example.com', email='cur@example.com', password='pw')
+        self.curator = Artist.objects.create(
+            user=self.curator_user, name='Cur', first_name='Cur', last_name='C',
+            email='cur@example.com', phone='')
+        self.show = Show.objects.create(
+            name='Curation Area Show',
+            start=datetime.date.today(),
+            end=datetime.date.today() + datetime.timedelta(days=30),
+            submission_type=Show.SUBMISSION_OPEN,
+            status=Show.STATUS_OPEN_CALL,
+        )
+        self.show.sites.add(self.site)
+        self.show.curators.add(self.curator)
+
+        self.local = self._submit('Local Piece', '94710', 'US')
+        self.distant = self._submit('Distant Piece', '97205', 'US')
+        self.nowhere = self._submit('Unplaced Piece', '', 'US')
+        self.client.force_login(self.curator_user)
+
+    def _submit(self, title, zipcode, country):
+        user = User.objects.create_user(
+            username=f'{title}@example.com', email=f'{title}@example.com', password='pw')
+        artist = Artist.objects.create(
+            user=user, name=title, first_name=title, last_name='X',
+            email=f'{title}@example.com', phone='', country=country, zipcode=zipcode)
+        artwork = Artwork.objects.create(name=title, created_by=user, end_year=2025)
+        artwork.artists.add(artist)
+        return ArtworkSubmission.objects.create(
+            show=self.show, artwork=artwork, submitted_by=user)
+
+    def _get(self, query=''):
+        return self.client.get(
+            reverse('gallery:show_submissions', kwargs={'slug': self.show.slug}) + query)
+
+    def test_page_counts_out_of_area_submissions(self):
+        response = self._get()
+        self.assertEqual(response.context['n_out_of_area'], 1)
+        self.assertContains(response, 'outside area')
+
+    def test_page_counts_and_links_submissions_with_no_location(self):
+        response = self._get()
+        self.assertEqual(response.context['n_unplaced'], 1)
+        self.assertContains(response, 'location not given')
+        self.assertContains(response, 'area=unknown')
+
+    def test_out_of_area_filter_narrows_to_flagged_submissions(self):
+        response = self._get('?area=out')
+        titles = {s.artwork.name for s in response.context['submissions']}
+        self.assertEqual(titles, {'Distant Piece'})
+
+    def test_unknown_filter_finds_submissions_with_no_location(self):
+        response = self._get('?area=unknown')
+        titles = {s.artwork.name for s in response.context['submissions']}
+        self.assertEqual(titles, {'Unplaced Piece'})
+
+    def test_blind_review_keeps_the_flag_but_drops_the_detail(self):
+        self.show.blind_review = True
+        self.show.save()
+        response = self._get()
+        self.assertContains(response, 'Outside area')
+        self.assertNotContains(response, '97205')
+        self.assertNotContains(response, 'Distant Piece &middot;')
+
+    def test_area_check_does_not_add_queries_per_submission(self):
+        """The catchment is loaded once per page, not once per card.
+
+        The first version called `show.sites.all()` inside the loop, which took a
+        60-submission page from 13 queries to 193. Asserting the count is flat between two
+        page sizes catches that without hard-coding a number that ordinary changes to this
+        view would invalidate.
+        """
+        def queries_for(extra):
+            for i in range(extra):
+                self._submit(f'Filler {i}', '94710', 'US')
+            with CaptureQueriesContext(connection) as ctx:
+                self._get()
+            return len(ctx)
+
+        few = queries_for(0)        # the three submissions from setUp
+        many = queries_for(20)
+        self.assertEqual(few, many,
+                         f'{few} queries for 3 submissions, {many} for 23 — '
+                         f'the area check is querying per submission')
+
+    def test_flag_disappears_when_the_show_accepts_work_from_anywhere(self):
+        self.show.submission_scope = Show.SCOPE_ANYWHERE
+        self.show.save()
+        response = self._get()
+        self.assertEqual(response.context['n_out_of_area'], 0)
+        self.assertNotContains(response, 'outside area')

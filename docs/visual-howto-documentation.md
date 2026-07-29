@@ -1,18 +1,18 @@
 # Visual how-to documentation
 
-**Status: 26 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
+**Status: 27 of 31 guides captured** — 157 screenshots, ~12 MB on S3, ~25 KB of manifest
 in git. The whole artist path is illustrated (sign up → complete profile → add artworks →
 submit, that last one for every reader signed in or not), plus pinning, buying and the
 card-size control, and now the jury cluster: jurying a show, the review slideshow and the
 curation slideshow, plus adding artwork on behalf of an artist and running an
 invitation-only show end to end, the open-call equivalent, the show lifecycle and public
 art site shows, and the staff setup cluster (creating a show, creating and managing
-venues, configuring a venue's room, and linking an artist profile to an account).
+venues, configuring a venue's room, and linking an artist profile to an account),
 the install/pickup scheduling pair, recording artwork ownership, claiming an existing
-artist profile, layout snapshots, and both generated PDFs. Only four
-remain, and all four are deliberate: the layout editor's canvas drag-and-drop, the WebGL
-3D view, the site map's live OpenStreetMap tiles, and the command-line guide for this
-system itself. Plan agreed 2026-07-28.
+artist profile, layout snapshots, out-of-area submission flagging, and both generated
+PDFs. Only four remain, and all four are deliberate: the layout editor's canvas
+drag-and-drop, the WebGL 3D view, the site map's live OpenStreetMap tiles, and the
+command-line guide for this system itself. Plan agreed 2026-07-28.
 
 **Generated PDFs are rendered, not linked.** `shot_pdf()` fetches the PDF through the
 browser's own request context (so the curator's session cookie goes with it), rasterises a

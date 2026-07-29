@@ -13,6 +13,7 @@ from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 from gallery.forms import ArtworkForm, ArtworkSubmissionForm
+from gallery import submission_area
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber, ShowInvitation
 from gallery.permissions import can_manage_show, can_view_reviews
 from reviews.views import _compute_weighted_scores
@@ -585,6 +586,33 @@ def show_submissions(request, slug):
         submissions = submissions.filter(artwork__artists__id=artist_filter).distinct()
 
     submissions = list(submissions)
+
+    # Where each submission's artist sits relative to the show's scope. Computed here
+    # rather than stored: an artist can change their postal code after submitting, and a
+    # stored flag would go stale silently. The catchment is loaded once for the whole page
+    # — per-submission it cost three extra queries each, which is 600 on a 200-piece call.
+    blind = show.blind_review
+    area = submission_area.AreaCheck(show)
+    n_out_of_area = n_unplaced = 0
+    for sub in submissions:
+        artists = list(sub.artwork.artists.all())      # prefetched; no query here
+        artist = artists[0] if artists else None
+        sub.area_status = area.status(artist)
+        sub.area_label = area.describe(artist, sub.area_status, blind=blind)
+        if sub.area_status == submission_area.OUT_OF_AREA:
+            n_out_of_area += 1
+        elif sub.area_status == submission_area.UNKNOWN:
+            n_unplaced += 1
+
+    # ?area=out narrows the page to them, which is what makes this usable on a 200-piece
+    # open call: filter, rubber-band select, and move the lot in one action.
+    if request.GET.get('area') == 'out':
+        submissions = [s for s in submissions
+                       if s.area_status == submission_area.OUT_OF_AREA]
+    elif request.GET.get('area') == 'unknown':
+        submissions = [s for s in submissions
+                       if s.area_status == submission_area.UNKNOWN]
+
     criteria = list(show.rubric_criteria.all())
     weighted_scores = _compute_weighted_scores(show, criteria) if criteria else {}
     for sub in submissions:
@@ -641,6 +669,10 @@ def show_submissions(request, slug):
         'n_rejected': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.CURATOR_REJECTED),
         'n_undecided': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.UNDECIDED),
         'n_withdrawn': sum(1 for s in submissions if s.curator_decision == ArtworkSubmission.WITHDRAWN),
+        'n_out_of_area': n_out_of_area,
+        'n_unplaced': n_unplaced,
+        'area_filter': request.GET.get('area', ''),
+        'area_scope_label': show.get_submission_scope_display(),
         'can_manage': can_manage_show(request.user, show),
         'invited_submitted': invited_submitted,
         'invited_not_submitted': invited_not_submitted,

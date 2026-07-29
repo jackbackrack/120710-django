@@ -23,6 +23,17 @@
     {% if not show.blind_review %}
     <p class="mb-0">{% for artist in sub.artwork.artists.all %}<a class="card__link" href="{{ artist.get_absolute_url }}">{{ artist.full_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
     {% endif %}
+    {% comment %}
+      Outside the blind-review guard on purpose. Whether a piece is eligible is a policy
+      question, not an aesthetic one, so it is still worth knowing while judging blind —
+      and `describe()` has already reduced the label to a bare "Outside area" by then,
+      with no postal code or country in it.
+
+      Amber, not red: this is "look at this", not "invalid". Only shown when there is
+      something to say — an in-area artist gets no badge, because a badge on every card
+      is a badge on none.
+    {% endcomment %}
+    {% if sub.area_label %}<p class="mb-0"><span class="badge area-flag {% if sub.area_status == 'out' %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="font-size:0.65em;white-space:normal">{{ sub.area_label }}</span></p>{% endif %}
     <p class="mb-0" style="font-size:0.8em;color:#666">
       {% if criteria %}
         {% if sub.weighted_score %}{{ sub.weighted_score|floatformat:2 }}/100 weighted{% else %}&mdash;{% endif %}

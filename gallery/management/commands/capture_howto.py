@@ -1712,12 +1712,16 @@ def capture_public_art_show(rec, facts):
     rec.at_step(3)
     rec.shot_region(3, '#div_id_submission_type', '#div_id_submission_deadline')
 
-    # Step 4 — "The show will display a 'Public Art' badge on its card and detail page."
+    # Step 4 — "Set 'Where artists may be based' if the call is not meant to be local."
     rec.at_step(4)
-    rec.goto(f'/show/{facts["slug"]}/')
-    rec.shot_region(4, 'h1', 'p:has-text("Public Art Site")')
+    rec.shot_region(4, '#div_id_submission_scope')
 
-    # Step 5 is that everything else matches a gallery open call.
+    # Step 5 — "The show will display a 'Public Art' badge on its card and detail page."
+    rec.at_step(5)
+    rec.goto(f'/show/{facts["slug"]}/')
+    rec.shot_region(5, 'h1', 'p:has-text("Public Art Site")')
+
+    # Step 6 is that everything else matches a gallery open call.
 
 
 # ── Staff setup guides ───────────────────────────────────────────────────────
@@ -1789,6 +1793,133 @@ def capture_create_show(rec, facts):
     # Step 9 is saving, and what the curator does next.
 
 
+# ── out-of-area-submissions ──────────────────────────────────────────────────
+
+OUT_OF_AREA_ARTISTS = [
+    # (name, zipcode, country, artwork title). One domestic but far away, one abroad,
+    # one with no location at all — the three flags the guide describes, in the order it
+    # describes them. A curator reads these three cases differently, so a screenshot
+    # showing only one of them would under-document the page.
+    ('Rowan Ashby', '97205', 'US', 'Cascade Study'),
+    ('Neve Carlow', 'EC1V 9BD', 'GB', 'Clerkenwell Nocturne'),
+    ('Wilder Sant', '', 'US', 'Untitled (No Address)'),
+]
+
+
+def prepare_out_of_area():
+    """A show with something to flag: local submissions plus three that are not.
+
+    The artists are made here rather than borrowed from the seed, because the seeded ones
+    are all at 94710 and moving one would change what every other guide photographs.
+    """
+    from django.core.files.base import ContentFile
+    from gallery.models import Site
+
+    _cleanup_capture_shows()
+    _cleanup_out_of_area_artists()
+
+    show = _create_capture_show('Area Check', Show.SUBMISSION_OPEN,
+                                Show.STATUS_OPEN_CALL)
+    # Local submissions too: a page where every card is flagged does not show what the
+    # flag means, because there is nothing unflagged to read it against.
+    _add_decided_submissions(show, accepted=3, rejected=0)
+
+    site = show.sites.first()
+    if site is None or not site.submission_zipcodes:
+        raise CommandError(
+            'The capture show\'s venue has no local postal codes, so nothing can be '
+            'flagged and this guide has nothing to photograph. Run:\n'
+            '  ./env/bin/python manage.py set_site_catchment 120710 \\\n'
+            '      --from-file test_fixtures/bay_area_zipcodes.txt \\\n'
+            '      --label "Bay Area (9 counties)"')
+
+    for name, zipcode, country, title in OUT_OF_AREA_ARTISTS:
+        first, _, last = name.partition(' ')
+        artist = Artist.objects.create(
+            name=name, first_name=first, last_name=last,
+            zipcode=zipcode, country=country)
+        artist.image.save(f'howto-area-{artist.pk}.jpg',
+                          ContentFile(_portrait_placeholder()), save=True)
+        artwork = Artwork.objects.create(name=title, end_year=2025,
+                                         width_inches=14, height_inches=18)
+        artwork.artists.add(artist)
+        artwork.image.save(f'howto-area-work-{artwork.pk}.jpg',
+                           ContentFile(_artwork_placeholder()), save=True)
+        ArtworkSubmission.objects.create(show=show, artwork=artwork)
+
+    return {'slug': show.slug, 'pk': show.pk, 'site_slug': site.slug,
+            'area_label': site.submission_area_label or 'the area'}
+
+
+def _set_blind_review(slug, on):
+    if not slug.startswith(CAPTURE_SHOW_PREFIX):
+        raise CommandError(f'refusing to modify "{slug}" — not a capture show')
+    Show.objects.filter(slug=slug).update(blind_review=on)
+
+
+def _cleanup_out_of_area_artists():
+    names = [name for name, _, _, _ in OUT_OF_AREA_ARTISTS]
+    Artwork.objects.filter(name__in=[t for _, _, _, t in OUT_OF_AREA_ARTISTS]).delete()
+    Artist.objects.filter(name__in=names, user__isnull=True).delete()
+
+
+def _cleanup_out_of_area():
+    _cleanup_capture_shows()
+    _cleanup_out_of_area_artists()
+
+
+def capture_out_of_area(rec, facts):
+    """Where the area is configured, and what the flag looks like once it is."""
+    _log_in(rec, STAFF_EMAIL, SEEDED_PASSWORD)
+
+    # Step 1 is that this flags rather than blocks — no screen shows that.
+
+    # Step 2 — "Go to Sites, open the venue, and click Edit. Fill in 'Local area name'
+    #           ... and 'Local postal codes'."
+    rec.at_step(2)
+    rec.goto(f'/site/{facts["site_slug"]}/edit/')
+    rec.shot_region(2, '#div_id_submission_area_label', '#div_id_submission_zipcodes')
+
+    # Step 3 is the command line, which has no page.
+
+    # Step 4 — "'Where artists may be based' offers three choices."
+    rec.at_step(4)
+    rec.goto(f'/show/{facts["pk"]}/edit/')
+    rec.shot_region(4, '#div_id_submission_scope')
+
+    # Step 5 — "an amber 'Outside area' flag under the artist name."
+    rec.at_step(5)
+    rec.goto(f'/show/{facts["slug"]}/submissions/')
+    rec.expect_text('see the out-of-area flag', 'Outside area')
+    rec.shot_region(5, '.card:has-text("Rowan Ashby")')
+
+    # Step 6 — "an artist who has not given a postal code gets a grey 'Location not
+    #           given' flag instead."
+    rec.at_step(6)
+    rec.expect_text('see the unplaced flag', 'Location not given')
+    rec.shot_region(6, '.card:has-text("Wilder Sant")')
+
+    # Step 7 — "The summary row ... counts how many are outside the area. Click that
+    #           count to see only those."
+    rec.at_step(7)
+    rec.shot_region(7, '#submission-counts')
+
+    # Step 8 — "During blind review the flag still appears but says only 'Outside area'."
+    # Blind review is a setting on the show, not a query parameter, so this switches it
+    # on for the shot and off again — leaving it on would change what the next guide's
+    # capture of the same page shows.
+    rec.at_step(8)
+    _db(_set_blind_review, facts['slug'], True)
+    try:
+        rec.goto(f'/show/{facts["slug"]}/submissions/')
+        rec.expect_visible('see the flag with the detail withheld', '.area-flag')
+        rec.shot_region(8, '.card:has(.area-flag)')
+    finally:
+        _db(_set_blind_review, facts['slug'], False)
+
+    # Step 9 is that none of this changes what an artist can do.
+
+
 # ── how-to-create-and-manage-sites-staff-only ────────────────────────────────
 
 def prepare_manage_sites():
@@ -1815,38 +1946,42 @@ def capture_manage_sites(rec, facts):
     rec.goto('/site/new/')
     rec.shot_region(3, '#div_id_name', '#div_id_icon')
 
-    # Step 4 — "click 'Look up coordinates from address' ... review the matched address
-    #           shown beneath the button."
+    # Step 4 — "Optionally fill in 'Local area name' and 'Local postal codes'."
     rec.at_step(4)
-    rec.shot_region(4, '#geocode-btn', '#geocode-status')
+    rec.shot_region(4, '#div_id_submission_area_label', '#div_id_submission_zipcodes')
 
-    # Step 5 — "enter the latitude and longitude values manually."
+    # Step 5 — "click 'Look up coordinates from address' ... review the matched address
+    #           shown beneath the button."
     rec.at_step(5)
-    rec.shot_region(5, '#div_id_latitude', '#div_id_longitude')
+    rec.shot_region(5, '#geocode-btn', '#geocode-status')
 
-    # Step 6 — "Set Status to Published."
+    # Step 6 — "enter the latitude and longitude values manually."
     rec.at_step(6)
-    rec.shot_region(6, '#div_id_status')
+    rec.shot_region(6, '#div_id_latitude', '#div_id_longitude')
 
-    # Step 7 — "In the Gallery Room section ... enter the room dimensions ... and
-    #           optionally upload texture images."
+    # Step 7 — "Set Status to Published."
     rec.at_step(7)
-    rec.shot_region(7, '#div_id_width_in', '#div_id_ceiling_image')
+    rec.shot_region(7, '#div_id_status')
 
-    # Step 8 — "In the Obstacles table, add obstacles such as doors or windows."
+    # Step 8 — "In the Gallery Room section ... enter the room dimensions ... and
+    #           optionally upload texture images."
     rec.at_step(8)
-    rec.shot_region(8, '#obstacle-table')
+    rec.shot_region(8, '#div_id_width_in', '#div_id_ceiling_image')
 
-    # Step 9 is saving.
+    # Step 9 — "In the Obstacles table, add obstacles such as doors or windows."
+    rec.at_step(9)
+    rec.shot_region(9, '#obstacle-table')
 
-    # Step 10 — "To edit an existing site, open the site detail page and click Edit."
-    rec.at_step(10)
+    # Step 10 is saving.
+
+    # Step 11 — "To edit an existing site, open the site detail page and click Edit."
+    rec.at_step(11)
     rec.goto('/site/120710/')
     # The card that carries the link, not the link: cropped to the <a> this was 22x19 px
     # of the word Edit, which does not tell anyone where to find it.
-    rec.shot_region(10, '.card:has(a[href*="/edit/"])')
+    rec.shot_region(11, '.card:has(a[href*="/edit/"])')
 
-    # Step 11 is deleting, which lives behind that same Edit page.
+    # Step 12 is deleting, which lives behind that same Edit page.
 
 
 # ── how-to-configure-a-sites-room-and-walls-staff-only ───────────────────────
@@ -1857,7 +1992,7 @@ def prepare_room_config():
     from gallery.models import Site
     site = Site.objects.create(
         name=f'{CAPTURE_SITE_NAME_PREFIX} Room', street='1207 10th Street',
-        city='Berkeley', state='CA', postal_code='94710', country='USA',
+        city='Berkeley', state='CA', postal_code='94710', country='US',
         status='published')
     return {'slug': site.slug}
 
@@ -2532,8 +2667,8 @@ CAPTURE_SCRIPTS = {
     'how-to-run-a-public-art-site-open-call': {
         'prepare': prepare_public_art_show,
         'run': capture_public_art_show,
-        # 1 is the venue prerequisite (its own guide); 5 says the rest is unchanged.
-        'prose_only': {1, 5},
+        # 1 is the venue prerequisite (its own guide); 6 says the rest is unchanged.
+        'prose_only': {1, 6},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },
@@ -2544,11 +2679,19 @@ CAPTURE_SCRIPTS = {
         'reset': _reset_capture_account,
         'cleanup': _reset_capture_account,
     },
+    'out-of-area-submissions': {
+        'prepare': prepare_out_of_area,
+        'run': capture_out_of_area,
+        # 1 is that the check never blocks; 3 is the command line; 9 repeats 1.
+        'prose_only': {1, 3, 9},
+        'reset': _cleanup_out_of_area,
+        'cleanup': _cleanup_out_of_area,
+    },
     'how-to-create-and-manage-sites-staff-only': {
         'prepare': prepare_manage_sites,
         'run': capture_manage_sites,
-        # 9 is saving; 11 is deleting, behind the Edit page shown in step 10.
-        'prose_only': {9, 11},
+        # 10 is saving; 12 is deleting, behind the Edit page shown in step 11.
+        'prose_only': {10, 12},
         'reset': _cleanup_capture_sites,
         'cleanup': _cleanup_capture_sites,
     },

@@ -211,9 +211,9 @@
       "width": 1084
     },
     "5": {
-      "bytes": 27126,
+      "bytes": 27116,
       "height": 414,
-      "key": "how-to-create-a-show-staff-only/05.5e2071f0fc2f.webp",
+      "key": "how-to-create-a-show-staff-only/05.f028d6359782.webp",
       "width": 1084
     },
     "6": {
@@ -237,15 +237,15 @@
   },
   "how-to-create-and-manage-sites-staff-only": {
     "1": {
-      "bytes": 428190,
+      "bytes": 428308,
       "height": 900,
-      "key": "how-to-create-and-manage-sites-staff-only/01.1edb2ccb705a.webp",
+      "key": "how-to-create-and-manage-sites-staff-only/01.5f5141587000.webp",
       "width": 1100
     },
-    "10": {
-      "bytes": 92102,
+    "11": {
+      "bytes": 94572,
       "height": 527,
-      "key": "how-to-create-and-manage-sites-staff-only/10.bdb28df14cb9.webp",
+      "key": "how-to-create-and-manage-sites-staff-only/11.52d401c22ece.webp",
       "width": 400
     },
     "2": {
@@ -255,39 +255,45 @@
       "width": 53
     },
     "3": {
-      "bytes": 192784,
-      "height": 1245,
-      "key": "how-to-create-and-manage-sites-staff-only/03.2f049c827571.webp",
+      "bytes": 206400,
+      "height": 1704,
+      "key": "how-to-create-and-manage-sites-staff-only/03.d105c3120185.webp",
       "width": 936
     },
     "4": {
-      "bytes": 4594,
-      "height": 31,
-      "key": "how-to-create-and-manage-sites-staff-only/04.3b3ef778030f.webp",
-      "width": 238
-    },
-    "5": {
-      "bytes": 4400,
-      "height": 156,
-      "key": "how-to-create-and-manage-sites-staff-only/05.c90f94f32070.webp",
+      "bytes": 67282,
+      "height": 443,
+      "key": "how-to-create-and-manage-sites-staff-only/04.3ac41b834651.webp",
       "width": 936
     },
+    "5": {
+      "bytes": 4594,
+      "height": 31,
+      "key": "how-to-create-and-manage-sites-staff-only/05.b08d3e84898d.webp",
+      "width": 238
+    },
     "6": {
-      "bytes": 3278,
-      "height": 70,
-      "key": "how-to-create-and-manage-sites-staff-only/06.27527aadad38.webp",
+      "bytes": 4400,
+      "height": 156,
+      "key": "how-to-create-and-manage-sites-staff-only/06.4c2389d7d932.webp",
       "width": 936
     },
     "7": {
-      "bytes": 64670,
-      "height": 897,
-      "key": "how-to-create-and-manage-sites-staff-only/07.f9de3f8d50ea.webp",
+      "bytes": 3264,
+      "height": 70,
+      "key": "how-to-create-and-manage-sites-staff-only/07.e2093e455d84.webp",
       "width": 936
     },
     "8": {
+      "bytes": 64670,
+      "height": 897,
+      "key": "how-to-create-and-manage-sites-staff-only/08.f9de3f8d50ea.webp",
+      "width": 936
+    },
+    "9": {
       "bytes": 16866,
       "height": 113,
-      "key": "how-to-create-and-manage-sites-staff-only/08.0dfe407bbb9a.webp",
+      "key": "how-to-create-and-manage-sites-staff-only/09.0dfe407bbb9a.webp",
       "width": 936
     }
   },
@@ -409,21 +415,21 @@
       "width": 176
     },
     "2": {
-      "bytes": 113898,
+      "bytes": 113278,
       "height": 984,
-      "key": "how-to-print-placards-for-a-show-avery-5376-cards/02.89f7d467a258.webp",
+      "key": "how-to-print-placards-for-a-show-avery-5376-cards/02.f3124b992a10.webp",
       "width": 761
     },
     "3": {
-      "bytes": 146688,
+      "bytes": 146150,
       "height": 1292,
-      "key": "how-to-print-placards-for-a-show-avery-5376-cards/03.dec39131cabf.webp",
+      "key": "how-to-print-placards-for-a-show-avery-5376-cards/03.82286a23fca9.webp",
       "width": 999
     },
     "5": {
-      "bytes": 115256,
+      "bytes": 114634,
       "height": 984,
-      "key": "how-to-print-placards-for-a-show-avery-5376-cards/05.9f60f31462e2.webp",
+      "key": "how-to-print-placards-for-a-show-avery-5376-cards/05.4a6b7a26aede.webp",
       "width": 761
     }
   },
@@ -467,29 +473,35 @@
   },
   "how-to-run-a-public-art-site-open-call": {
     "2": {
-      "bytes": 253494,
-      "height": 1816,
-      "key": "how-to-run-a-public-art-site-open-call/02.e37162ed3acb.webp",
+      "bytes": 277834,
+      "height": 1927,
+      "key": "how-to-run-a-public-art-site-open-call/02.64137e56f83e.webp",
       "width": 1084
     },
     "3": {
-      "bytes": 35420,
-      "height": 267,
-      "key": "how-to-run-a-public-art-site-open-call/03.002d8fc37f68.webp",
+      "bytes": 58480,
+      "height": 378,
+      "key": "how-to-run-a-public-art-site-open-call/03.54b403f8f78f.webp",
       "width": 1084
     },
     "4": {
+      "bytes": 22114,
+      "height": 95,
+      "key": "how-to-run-a-public-art-site-open-call/04.0493c7499454.webp",
+      "width": 1084
+    },
+    "5": {
       "bytes": 6604,
       "height": 58,
-      "key": "how-to-run-a-public-art-site-open-call/04.3518d0f869f9.webp",
+      "key": "how-to-run-a-public-art-site-open-call/05.3518d0f869f9.webp",
       "width": 388
     }
   },
   "how-to-run-an-invitation-only-show": {
     "1": {
-      "bytes": 48246,
-      "height": 439,
-      "key": "how-to-run-an-invitation-only-show/01.89404aeb6652.webp",
+      "bytes": 70410,
+      "height": 550,
+      "key": "how-to-run-an-invitation-only-show/01.c705f4c06628.webp",
       "width": 1084
     },
     "10": {
@@ -541,17 +553,17 @@
       "width": 388
     },
     "9": {
-      "bytes": 402068,
+      "bytes": 405670,
       "height": 900,
-      "key": "how-to-run-an-invitation-only-show/09.ec1dbc57f4cb.webp",
+      "key": "how-to-run-an-invitation-only-show/09.5307751eb47e.webp",
       "width": 1100
     }
   },
   "how-to-run-an-open-call-show": {
     "1": {
-      "bytes": 48246,
-      "height": 439,
-      "key": "how-to-run-an-open-call-show/01.89404aeb6652.webp",
+      "bytes": 70410,
+      "height": 550,
+      "key": "how-to-run-an-open-call-show/01.c705f4c06628.webp",
       "width": 1084
     },
     "11": {
@@ -591,9 +603,9 @@
       "width": 1100
     },
     "5": {
-      "bytes": 388234,
+      "bytes": 390914,
       "height": 900,
-      "key": "how-to-run-an-open-call-show/05.45741492ad07.webp",
+      "key": "how-to-run-an-open-call-show/05.bc77273e400e.webp",
       "width": 1100
     },
     "7": {
@@ -603,9 +615,9 @@
       "width": 903
     },
     "9": {
-      "bytes": 382116,
+      "bytes": 384898,
       "height": 900,
-      "key": "how-to-run-an-open-call-show/09.c5c340479beb.webp",
+      "key": "how-to-run-an-open-call-show/09.a0c0c5775d7d.webp",
       "width": 1100
     }
   },
@@ -623,21 +635,21 @@
       "width": 318
     },
     "3": {
-      "bytes": 21270,
+      "bytes": 21126,
       "height": 108,
-      "key": "how-to-save-and-restore-layout-snapshots/03.deeee42df203.webp",
+      "key": "how-to-save-and-restore-layout-snapshots/03.a45dafca9924.webp",
       "width": 318
     },
     "4": {
-      "bytes": 10246,
+      "bytes": 10172,
       "height": 54,
-      "key": "how-to-save-and-restore-layout-snapshots/04.445d12754754.webp",
+      "key": "how-to-save-and-restore-layout-snapshots/04.a4409717b428.webp",
       "width": 318
     },
     "5": {
-      "bytes": 36468,
+      "bytes": 36330,
       "height": 234,
-      "key": "how-to-save-and-restore-layout-snapshots/05.61f6bfde7b7f.webp",
+      "key": "how-to-save-and-restore-layout-snapshots/05.6d0b9ef28dd2.webp",
       "width": 340
     }
   },
@@ -813,9 +825,9 @@
       "width": 324
     },
     "2": {
-      "bytes": 133700,
+      "bytes": 132230,
       "height": 900,
-      "key": "how-to-use-the-review-slideshow/02.781321ea915c.webp",
+      "key": "how-to-use-the-review-slideshow/02.6abee36a5a95.webp",
       "width": 1100
     },
     "3": {
@@ -849,6 +861,44 @@
       "height": 1437,
       "key": "linking-your-account-to-an-existing-artist-profile/04.bd31b09760f7.webp",
       "width": 1084
+    }
+  },
+  "out-of-area-submissions": {
+    "2": {
+      "bytes": 190006,
+      "height": 443,
+      "key": "out-of-area-submissions/02.1cdae92b99f9.webp",
+      "width": 936
+    },
+    "4": {
+      "bytes": 22114,
+      "height": 95,
+      "key": "out-of-area-submissions/04.0493c7499454.webp",
+      "width": 1084
+    },
+    "5": {
+      "bytes": 14382,
+      "height": 384,
+      "key": "out-of-area-submissions/05.176b8152ab0b.webp",
+      "width": 200
+    },
+    "6": {
+      "bytes": 11816,
+      "height": 384,
+      "key": "out-of-area-submissions/06.3ee3cfa640d9.webp",
+      "width": 200
+    },
+    "7": {
+      "bytes": 18422,
+      "height": 24,
+      "key": "out-of-area-submissions/07.821d41fefc9c.webp",
+      "width": 1084
+    },
+    "8": {
+      "bytes": 9488,
+      "height": 369,
+      "key": "out-of-area-submissions/08.5e045c723df8.webp",
+      "width": 200
     }
   },
   "show-lifecycle-and-status": {

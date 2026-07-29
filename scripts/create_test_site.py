@@ -14,7 +14,7 @@ Usage:
   --city CITY           City.
   --state STATE         State / province / region.
   --postal-code CODE    Postal / zip code.
-  --country COUNTRY     Country (default: USA).
+  --country COUNTRY     ISO 3166 alpha-2 country code (default: US).
   --email EMAIL         Contact email.
   --phone PHONE         Phone number.
   --instagram HANDLE    Instagram handle (with or without @).
@@ -61,7 +61,7 @@ street      = _pop_flag_value(args, '--street') or ''
 city        = _pop_flag_value(args, '--city') or ''
 state       = _pop_flag_value(args, '--state') or ''
 postal_code = _pop_flag_value(args, '--postal-code') or ''
-country     = _pop_flag_value(args, '--country') or 'USA'
+country     = _pop_flag_value(args, '--country') or 'US'
 email       = _pop_flag_value(args, '--email') or ''
 phone       = _pop_flag_value(args, '--phone') or ''
 instagram   = _pop_flag_value(args, '--instagram') or ''

@@ -7,6 +7,7 @@ Usage:
                                [--artist] [--curator]
                                [--first FIRST] [--last LAST]
                                [--image IMAGE_PATH] [--zipcode ZIP]
+                               [--country ISO]
 
 Defaults to test@example.com / testpass123 if not provided.
 
@@ -21,6 +22,9 @@ Defaults to test@example.com / testpass123 if not provided.
                       makes a seeded artist able to submit: both are required before
                       submission, so an artist seeded without them is stuck at the
                       profile step (which is useful to seed on purpose).
+  --country ISO       Two-letter country code (default US). With the zip code this is
+                      what decides whether a submission is flagged as outside a venue's
+                      area, so seeding a non-local artist means setting both.
 """
 import os
 import sys
@@ -59,6 +63,7 @@ first_name = _pop_flag_value(args, '--first')
 last_name  = _pop_flag_value(args, '--last')
 image_path = _pop_flag_value(args, '--image')
 zipcode    = _pop_flag_value(args, '--zipcode')
+country    = _pop_flag_value(args, '--country')
 make_curator = _pop_flag(args, '--curator')
 make_artist  = _pop_flag(args, '--artist') or make_curator
 
@@ -78,15 +83,17 @@ if make_artist:
     from accounts.signup import ensure_signup_profile
     from django.core.files import File
     artist, _ = ensure_signup_profile(user)
-    if artist and (first_name or last_name or zipcode):
+    if artist and (first_name or last_name or zipcode or country):
         if first_name:
             artist.first_name = first_name
         if last_name:
             artist.last_name = last_name
         if zipcode:
             artist.zipcode = zipcode
+        if country:
+            artist.country = country
         update = [f for f, v in (('first_name', first_name), ('last_name', last_name),
-                                 ('zipcode', zipcode)) if v]
+                                 ('zipcode', zipcode), ('country', country)) if v]
         artist.save(update_fields=update)
     if image_path and artist:
         if not os.path.exists(image_path):

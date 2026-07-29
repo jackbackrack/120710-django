@@ -41,6 +41,20 @@ class Show(models.Model):
 
     SUBMISSION_OPEN = 'open'
     SUBMISSION_INVITED = 'invited'
+    # How far afield the show accepts work from. This flags submissions for the curator;
+    # it never blocks anyone. Defaults to LOCAL, and the migration backfills every
+    # existing show to LOCAL: a gallery's shows are local unless somebody says otherwise,
+    # and a default of "anywhere" would mean the check silently never ran. Nothing is
+    # flagged until a venue is given a catchment, so this is safe to default on.
+    SCOPE_LOCAL = 'local'
+    SCOPE_NATIONAL = 'national'
+    SCOPE_ANYWHERE = 'anywhere'
+    SUBMISSION_SCOPE_CHOICES = [
+        (SCOPE_LOCAL, 'Local — artists in the venue\u2019s area'),
+        (SCOPE_NATIONAL, 'National — artists in the venue\u2019s country'),
+        (SCOPE_ANYWHERE, 'Anywhere — no location check'),
+    ]
+
     SUBMISSION_TYPE_CHOICES = [
         (SUBMISSION_OPEN, 'Open Call'),
         (SUBMISSION_INVITED, 'Invitation Only'),
@@ -57,6 +71,11 @@ class Show(models.Model):
     slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
     curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
     sites = models.ManyToManyField('gallery.Site', blank=True, related_name='shows')
+    submission_scope = models.CharField(
+        max_length=16, choices=SUBMISSION_SCOPE_CHOICES, default=SCOPE_LOCAL,
+        verbose_name='Where artists may be based',
+        help_text='Submissions from outside this are flagged for the curator on the '
+                  'Submissions page. Nobody is ever blocked from submitting.')
     submission_type = models.CharField(
         max_length=16, choices=SUBMISSION_TYPE_CHOICES, default=SUBMISSION_OPEN,
         verbose_name='Submission type',

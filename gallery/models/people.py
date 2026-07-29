@@ -38,10 +38,11 @@ class Artist(models.Model):
     city = models.CharField(max_length=255, blank=True, default='')
     state = models.CharField(verbose_name='State / province', max_length=255,
                              blank=True, default='')
-    # ISO 3166-1 alpha-2, not free text. Site.country is a plain CharField holding "USA",
-    # which is exactly the ambiguity to avoid here: "US"/"USA"/"United States" would all
-    # appear and the in-area test has to be reliable. Defaulted rather than left blank so
-    # every artist has a usable value without a new gate in the submission flow.
+    # ISO 3166-1 alpha-2, not free text, and matching Site.country so a national show can
+    # compare the two directly. Free text is exactly the ambiguity to avoid here:
+    # "US"/"USA"/"United States" would all appear and the in-area test has to be reliable.
+    # Defaulted rather than left blank so every artist has a usable value without a new
+    # gate in the submission flow.
     country = CountryField(default='US')
     zipcode = models.CharField(verbose_name='ZIP / postal code',
                                max_length=10, blank=True, default='')
