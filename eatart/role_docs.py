@@ -13,7 +13,7 @@ HOW_TO_GUIDES = [
     },
     {
         'title': 'How to complete your artist profile',
-        'summary': 'Fill in the name, zip code and profile photo that a show needs before you can submit work.',
+        'summary': 'Fill in the name, country, postal code and profile photo that a show needs before you can submit work.',
         'roles': {'artist', 'curator', 'juror', 'staff'},
         'steps': [
             'After signing up you are taken directly to your artist profile edit page — fill in your details there.',
@@ -54,7 +54,7 @@ HOW_TO_GUIDES = [
             'Create an account — skip to "Add your artwork" below if you already have one. Open the Account menu in the navigation and choose Sign Up, then enter your first name, last name, email address, and password. Choosing "Continue with Google" instead signs you straight in and skips the next two steps.',
             'Confirm your email address. Signing up does not sign you in: you land on a "Verify Your Email Address" page, and we send you an email with a confirmation link — open it and click the Confirm button. Nothing else works until you do, so check your spam folder if it has not arrived.',
             'Log in. Confirming your address takes you to the log-in page. Sign in with the email address and password you just chose.',
-            'Complete your artist profile. Logging in for the first time takes you to your artist profile edit page. Fill in your first name, last name, and zip code. Then upload a profile photo — this must be a photo of YOU (the artist), not a photo of your artwork. Your profile photo appears on your public artist page. Click Update to save.',
+            'Complete your artist profile. Logging in for the first time takes you to your artist profile edit page. Fill in your first name, last name, country and ZIP / postal code. Then upload a profile photo — this must be a photo of YOU (the artist), not a photo of your artwork. Your profile photo appears on your public artist page. Click Update to save.',
             'Add your artwork. Go to your Me page, scroll down to the Artworks section, and click New. Fill in the title, year, medium, and dimensions, and upload an image of the artwork itself. You must also choose a Pricing option before the form will save — pick "Not For Sale" if you would rather not name a price, or "Price on Request" to invite enquiries. "For Sale" additionally requires a price. Then Save.',
             'Submit. On your Me page the show appears under "Shows Accepting Submissions" with a Submit button; the show detail page has one too. Click it, select the artwork card you want to submit (click it to highlight it), then click Submit. You submit one artwork at a time — repeat for each piece, and each artwork can only be submitted once per show.',
             'Some shows cap how many artworks each artist may submit. When a limit is set, the submit page shows your allowance (e.g. "up to 3 per artist — you can submit 2 more"); once you reach it, the page tells you and you cannot submit more.',
@@ -123,7 +123,7 @@ HOW_TO_GUIDES = [
         'roles': {'curator', 'staff'},
         'steps': [
             'Use this when an artist cannot self-submit — for example a person you manage who has no email or account (such as an artist with a caregiver acting for them), or any artist you want to add to an invitation-only show directly. The artist needs no account, email, or submission of their own.',
-            'If the artist does not exist yet, create their profile first (Artists → New — curators and staff see this link): fill their first and last name, an email address, a profile photo and a zip code. All five are required by the form. Use a caregiver\'s address, or your own, if the artist has no email of their own — nothing is ever sent to it automatically. Leave "Linked user account" blank so they can claim the profile later.',
+            'If the artist does not exist yet, create their profile first (Artists → New — curators and staff see this link): fill their first and last name, an email address, a profile photo, a country and a ZIP / postal code. All six are required by the form. Use a caregiver\'s address, or your own, if the artist has no email of their own — nothing is ever sent to it automatically. Leave "Linked user account" blank so they can claim the profile later.',
             'Go to the show\'s Submissions page and click "Add artwork on behalf of an artist".',
             'Choose the artist from the dropdown. The page then lists that artist\'s existing artworks.',
             'Either select one of their existing artworks and click "Add selected artwork to show", OR fill in the "Create a new artwork" form (title, medium, dimensions, image, price) and click "Create & add to show".',
@@ -535,6 +535,11 @@ ROLE_DOCUMENTATION = {
                     {'name': 'first_name', 'input_type': 'text input', 'purpose': 'Given name for your artist profile.'},
                     {'name': 'last_name', 'input_type': 'text input', 'purpose': 'Family name for your artist profile.'},
                     {'name': 'email', 'input_type': 'email input', 'purpose': 'Contact email for curator/admin communication.'},
+                    {'name': 'country', 'input_type': 'dropdown', 'purpose': 'Where the artist is based. Required. With the postal code it decides whether a submission is inside a site\u2019s area for shows limited to one.'},
+                    {'name': 'zipcode', 'input_type': 'text input', 'purpose': 'ZIP code in the US, postal code elsewhere. Required before submitting artwork. The US five-digit format is only enforced when the country is the US.'},
+                    {'name': 'street', 'input_type': 'text input', 'purpose': 'Optional. Only needed to return consigned work; never shown publicly.'},
+                    {'name': 'city', 'input_type': 'text input', 'purpose': 'Optional. Never shown publicly.'},
+                    {'name': 'state', 'input_type': 'text input', 'purpose': 'State or province. Optional; never shown publicly.'},
                     {'name': 'phone', 'input_type': 'text input', 'purpose': 'Optional contact phone number.'},
                     {'name': 'website', 'input_type': 'url/text input', 'purpose': 'External portfolio or personal website URL.'},
                     {'name': 'instagram', 'input_type': 'text input', 'purpose': 'Instagram handle starting with @.'},

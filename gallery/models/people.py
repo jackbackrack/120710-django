@@ -4,6 +4,7 @@ import re
 from django.contrib.auth.models import User
 from django.db import models
 from django.urls import reverse
+from django_countries.fields import CountryField
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit, Transpose
 
@@ -29,7 +30,21 @@ class Artist(models.Model):
     last_name = models.CharField(max_length=255, blank=True, default='')
     email = models.EmailField(max_length=255)
     phone = models.CharField(max_length=255, blank=True, default='')
-    zipcode = models.CharField(max_length=10, blank=True, default='')
+    # Postal address. Only the country and the postal code are relied on: they are what
+    # decides whether a submission is inside a site's area. Street and city are for the
+    # gallery's own records — shipping, correspondence — and are never shown publicly;
+    # see `can_see_contact` on the artist detail page.
+    street = models.CharField(max_length=255, blank=True, default='')
+    city = models.CharField(max_length=255, blank=True, default='')
+    state = models.CharField(verbose_name='State / province', max_length=255,
+                             blank=True, default='')
+    # ISO 3166-1 alpha-2, not free text. Site.country is a plain CharField holding "USA",
+    # which is exactly the ambiguity to avoid here: "US"/"USA"/"United States" would all
+    # appear and the in-area test has to be reliable. Defaulted rather than left blank so
+    # every artist has a usable value without a new gate in the submission flow.
+    country = CountryField(default='US')
+    zipcode = models.CharField(verbose_name='ZIP / postal code',
+                               max_length=10, blank=True, default='')
     website = models.URLField(max_length=255, blank=True, null=True)
     instagram = models.CharField(verbose_name='Instagram: your handle starting with @', max_length=255, blank=True, null=True)
     venmo = models.CharField(verbose_name='Venmo: your username starting with @', max_length=255, blank=True, null=True)

@@ -23,6 +23,13 @@
       {% if can_see_contact and artist.email %}<br><strong>Email: </strong><a class="card__link" href="mailto:{{ artist.email }}">{{ artist.email }}</a>{% endif %}
       {# Venmo is payment info, not a public profile: same gate as phone/email. #}
       {% if can_see_contact and artist.venmo %}<br><strong>Venmo: </strong><a class="card__link" href="https://venmo.com/{{ artist.venmo|cut:"@" }}">{{ artist.venmo }}</a>{% endif %}
+      {% comment %}
+        A home address is the most sensitive thing on this record, so it sits behind the
+        same gate as phone and email and is never rendered publicly. Country and postal
+        code are deliberately included: they are only used to work out whether an artist
+        is inside a site's area, and that is nobody else's business either.
+      {% endcomment %}
+      {% if can_see_contact %}{% if artist.street or artist.city or artist.state or artist.zipcode %}<br><strong>Address: </strong>{% if artist.street %}{{ artist.street }}, {% endif %}{% if artist.city %}{{ artist.city }}, {% endif %}{% if artist.state %}{{ artist.state }} {% endif %}{{ artist.zipcode }}{% if artist.country %} &middot; {{ artist.country.name }}{% endif %}{% endif %}{% endif %}
       {% if artist.instagram %}<br><strong>Instagram: </strong><a class="card__link" href="https://instagram.com/{{ artist.instagram|cut:"@" }}">{{ artist.instagram }}</a>{% endif %}
       {% if artist.website %}<br><strong>Website: </strong><a class="card__link" href="{{ artist.website }}">{{ artist.website }}</a>{% endif %}
       {% if artist.bio %}<br><strong>Bio: </strong>{{ artist.bio|sanitize }}{% endif %}

@@ -76,8 +76,12 @@ class ArtistForm(UserAwareModelForm):
             'first_name',
             'last_name',
             'email',
+            'country',
             'zipcode',
             'image',
+            'street',
+            'city',
+            'state',
             'phone',
             'website',
             'instagram',
@@ -114,8 +118,11 @@ class ArtistForm(UserAwareModelForm):
         self.fields['first_name'].help_text = 'Your public first name.'
         self.fields['last_name'].label = 'Last name'
         self.fields['last_name'].help_text = 'Your public last name.'
-        self.fields['zipcode'].label = 'Zip code'
-        self.fields['zipcode'].help_text = 'US zip code (e.g. 94710). Required to submit artwork to shows.'
+        self.fields['zipcode'].label = 'ZIP / postal code'
+        self.fields['zipcode'].help_text = (
+            'ZIP code in the US, postal code elsewhere. Required to submit artwork, and '
+            'used with your country to work out whether you are in the area for shows '
+            'limited to one.')
         self.fields['image'].label = 'Profile photo'
         self.fields['image'].help_text = (
             'A photo of you, not your artwork — it appears on your profile and in the '
@@ -124,13 +131,31 @@ class ArtistForm(UserAwareModelForm):
         )
         self.fields['email'].required = True
         self.fields['email'].help_text = 'Used to contact you and to link your account.'
+        self.fields['country'].help_text = (
+            'Where you are based. Some shows are open only to artists in the '
+            'gallery\u2019s area, so this and your postal code decide whether you are '
+            'eligible.')
+        for name in ('street', 'city', 'state'):
+            self.fields[name].help_text = (
+                'Only needed if we consign work from you \u2014 it is how we return '
+                'unsold pieces. Never shown publicly.')
 
         # Group the form so it's obvious what's required: required fields (with
         # asterisks) come first under a "Required" heading, optional ones after.
         self.helper = FormHelper()
         self.helper.form_tag = False   # the template supplies <form> + submit button
-        required = ['first_name', 'last_name', 'email', 'zipcode', 'image']
-        optional = ['phone', 'website', 'instagram', 'venmo', 'bio', 'statement']
+        # Country sits with the postal code: together they are what decides whether a
+        # submission is inside a site's area, so they belong in the required group rather
+        # than among the optional contact details.
+        # Country and postal code are required: together they decide whether an artist
+        # is inside a site's area, which is the whole reason the address exists here.
+        # Street/city/state are optional on purpose — they are needed to *return* work,
+        # which only matters for artists actually consigned from, so the consignment flow
+        # is where they get asked. Requiring them at submission would collect home
+        # addresses from every entrant to an open call and use almost none of them.
+        required = ['first_name', 'last_name', 'email', 'country', 'zipcode', 'image']
+        optional = ['street', 'city', 'state', 'phone', 'website', 'instagram',
+                    'venmo', 'bio', 'statement']
         layout = Layout(
             HTML('<p class="text-muted small mb-3">Fields marked '
                  '<span class="text-danger">*</span> are required.</p>'),
@@ -149,8 +174,13 @@ class ArtistForm(UserAwareModelForm):
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()
-        if value and not re.match(r'^\d{5}(-\d{4})?$', value):
-            raise forms.ValidationError('Enter a valid US zip code (e.g. 94710 or 94710-1234).')
+        # Only US addresses get the US format check. This used to be unconditional, which
+        # meant an artist outside the US could not save a profile — and since a zip code
+        # is required before submitting, could not submit at all.
+        country = self.cleaned_data.get('country') or self.data.get('country')
+        if value and str(country) == 'US' and not re.match(r'^\d{5}(-\d{4})?$', value):
+            raise forms.ValidationError(
+                'Enter a valid US ZIP code (e.g. 94710 or 94710-1234).')
         return value
 
     def clean_instagram(self):

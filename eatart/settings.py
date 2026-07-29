@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
     'django_recaptcha',
+    'django_countries',
     'honeypot',
     "debug_toolbar",
     'accounts',

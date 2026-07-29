@@ -774,7 +774,7 @@ class SubmissionOnboardingTests(TestCase):
         r = self.client.post(
             reverse('gallery:artist_edit', kwargs={'pk': artist.pk}),
             {'first_name': 'Ree', 'last_name': 'Turn', 'email': 'ret@example.com',
-             'zipcode': '94710', 'next': self.submit_url,
+             'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA', 'next': self.submit_url,
              'image': _test_jpg('detour.jpg')})
         self.assertEqual(r.headers['Location'], self.submit_url)
 
@@ -928,7 +928,7 @@ class InvitationSubmissionFlowTests(TestCase):
         r = self.client.post(
             reverse('gallery:artist_edit', kwargs={'pk': artist.pk}),
             {'first_name': 'In', 'last_name': 'Vitee', 'email': 'in@example.com',
-             'zipcode': '94710', 'next': self.submit_url, 'image': _test_jpg('in.jpg')})
+             'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA', 'next': self.submit_url, 'image': _test_jpg('in.jpg')})
         self.assertEqual(r.headers['Location'], self.submit_url)
         self.assertEqual(self.client.get(self.submit_url).status_code, 200)
 
@@ -941,6 +941,63 @@ class InvitationSubmissionFlowTests(TestCase):
         self.client.force_login(user)
         self.assertIsNone(self._cta(self.client)[0])
         self.assertEqual(self.client.get(self.submit_url).status_code, 302)
+
+
+class ArtistAddressTests(TestCase):
+    """Country and postal code, which together decide whether an artist is in area.
+
+    Before country existed, `clean_zipcode` applied a US format check unconditionally —
+    and a zip code is required before submitting — so an artist outside the US could not
+    save a profile, let alone enter a show. A national or global show was not expressible.
+    """
+
+    def setUp(self):
+        # ArtistForm asks whether the user is staff, so it needs a real one.
+        self.user = User.objects.create_user(
+            username='addr@example.com', email='addr@example.com', password='pw')
+
+    def _payload(self, **overrides):
+        data = {'first_name': 'Wren', 'last_name': 'Halloway',
+                'email': 'wren@example.com', 'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
+                'street': '12 Quiet Lane', 'city': 'Berkeley', 'state': 'CA',
+                'phone': '', 'website': '', 'instagram': '', 'venmo': '',
+                'bio': '', 'statement': ''}
+        data.update(overrides)
+        return data
+
+    def test_country_is_required(self):
+        from gallery.forms import ArtistForm
+        form = ArtistForm(self._payload(country=''), user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('country', form.errors)
+
+    def test_us_postal_codes_are_still_format_checked(self):
+        from gallery.forms import ArtistForm
+        form = ArtistForm(self._payload(zipcode='not-a-zip'), user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('zipcode', form.errors)
+
+    def test_a_non_us_postal_code_is_accepted(self):
+        from gallery.forms import ArtistForm
+        """The point of the change: 'EC1V 9BD' is not a US ZIP and must not be rejected."""
+        form = ArtistForm(self._payload(country='GB', zipcode='EC1V 9BD'),
+                          {'image': _test_jpg('gb.jpg')}, user=self.user)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_existing_artists_default_to_the_us(self):
+        artist = Artist.objects.create(name='Defaulted', email='d@example.com')
+        self.assertEqual(str(artist.country), 'US')
+
+    def test_street_address_is_never_public(self):
+        """A home address is the most sensitive field on the record."""
+        artist = Artist.objects.create(
+            name='Private Person', email='pp@example.com',
+            street='12 Quiet Lane', city='Berkeley', zipcode='94710')
+        artist.image = None
+        artist.save()
+        body = self.client.get(artist.get_absolute_url()).content.decode()
+        self.assertNotIn('12 Quiet Lane', body,
+                         'an anonymous visitor must not see an artist street address')
 
 
 class ArtistCreationPermissionTests(TestCase):
@@ -997,7 +1054,7 @@ class ArtistCreationPermissionTests(TestCase):
         PILImage.new('RGB', (40, 40), (120, 140, 130)).save(buf, 'JPEG')
         self.client.post(reverse('gallery:artist_new'), {
             'first_name': 'Wren', 'last_name': 'Halloway',
-            'email': 'caregiver@example.com', 'zipcode': '94710',
+            'email': 'caregiver@example.com', 'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
             'bio': '', 'statement': '', 'phone': '', 'website': '',
             'instagram': '', 'venmo': '',
             'image': SimpleUploadedFile('w.jpg', buf.getvalue(), 'image/jpeg'),
@@ -1514,7 +1571,7 @@ class ArtistPageSubmitEntryTests(TestCase):
         r = self.client.post(
             reverse('gallery:artist_edit', kwargs={'pk': self.artist.pk}),
             {'first_name': 'Sam', 'last_name': 'Ready', 'email': 'own@example.com',
-             'zipcode': '94710', 'next': submit_url, 'image': _test_jpg('own.jpg')})
+             'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA', 'next': submit_url, 'image': _test_jpg('own.jpg')})
         self.assertEqual(r.headers['Location'], submit_url)
 
 
@@ -4074,7 +4131,7 @@ class ArtistFormRequiredTests(TestCase):
         u = User.objects.create_user(
             username='nophoto@example.com', email='nophoto@example.com', password='pw')
         data = {'first_name': 'A', 'last_name': 'B',
-                'email': 'nophoto@example.com', 'zipcode': '94710'}
+                'email': 'nophoto@example.com', 'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA'}
         self.assertFalse(ArtistForm(data=data, user=u).is_valid())
         form = ArtistForm(data=data, files={'image': _test_jpg('p.jpg')}, user=u)
         self.assertTrue(form.is_valid(), form.errors)
@@ -4084,7 +4141,7 @@ class ArtistFormRequiredTests(TestCase):
         u = User.objects.create_user(
             username='afw@example.com', email='afw@example.com', password='pw')
         data = {'first_name': 'A', 'last_name': 'B', 'email': 'afw@example.com',
-                'zipcode': '94710', 'website': 'howardhersh.com'}
+                'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA', 'website': 'howardhersh.com'}
         form = ArtistForm(data=data, user=u)
         form.is_valid()   # image missing, but website must NOT be an error
         self.assertNotIn('website', form.errors)
@@ -4095,7 +4152,7 @@ class ArtistFormRequiredTests(TestCase):
         u = User.objects.create_user(
             username='afw2@example.com', email='afw2@example.com', password='pw')
         form = ArtistForm(data={'first_name': 'A', 'last_name': 'B', 'email': 'afw2@example.com',
-                                'zipcode': '94710', 'website': 'not a url'}, user=u)
+                                'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA', 'website': 'not a url'}, user=u)
         form.is_valid()
         self.assertIn('website', form.errors)
 
