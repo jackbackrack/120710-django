@@ -237,9 +237,9 @@
   },
   "how-to-create-and-manage-sites-staff-only": {
     "1": {
-      "bytes": 428698,
+      "bytes": 428344,
       "height": 900,
-      "key": "how-to-create-and-manage-sites-staff-only/01.965bfc18cf59.webp",
+      "key": "how-to-create-and-manage-sites-staff-only/01.7da6f9cbd79f.webp",
       "width": 1100
     },
     "10": {
@@ -519,6 +519,82 @@
       "width": 1100
     }
   },
+  "how-to-schedule-your-art-install-drop-off-and-pickup": {
+    "1": {
+      "bytes": 4370,
+      "height": 27,
+      "key": "how-to-schedule-your-art-install-drop-off-and-pickup/01.9c23ead09c6d.webp",
+      "width": 398
+    },
+    "2": {
+      "bytes": 303312,
+      "height": 900,
+      "key": "how-to-schedule-your-art-install-drop-off-and-pickup/02.5b6d906c5e9c.webp",
+      "width": 1100
+    },
+    "3": {
+      "bytes": 33886,
+      "height": 203,
+      "key": "how-to-schedule-your-art-install-drop-off-and-pickup/03.c021b65535ea.webp",
+      "width": 528
+    },
+    "5": {
+      "bytes": 316722,
+      "height": 900,
+      "key": "how-to-schedule-your-art-install-drop-off-and-pickup/05.c97a50d0f4b6.webp",
+      "width": 1100
+    },
+    "6": {
+      "bytes": 21494,
+      "height": 48,
+      "key": "how-to-schedule-your-art-install-drop-off-and-pickup/06.5ef7c5d30888.webp",
+      "width": 528
+    }
+  },
+  "how-to-set-up-install-drop-off-and-pickup-times-curator": {
+    "1": {
+      "bytes": 33638,
+      "height": 49,
+      "key": "how-to-set-up-install-drop-off-and-pickup-times-curator/01.afe0d20bf036.webp",
+      "width": 1084
+    },
+    "2": {
+      "bytes": 6428,
+      "height": 106,
+      "key": "how-to-set-up-install-drop-off-and-pickup-times-curator/02.1aa832305ee4.webp",
+      "width": 176
+    },
+    "3": {
+      "bytes": 354422,
+      "height": 900,
+      "key": "how-to-set-up-install-drop-off-and-pickup-times-curator/03.263e1abdcf02.webp",
+      "width": 1100
+    },
+    "4": {
+      "bytes": 73056,
+      "height": 380,
+      "key": "how-to-set-up-install-drop-off-and-pickup-times-curator/04.01052fd487fb.webp",
+      "width": 528
+    },
+    "5": {
+      "bytes": 14588,
+      "height": 25,
+      "key": "how-to-set-up-install-drop-off-and-pickup-times-curator/05.78069566a9de.webp",
+      "width": 528
+    },
+    "7": {
+      "bytes": 286512,
+      "height": 900,
+      "key": "how-to-set-up-install-drop-off-and-pickup-times-curator/07.0ffb6939f576.webp",
+      "width": 1100
+    },
+    "8": {
+      "bytes": 13386,
+      "height": 82,
+      "key": "how-to-set-up-install-drop-off-and-pickup-times-curator/08.928c6eda4855.webp",
+      "width": 820
+    }
+  },
   "how-to-sign-up-for-an-account": {
     "1": {
       "bytes": 3086,
@@ -565,9 +641,9 @@
       "width": 903
     },
     "3": {
-      "bytes": 230290,
+      "bytes": 261512,
       "height": 900,
-      "key": "how-to-use-the-curation-slideshow/03.3b72deab648e.webp",
+      "key": "how-to-use-the-curation-slideshow/03.3957f0785fa3.webp",
       "width": 1100
     },
     "4": {
@@ -615,9 +691,9 @@
       "width": 324
     },
     "2": {
-      "bytes": 132838,
+      "bytes": 133700,
       "height": 900,
-      "key": "how-to-use-the-review-slideshow/02.3410e1f25fe8.webp",
+      "key": "how-to-use-the-review-slideshow/02.781321ea915c.webp",
       "width": 1100
     },
     "3": {

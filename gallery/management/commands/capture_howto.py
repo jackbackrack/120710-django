@@ -1814,6 +1814,163 @@ def capture_link_artist(rec, facts):
     # Step 5 is what the user can do afterwards.
 
 
+# ── Install / drop-off scheduling ────────────────────────────────────────────
+# The two guides are two halves of one feature: the curator defines windows, the artist
+# picks a time inside one. They share a prepare that builds a published show with an
+# accepted artwork and real windows, because the artist page 404s without work in the show
+# and shows nothing without windows.
+
+SCHEDULING_ARTIST_EMAIL = 'ready@example.com'
+
+
+def _prepare_scheduling_show(self_install=True):
+    import datetime as dt
+
+    from gallery.models.logistics import INSTALL, PICKUP, ScheduleWindow
+
+    _cleanup_capture_shows()
+    show = _create_capture_show('Scheduling', Show.SUBMISSION_OPEN,
+                                Show.STATUS_PUBLISHED)
+    show.self_install = self_install
+    show.save(update_fields=['self_install'])
+
+    artist = Artist.objects.filter(user__email=SCHEDULING_ARTIST_EMAIL).first()
+    if artist is None:
+        raise CommandError(
+            f'No seeded artist for {SCHEDULING_ARTIST_EMAIL}, so nobody has accepted work '
+            f'in the show and the artist scheduling page would 404. Re-seed.')
+    artwork = artist.artworks.first()
+    if artwork is None:
+        artwork = Artwork.objects.create(
+            name='Scheduling Study', end_year=2025, medium='Oil on canvas',
+            width_inches=18, height_inches=24,
+            pricing_type=Artwork.PRICING_ON_REQUEST)
+        artwork.artists.add(artist)
+    artwork.shows.add(show)
+
+    # Two ranges of each kind, so the "add as many as you need" step has more than one row
+    # to show and the artist's dropdown has a real choice in it.
+    base = dt.date.today() + dt.timedelta(days=20)
+    for offset, kind in ((0, INSTALL), (1, INSTALL), (40, PICKUP), (41, PICKUP)):
+        ScheduleWindow.objects.create(
+            show=show, kind=kind, date=base + dt.timedelta(days=offset),
+            start=dt.time(10, 0), end=dt.time(16, 0))
+    return {'slug': show.slug, 'pk': show.pk, 'artist_pk': artist.pk}
+
+
+def prepare_schedule_windows():
+    return _prepare_scheduling_show(self_install=True)
+
+
+def capture_schedule_windows(rec, facts):
+    """The curator side: defining windows and tracking who has arrived."""
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+    show_url = f'/show/{facts["slug"]}/'
+
+    # Step 1 — "on the show's Edit page, the 'Artists install their own work' setting."
+    rec.at_step(1)
+    # show_edit is routed by pk, not slug.
+    rec.goto(f'/show/{facts["pk"]}/edit/')
+    rec.shot_region(1, '#div_id_self_install')
+
+    # Step 2 — "click 'Schedule Windows' in the curatorial button row." It lives in the
+    # Logistics menu, so the menu has to be open for the reader to see where.
+    rec.at_step(2)
+    rec.goto(show_url)
+    rec.click('open the Logistics menu', rec.control('Logistics'))
+    rec.expect_visible('see Schedule Windows in the menu', '.dropdown-menu.show')
+    rec.shot_region(2, '.dropdown-menu.show')
+
+    # Step 3 — "add each date/time range when artists may come ... then click Add."
+    rec.at_step(3)
+    rec.goto(f'{show_url}schedule-windows/')
+    rec.shot(3)
+
+    # Step 4 — "Under 'Pickup windows', do the same."
+    # The Pickup heading through its own Add form — the heading alone was 528x16 px of
+    # text with none of the section it labels.
+    rec.at_step(4)
+    rec.shot_region(4, 'h3:has-text("Pickup windows")',
+                    'form:has(button:has-text("Add pickup window"))')
+
+    # Step 5 — "To remove a window, click 'remove' next to it." The whole row, so the
+    # link has a window next to it; on its own it was 49x18 px.
+    rec.at_step(5)
+    rec.shot_region(5, 'li:has(button:has-text("remove"))')
+
+    # Step 6 is what the artist then sees — the other guide's subject.
+
+    # Step 7 — "click 'Schedule Tracker' on the show detail page. It lists every accepted
+    #           artist with their chosen times."
+    rec.at_step(7)
+    rec.goto(f'{show_url}schedule-tracker/')
+    rec.shot(7)
+
+    # Step 8 — "Tick the Done box in each column ... The summary at the top shows how many
+    #           are done."
+    rec.at_step(8)
+    rec.shot_region(8, 'table')
+
+
+def prepare_artist_schedule():
+    return _prepare_scheduling_show(self_install=True)
+
+
+def capture_artist_schedule(rec, facts):
+    """The artist side: choosing a time inside one of the curator's windows."""
+    _log_in(rec, SCHEDULING_ARTIST_EMAIL, SEEDED_PASSWORD)
+    show_url = f'/show/{facts["slug"]}/'
+
+    # Step 1 — "open the show detail page and click 'Schedule My Install & Pickup'."
+    rec.at_step(1)
+    rec.goto(show_url)
+    # The whole action row, so the reader can see where among the show's controls the
+    # button sits — cropped to the link it was 165x19 px of its own label.
+    rec.shot_region(1, '.show-actions')
+
+    # Step 2 — "choose one of the available windows from the dropdown, enter a specific
+    #           time within that window's range, and click Set."
+    rec.at_step(2)
+    rec.goto(f'{show_url}schedule/')
+    rec.shot(2)
+
+    # Step 3 — "For Pickup ... do the same."
+    rec.at_step(3)
+    rec.shot_region(3, 'form:has(select[name*="pickup"]), '
+                       'div:has(> h2:has-text("Pickup"))')
+
+    # Step 4 is what install vs drop-off means — a rule, not a control.
+
+    # Step 5 — "Your chosen times are shown on the page." Set one so the step has a
+    # chosen time to show rather than an empty form.
+    rec.at_step(5)
+    _db(_set_artist_schedule, facts['slug'], facts['artist_pk'])
+    rec.goto(f'{show_url}schedule/')
+    rec.shot(5)
+
+    # Step 6 — "'Add to calendar' links appear next to it."
+    # "next to it" is the point of this step, so the crop includes the scheduled time the
+    # links sit beside rather than just the two links.
+    rec.at_step(6)
+    rec.shot_region(6, 'li:has(a:has-text("Google")), p:has(a:has-text("Google"))',
+                    'a:has-text("Google")')
+
+
+def _set_artist_schedule(slug, artist_pk):
+    """Book the artist into the first install window, so step 5 has something to show."""
+    from gallery.models.logistics import INSTALL, ArtistSchedule, ScheduleWindow
+
+    if not slug.startswith(CAPTURE_SHOW_PREFIX):
+        raise CommandError(f'refusing to schedule against "{slug}" — not a capture show')
+    show = Show.objects.get(slug=slug)
+    window = ScheduleWindow.objects.filter(show=show, kind=INSTALL).first()
+    if window is None:
+        raise CommandError('no install window on the capture show')
+    ArtistSchedule.objects.update_or_create(
+        show=show, artist_id=artist_pk, kind=INSTALL,
+        defaults={'window': window, 'scheduled_time': window.start})
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -1975,6 +2132,22 @@ CAPTURE_SCRIPTS = {
         'prose_only': {5},
         'reset': _reset_capture_account,
         'cleanup': _reset_capture_account,
+    },
+    'how-to-set-up-install-drop-off-and-pickup-times-curator': {
+        'prepare': prepare_schedule_windows,
+        'run': capture_schedule_windows,
+        # 6 is what the artist then sees — the companion guide's subject.
+        'prose_only': {6},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
+    },
+    'how-to-schedule-your-art-install-drop-off-and-pickup': {
+        'prepare': prepare_artist_schedule,
+        'run': capture_artist_schedule,
+        # 4 is what install vs drop-off means — a rule, not a control.
+        'prose_only': {4},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
     },
     'how-to-pin-artworks': {
         'prepare': prepare_pin_artworks,
