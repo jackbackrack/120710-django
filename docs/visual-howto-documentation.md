@@ -1,6 +1,6 @@
 # Visual how-to documentation
 
-**Status: 23 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
+**Status: 26 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
 in git. The whole artist path is illustrated (sign up → complete profile → add artworks →
 submit, that last one for every reader signed in or not), plus pinning, buying and the
 card-size control, and now the jury cluster: jurying a show, the review slideshow and the
@@ -8,11 +8,20 @@ curation slideshow, plus adding artwork on behalf of an artist and running an
 invitation-only show end to end, the open-call equivalent, the show lifecycle and public
 art site shows, and the staff setup cluster (creating a show, creating and managing
 venues, configuring a venue's room, and linking an artist profile to an account).
-the install/pickup scheduling pair, recording artwork ownership and claiming an existing
-artist profile. 7 still need a capture script — of which four
-are not worth capturing as stills (the layout editor's canvas drag-and-drop, the WebGL 3D
-view, the site map's live OpenStreetMap tiles, and the command-line guide for this system
-itself). Plan agreed 2026-07-28.
+the install/pickup scheduling pair, recording artwork ownership, claiming an existing
+artist profile, layout snapshots, and both generated PDFs. Only four
+remain, and all four are deliberate: the layout editor's canvas drag-and-drop, the WebGL
+3D view, the site map's live OpenStreetMap tiles, and the command-line guide for this
+system itself. Plan agreed 2026-07-28.
+
+**Generated PDFs are rendered, not linked.** `shot_pdf()` fetches the PDF through the
+browser's own request context (so the curator's session cookie goes with it), rasterises a
+page with `pdftoppm`, and writes it as that step's image. It matters because the checklist
+and placard guides are almost entirely about what the PDF *contains* — a cover page with
+artists in columns, ten Avery cards per sheet — so photographing the menu item that
+produces them illustrated one step out of six. `page_number='last'` uses `pdfinfo` to
+address sections that come last regardless of how big the show is. Needs poppler
+(`brew install poppler`); the command says so if it is missing.
 
 **Guides that mutate shared state must build their own.** The lifecycle guides drive a
 show through its statuses, invite artists and add work; doing that to a seeded show would

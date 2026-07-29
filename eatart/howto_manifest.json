@@ -291,6 +291,32 @@
       "width": 936
     }
   },
+  "how-to-download-a-show-checklist-pdf": {
+    "1": {
+      "bytes": 7712,
+      "height": 166,
+      "key": "how-to-download-a-show-checklist-pdf/01.b34063e518dd.webp",
+      "width": 176
+    },
+    "2": {
+      "bytes": 116598,
+      "height": 984,
+      "key": "how-to-download-a-show-checklist-pdf/02.cdc54fe07e87.webp",
+      "width": 761
+    },
+    "3": {
+      "bytes": 141490,
+      "height": 984,
+      "key": "how-to-download-a-show-checklist-pdf/03.875f1facde31.webp",
+      "width": 761
+    },
+    "4": {
+      "bytes": 29620,
+      "height": 984,
+      "key": "how-to-download-a-show-checklist-pdf/04.2dc2a015183e.webp",
+      "width": 761
+    }
+  },
   "how-to-jury-a-show": {
     "3": {
       "bytes": 3768,
@@ -373,6 +399,32 @@
       "height": 288,
       "key": "how-to-pin-artworks/06.7e8bb2676942.webp",
       "width": 176
+    }
+  },
+  "how-to-print-placards-for-a-show-avery-5376-cards": {
+    "1": {
+      "bytes": 7712,
+      "height": 166,
+      "key": "how-to-print-placards-for-a-show-avery-5376-cards/01.b34063e518dd.webp",
+      "width": 176
+    },
+    "2": {
+      "bytes": 114816,
+      "height": 984,
+      "key": "how-to-print-placards-for-a-show-avery-5376-cards/02.b22f63f7673d.webp",
+      "width": 761
+    },
+    "3": {
+      "bytes": 146656,
+      "height": 1292,
+      "key": "how-to-print-placards-for-a-show-avery-5376-cards/03.d575a1f9ff35.webp",
+      "width": 999
+    },
+    "5": {
+      "bytes": 115182,
+      "height": 984,
+      "key": "how-to-print-placards-for-a-show-avery-5376-cards/05.de878fe832e7.webp",
+      "width": 761
     }
   },
   "how-to-record-artwork-ownership": {
@@ -557,6 +609,38 @@
       "width": 1100
     }
   },
+  "how-to-save-and-restore-layout-snapshots": {
+    "1": {
+      "bytes": 5946,
+      "height": 42,
+      "key": "how-to-save-and-restore-layout-snapshots/01.8720195ae45c.webp",
+      "width": 858
+    },
+    "2": {
+      "bytes": 3440,
+      "height": 31,
+      "key": "how-to-save-and-restore-layout-snapshots/02.68e06f876bd9.webp",
+      "width": 318
+    },
+    "3": {
+      "bytes": 21450,
+      "height": 108,
+      "key": "how-to-save-and-restore-layout-snapshots/03.24c82191cf74.webp",
+      "width": 318
+    },
+    "4": {
+      "bytes": 10330,
+      "height": 54,
+      "key": "how-to-save-and-restore-layout-snapshots/04.e61356477fbc.webp",
+      "width": 318
+    },
+    "5": {
+      "bytes": 36468,
+      "height": 234,
+      "key": "how-to-save-and-restore-layout-snapshots/05.2a5dc34dcde2.webp",
+      "width": 340
+    }
+  },
   "how-to-schedule-your-art-install-drop-off-and-pickup": {
     "1": {
       "bytes": 4370,
@@ -679,9 +763,9 @@
       "width": 903
     },
     "3": {
-      "bytes": 252664,
+      "bytes": 257500,
       "height": 900,
-      "key": "how-to-use-the-curation-slideshow/03.d0274bc3a910.webp",
+      "key": "how-to-use-the-curation-slideshow/03.840c55561400.webp",
       "width": 1100
     },
     "4": {
@@ -729,9 +813,9 @@
       "width": 324
     },
     "2": {
-      "bytes": 133700,
+      "bytes": 133684,
       "height": 900,
-      "key": "how-to-use-the-review-slideshow/02.781321ea915c.webp",
+      "key": "how-to-use-the-review-slideshow/02.ec02e575d4cc.webp",
       "width": 1100
     },
     "3": {

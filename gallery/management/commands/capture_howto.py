@@ -28,6 +28,7 @@ the day it runs, so a capture in July and one in December produce the same pages
 """
 import hashlib
 import io
+import pathlib
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 
@@ -328,6 +329,70 @@ class Recorder:
             'x': max(0, left), 'y': max(0, top),
             'width': right - max(0, left), 'height': bottom - max(0, top),
         })
+        self._write(number, raw)
+
+    def shot_pdf(self, number, path, page_number=1, css_width=760):
+        """Render one page of a PDF the app generates, and write it as this step's image.
+
+        Several guides are almost entirely about what a generated PDF *contains* — the
+        checklist's cover and artist pages, the layout of an Avery card sheet. Screenshotting
+        the button that produces them illustrates one step out of six; rendering the page
+        shows the thing the guide is describing.
+
+        Fetched through the browser's own request context so the session cookie goes with
+        it — these endpoints are curator-only. Rasterised with pdftoppm (poppler), at
+        whatever resolution gives `css_width` after the 2x capture scale is divided out.
+        """
+        import shutil as _shutil
+        import subprocess
+        import tempfile
+
+        self.at_step(number)
+        if _shutil.which('pdftoppm') is None:
+            raise CommandError(
+                'pdftoppm (poppler) is not installed, so PDF pages cannot be rendered.\n'
+                '    brew install poppler')
+
+        response = self.page.context.request.get(f'{self.base_url}{path}')
+        if not response.ok:
+            raise DocumentationMismatch(
+                f'step {self.step}: {path} returned HTTP {response.status}, so there is '
+                f'no PDF to show.\n'
+                f'    Either the link moved or this reader may not generate it.')
+        body = response.body()
+        if not body.startswith(b'%PDF'):
+            raise DocumentationMismatch(
+                f'step {self.step}: {path} did not return a PDF (got '
+                f'{body[:16]!r}). The guide says this link downloads one.')
+
+        # US Letter is 8.5in wide; render at 2x the target CSS width so the result matches
+        # what a browser screenshot at HOWTO_CAPTURE_SCALE would have produced.
+        dpi = max(72, round(css_width * HOWTO_CAPTURE_SCALE / 8.5))
+        with tempfile.TemporaryDirectory() as tmp:
+            src = pathlib.Path(tmp) / 'in.pdf'
+            src.write_bytes(body)
+            if page_number == 'last':
+                # Sections that come last — the checklist's artist bios — are addressed by
+                # position, not by a number that changes with the size of the show.
+                info = subprocess.run(['pdfinfo', str(src)],
+                                      check=True, capture_output=True, text=True).stdout
+                pages = [ln.split(':', 1)[1].strip() for ln in info.splitlines()
+                         if ln.startswith('Pages:')]
+                if not pages:
+                    raise CommandError(
+                        f'step {self.step}: pdfinfo did not report a page count for '
+                        f'{path}.')
+                page_number = int(pages[0])
+            subprocess.run(
+                ['pdftoppm', '-png', '-r', str(dpi),
+                 '-f', str(page_number), '-l', str(page_number),
+                 str(src), str(pathlib.Path(tmp) / 'page')],
+                check=True, capture_output=True)
+            rendered = sorted(pathlib.Path(tmp).glob('page*.png'))
+            if not rendered:
+                raise CommandError(
+                    f'step {self.step}: {path} has no page {page_number}.')
+            raw = rendered[0].read_bytes()
         self._write(number, raw)
 
     def _write(self, number, raw):
@@ -2111,6 +2176,187 @@ def capture_link_account(rec, facts):
     # Step 5 is who to email when none of the three cases is obvious.
 
 
+# ── Generated-PDF guides ─────────────────────────────────────────────────────
+# Both guides are mostly about what the PDF contains, not about the page that makes it, so
+# these render actual pages with shot_pdf. Captured against the closed Autumn Open, which
+# carries the full catalogue — a checklist of four works would not show what the guide
+# describes (artists in columns, one entry per piece, a bios section).
+
+PDF_SHOW_SLUG_PREFIX = 'autumn-open'
+
+
+def _pdf_show():
+    show = Show.objects.filter(slug__startswith=PDF_SHOW_SLUG_PREFIX).first()
+    if show is None or show.artworks.count() < 5:
+        raise CommandError(
+            'No closed show with a real catalogue, so the generated PDFs would have '
+            'almost nothing in them. Re-seed with `bash scripts/create_test_database.sh`.')
+    return show
+
+
+def _pdf_show_curator(show):
+    """Someone who can actually reach the Produce menu on this show.
+
+    Looked up rather than assumed: the closed Autumn Open is curated by a different
+    account from the in-review show the jury guides use, and the menu simply is not
+    rendered for anyone who cannot manage the show.
+    """
+    curator = show.curators.filter(user__isnull=False).first()
+    if curator is None:
+        raise CommandError(
+            f'"{show.slug}" has no curator with a login, so nobody can open the Produce '
+            f'menu the guide describes. Re-seed.')
+    return curator.user.email
+
+
+def prepare_checklist_pdf():
+    show = _pdf_show()
+    return {'slug': show.slug, 'pk': show.pk,
+            'curator_email': _pdf_show_curator(show)}
+
+
+def capture_checklist_pdf(rec, facts):
+    """The exhibition checklist: where the link is, then the pages it produces."""
+    _log_in(rec, facts['curator_email'], SEEDED_PASSWORD)
+    show_url = f'/show/{facts["slug"]}/'
+
+    # Step 1 — "On the show detail page, click 'Checklist PDF'." It is in the Produce
+    # menu, so the menu has to be open for the reader to see where.
+    rec.at_step(1)
+    rec.goto(show_url)
+    rec.click('open the Produce menu', rec.control('Produce'))
+    rec.expect_visible('see Checklist PDF in the menu', '.dropdown-menu.show')
+    rec.shot_region(1, '.dropdown-menu.show')
+
+    pdf = f'{show_url}checklist.pdf'
+
+    # Step 2 — "It opens with a cover page: the show title, 'Curated by…', the date range,
+    #           ... the list of participating artists ... and the show image."
+    rec.shot_pdf(2, pdf, page_number=1)
+
+    # Step 3 — "Then one entry per artwork — a small thumbnail with the artist, title
+    #           (year), medium, dimensions, and price — grouped by artist."
+    rec.shot_pdf(3, pdf, page_number=2)
+
+    # Step 4 — "It ends with an 'Artists' section — every participating artist's photo
+    #           with their name ... then the curator(s)."
+    rec.shot_pdf(4, pdf, page_number='last')
+
+    # Step 5 is the per-page footer, which is part of every page above rather than a page
+    # of its own, and step 6 says this is not the Avery placard sheet.
+
+
+def prepare_placards_pdf():
+    show = _pdf_show()
+    return {'slug': show.slug, 'pk': show.pk,
+            'curator_email': _pdf_show_curator(show)}
+
+
+def capture_placards_pdf(rec, facts):
+    """The Avery 5376 card sheet, including the alignment-check variant."""
+    _log_in(rec, facts['curator_email'], SEEDED_PASSWORD)
+    show_url = f'/show/{facts["slug"]}/'
+
+    # Step 1 — "On the show detail page, click 'Placards PDF'."
+    rec.at_step(1)
+    rec.goto(show_url)
+    rec.click('open the Produce menu', rec.control('Produce'))
+    rec.expect_visible('see Placards PDF in the menu', '.dropdown-menu.show')
+    rec.shot_region(1, '.dropdown-menu.show')
+
+    sheet = f'{show_url}placard-sheet/'
+
+    # Step 2 — "laid out for Avery 5376 business-card sheets — US Letter, ten 2 x 3.5 inch
+    #           cards per page (2 columns x 5 rows)."
+    rec.shot_pdf(2, sheet, page_number=1)
+
+    # Step 3 — "Each card shows the title, year(s), artist(s), medium, and dimensions —
+    #           no price — plus a QR code." Rendered larger, because the point of this
+    #           step is what is printed on one card.
+    rec.shot_pdf(3, sheet, page_number=1, css_width=1000)
+
+    # Step 4 is the card ordering and printing at 100%.
+
+    # Step 5 — "add ?outlines=1 to the PDF link ... to draw faint card borders; print it,
+    #           hold it against a blank Avery sheet to confirm registration."
+    rec.shot_pdf(5, f'{sheet}?outlines=1', page_number=1)
+
+
+# ── how-to-save-and-restore-layout-snapshots ─────────────────────────────────
+# The layout editor itself is a canvas tool and its placement steps are not worth
+# capturing as stills, but the snapshot panel is ordinary DOM sitting on top of it, so
+# this guide is capturable even though its parent guide is not.
+
+def prepare_layout_snapshots():
+    """A show whose layout has snapshots — the panel is empty and says so otherwise."""
+    from gallery.models.room import ShowLayoutSnapshot
+
+    _cleanup_capture_shows()
+    show = _pdf_show()          # the closed Autumn Open: a real site and real artworks
+    curator_email = _pdf_show_curator(show)
+    user = get_user_model().objects.filter(email=curator_email).first()
+
+    existing = set(ShowLayoutSnapshot.objects.filter(show=show)
+                   .values_list('pk', flat=True))
+    payload = {'placements': [], 'supports': [], 'room': {}}
+    ShowLayoutSnapshot.objects.create(
+        show=show, name='Opening night final',
+        kind=ShowLayoutSnapshot.MANUAL, payload=payload, created_by=user)
+    ShowLayoutSnapshot.objects.create(
+        show=show, name='', kind=ShowLayoutSnapshot.AUTO,
+        payload=payload, created_by=user)
+    return {'slug': show.slug, 'curator_email': curator_email,
+            'baseline': sorted(existing)}
+
+
+def _cleanup_layout_snapshots():
+    """Remove only the snapshots this run added to a seeded show."""
+    from gallery.models.room import ShowLayoutSnapshot
+
+    ShowLayoutSnapshot.objects.filter(
+        name__in=['Opening night final', ''],
+        show__slug__startswith=PDF_SHOW_SLUG_PREFIX).delete()
+    _cleanup_capture_shows()
+
+
+def capture_layout_snapshots(rec, facts):
+    """The snapshot panel: saving a restore point, and rolling back to one."""
+    _log_in(rec, facts['curator_email'], SEEDED_PASSWORD)
+    rec.goto(f'/show/{facts["slug"]}/layout/')
+
+    # Step 1 — "In the room layout editor toolbar, click 'Snapshots'."
+    rec.at_step(1)
+    rec.expect_visible('see the layout editor toolbar', '#btn-snapshots')
+    # The toolbar, so "in the room layout editor toolbar" is visible — the button on its
+    # own was 84x27 px and could have been anywhere.
+    rec.shot_region(1, '#toolbar')
+    rec.click('click Snapshots', rec.page.locator('#btn-snapshots'))
+    rec.expect_visible('see the snapshot panel open', '#snapshots-panel.open')
+
+    # Step 2 — "type a name ... and click Save."
+    rec.at_step(2)
+    rec.fill('name the snapshot', '#snap-name', 'Before rehang')
+    rec.shot_region(2, '#snap-name', '#snap-save')
+
+    # Step 3 — "The list shows your saved (green 'saved') and automatic (grey 'auto')
+    #           ones, each with when it was taken, who took it, and how many
+    #           pieces/supports it holds."
+    rec.at_step(3)
+    rec.expect_visible('see the list of snapshots', '#snap-list .snap-row')
+    rec.shot_region(3, '#snap-list')
+
+    # Step 4 — "click 'Restore' next to a snapshot and confirm."
+    rec.at_step(4)
+    rec.shot_region(4, '#snap-list .snap-row')
+
+    # Step 5 — "click the trash button on a snapshot row ... Close the panel with the ×."
+    rec.at_step(5)
+    rec.shot_region(5, '#snapshots-panel')
+
+    # Steps 6-8 are why snapshots exist, the stale-edit guard, and the command-line
+    # export/import — none of them a control in this panel.
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -2305,6 +2551,32 @@ CAPTURE_SCRIPTS = {
         'prose_only': {1, 2, 5},
         'reset': _reset_capture_account,
         'cleanup': _reset_capture_account,
+    },
+    'how-to-download-a-show-checklist-pdf': {
+        'prepare': prepare_checklist_pdf,
+        'run': capture_checklist_pdf,
+        # 5 is the footer, which appears on every page above; 6 says this is not the
+        # Avery sheet.
+        'prose_only': {5, 6},
+        'reset': _reset_capture_account,
+        'cleanup': _reset_capture_account,
+    },
+    'how-to-print-placards-for-a-show-avery-5376-cards': {
+        'prepare': prepare_placards_pdf,
+        'run': capture_placards_pdf,
+        # 4 is card ordering and printer settings.
+        'prose_only': {4},
+        'reset': _reset_capture_account,
+        'cleanup': _reset_capture_account,
+    },
+    'how-to-save-and-restore-layout-snapshots': {
+        'prepare': prepare_layout_snapshots,
+        'run': capture_layout_snapshots,
+        # 6-8 are why snapshots exist, the stale-edit guard, and the command-line
+        # export/import — none is a control in the panel.
+        'prose_only': {6, 7, 8},
+        'reset': _cleanup_layout_snapshots,
+        'cleanup': _cleanup_layout_snapshots,
     },
     'how-to-pin-artworks': {
         'prepare': prepare_pin_artworks,
