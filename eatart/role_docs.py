@@ -336,10 +336,10 @@ HOW_TO_GUIDES = [
         'summary': 'Describe a venue\'s room geometry so the layout editor and 3D view can represent it.',
         'roles': {'staff'},
         'steps': [
-            'Open the site detail page and click Edit, then scroll to the Room Configuration section.',
+            'Open the site detail page and click Edit, then scroll to the Gallery Room section.',
             'Enter the room dimensions: width, depth, and height (all in inches).',
             'Optionally upload texture images for each surface: North wall, East wall, South wall, West wall, floor, and ceiling. Leave any field blank to use a plain white surface.',
-            'Scroll to the Walls & Obstacles section. Each wall (N, E, S, W) can have one or more obstacles such as doors or windows.',
+            'Scroll to the Obstacles table, under Gallery Room. Each wall (N, E, S, W) can have one or more obstacles such as doors or windows.',
             'For each obstacle, enter a label (e.g. "Front door"), select the wall it is on, and enter its position and dimensions (all in inches). Horizontal position is measured from the left edge of the wall; vertical position is measured from the floor.',
             'Obstacles appear as grey rectangles in the layout editor and as semi-transparent panels in the 3D viewer. Users can include them in distribute operations when placing artworks.',
             'Corner handles are always present at the edges of each wall and do not need to be configured.',
@@ -397,8 +397,8 @@ HOW_TO_GUIDES = [
             'To set the map coordinates automatically, fill in at least the street address or city, then click "Look up coordinates from address". The latitude and longitude fields are filled from the OpenStreetMap geocoder — review the matched address shown beneath the button before saving.',
             'If geocoding fails or returns the wrong location, enter the latitude and longitude values manually.',
             'Set Status to Published to make the site visible to all visitors. Sites with Draft status are only visible to staff.',
-            'In the Room Configuration section, enter the room dimensions (width, depth, height in inches) and optionally upload texture images for each wall surface (N/E/S/W), floor, and ceiling.',
-            'In the Walls & Obstacles section, add obstacles such as doors or windows for any wall. Each obstacle needs a label, wall selection, position from the left edge, height from the floor, and dimensions.',
+            'In the Gallery Room section, under "Dimensions & wall textures", enter the room dimensions (width, depth, height in inches) and optionally upload texture images for each wall surface (N/E/S/W), floor, and ceiling.',
+            'In the Obstacles table, add obstacles such as doors or windows for any wall. Each obstacle needs a label, wall selection, position from the left edge, height from the floor, and dimensions.',
             'Save the site. It now appears in the Sites list and as a pin on the map (if coordinates are set). The room configuration is used by the layout editor and 3D viewer.',
             'To edit an existing site, open the site detail page and click Edit.',
             'To delete a site, open the site detail page, click Edit, then click Delete and confirm.',
@@ -855,8 +855,8 @@ ROLE_DOCUMENTATION = {
             },
             {
                 'name': 'Room Configuration Form',
-                'where_used': 'Site edit page → Room Configuration section',
-                'breadcrumb': 'Sites > Site Detail > Edit > Room Configuration',
+                'where_used': 'Site edit page → Gallery Room section',
+                'breadcrumb': 'Sites > Site Detail > Edit > Gallery Room',
                 'fields': [
                     {'name': 'width_in', 'input_type': 'numeric input', 'purpose': 'Room width in inches (east-west dimension).'},
                     {'name': 'depth_in', 'input_type': 'numeric input', 'purpose': 'Room depth in inches (north-south dimension).'},
@@ -868,8 +868,8 @@ ROLE_DOCUMENTATION = {
             },
             {
                 'name': 'Wall Obstacle Form',
-                'where_used': 'Site edit page → Walls & Obstacles section (one formset per obstacle)',
-                'breadcrumb': 'Sites > Site Detail > Edit > Walls & Obstacles',
+                'where_used': 'Site edit page → Gallery Room → Obstacles (one formset per obstacle)',
+                'breadcrumb': 'Sites > Site Detail > Edit > Gallery Room > Obstacles',
                 'fields': [
                     {'name': 'label', 'input_type': 'text input', 'purpose': 'Name shown in the layout editor, e.g. "Front door" or "Window". Leaving this blank skips the row.'},
                     {'name': 'wall', 'input_type': 'dropdown select', 'purpose': 'Which wall the obstacle is on: N, E, S, or W.'},

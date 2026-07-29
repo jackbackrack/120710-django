@@ -147,6 +147,150 @@
       "width": 1084
     }
   },
+  "how-to-configure-a-sites-room-and-walls-staff-only": {
+    "1": {
+      "bytes": 31440,
+      "height": 322,
+      "key": "how-to-configure-a-sites-room-and-walls-staff-only/01.a1f8004ec6c8.webp",
+      "width": 936
+    },
+    "2": {
+      "bytes": 13496,
+      "height": 242,
+      "key": "how-to-configure-a-sites-room-and-walls-staff-only/02.1804ae39cfcc.webp",
+      "width": 936
+    },
+    "3": {
+      "bytes": 50758,
+      "height": 639,
+      "key": "how-to-configure-a-sites-room-and-walls-staff-only/03.6ba393837050.webp",
+      "width": 936
+    },
+    "4": {
+      "bytes": 37108,
+      "height": 188,
+      "key": "how-to-configure-a-sites-room-and-walls-staff-only/04.36ccef276d1a.webp",
+      "width": 936
+    },
+    "5": {
+      "bytes": 16866,
+      "height": 113,
+      "key": "how-to-configure-a-sites-room-and-walls-staff-only/05.0dfe407bbb9a.webp",
+      "width": 936
+    },
+    "8": {
+      "bytes": 48262,
+      "height": 194,
+      "key": "how-to-configure-a-sites-room-and-walls-staff-only/08.f6aa2f4dc701.webp",
+      "width": 936
+    }
+  },
+  "how-to-create-a-show-staff-only": {
+    "1": {
+      "bytes": 376042,
+      "height": 900,
+      "key": "how-to-create-a-show-staff-only/01.94733637c0c9.webp",
+      "width": 1100
+    },
+    "2": {
+      "bytes": 3432,
+      "height": 16,
+      "key": "how-to-create-a-show-staff-only/02.8989bb7b3ee5.webp",
+      "width": 146
+    },
+    "3": {
+      "bytes": 87480,
+      "height": 567,
+      "key": "how-to-create-a-show-staff-only/03.de5bcb18f7f1.webp",
+      "width": 1084
+    },
+    "4": {
+      "bytes": 16546,
+      "height": 70,
+      "key": "how-to-create-a-show-staff-only/04.14b03dc59c1e.webp",
+      "width": 1084
+    },
+    "5": {
+      "bytes": 27126,
+      "height": 414,
+      "key": "how-to-create-a-show-staff-only/05.5e2071f0fc2f.webp",
+      "width": 1084
+    },
+    "6": {
+      "bytes": 23536,
+      "height": 337,
+      "key": "how-to-create-a-show-staff-only/06.4c47ef462d00.webp",
+      "width": 1084
+    },
+    "7": {
+      "bytes": 3762,
+      "height": 122,
+      "key": "how-to-create-a-show-staff-only/07.edc99876128e.webp",
+      "width": 1084
+    },
+    "8": {
+      "bytes": 16182,
+      "height": 70,
+      "key": "how-to-create-a-show-staff-only/08.b3dd953b2078.webp",
+      "width": 1084
+    }
+  },
+  "how-to-create-and-manage-sites-staff-only": {
+    "1": {
+      "bytes": 428698,
+      "height": 900,
+      "key": "how-to-create-and-manage-sites-staff-only/01.965bfc18cf59.webp",
+      "width": 1100
+    },
+    "10": {
+      "bytes": 92102,
+      "height": 527,
+      "key": "how-to-create-and-manage-sites-staff-only/10.bdb28df14cb9.webp",
+      "width": 400
+    },
+    "2": {
+      "bytes": 1470,
+      "height": 16,
+      "key": "how-to-create-and-manage-sites-staff-only/02.708ca4103237.webp",
+      "width": 53
+    },
+    "3": {
+      "bytes": 192784,
+      "height": 1245,
+      "key": "how-to-create-and-manage-sites-staff-only/03.2f049c827571.webp",
+      "width": 936
+    },
+    "4": {
+      "bytes": 4594,
+      "height": 31,
+      "key": "how-to-create-and-manage-sites-staff-only/04.3b3ef778030f.webp",
+      "width": 238
+    },
+    "5": {
+      "bytes": 4400,
+      "height": 156,
+      "key": "how-to-create-and-manage-sites-staff-only/05.c90f94f32070.webp",
+      "width": 936
+    },
+    "6": {
+      "bytes": 3278,
+      "height": 70,
+      "key": "how-to-create-and-manage-sites-staff-only/06.27527aadad38.webp",
+      "width": 936
+    },
+    "7": {
+      "bytes": 64670,
+      "height": 897,
+      "key": "how-to-create-and-manage-sites-staff-only/07.f9de3f8d50ea.webp",
+      "width": 936
+    },
+    "8": {
+      "bytes": 16866,
+      "height": 113,
+      "key": "how-to-create-and-manage-sites-staff-only/08.0dfe407bbb9a.webp",
+      "width": 936
+    }
+  },
   "how-to-jury-a-show": {
     "3": {
       "bytes": 3768,
@@ -179,6 +323,32 @@
       "width": 542
     }
   },
+  "how-to-link-an-artist-profile-to-a-user-staff-only": {
+    "1": {
+      "bytes": 29398,
+      "height": 210,
+      "key": "how-to-link-an-artist-profile-to-a-user-staff-only/01.5f9fd3b8b586.webp",
+      "width": 480
+    },
+    "2": {
+      "bytes": 3380,
+      "height": 38,
+      "key": "how-to-link-an-artist-profile-to-a-user-staff-only/02.2733706b4230.webp",
+      "width": 480
+    },
+    "3": {
+      "bytes": 3150,
+      "height": 38,
+      "key": "how-to-link-an-artist-profile-to-a-user-staff-only/03.9ee1d6c5bac6.webp",
+      "width": 480
+    },
+    "4": {
+      "bytes": 11132,
+      "height": 92,
+      "key": "how-to-link-an-artist-profile-to-a-user-staff-only/04.b17768316088.webp",
+      "width": 480
+    }
+  },
   "how-to-pin-artworks": {
     "1": {
       "bytes": 375712,
@@ -207,9 +377,9 @@
   },
   "how-to-run-a-public-art-site-open-call": {
     "2": {
-      "bytes": 253532,
+      "bytes": 253494,
       "height": 1816,
-      "key": "how-to-run-a-public-art-site-open-call/02.b78bcadc8357.webp",
+      "key": "how-to-run-a-public-art-site-open-call/02.e37162ed3acb.webp",
       "width": 1084
     },
     "3": {
@@ -263,15 +433,15 @@
       "width": 903
     },
     "3": {
-      "bytes": 39824,
+      "bytes": 39738,
       "height": 237,
-      "key": "how-to-run-an-invitation-only-show/03.86f46515ab71.webp",
+      "key": "how-to-run-an-invitation-only-show/03.d3d54349082c.webp",
       "width": 903
     },
     "4": {
-      "bytes": 10270,
+      "bytes": 10294,
       "height": 68,
-      "key": "how-to-run-an-invitation-only-show/04.5b8f4e770924.webp",
+      "key": "how-to-run-an-invitation-only-show/04.176e47d41bb5.webp",
       "width": 903
     },
     "6": {
@@ -395,9 +565,9 @@
       "width": 903
     },
     "3": {
-      "bytes": 262546,
+      "bytes": 230290,
       "height": 900,
-      "key": "how-to-use-the-curation-slideshow/03.0fdad4a7035d.webp",
+      "key": "how-to-use-the-curation-slideshow/03.3b72deab648e.webp",
       "width": 1100
     },
     "4": {
@@ -445,9 +615,9 @@
       "width": 324
     },
     "2": {
-      "bytes": 133700,
+      "bytes": 132838,
       "height": 900,
-      "key": "how-to-use-the-review-slideshow/02.781321ea915c.webp",
+      "key": "how-to-use-the-review-slideshow/02.3410e1f25fe8.webp",
       "width": 1100
     },
     "3": {
@@ -477,39 +647,39 @@
       "width": 388
     },
     "3": {
-      "bytes": 18310,
+      "bytes": 18134,
       "height": 147,
-      "key": "show-lifecycle-and-status/03.0aa8cc324113.webp",
+      "key": "show-lifecycle-and-status/03.11403110e5ea.webp",
       "width": 388
     },
     "4": {
-      "bytes": 26534,
+      "bytes": 26472,
       "height": 208,
-      "key": "show-lifecycle-and-status/04.a7e8bfec25bb.webp",
+      "key": "show-lifecycle-and-status/04.49079ba53d20.webp",
       "width": 388
     },
     "5": {
-      "bytes": 21740,
+      "bytes": 21552,
       "height": 177,
-      "key": "show-lifecycle-and-status/05.b36e41a71adc.webp",
+      "key": "show-lifecycle-and-status/05.74aafe10e5f6.webp",
       "width": 388
     },
     "6": {
-      "bytes": 16444,
+      "bytes": 16278,
       "height": 147,
-      "key": "show-lifecycle-and-status/06.98fe7b29af16.webp",
+      "key": "show-lifecycle-and-status/06.890f87a61e11.webp",
       "width": 388
     },
     "7": {
-      "bytes": 16754,
+      "bytes": 16614,
       "height": 147,
-      "key": "show-lifecycle-and-status/07.1b7e154d7a92.webp",
+      "key": "show-lifecycle-and-status/07.c8da0dbd6542.webp",
       "width": 388
     },
     "8": {
-      "bytes": 15420,
+      "bytes": 15282,
       "height": 147,
-      "key": "show-lifecycle-and-status/08.8da7bc2c15f0.webp",
+      "key": "show-lifecycle-and-status/08.0b6ea6905ae5.webp",
       "width": 388
     }
   },

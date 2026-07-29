@@ -1597,6 +1597,223 @@ def capture_public_art_show(rec, facts):
     # Step 5 is that everything else matches a gallery open call.
 
 
+# ── Staff setup guides ───────────────────────────────────────────────────────
+# Form-driven and read-only apart from the throwaway site the room-configuration guide
+# needs, so these do not disturb the seeded world. Staff, not curator: every page here
+# refuses a non-staff user.
+
+STAFF_EMAIL = 'jonathan@bachrach.com'
+CAPTURE_SITE_NAME_PREFIX = 'Howto Capture'
+
+
+def _cleanup_capture_sites():
+    from gallery.models import Site
+    Site.objects.filter(name__startswith=CAPTURE_SITE_NAME_PREFIX).delete()
+    _reset_capture_account()
+
+
+# ── how-to-create-a-show-staff-only ──────────────────────────────────────────
+
+def prepare_create_show():
+    return {}
+
+
+def capture_create_show(rec, facts):
+    """The show creation form, field group by field group."""
+    _log_in(rec, STAFF_EMAIL, SEEDED_PASSWORD)
+
+    # Step 1 — "go to Shows in the navigation."
+    rec.at_step(1)
+    # The canonical listing, not whatever the nav link resolves to: navigation keeps site
+    # context, so clicking Shows landed on "Shows at 120710" — true for that session but
+    # misleading in a general guide.
+    rec.goto('/shows/')
+    rec.shot(1)
+
+    # Step 2 — "Click New at the top of the Shows page."
+    rec.at_step(2)
+    # The whole page-title bar: "at the top of the Shows page" is the useful part, and
+    # the link alone cropped to 27x16 px of the word New.
+    rec.shot_region(2, '#page-title')
+
+    # Step 3 — "Enter the show name, dates, description, and upload a hero image."
+    # The show's start/end dates sit far below, next to the deadlines, so they are in
+    # step 5's crop rather than this one — the form's order, not the guide's.
+    rec.at_step(3)
+    rec.goto('/show/new/')
+    rec.shot_region(3, '#div_id_name', '#div_id_image')
+
+    # Step 4 — "Choose a Submission Type."
+    rec.at_step(4)
+    rec.shot_region(4, '#div_id_submission_type')
+
+    # Step 5 — "Set the Submission Deadline, Review Deadline, and Decision Date."
+    rec.at_step(5)
+    rec.shot_region(5, '#div_id_submission_deadline', '#div_id_end')
+
+    # Step 6 — "add them in the Curators field."
+    rec.at_step(6)
+    rec.shot_region(6, '#div_id_curators')
+
+    # Step 7 — "associate the show with a site by selecting it in the Sites field."
+    rec.at_step(7)
+    rec.shot_region(7, '#div_id_sites')
+
+    # Step 8 — "New shows start with status 'Under Consideration'."
+    rec.at_step(8)
+    rec.shot_region(8, '#div_id_status')
+
+    # Step 9 is saving, and what the curator does next.
+
+
+# ── how-to-create-and-manage-sites-staff-only ────────────────────────────────
+
+def prepare_manage_sites():
+    _cleanup_capture_sites()
+    return {}
+
+
+def capture_manage_sites(rec, facts):
+    """Creating a venue: address, geocoding, publication, and its room."""
+    _log_in(rec, STAFF_EMAIL, SEEDED_PASSWORD)
+
+    # Step 1 — "click Sites in the navigation."
+    rec.at_step(1)
+    rec.goto('/sites/')
+    rec.shot(1)
+
+    # Step 2 — "Click New Site to open the site creation form."
+    rec.at_step(2)
+    rec.shot_region(2, '#page-title')
+
+    # Step 3 — "Enter the site name, address fields ... and optionally a hero image and an
+    #           icon."
+    rec.at_step(3)
+    rec.goto('/site/new/')
+    rec.shot_region(3, '#div_id_name', '#div_id_icon')
+
+    # Step 4 — "click 'Look up coordinates from address' ... review the matched address
+    #           shown beneath the button."
+    rec.at_step(4)
+    rec.shot_region(4, '#geocode-btn', '#geocode-status')
+
+    # Step 5 — "enter the latitude and longitude values manually."
+    rec.at_step(5)
+    rec.shot_region(5, '#div_id_latitude', '#div_id_longitude')
+
+    # Step 6 — "Set Status to Published."
+    rec.at_step(6)
+    rec.shot_region(6, '#div_id_status')
+
+    # Step 7 — "In the Gallery Room section ... enter the room dimensions ... and
+    #           optionally upload texture images."
+    rec.at_step(7)
+    rec.shot_region(7, '#div_id_width_in', '#div_id_ceiling_image')
+
+    # Step 8 — "In the Obstacles table, add obstacles such as doors or windows."
+    rec.at_step(8)
+    rec.shot_region(8, '#obstacle-table')
+
+    # Step 9 is saving.
+
+    # Step 10 — "To edit an existing site, open the site detail page and click Edit."
+    rec.at_step(10)
+    rec.goto('/site/120710/')
+    # The card that carries the link, not the link: cropped to the <a> this was 22x19 px
+    # of the word Edit, which does not tell anyone where to find it.
+    rec.shot_region(10, '.card:has(a[href*="/edit/"])')
+
+    # Step 11 is deleting, which lives behind that same Edit page.
+
+
+# ── how-to-configure-a-sites-room-and-walls-staff-only ───────────────────────
+
+def prepare_room_config():
+    """A throwaway site, so photographing the room form cannot disturb the real venue."""
+    _cleanup_capture_sites()
+    from gallery.models import Site
+    site = Site.objects.create(
+        name=f'{CAPTURE_SITE_NAME_PREFIX} Room', street='1207 10th Street',
+        city='Berkeley', state='CA', postal_code='94710', country='USA',
+        status='published')
+    return {'slug': site.slug}
+
+
+def capture_room_config(rec, facts):
+    """The Gallery Room form: dimensions, textures, obstacles and the support catalog."""
+    _log_in(rec, STAFF_EMAIL, SEEDED_PASSWORD)
+    edit_url = f'/site/{facts["slug"]}/edit/'
+
+    # Step 1 — "Open the site detail page and click Edit, then scroll to the Gallery Room
+    #           section."
+    rec.at_step(1)
+    rec.goto(edit_url)
+    rec.shot_region(1, 'h4:has-text("Gallery Room")', '#div_id_height_in')
+
+    # Step 2 — "Enter the room dimensions: width, depth, and height (all in inches)."
+    rec.at_step(2)
+    rec.shot_region(2, '#div_id_width_in', '#div_id_height_in')
+
+    # Step 3 — "Optionally upload texture images for each surface."
+    rec.at_step(3)
+    rec.shot_region(3, '#div_id_wall_n_image', '#div_id_ceiling_image')
+
+    # Step 4 — "Scroll to the Obstacles table, under Gallery Room."
+    rec.at_step(4)
+    rec.shot_region(4, 'h5:has-text("Obstacles")', '#obstacle-table')
+
+    # Step 5 — "For each obstacle, enter a label ... select the wall ... position and
+    #           dimensions."
+    rec.at_step(5)
+    rec.shot_region(5, '#obstacle-table')
+
+    # Steps 6 and 7 are how obstacles render elsewhere, and that corner handles are
+    # automatic — neither is a control on this page.
+
+    # Step 8 — "Under 'Supports (catalog)' you define reusable pedestals/shelves."
+    rec.at_step(8)
+    rec.shot_region(8, 'h5:has-text("Supports")', '#support-table')
+
+    # Step 9 is saving.
+
+
+# ── how-to-link-an-artist-profile-to-a-user-staff-only ───────────────────────
+
+def prepare_link_artist():
+    """Needs an artist with no account. The catalogue artists are exactly that."""
+    unlinked = Artist.objects.filter(user__isnull=True).count()
+    if not unlinked:
+        raise CommandError(
+            'No artist records without a user account, so both dropdowns on the link '
+            'page would be empty. Re-seed with `bash scripts/create_test_database.sh`.')
+    return {'unlinked': unlinked}
+
+
+def capture_link_artist(rec, facts):
+    """Linking a gallery-created artist record to the account that claims it."""
+    _log_in(rec, STAFF_EMAIL, SEEDED_PASSWORD)
+
+    # Step 1 — "go to /accounts/link-artists/."
+    rec.at_step(1)
+    rec.goto('/accounts/link-artists/')
+    rec.shot_region(1, 'form:has(select[name="artist"])')
+
+    # Step 2 — "Select the unlinked artist record from the first dropdown."
+    rec.at_step(2)
+    rec.shot_region(2, 'select[name="artist"]')
+
+    # Step 3 — "Select the user account to link it to from the second dropdown."
+    rec.at_step(3)
+    rec.shot_region(3, 'select[name="user"]')
+
+    # Step 4 — "Click Link."
+    rec.at_step(4)
+    rec.shot_region(4, 'select[name="user"]',
+                    'form:has(select[name="artist"]) button')
+
+    # Step 5 is what the user can do afterwards.
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -1727,6 +1944,37 @@ CAPTURE_SCRIPTS = {
         'prose_only': {1, 5},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
+    },
+    'how-to-create-a-show-staff-only': {
+        'prepare': prepare_create_show,
+        'run': capture_create_show,
+        'prose_only': {9},
+        'reset': _reset_capture_account,
+        'cleanup': _reset_capture_account,
+    },
+    'how-to-create-and-manage-sites-staff-only': {
+        'prepare': prepare_manage_sites,
+        'run': capture_manage_sites,
+        # 9 is saving; 11 is deleting, behind the Edit page shown in step 10.
+        'prose_only': {9, 11},
+        'reset': _cleanup_capture_sites,
+        'cleanup': _cleanup_capture_sites,
+    },
+    'how-to-configure-a-sites-room-and-walls-staff-only': {
+        'prepare': prepare_room_config,
+        'run': capture_room_config,
+        # 6 and 7 are how obstacles render elsewhere and that corner handles are
+        # automatic; 9 is saving.
+        'prose_only': {6, 7, 9},
+        'reset': _cleanup_capture_sites,
+        'cleanup': _cleanup_capture_sites,
+    },
+    'how-to-link-an-artist-profile-to-a-user-staff-only': {
+        'prepare': prepare_link_artist,
+        'run': capture_link_artist,
+        'prose_only': {5},
+        'reset': _reset_capture_account,
+        'cleanup': _reset_capture_account,
     },
     'how-to-pin-artworks': {
         'prepare': prepare_pin_artworks,
