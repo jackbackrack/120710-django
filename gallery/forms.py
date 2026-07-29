@@ -308,10 +308,16 @@ class ArtworkForm(UserAwareModelForm):
         self.fields['hang_drop_inches'].label = 'Hang drop (in, optional)'
         self.fields['hang_drop_inches'].widget.attrs.update({'step': 'any', 'min': '0'})
 
-        self.fields['replacement_cost'].label = 'Replacement cost (optional)'
+        # This figure is what the gallery guarantees to pay you if the piece is lost or
+        # damaged while in its care, so it is yours to set — the old wording ("what it
+        # would cost to remake this piece") invited artists to state their materials cost
+        # and under-value their own work.
+        self.fields['replacement_cost'].label = 'Replacement value (optional)'
         self.fields['replacement_cost'].help_text = (
-            'What it would cost to remake this piece if it were damaged or stolen. '
-            'Used for insurance; never shown publicly.')
+            'What this piece is worth to you if it were lost, stolen or damaged beyond '
+            'repair. You set this figure — it can be the sale price, or more, or less. '
+            'It is what we guarantee to pay you while the work is in our care. Required '
+            'before a piece can be consigned; never shown publicly.')
 
         self._require_explicit_pricing()
 

@@ -91,7 +91,7 @@ class Artwork(models.Model):
         verbose_name='Pricing',
     )
     price = models.FloatField(verbose_name='Price ($)', blank=True, null=True)
-    replacement_cost = models.FloatField(verbose_name='Replacment Cost: redo cost in the rare case that it gets stolen or damaged', blank=True, null=True)
+    replacement_cost = models.FloatField(verbose_name='Replacement value: what the artist is paid if the piece is lost, stolen or damaged in our care', blank=True, null=True)
     is_sold = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True, verbose_name='URL (video, website, or other supporting link)')
