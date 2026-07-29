@@ -1,6 +1,6 @@
 # Visual how-to documentation
 
-**Status: 21 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
+**Status: 23 of 30 guides captured** — 54 screenshots, ~4.3 MB on S3, ~7 KB of manifest
 in git. The whole artist path is illustrated (sign up → complete profile → add artworks →
 submit, that last one for every reader signed in or not), plus pinning, buying and the
 card-size control, and now the jury cluster: jurying a show, the review slideshow and the
@@ -8,7 +8,8 @@ curation slideshow, plus adding artwork on behalf of an artist and running an
 invitation-only show end to end, the open-call equivalent, the show lifecycle and public
 art site shows, and the staff setup cluster (creating a show, creating and managing
 venues, configuring a venue's room, and linking an artist profile to an account).
-and the install/pickup scheduling pair. 9 still need a capture script — of which four
+the install/pickup scheduling pair, recording artwork ownership and claiming an existing
+artist profile. 7 still need a capture script — of which four
 are not worth capturing as stills (the layout editor's canvas drag-and-drop, the WebGL 3D
 view, the site map's live OpenStreetMap tiles, and the command-line guide for this system
 itself). Plan agreed 2026-07-28.
@@ -236,6 +237,19 @@ show, so runs accumulated and the jury data every other guide is captured agains
 The jury scripts snapshot the existing reviews in `prepare` and delete anything new in
 `cleanup`. Check the DB is unchanged after `--all` when a script writes to shared fixtures
 rather than to its own throwaway account.
+
+**Two-actor guides sign in as each person in turn.** `rec.sign_out()` clears cookies —
+simpler and more reliable than driving allauth's logout, which is a POST behind a
+confirmation page. The ownership guide claims a piece as a collector, confirms it as the
+artist who made it, then comes back to the collector to photograph the confirmed badge. Its
+steps are therefore captured out of order (4 before 3), because the pending badge only
+exists once the claim has been made. That is fine: `shot()` takes the step number, not the
+call order.
+
+**A capture acting on a seeded account must clean up after itself there too.** The
+collector's own rows go with the throwaway account, but the *confirmation* happens as a
+seeded artist, so `_cleanup_ownership` removes the claim explicitly. After `--all` there
+should be exactly the six seeded collection pieces and no more.
 
 **Slideshow overlays are built in JS with element *ids*, not classes** (`#rs-criteria`,
 `#cs-scores`, `#cs-thumbs`). The class names that look equivalent are on the repeated rows

@@ -74,6 +74,15 @@ class Recorder:
     def goto(self, path):
         self.page.goto(f'{self.base_url}{path}', wait_until='load')
 
+    def sign_out(self):
+        """Drop the session, for guides that photograph two people's views.
+
+        Clears cookies rather than driving allauth's logout, which is a POST behind a
+        confirmation page — this is about changing who the browser is, not about
+        documenting how to sign out.
+        """
+        self.page.context.clear_cookies()
+
     def at_step(self, number):
         """Mark which guide step the following actions illustrate."""
         self.step = number
@@ -1971,6 +1980,137 @@ def _set_artist_schedule(slug, artist_pk):
         defaults={'window': window, 'scheduled_time': window.start})
 
 
+# ── how-to-record-artwork-ownership ──────────────────────────────────────────
+# The only two-actor flow captured so far: a collector claims a piece, and the artist who
+# made it confirms. The script signs in as each in turn by clearing cookies — one guide
+# gets one browser context, and both halves of the exchange have to be photographed.
+
+def _cleanup_ownership():
+    """Remove the claim the run makes against a seeded artwork, then the account.
+
+    The collector's own CollectionPiece rows go with the account, but the confirmation is
+    performed as the seeded artist, so anything left here would accumulate on their
+    profile across runs.
+    """
+    from gallery.models.collection import CollectionPiece
+
+    User = get_user_model()
+    CollectionPiece.objects.filter(
+        collector__in=User.objects.filter(email__iexact=CAPTURE_EMAIL)).delete()
+    _reset_capture_account()
+
+
+def prepare_record_ownership():
+    """A collector account, and a visible artwork by an artist we can also sign in as."""
+    from gallery.permissions import visible_artwork_queryset
+
+    _reset_capture_account()
+    collector = _create_verified_artist(CAPTURE_EMAIL, complete=True)
+
+    # The artist has to be one with a usable login, since the guide's middle steps are
+    # what *they* see. The seeded accounts all share one password.
+    artwork = (Artwork.objects
+               .filter(visible_artwork_queryset(collector.user))
+               .filter(artists__user__isnull=False)
+               .exclude(artists__user=collector.user)
+               .distinct().order_by('pk').first())
+    if artwork is None:
+        raise CommandError(
+            'No publicly visible artwork belongs to an artist with an account, so nobody '
+            'could confirm the claim. Re-seed with `bash scripts/create_test_database.sh`.')
+    owner = artwork.artists.filter(user__isnull=False).first()
+    return {'artwork_url': artwork.get_absolute_url(),
+            'artwork_name': artwork.name,
+            'owner_email': owner.user.email,
+            'collector_slug': collector.slug}
+
+
+def capture_record_ownership(rec, facts):
+    """Claim, confirm, and what each side sees in between."""
+    _log_in(rec)
+
+    # Step 1 — "Navigate to the artwork detail page for a piece you own."
+    rec.at_step(1)
+    rec.goto(facts['artwork_url'])
+    rec.shot(1)
+
+    # Step 2 — "Click 'Claim' in the button bar at the bottom of the artwork card."
+    rec.at_step(2)
+    rec.shot_region(2, '.card__info:has(button:has-text("Claim"))')
+    rec.click('click Claim', rec.page.get_by_role('button', name='Claim'))
+
+    # Step 4 — "While pending, a yellow 'awaiting artist confirmation' badge appears."
+    # Out of order on purpose: the badge only exists once the claim has been made, and
+    # step 3 is what the *artist* sees, which needs a different login.
+    rec.at_step(4)
+    rec.goto(facts['artwork_url'])
+    # The badge in its card: the step says it appears "on the artwork detail page", and
+    # an 18px-tall crop of the badge alone shows the words but not where they are.
+    rec.shot_region(4, '.card__content:has(.badge.bg-warning), .badge.bg-warning')
+
+    # Step 3 — "The artwork's artist sees your claim under 'Pending Collection
+    #           Confirmations' on their profile page and clicks Confirm or Decline."
+    rec.at_step(3)
+    rec.sign_out()
+    _log_in(rec, facts['owner_email'], SEEDED_PASSWORD)
+    rec.click('go to your profile page', rec.control('Me'))
+    rec.expect_text('find the "Pending Collection Confirmations" section',
+                    'Pending Collection Confirmations')
+    rec.shot_region(3, '.section-label:has-text("Pending Collection Confirmations")',
+                    '.card:has(button:has-text("Confirm"))')
+    rec.click('click Confirm', rec.page.get_by_role('button', name='Confirm'))
+
+    # Step 5 — "Once confirmed, a green badge appears and the piece is listed in your
+    #           Collection on your public artist profile."
+    rec.at_step(5)
+    rec.sign_out()
+    _log_in(rec)
+    rec.goto(facts['artwork_url'])
+    rec.shot_region(5, '.card__content:has(.badge.bg-success), .badge.bg-success')
+
+    # Step 6 is dragging collection cards to reorder — a gesture.
+
+    # Step 7 — "click 'Unclaim' in the button bar on the artwork detail page."
+    rec.at_step(7)
+    rec.shot_region(7, '.card__info:has(button:has-text("Unclaim"))')
+
+
+# ── linking-your-account-to-an-existing-artist-profile ───────────────────────
+
+def prepare_link_account():
+    """An account whose auto-created profile is still blank, which is what the claim page
+    requires — it refuses anyone who already has a profile with real content in it."""
+    _reset_capture_account()
+    _create_verified_artist(CAPTURE_EMAIL, complete=False)
+    return {}
+
+
+def capture_link_account(rec, facts):
+    """Claiming an artist record the gallery made for you under a different address."""
+    _log_in(rec)
+
+    # Steps 1 and 2 are working out which of three cases applies, and the case where the
+    # link already happened by itself — neither is a screen.
+
+    # Step 3 — "Sign in, then go to your artist edit page — you will see a link to 'link
+    #           it to your account here'. Click it, enter the OLD email address ... and
+    #           submit."
+    rec.at_step(3)
+    rec.goto('/accounts/claim-artist/')
+    rec.shot_region(3, 'form:has(button:has-text("Claim profile"))')
+
+    # Step 4 — "A new artist profile was created for you automatically ... Go to your
+    #           artist profile and fill in your bio, statement, website, Instagram, and
+    #           upload a profile photo."
+    rec.at_step(4)
+    rec.click('go to your artist profile', rec.control('Me'))
+    rec.click('open your profile for editing',
+              rec.page.locator('a[href*="/edit/"]'))
+    rec.shot_region(4, 'fieldset:has(#div_id_bio)')
+
+    # Step 5 is who to email when none of the three cases is obvious.
+
+
 CAPTURE_SCRIPTS = {
     'submit-artwork': {
         'prepare': prepare_submit_artwork,
@@ -2148,6 +2288,23 @@ CAPTURE_SCRIPTS = {
         'prose_only': {4},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
+    },
+    'how-to-record-artwork-ownership': {
+        'prepare': prepare_record_ownership,
+        'run': capture_record_ownership,
+        # 6 is dragging collection cards to reorder — a gesture, not a screen.
+        'prose_only': {6},
+        'reset': _reset_capture_account,
+        'cleanup': _cleanup_ownership,
+    },
+    'linking-your-account-to-an-existing-artist-profile': {
+        'prepare': prepare_link_account,
+        'run': capture_link_account,
+        # 1 and 2 are working out which case applies and the one that needs no action;
+        # 5 is who to email when none of them fits.
+        'prose_only': {1, 2, 5},
+        'reset': _reset_capture_account,
+        'cleanup': _reset_capture_account,
     },
     'how-to-pin-artworks': {
         'prepare': prepare_pin_artworks,

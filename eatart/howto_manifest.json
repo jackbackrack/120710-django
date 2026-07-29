@@ -375,6 +375,44 @@
       "width": 176
     }
   },
+  "how-to-record-artwork-ownership": {
+    "1": {
+      "bytes": 320140,
+      "height": 900,
+      "key": "how-to-record-artwork-ownership/01.507bd1073400.webp",
+      "width": 1100
+    },
+    "2": {
+      "bytes": 1776,
+      "height": 27,
+      "key": "how-to-record-artwork-ownership/02.92d8854636bf.webp",
+      "width": 398
+    },
+    "3": {
+      "bytes": 37876,
+      "height": 373,
+      "key": "how-to-record-artwork-ownership/03.473f2a62a615.webp",
+      "width": 1084
+    },
+    "4": {
+      "bytes": 23570,
+      "height": 169,
+      "key": "how-to-record-artwork-ownership/04.8c08c5a6b1a5.webp",
+      "width": 398
+    },
+    "5": {
+      "bytes": 20614,
+      "height": 169,
+      "key": "how-to-record-artwork-ownership/05.9e99d465c75c.webp",
+      "width": 398
+    },
+    "7": {
+      "bytes": 2128,
+      "height": 27,
+      "key": "how-to-record-artwork-ownership/07.1bf0f349e241.webp",
+      "width": 398
+    }
+  },
   "how-to-run-a-public-art-site-open-call": {
     "2": {
       "bytes": 253494,
@@ -641,9 +679,9 @@
       "width": 903
     },
     "3": {
-      "bytes": 261512,
+      "bytes": 252664,
       "height": 900,
-      "key": "how-to-use-the-curation-slideshow/03.3957f0785fa3.webp",
+      "key": "how-to-use-the-curation-slideshow/03.d0274bc3a910.webp",
       "width": 1100
     },
     "4": {
@@ -712,6 +750,20 @@
       "bytes": 54234,
       "height": 50,
       "key": "how-to-use-the-review-slideshow/07.ae356c2a90fe.webp",
+      "width": 1084
+    }
+  },
+  "linking-your-account-to-an-existing-artist-profile": {
+    "3": {
+      "bytes": 28614,
+      "height": 149,
+      "key": "linking-your-account-to-an-existing-artist-profile/03.8d5fe970510d.webp",
+      "width": 480
+    },
+    "4": {
+      "bytes": 51346,
+      "height": 1104,
+      "key": "linking-your-account-to-an-existing-artist-profile/04.815e71a11162.webp",
       "width": 1084
     }
   },
