@@ -2656,6 +2656,14 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true',
                             help='With --publish: report the object keys that would be '
                                  'written, and upload nothing.')
+        parser.add_argument('--prune', action='store_true',
+                            help='List objects under the howto/ prefix that no manifest '
+                                 'entry references, and delete them with --yes. Every '
+                                 'regeneration leaves the previous versions behind, so '
+                                 'these accumulate.')
+        parser.add_argument('--yes', action='store_true',
+                            help='With --prune: actually delete. Without it, --prune only '
+                                 'reports.')
         parser.add_argument('--force', action='store_true',
                             help='With --publish: re-upload even guides whose staged '
                                  'images are already on S3 unchanged.')
@@ -2673,6 +2681,10 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         if opts['list']:
             self._list()
+            return
+
+        if opts['prune']:
+            self._prune(delete=opts['yes'])
             return
 
         if opts['publish']:
@@ -2881,6 +2893,93 @@ class Command(BaseCommand):
             f'    ./env/bin/python manage.py capture_howto {image_key(guide)} --publish')
 
     # -- publishing -------------------------------------------------------------
+
+    def _prune(self, delete=False):
+        """Report (and optionally delete) published objects nothing references.
+
+        Names are content-hashed, so every regeneration of a changed screenshot writes a
+        new object and abandons the old one — 149 live images had left 64 dead ones
+        behind. They are harmless but they are not free, and nothing else will ever
+        collect them.
+
+        Reports by default. Deleting is irreversible and a stale local manifest would
+        make it delete objects a deployed branch still points at, so --yes is required.
+        """
+        import json
+        import subprocess
+
+        import boto3
+
+        bucket = getattr(settings, 'HOWTO_IMAGE_BUCKET', None)
+        if not bucket:
+            raise CommandError('No bucket configured — set AWS_STORAGE_BUCKET_NAME.')
+
+        prefix = f'{settings.HOWTO_IMAGE_LOCATION}/'
+        client = boto3.client('s3', region_name=settings.HOWTO_IMAGE_REGION)
+        found = {}
+        token = None
+        while True:
+            kwargs = {'Bucket': bucket, 'Prefix': prefix}
+            if token:
+                kwargs['ContinuationToken'] = token
+            page = client.list_objects_v2(**kwargs)
+            for obj in page.get('Contents', []):
+                found[obj['Key']] = obj['Size']
+            if not page.get('IsTruncated'):
+                break
+            token = page['NextContinuationToken']
+
+        def keys_of(manifest):
+            return {prefix + entry['key']
+                    for guide in manifest.values() for entry in guide.values()
+                    if entry.get('key')}
+
+        live = keys_of(load_manifest())
+        # Also spare anything the *pushed* manifest still points at. The working copy is
+        # routinely ahead of what is deployed, and every commit that regenerates a guide
+        # abandons the previous objects — which the deployed help pages are still serving.
+        # Pruning against the local manifest alone deleted 13 live images in a dry run.
+        for ref in ('origin/main', 'HEAD'):
+            try:
+                out = subprocess.run(
+                    ['git', 'show', f'{ref}:eatart/howto_manifest.json'],
+                    capture_output=True, text=True, check=True).stdout
+                live |= keys_of(json.loads(out))
+            except (subprocess.CalledProcessError, ValueError, FileNotFoundError):
+                self.stdout.write(self.style.WARNING(
+                    f'  (could not read the manifest at {ref}; its images are not '
+                    f'protected)'))
+        if not live:
+            raise CommandError(
+                'The manifest lists no images, so every object here would look orphaned. '
+                'Refusing to prune against an empty manifest.')
+
+        orphans = sorted(k for k in found if k not in live)
+        total = sum(found[k] for k in orphans)
+        self.stdout.write(
+            f'{len(found)} objects under {prefix}, {len(live)} referenced by the '
+            f'manifest.')
+        if not orphans:
+            self.stdout.write(self.style.SUCCESS('Nothing to prune.'))
+            return
+        for key in orphans[:20]:
+            self.stdout.write(f'  {key}  {found[key] // 1024} KB')
+        if len(orphans) > 20:
+            self.stdout.write(f'  … and {len(orphans) - 20} more')
+        self.stdout.write(
+            f'  ── {len(orphans)} orphaned objects, {total / 1024 / 1024:.1f} MB')
+
+        if not delete:
+            self.stdout.write(self.style.WARNING(
+                '\nReporting only. Re-run with --prune --yes to delete.'))
+            return
+
+        for start in range(0, len(orphans), 1000):
+            client.delete_objects(
+                Bucket=bucket,
+                Delete={'Objects': [{'Key': k} for k in orphans[start:start + 1000]]})
+        self.stdout.write(self.style.SUCCESS(
+            f'Deleted {len(orphans)} objects ({total / 1024 / 1024:.1f} MB).'))
 
     def _staged_keys(self):
         """Image keys with locally captured images, in HOW_TO_GUIDES order.

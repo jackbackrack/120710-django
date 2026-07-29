@@ -96,6 +96,15 @@ guides. Two things had to be fixed to get there, and both are easy to reintroduc
 Without this, every `--all` republished all 35 images and orphaned the previous ones in the
 bucket.
 
+**`--prune` collects the objects nothing references.** Names are content-hashed, so every
+regeneration of a changed screenshot writes a new object and abandons the old one; 149 live
+images had left 64 dead ones behind. It reports by default and needs `--yes` to delete.
+
+It spares anything the manifest at `origin/main` or `HEAD` points at, not just the working
+copy's — the working copy is routinely ahead of what is deployed, and a dry run proved that
+pruning against the local manifest alone would have deleted 13 images the live help pages
+were still serving. Safe by construction rather than by remembering.
+
 **`--publish` with no image key publishes everything staged**, skipping guides whose
 images are already on S3 byte-for-byte — content hashing makes that comparison free, so a
 bulk publish after changing one guide uploads only that guide. `--force` re-uploads
