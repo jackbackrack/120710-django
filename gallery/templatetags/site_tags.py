@@ -1,5 +1,8 @@
+import re
+
 import nh3
 from django import template
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
@@ -31,16 +34,37 @@ _RICH_ATTRS['th'] = {'scope', 'colspan', 'rowspan'}
 _RICH_ATTRS['td'] = {'colspan', 'rowspan'}
 
 
+# "/static/img/x.png" in stored copy, resolved at render time. The content in these fields
+# came from templates that used {% static %}, and it has to keep working in both
+# environments: local dev serves un-hashed files from /static/, while production serves
+# content-hashed names from S3 behind CloudFront. A literal /static/... path is correct in
+# exactly one of those, so the reference is re-resolved on every render instead.
+_STATIC_SRC_RE = re.compile(r'(?P<attr>src|href)="/static/(?P<path>[^"]+)"')
+
+
+def _resolve_static(match):
+    try:
+        return f'{match.group("attr")}="{static(match.group("path"))}"'
+    except ValueError:
+        # ManifestStaticFilesStorage raises for a file it has never seen. A stale reference
+        # should leave a broken image on one page, not a 500 on the whole page.
+        return match.group(0)
+
+
 @register.filter
 def sanitize_rich(value):
     """Render staff-authored site copy: the formatting subset plus headings, tables, images.
+
+    Also re-resolves /static/ references, so an image bundled with the app survives the
+    move to hashed filenames on S3 — see _STATIC_SRC_RE above.
 
     nh3 still strips event handlers and dangerous URL schemes, so the widening is about
     which *elements* are permitted, not about trusting the input.
     """
     if not value:
         return ''
-    return mark_safe(nh3.clean(str(value), tags=_RICH_TAGS, attributes=_RICH_ATTRS))
+    cleaned = nh3.clean(str(value), tags=_RICH_TAGS, attributes=_RICH_ATTRS)
+    return mark_safe(_STATIC_SRC_RE.sub(_resolve_static, cleaned))
 
 
 @register.filter

@@ -5819,6 +5819,38 @@ class SitePublicInfoTests(TestCase):
         self.assertNotContains(response, 'onerror')
         self.assertNotContains(response, 'pwn()')
 
+    def test_static_references_in_about_are_resolved_per_environment(self):
+        """Stored copy says /static/x; production serves hashed names from S3.
+
+        The About content came from a template that used {% static %}. Storing the resolved
+        path would have been correct in local dev and a 404 in production, where
+        ManifestStaticFilesStorage hashes filenames and STATIC_URL points at CloudFront. So
+        the reference is re-resolved on render — this asserts the production shape.
+        """
+        self.bare.about = '<p><img src="/static/img/120710-former-cal-professor.jpg"></p>'
+        self.bare.save()
+        with override_settings(
+            STATIC_URL='https://cdn.example.com/static/',
+            STORAGES={
+                'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+                'staticfiles': {
+                    'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+            },
+        ):
+            response = self._page('about', self.bare)
+            self.assertContains(
+                response,
+                'https://cdn.example.com/static/img/120710-former-cal-professor.jpg')
+            self.assertNotContains(response, 'src="/static/img/120710')
+
+    def test_an_unresolvable_static_reference_does_not_break_the_page(self):
+        """A hashed-storage miss raises ValueError; a broken image beats a 500."""
+        self.bare.about = '<p><img src="/static/img/deleted-long-ago.png"></p>'
+        self.bare.save()
+        response = self._page('about', self.bare)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '/static/img/deleted-long-ago.png')
+
     # --- Links ---
 
     def test_links_shows_the_venues_own_plus_network_wide_ones(self):
