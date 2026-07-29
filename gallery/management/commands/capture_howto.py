@@ -43,6 +43,7 @@ from eatart.howto_images import (HOWTO_CAPTURE_SCALE, image_key, load_manifest,
                                  save_manifest, staging_dir, step_filename)
 from eatart.role_docs import HOW_TO_GUIDES
 from gallery.models import Artist, Artwork, Show
+from gallery.models.submissions import ArtworkSubmission
 from reviews.models import ArtworkReview
 
 # Long enough to cover a cold first page load and an image upload, short enough that a
@@ -1401,9 +1402,56 @@ def capture_add_on_behalf(rec, facts):
 
 # ── how-to-run-an-invitation-only-show ───────────────────────────────────────
 
+def _add_decided_submissions(show, accepted=4, rejected=2):
+    """Give a capture show real submissions with curator decisions on them.
+
+    Three steps depend on this and all three were illustrated with empty pages:
+
+    - "Send Emails" is only built when `emails_pending or emails_sent`
+      (show_actions.py), and emails_pending counts accepted/rejected submissions on a
+      published show whose notification has not gone out. With none, the Logistics menu
+      contained only "Emails" — the artist address list, a different thing entirely — so
+      the step that says to click "Send Emails" showed a menu without it.
+    - The Publish confirmation page had no diff to show, because nothing was selected.
+    - The Submissions page had no cards on it.
+    """
+    from gallery.permissions import visible_artwork_queryset
+
+    User = get_user_model()
+    staff = User.objects.filter(is_staff=True).first()
+    # Distinct titles, not just distinct rows. The seed has two artworks called "Oliver"
+    # and two called "Drawing" (one of each per show), so taking the first N by pk put the
+    # same title under both "Adding" and "Rejecting" on the publish page — correct data
+    # that reads as a bug in a screenshot.
+    pool, seen_titles, seen_artists = [], set(), set()
+    for artwork in (Artwork.objects.filter(visible_artwork_queryset(staff))
+                    .distinct().prefetch_related('artists').order_by('pk')):
+        artist = artwork.artists.first()
+        key = artist.pk if artist else None
+        if artwork.name in seen_titles or key in seen_artists:
+            continue
+        seen_titles.add(artwork.name)
+        seen_artists.add(key)
+        pool.append(artwork)
+        if len(pool) == accepted + rejected:
+            break
+    for index, artwork in enumerate(pool):
+        selected = index < accepted
+        ArtworkSubmission.objects.get_or_create(
+            show=show, artwork=artwork,
+            defaults={
+                'status': (ArtworkSubmission.ACCEPTED if selected
+                           else ArtworkSubmission.REJECTED),
+                'curator_decision': (ArtworkSubmission.CURATOR_SELECTED if selected
+                                     else ArtworkSubmission.CURATOR_REJECTED),
+            })
+    return len(pool)
+
+
 def prepare_invitation_show():
     _cleanup_capture_shows()
     show = _create_capture_show('Howto Invitational', Show.SUBMISSION_INVITED)
+    _add_decided_submissions(show)
     return {'slug': show.slug, 'pk': show.pk}
 
 
@@ -1550,6 +1598,7 @@ def prepare_open_call_show():
     _cleanup_capture_shows()
     show = _create_capture_show('Open Call', Show.SUBMISSION_OPEN,
                                 Show.STATUS_OPEN_CALL)
+    _add_decided_submissions(show)
     return {'slug': show.slug}
 
 

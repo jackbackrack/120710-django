@@ -4,11 +4,11 @@
 {% block block_title %}{% if will_publish %}Publish Show{% else %}Sync Artworks{% endif %} — {{ show.name }}{% endblock %}
 
 {% block content %}
-<div class="container mt-3">
+<div class="container mt-3 text-center">
 
 {% if to_add %}
 <h3 class="text-success">Adding ({{ to_add|length }})</h3>
-<ul>
+<ul class="list-unstyled">
   {% for sub in to_add %}
   <li><strong>{{ sub.artwork.name }}</strong> by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
     {% if will_publish and sub.submitted_by %}<small class="text-muted">— acceptance email to {{ sub.submitted_by.email }}</small>{% endif %}
@@ -19,7 +19,7 @@
 
 {% if to_keep %}
 <h3 class="text-muted mt-3">Already in show ({{ to_keep|length }})</h3>
-<ul>
+<ul class="list-unstyled">
   {% for sub in to_keep %}
   <li class="text-muted"><strong>{{ sub.artwork.name }}</strong> by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</li>
   {% endfor %}
@@ -28,7 +28,7 @@
 
 {% if to_remove %}
 <h3 class="text-danger mt-3">Removing from show ({{ to_remove|length }})</h3>
-<ul>
+<ul class="list-unstyled">
   {% for sub in to_remove %}
   <li><strong>{{ sub.artwork.name }}</strong> by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
     {% if will_publish and sub.submitted_by %}<small class="text-muted">— rejection email to {{ sub.submitted_by.email }}</small>{% endif %}
@@ -39,7 +39,7 @@
 
 {% if will_publish and to_reject %}
 <h3 class="text-danger mt-3">Rejecting ({{ to_reject|length }})</h3>
-<ul>
+<ul class="list-unstyled">
   {% for sub in to_reject %}
   <li><strong>{{ sub.artwork.name }}</strong> by {% for artist in sub.artwork.artists.all %}{{ artist.full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
     {% if sub.submitted_by %}<small class="text-muted">— rejection email to {{ sub.submitted_by.email }}</small>{% endif %}
@@ -59,12 +59,12 @@
 </div>
 {% endif %}
 
-<form method="post" class="mt-4">
+<form method="post" class="mt-4 d-flex justify-content-center align-items-center gap-3">
   {% csrf_token %}
   <button type="submit" class="btn btn-primary" {% if undecided_count %}disabled{% endif %}>
     {% if will_publish %}Confirm &amp; Publish Show{% else %}Confirm &amp; Sync to Show{% endif %}
   </button>
-  <a class="card__link ms-3" href="{% url 'gallery:show_submissions' show.slug %}">Cancel</a>
+  <a class="card__link" href="{% url 'gallery:show_submissions' show.slug %}">Cancel</a>
 </form>
 
 </div>
