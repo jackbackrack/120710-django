@@ -28,7 +28,8 @@ from honeypot.decorators import check_honeypot
 from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
 from gallery.models import Artwork, ArtworkImage, Tag
 from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_curator_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
-from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
+from gallery.views.mixins import (CanonicalSlugRedirectMixin, StructuredDataMixin,
+                                 visible_site_or_404)
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,16 @@ def detail(request, pk):
 
 
 class ArtworkListView(ListView):
+    """Every artwork, or — at /site/<slug>/artworks/ — what has been shown at one venue.
+
+    Site-scoped through the same view and template as the network list; see
+    ArtistListView for why the separate scoped view it replaces was a liability.
+    """
     model = Artwork
     context_object_name = 'artwork_list'
     template_name = 'gallery/artwork_list.html'
     paginate_by = 48
+    site = None
 
     def get_template_names(self):
         # Infinite scroll fetches subsequent pages and appends just the cards.
@@ -52,6 +59,10 @@ class ArtworkListView(ListView):
 
     def get_queryset(self):
         queryset = Artwork.objects.filter(visible_artwork_queryset(self.request.user)).prefetch_related('artists', 'shows', 'shows__curators').distinct()
+        site_slug = self.kwargs.get('site_slug')
+        if site_slug:
+            self.site = visible_site_or_404(self.request, site_slug)
+            queryset = queryset.filter(shows__sites=self.site)
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
@@ -67,6 +78,7 @@ class ArtworkListView(ListView):
         context['can_delete_artwork'] = {
             a.id for a in artworks if can_delete_artwork(user, a)
         }
+        context['site'] = self.site
         context['anon_grid_cache_seconds'] = settings.ANON_GRID_CACHE_SECONDS
         return context
 

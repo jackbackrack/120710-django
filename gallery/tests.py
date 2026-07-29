@@ -4031,26 +4031,74 @@ class SiteFeatureTests(TestCase):
     # ── Site artist list ──────────────────────────────────────────────────────
 
     def test_site_artist_list_includes_artist_who_showed_there(self):
-        response = self.client.get(reverse('gallery:site_artist_list', kwargs={'slug': self.published_site.slug}))
+        response = self.client.get(reverse('gallery:site_artist_list', kwargs={'site_slug': self.published_site.slug}))
         self.assertEqual(response.status_code, 200)
-        self.assertIn(self.artist, response.context['artists'])
+        self.assertIn(self.artist, response.context['artist_list'])
 
     def test_site_artist_list_excludes_artist_who_did_not_show_there(self):
-        response = self.client.get(reverse('gallery:site_artist_list', kwargs={'slug': self.published_site.slug}))
+        response = self.client.get(reverse('gallery:site_artist_list', kwargs={'site_slug': self.published_site.slug}))
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(self.other_artist, response.context['artists'])
+        self.assertNotIn(self.other_artist, response.context['artist_list'])
+
+    def test_site_artist_list_paginates(self):
+        """The scoped list shares the network list's paging.
+
+        It used to be a separate view that rendered every artist at the venue in one
+        response — fine for one gallery, not for a venue with a decade of shows.
+        """
+        response = self.client.get(
+            reverse('gallery:site_artist_list', kwargs={'site_slug': self.published_site.slug}))
+        self.assertIn('paginator', response.context)
+        self.assertEqual(response.context['paginator'].per_page, 48)
+
+    def test_site_artist_list_names_the_venue(self):
+        response = self.client.get(
+            reverse('gallery:site_artist_list', kwargs={'site_slug': self.published_site.slug}))
+        self.assertContains(response, f'Artists at {self.published_site.name}')
+
+    def test_network_artist_list_does_not_name_a_venue(self):
+        response = self.client.get(reverse('gallery:artist_list'))
+        self.assertEqual(response.context['site'], None)
+        self.assertNotContains(response, 'Artists at ')
+
+    def test_draft_site_artist_list_is_hidden_from_the_public(self):
+        """Preserved from the view this replaced: a draft venue is not browsable."""
+        response = self.client.get(
+            reverse('gallery:site_artist_list', kwargs={'site_slug': self.draft_site.slug}))
+        self.assertEqual(response.status_code, 404)
+
+    # A real cache on purpose. settings.py forces DummyCache whenever 'test' is in argv,
+    # so cached fragments cannot leak between tests — which also means no test can
+    # exercise the grid cache unless it opts back in, as this one does.
+    @override_settings(CACHES={'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'scoped-grid-cache-test'}})
+    def test_scoped_and_network_grids_do_not_share_a_cache_entry(self):
+        """The anonymous card fragment is cached; the venue has to be in its key.
+
+        Without site.pk in the {% cache %} tag, a signed-out visitor to a venue's list is
+        served whichever grid was rendered first — for the network list, that means seeing
+        artists who have never shown at that venue.
+        """
+        from django.core.cache import cache
+        cache.clear()
+        network = self.client.get(reverse('gallery:artist_list'))
+        scoped = self.client.get(
+            reverse('gallery:site_artist_list', kwargs={'site_slug': self.published_site.slug}))
+        self.assertContains(network, self.other_artist.name)      # network sees both
+        self.assertNotContains(scoped, self.other_artist.name)    # the venue sees one
 
     # ── Site artwork list ─────────────────────────────────────────────────────
 
     def test_site_artwork_list_includes_artwork_shown_there(self):
-        response = self.client.get(reverse('gallery:site_artwork_list', kwargs={'slug': self.published_site.slug}))
+        response = self.client.get(reverse('gallery:site_artwork_list', kwargs={'site_slug': self.published_site.slug}))
         self.assertEqual(response.status_code, 200)
-        self.assertIn(self.artwork, response.context['artworks'])
+        self.assertIn(self.artwork, response.context['artwork_list'])
 
     def test_site_artwork_list_excludes_artwork_not_shown_there(self):
-        response = self.client.get(reverse('gallery:site_artwork_list', kwargs={'slug': self.published_site.slug}))
+        response = self.client.get(reverse('gallery:site_artwork_list', kwargs={'site_slug': self.published_site.slug}))
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(self.other_artwork, response.context['artworks'])
+        self.assertNotIn(self.other_artwork, response.context['artwork_list'])
 
 
 class WallPlacementRotationGroupTests(TestCase):

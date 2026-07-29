@@ -26,13 +26,23 @@ from gallery.permissions import (
     visible_artwork_queryset,
 )
 from gallery.submission_cta import submit_ctas
-from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
+from gallery.views.mixins import (CanonicalSlugRedirectMixin, StructuredDataMixin,
+                                 visible_site_or_404)
 
 
 class ArtistListView(ListView):
+    """Every artist, or — at /site/<slug>/artists/ — those who have shown at one venue.
+
+    The site-scoped form reuses this view and template for the same reason ShowListView
+    does: the scoped list used to be a separate view over a 15-line template, and it had
+    silently drifted into a thinner page with no pagination (it rendered every artist at
+    the venue in one response), no tag filter, no count, no per-card permissions and no
+    anonymous fragment cache.
+    """
     model = Artist
     template_name = 'gallery/artist_list.html'
     paginate_by = 48
+    site = None
 
     def get_template_names(self):
         if self.request.GET.get('partial'):
@@ -41,6 +51,12 @@ class ArtistListView(ListView):
 
     def get_queryset(self):
         queryset = Artist.objects.filter(visible_artist_queryset(self.request.user)).prefetch_related('tags')
+        site_slug = self.kwargs.get('site_slug')
+        if site_slug:
+            self.site = visible_site_or_404(self.request, site_slug)
+            # Artist has no link to Site — the relation runs through the work: an artist
+            # belongs to a venue because something of theirs was in a show there.
+            queryset = queryset.filter(artworks__shows__sites=self.site)
         return tag_filter_queryset(queryset, self.request.GET.get('tag')).distinct()
 
     def get_context_data(self, **kwargs):
@@ -59,6 +75,7 @@ class ArtistListView(ListView):
             and (not user.artists.exists()
                  or is_curator_user(user)
                  or is_staff_user(user)))
+        context['site'] = self.site
         context['anon_grid_cache_seconds'] = settings.ANON_GRID_CACHE_SECONDS
         return context
 

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
-{% block title %}Artworks{% endblock %}
-{% block block_title %}Artworks{% if paginator.count %} ({{ paginator.count }}){% endif %}
+{% block title %}Artworks{% if site %} — {{ site.name }}{% endif %}{% endblock %}
+{% block block_title %}{% if site %}Artworks at {{ site.name }}{% else %}Artworks{% endif %}{% if paginator.count %} ({{ paginator.count }}){% endif %}
 <button class="card__link" data-ss-first-cards type="button">Slideshow</button>
 {% if user.is_authenticated %}
   <a class="card__link new-button" href="{% url 'gallery:artwork_new' %}">New</a>
@@ -11,6 +11,9 @@
 <div class="cards" data-infinite-grid id="artwork-grid">
   {% include 'gallery/_artwork_cards.html' %}
 </div>
+{% if site and not paginator.count %}
+<p class="container mt-2">No artworks have been shown at this site yet.</p>
+{% endif %}
 <div id="infinite-sentinel" style="height:1px"></div>
 <noscript>{% include 'includes/pagination.html' %}</noscript>
 {% endblock content %}

@@ -55,3 +55,20 @@ class StructuredDataMixin:
         if schema_object is not None:
             context['structured_data_json'] = dump_json_ld(schema_to_dict(schema_object))
         return context
+
+
+def visible_site_or_404(request, slug):
+    """A venue by slug, hiding drafts from everyone but staff.
+
+    Shared by the site-scoped artist and artwork lists. Deliberately stricter than
+    ShowListView's plain get_object_or_404: those two URLs already behaved this way before
+    they were folded into the network list views, and loosening it would quietly make an
+    unpublished venue publicly browsable.
+    """
+    from gallery.models import Site
+    from gallery.permissions import is_staff_user
+
+    qs = Site.objects.all()
+    if not (request.user.is_authenticated and is_staff_user(request.user)):
+        qs = qs.filter(status=Site.STATUS_PUBLISHED)
+    return get_object_or_404(qs, slug=slug)

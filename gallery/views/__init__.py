@@ -59,8 +59,6 @@ from gallery.views.logistics import show_schedule_windows, artist_schedule, show
 from gallery.views.sites import (
     SiteListView,
     SiteDetailView,
-    SiteArtistListView,
-    SiteArtworkListView,
     SiteCreateView,
     SiteUpdateView,
     SiteDeleteView,
@@ -127,8 +125,6 @@ __all__ = [
     'room_viewer',
     'SiteListView',
     'SiteDetailView',
-    'SiteArtistListView',
-    'SiteArtworkListView',
     'SiteCreateView',
     'SiteUpdateView',
     'SiteDeleteView',

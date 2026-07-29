@@ -2,7 +2,12 @@
 {% if user.is_authenticated %}
 {% for artist in artist_list %}{% include 'gallery/_artist_card.html' %}{% endfor %}
 {% else %}
-{% cache anon_grid_cache_seconds artist_cards active_tag page_obj.number %}
+{% comment %}
+  site.pk is part of the key, not decoration: this fragment now serves both the
+  network grid and each venue's, so without it a signed-out visitor to
+  /site/x/artists/ is handed the cached network grid.
+{% endcomment %}
+{% cache anon_grid_cache_seconds artist_cards active_tag page_obj.number site.pk %}
 {% for artist in artist_list %}{% include 'gallery/_artist_card.html' %}{% endfor %}
 {% endcache %}
 {% endif %}

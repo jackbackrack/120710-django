@@ -163,49 +163,6 @@ class SiteDetailView(DetailView):
         return context
 
 
-class SiteArtistListView(DetailView):
-    model = Site
-    template_name = 'gallery/site_artist_list.html'
-    context_object_name = 'site'
-
-    def get_queryset(self):
-        qs = Site.objects.all()
-        if not (self.request.user.is_authenticated and is_staff_user(self.request.user)):
-            qs = qs.filter(status=Site.STATUS_PUBLISHED)
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        site = self.object
-        context['artists'] = Artist.objects.filter(
-            artworks__shows__sites=site
-        ).distinct().order_by('-created_at')
-        return context
-
-
-class SiteArtworkListView(DetailView):
-    model = Site
-    template_name = 'gallery/site_artwork_list.html'
-    context_object_name = 'site'
-
-    def get_queryset(self):
-        qs = Site.objects.all()
-        if not (self.request.user.is_authenticated and is_staff_user(self.request.user)):
-            qs = qs.filter(status=Site.STATUS_PUBLISHED)
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        site = self.object
-        context['artworks'] = (
-            Artwork.objects.filter(shows__sites=site)
-            .prefetch_related('artists', 'shows')
-            .distinct()
-            .order_by('-created_at')
-        )
-        return context
-
-
 class SiteCreateView(LoginRequiredMixin, UserPassesTestMixin, RoomConfigMixin, CreateView):
     model = Site
     form_class = SiteForm
