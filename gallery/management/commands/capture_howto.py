@@ -1932,6 +1932,11 @@ def capture_manage_sites(rec, facts):
     _log_in(rec, STAFF_EMAIL, SEEDED_PASSWORD)
 
     # Step 1 — "click Sites in the navigation."
+    # The one shot in the whole system that is not byte-reproducible: this page renders
+    # live OpenStreetMap tiles, and a re-fetch encodes a few levels differently (~13/255
+    # across the map, invisible). So this guide always reports as drifted on --publish
+    # even when nothing changed. Before republishing it, check whether any step *other*
+    # than 1 differs; if not, the drift is the map and there is nothing to publish.
     rec.at_step(1)
     rec.goto('/sites/')
     rec.shot(1)

@@ -9,8 +9,11 @@
   <button type="button" class="btn btn-outline-secondary btn-sm" id="geocode-btn">Look up coordinates from address</button>
   <span id="geocode-status" class="ms-2 text-muted small"></span>
   {% include 'gallery/_room_config_form.html' %}
-  <br>
-  <button class="btn btn-success ms-2" type="submit">Save</button>
+  {% comment %} Same as site_edit.html: a <br> between two inline-block buttons put Save
+  directly under "+ Add support row" with no gap. {% endcomment %}
+  <div class="mt-4">
+    <button class="btn btn-success ms-2" type="submit">Save</button>
+  </div>
 </form>
 </div>
 {% endblock %}

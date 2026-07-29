@@ -14,6 +14,27 @@ PDFs. Only four remain, and all four are deliberate: the layout editor's canvas
 drag-and-drop, the WebGL 3D view, the site map's live OpenStreetMap tiles, and the
 command-line guide for this system itself. Plan agreed 2026-07-28.
 
+**One shot is not reproducible, and it is not a bug.** Step 1 of
+`how-to-create-and-manage-sites-staff-only` photographs `/sites/`, which renders live
+OpenStreetMap tiles; a re-fetch re-encodes them a few levels differently (~13/255 across
+the map area, invisible to the eye). That guide therefore always appears in `--publish`'s
+changed set. To tell a real change from the map, compare per-step content hashes against
+the manifest rather than trusting the guide-level summary — the publisher re-uploads a
+whole guide when any one of its images differs, so "10 images" can mean one:
+
+```
+python - <<'PY'
+import hashlib, json, pathlib
+man = json.loads(pathlib.Path('eatart/howto_manifest.json').read_text())
+key = 'how-to-create-and-manage-sites-staff-only'
+d = pathlib.Path('static/img/howto') / key
+for step, info in sorted(man[key].items(), key=lambda kv: int(kv[0])):
+    was = info['key'].split('/')[-1].split('.')[1]
+    now = hashlib.sha256((d / f'{int(step):02d}.webp').read_bytes()).hexdigest()[:12]
+    print(step, 'same' if was == now else 'DIFFERS')
+PY
+```
+
 **Generated PDFs are rendered, not linked.** `shot_pdf()` fetches the PDF through the
 browser's own request context (so the curator's session cookie goes with it), rasterises a
 page with `pdftoppm`, and writes it as that step's image. It matters because the checklist

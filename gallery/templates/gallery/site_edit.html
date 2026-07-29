@@ -10,9 +10,15 @@
   <button type="button" class="btn btn-outline-secondary btn-sm" id="geocode-btn">Look up coordinates from address</button>
   <span id="geocode-status" class="ms-2 text-muted small"></span>
   {% include 'gallery/_room_config_form.html' %}
-  <br>
-  <button class="btn btn-info ms-2" type="submit">Update</button>
-  <a class="btn btn-secondary ms-2" href="{{ object.get_absolute_url }}">Cancel</a>
+  {% comment %}
+    A block with its own top margin, not a <br>. Both this and "+ Add support row" above
+    it are inline-block buttons, so a <br> only broke the line between them — the two sat
+    on consecutive lines with no gap at all, which read as one control group.
+  {% endcomment %}
+  <div class="mt-4">
+    <button class="btn btn-info ms-2" type="submit">Update</button>
+    <a class="btn btn-secondary ms-2" href="{{ object.get_absolute_url }}">Cancel</a>
+  </div>
 </form>
 </div>
 {% endblock %}
