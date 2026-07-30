@@ -114,6 +114,10 @@ class Site(models.Model):
     detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
     icon = models.ImageField(upload_to='site_icons', blank=True, null=True, help_text='Small logo or icon for the site (shown in nav and cards).')
     icon_sm = ImageSpecField(source='icon', processors=[Transpose(), ResizeToFit(width=32, height=32)], format='PNG', options={'quality': 90})
+    # For email, where the logo is a masthead rather than a favicon. 300px so it stays sharp on
+    # a retina screen at the ~150px it is displayed at. ImageSpecFields are derived files, not
+    # columns, so adding one needs no migration.
+    icon_md = ImageSpecField(source='icon', processors=[Transpose(), ResizeToFit(width=300)], format='PNG', options={'quality': 90})
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     # Which postal codes count as "in this venue's area", for shows whose scope is local.
     # Stored as a list rather than as a rule (a radius, a set of counties) so the boundary
@@ -161,6 +165,22 @@ class Site(models.Model):
         country = self.country.name if self.country else ''
         lines = [l for l in [self.street, city_line, country] if l]
         return '\n'.join(lines)
+
+    @property
+    def maps_url(self):
+        """A link that opens this address in a map, or '' if there is no address.
+
+        Coordinates when they exist, because a search by street address lands on the wrong side
+        of the block often enough to matter for somebody arriving at an opening.
+        """
+        if self.latitude is not None and self.longitude is not None:
+            return ('https://www.google.com/maps/search/?api=1&query='
+                    f'{self.latitude},{self.longitude}')
+        parts = [p for p in (self.street, self.city, self.state) if p]
+        if not parts:
+            return ''
+        from urllib.parse import quote_plus
+        return f'https://www.google.com/maps/search/?api=1&query={quote_plus(", ".join(parts))}'
 
     def save(self, *args, **kwargs):
         self.slug = build_unique_slug(self, self.name)

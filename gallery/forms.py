@@ -7,7 +7,8 @@ from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Field, Row, Column, HTML, Fieldset
 
-from gallery.models import Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show, Site, Tag
+from gallery.models import (Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show,
+                            Site, Subscriber, Subscription, Tag)
 from gallery.permissions import is_curator_user, is_staff_user
 
 
@@ -153,6 +154,19 @@ class ArtistForm(UserAwareModelForm):
         # which only matters for artists actually consigned from, so the consignment flow
         # is where they get asked. Requiring them at submission would collect home
         # addresses from every entrant to an open call and use almost none of them.
+        # Opt-in, unchecked by default, and never pre-ticked. Consent has to be given
+        # rather than not-withdrawn — that is what makes it consent, and a pre-ticked box
+        # is specifically what GDPR rules out. Not a model field: the subscription lives in
+        # Subscriber, and copying it onto Artist would make two things to keep in step.
+        self.fields['subscribe_to_mailing_list'] = forms.BooleanField(
+            required=False,
+            label='Email me about open calls, shows and events',
+            help_text='Occasional. Every email has a one-click unsubscribe.')
+        if self.instance and self.instance.pk and self.instance.email:
+            self.fields['subscribe_to_mailing_list'].initial = Subscription.objects.filter(
+                subscriber__email=self.instance.email.lower(),
+                site=Subscriber.default_site(), is_subscribed=True).exists()
+
         required = ['first_name', 'last_name', 'email', 'country', 'zipcode', 'image']
         optional = ['street', 'city', 'state', 'phone', 'website', 'instagram',
                     'venmo', 'bio', 'statement']
@@ -167,10 +181,34 @@ class ArtistForm(UserAwareModelForm):
                      'here. The rest help people get in touch.</p>'),
                 *optional,
             ),
+            Fieldset('Mailing list', 'subscribe_to_mailing_list'),
         )
         if 'user' in self.fields:
             layout.append(Fieldset('Admin', 'user'))
         self.helper.layout = layout
+
+    def save(self, commit=True):
+        """Apply the mailing-list choice alongside the profile.
+
+        Both directions: ticking subscribes, unticking unsubscribes. Unticking is a genuine
+        withdrawal of consent and has to be honoured here, not just ignored as "no change".
+        """
+        artist = super().save(commit=commit)
+        if commit and artist.email:
+            wants = self.cleaned_data.get('subscribe_to_mailing_list')
+            site = Subscriber.default_site()
+            if wants:
+                Subscriber.opt_in(
+                    email=artist.email, sites=[site],
+                    first_name=artist.first_name, last_name=artist.last_name,
+                    source=Subscription.SOURCE_ARTIST_PROFILE)
+            else:
+                existing = Subscription.objects.filter(
+                    subscriber__email=artist.email.lower(), site=site,
+                    is_subscribed=True).first()
+                if existing:
+                    existing.unsubscribe()
+        return artist
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()
@@ -733,3 +771,144 @@ class ArtistScheduleForm(forms.Form):
                 raise forms.ValidationError('Please pick a time within the selected window.')
             cleaned['window_obj'] = w
         return cleaned
+
+class CampaignForm(forms.ModelForm):
+    """Compose a campaign. Both authoring paths on one form, since which one a campaign
+    uses is a choice made while writing it, not a different kind of object."""
+
+    class Meta:
+        from gallery.models import Campaign
+        model = Campaign
+        fields = ('site', 'subject', 'preheader', 'template_name', 'show', 'body_markdown')
+        widgets = {
+            'subject': forms.TextInput(
+                attrs={'placeholder': 'What the inbox shows first'}),
+            'preheader': forms.TextInput(
+                attrs={'placeholder': 'The line after the subject — around 90 characters'}),
+            'body_markdown': forms.Textarea(attrs={'rows': 16}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Offered only when it can actually be sent to, so nobody writes a campaign they will
+        # then be told they cannot send. The guard on Campaign.can_send is the real one; this
+        # just keeps the form from inviting the mistake.
+        from django.conf import settings
+
+        # Default to the deployment's own venue rather than to the top of an alphabetical list
+        # or to the network-wide option. Whose list a mailing goes to is the one field where the
+        # wrong answer cannot be taken back, so the safe, usual answer is preselected.
+        from gallery.models import Subscriber
+        if not self.instance.pk and not self.initial.get('site'):
+            default = Subscriber.default_site()
+            if default is not None:
+                self.initial['site'] = default.pk
+
+        if getattr(settings, 'CAMPAIGN_NETWORK_LIST_ENABLED', False):
+            self.fields['site'].empty_label = 'Everyone (network-wide list)'
+            self.fields['site'].help_text = self.instance._meta.get_field('site').help_text
+        else:
+            self.fields['site'].empty_label = None
+            self.fields['site'].required = True
+            self.fields['site'].help_text = (
+                'Whose subscribers this goes to. The network-wide (reset.art) list is '
+                'unavailable until reset.art has its own email authentication.')
+
+        # A dropdown of the MJML templates that actually exist, rather than a text box
+        # where a typo becomes a TemplateDoesNotExist at send time.
+        # Newest first, and only shows that are actually public or on the way there — mailing
+        # about something under consideration would announce a show that may never happen.
+        self.fields['show'].queryset = (
+            Show.objects.filter(
+                status__in=[Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED,
+                            Show.STATUS_OPEN_CALL])
+            .prefetch_related('sites').order_by('-start'))
+        self.fields['show'].empty_label = 'None — not about a particular show'
+        # Dated and located, because a name on its own is not enough to pick from. A gallery
+        # accumulates shows with similar names, and the list is not short.
+        self.fields['show'].label_from_instance = _show_choice_label
+        self.fields['subject'].help_text = (
+            'Can use the show\'s details: {{ show.name }}, {{ show.start|date:"j F" }}, '
+            '{{ opening.date|date:"l j F" }}. Choosing a template fills in a sensible one.')
+
+        from gallery.campaigns import template_label
+        choices = [('', 'None — write the body in Markdown below')]
+        choices += [(name, template_label(name)) for name in _campaign_template_names()]
+        self.fields['template_name'] = forms.ChoiceField(
+            choices=choices, required=False, label='Template',
+            help_text='A recurring shape that fills itself from the database. It supplies the '
+                      'layout; whether your Markdown body appears inside it is up to the '
+                      'template.')
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get('template_name') and not (cleaned.get('body_markdown') or '').strip():
+            raise forms.ValidationError(
+                'Give it a body: either choose a template or write some Markdown.')
+
+        # A subject is a template too, so a mistake in it is a mistake in the one line every
+        # recipient reads. Caught here rather than at send time, where the engine deliberately
+        # falls back to the raw text rather than failing a whole send over a stray brace.
+        subject = cleaned.get('subject') or ''
+        if '{%' in subject:
+            self.add_error('subject', 'A subject can use {{ show.name }} and the like, but not '
+                                      '{% tags %}.')
+        elif '{{' in subject:
+            from django.template import Template, TemplateSyntaxError
+            try:
+                Template(subject)
+            except TemplateSyntaxError as exc:
+                self.add_error('subject', f'That subject will not render: {exc}')
+
+        # A show template with no show renders every field blank. Caught here, where it is a
+        # form error next to the field, rather than discovered in a preview that looks broken
+        # for no stated reason.
+        from gallery.campaigns import template_needs
+        template = cleaned.get('template_name')
+        show = cleaned.get('show')
+        if template and 'show' in template_needs(template) and not show:
+            self.add_error('show', 'This template takes its content from a show, so it needs '
+                                   'one chosen.')
+
+        # Mailing one venue's subscribers about another venue's show is a mistake nobody makes
+        # on purpose and nothing else would catch — the show list has to span sites so any
+        # venue's campaign can find its own shows.
+        site = cleaned.get('site')
+        if show and site and not show.sites.filter(pk=site.pk).exists():
+            self.add_error('show', f'“{show.name}” is not at {site.name}. Pick a show at this '
+                                   f'venue, or change the list this goes to.')
+        return cleaned
+
+
+def _show_choice_label(show):
+    """A show in a dropdown: name, when, and where.
+
+    The name alone is not enough to choose from once a gallery has a few years of them, and the
+    consequence of picking the wrong one is a mailing about the wrong show.
+    """
+    where = ', '.join(site.name for site in show.sites.all())
+    when = show.start.strftime('%b %Y') if show.start else 'no date'
+    return f'{show.name} — {when}{f" · {where}" if where else ""}'
+
+
+def _campaign_template_names():
+    """MJML campaign templates on disk, so the form can offer them.
+
+    Ordered by CAMPAIGN_TEMPLATES rather than alphabetically, so the list reads in the order a
+    show actually happens — announcement, opening, closing — instead of the order the filenames
+    happen to sort in, which put closing before opening. Anything on disk but not in the registry
+    follows, alphabetically.
+    """
+    import os
+    from django.conf import settings
+
+    from gallery.campaigns import CAMPAIGN_TEMPLATES
+
+    names = set()
+    for directory in [os.path.join(str(settings.BASE_DIR), 'templates')]:
+        folder = os.path.join(directory, 'email', 'campaigns')
+        if os.path.isdir(folder):
+            names.update(f for f in os.listdir(folder) if f.endswith('.mjml'))
+
+    known = [name for name in CAMPAIGN_TEMPLATES if name in names]
+    return known + sorted(names - set(known))

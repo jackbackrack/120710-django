@@ -1,0 +1,126 @@
+{% comment %}
+"Opening: <show>" — the mailing that goes out for a show opening.
+
+Modelled on the Mailchimp announcements this replaced, in the same order, because that shape was
+already working and readers recognise it:
+
+  Opening: <name>          an invitation sentence, naming the curator
+  📅 🕓 📍                  the three facts somebody needs to turn up, on their own lines
+  hero image
+  the show's own description
+  whatever the curator wrote for this mailing
+  a button to the show
+  a few works
+
+Everything comes from the Show row and its Events, so nobody retypes a date and nobody sends a
+reception time that changed last week. Reused for every show: pick the template, pick the show.
+The masthead, the "Come visit" block, the address and the unsubscribe link come from the shell in
+templates/email/campaign_base.mjml.
+
+Available in context (gallery/campaigns.py::show_context):
+  show, show_url, artworks, events, opening, closing, curators, site
+  campaign_body / campaign_body_blocks — the curator's own words for this one, if any
+
+`opening` is the show's first Event, which is the reception in the ordinary case. There is no
+field marking one, so a show with no events falls back to its own start date rather than
+rendering a hole where the invitation should be.
+{% endcomment %}
+<mj-section padding="16px 24px 0">
+  <mj-column>
+    <mj-text font-size="28px" font-weight="bold" padding="8px 0 10px">
+      {% if show.show_type == 'open_studio' %}Open Studio: {% else %}Opening: {% endif %}{{ show.name }}
+    </mj-text>
+
+    {% comment %}
+      The invitation, as one sentence. Unbroken in the source so it stays greppable and testable,
+      and so no client wraps it somewhere odd.
+    {% endcomment %}
+    {% if curators %}
+    <mj-text padding="0 0 10px">Join us for the opening of {{ show.name }}, a new exhibition curated by {% for c in curators %}{{ c.name }}{% if c.instagram %} (<a href="https://www.instagram.com/{{ c.instagram|cut:"@" }}/" style="color:#198754">@{{ c.instagram|cut:"@" }}</a>){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}.</mj-text>
+    {% else %}
+    <mj-text padding="0 0 10px">Join us for the opening of {{ show.name }}.</mj-text>
+    {% endif %}
+  </mj-column>
+</mj-section>
+
+{% comment %}
+  Date, time, place — the three things a reader needs in order to turn up, each on its own line
+  with the emoji the old campaigns used. Big enough to read at a glance on a phone, because this
+  is the part people screenshot.
+{% endcomment %}
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-text font-size="18px" line-height="1.7" padding="8px 0">
+      📅 {% if opening %}{{ opening.date|date:"l, j F" }}{% else %}{{ show.start|date:"l, j F" }}{% endif %}<br />
+      {% if opening %}🕓 {{ opening.start|time:"g:i A" }}–{{ opening.end|time:"g:i A" }}<br />{% endif %}
+      📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
+    </mj-text>
+    {% if show.start != show.end %}
+    <mj-text color="#666666" font-size="14px" padding="0 0 8px">Then on until {{ show.end|date:"j F Y" }}.</mj-text>
+    {% endif %}
+  </mj-column>
+</mj-section>
+
+{% if show.image %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-image src="{{ show.image.url }}" alt="{{ show.name }}" padding="0" href="{{ show_url }}" />
+  </mj-column>
+</mj-section>
+{% endif %}
+
+{% if show.description %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-text padding="8px 0">{{ show.description|striptags|truncatewords:80 }}</mj-text>
+  </mj-column>
+</mj-section>
+{% endif %}
+
+{% comment %}
+Anything the curator wrote for this particular mailing — a birthday, a last-minute talk, a
+sentence about one piece. This is what stops a reusable format meaning identical wording.
+{% endcomment %}
+{% if campaign.body_markdown.strip %}{{ campaign_body }}{% endif %}
+
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-button href="{{ show_url }}" background-color="#198754" color="#ffffff" padding="16px 0">
+      See the show
+    </mj-button>
+  </mj-column>
+</mj-section>
+
+{% if artworks %}
+{% comment %}
+  Three works, one row. More than three and the columns are too narrow to read on a phone, where
+  MJML stacks them anyway; Gmail also clips a message over 102KB, which would take the
+  unsubscribe link with it.
+{% endcomment %}
+<mj-section padding="0 24px 16px">
+  {% for artwork in artworks|slice:":3" %}
+  <mj-column width="33%">
+    {% if artwork.card_md %}
+    <mj-image src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}" padding="4px" href="{{ show_url }}" />
+    {% endif %}
+    <mj-text font-size="13px" align="center" padding="4px" line-height="1.4">
+      {{ artwork.name }}
+      {% if artwork.artists.all %}<br /><span style="color:#888888">{% for a in artwork.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+    </mj-text>
+  </mj-column>
+  {% endfor %}
+</mj-section>
+{% endif %}
+
+{% if events|length > 1 %}
+<mj-section padding="0 24px 16px">
+  <mj-column>
+    <mj-text font-weight="bold" font-size="14px" padding="8px 0 4px">Also on</mj-text>
+    {% for event in events %}{% if not forloop.first %}
+    <mj-text font-size="14px" padding="2px 0">
+      {{ event.date|date:"j F" }} · {{ event.start|time:"g:i A" }} — {{ event.name }}
+    </mj-text>
+    {% endif %}{% endfor %}
+  </mj-column>
+</mj-section>
+{% endif %}

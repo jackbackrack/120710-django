@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if campaign %}{{ campaign.subject|default:"Draft" }}{% else %}New campaign{% endif %}{% endblock %}
+{% block block_title %}{% if campaign %}{{ campaign.subject|default:"Draft campaign" }}{% else %}New campaign{% endif %}{% endblock %}
+
+{% block content %}
+{% comment %}
+  Compose, preview, test and send on one page. The send guard is a sequence — a test has
+  to post-date the last edit — and splitting it across pages hides where you are in it.
+  blocked_reason is printed verbatim rather than paraphrased, so the page never refuses
+  without saying why.
+{% endcomment %}
+<div class="col-11 col-lg-10 mx-auto mt-4">
+
+  {% if campaign and not editable %}
+  {% comment %}
+    Three different situations share "not editable", and calling them all a finished record
+    would be a lie in two of them. A stopped send is unfinished business, and the banner has
+    to say so — that is the moment somebody needs to be told what to do next.
+  {% endcomment %}
+  {% if campaign.can_resume %}
+  <div class="alert alert-warning">
+    {% if campaign.status == 'paused' %}
+    <strong>This send is paused part-way, on purpose.</strong>
+    {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} subscriber{{ remaining_count|pluralize }} received it.
+    Send the rest when you are ready &mdash; nobody who already got it will get it twice.
+    {% else %}
+    <strong>This send stopped before it finished.</strong>
+    {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} subscriber{{ remaining_count|pluralize }} received it.
+    Resume it below to send the rest &mdash; nobody who already got it will get it twice.
+    {% endif %}
+  </div>
+  {% elif in_flight %}
+  <div class="alert alert-info">
+    <strong>Sending now.</strong>
+    {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} sent so far. This carries on
+    whether or not you stay on the page.
+  </div>
+  {% else %}
+  <div class="alert alert-secondary">
+    {# Keep user-facing sentences unbroken so they stay greppable and testable. #}
+    This campaign is <strong>{{ campaign.get_status_display|lower }}</strong> and can no longer be edited
+    &mdash; it is the record of what went out{% if campaign.sent_at %} on {{ campaign.sent_at|date:"F j, Y" }} to {{ campaign.recipient_count }} subscriber{{ campaign.recipient_count|pluralize }}{% endif %}.
+    {% if rejected %}{{ rejected|length }} address{{ rejected|length|pluralize:"es" }} could not be delivered to and {% if rejected|length == 1 %}has{% else %}have{% endif %} been unsubscribed.{% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="row g-4">
+    {# ── Compose ──────────────────────────────────────────────────────── #}
+    <div class="col-lg-6">
+      {% if editable or not campaign %}
+      <form method="post">{% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">
+          {% if campaign %}Save{% else %}Create draft{% endif %}
+        </button>
+        {% if campaign %}
+        <a class="card__link ms-3" href="{% url 'gallery:campaign_list' %}">All campaigns</a>
+        {% endif %}
+      </form>
+      {% else %}
+      {% comment %}
+        Offered on a finished campaign because that is the moment somebody decides next
+        month's should look like this one. It is a POST — it creates a record.
+      {% endcomment %}
+      <form method="post" action="{% url 'gallery:campaign_duplicate' campaign.pk %}"
+            class="mb-3">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-secondary">Start a new draft from this one</button>
+      </form>
+      <dl>
+        <dt>List</dt><dd>{{ campaign.site.name|default:"Everyone" }}</dd>
+        <dt>Subject</dt><dd>{{ campaign.subject }}</dd>
+        {% if campaign.preheader %}<dt>Preview text</dt><dd>{{ campaign.preheader }}</dd>{% endif %}
+        {% if campaign.template_name %}<dt>Template</dt><dd>{{ campaign.template_name }}</dd>{% endif %}
+      </dl>
+      <a class="card__link" href="{% url 'gallery:campaign_list' %}">All campaigns</a>
+      {% endif %}
+    </div>
+
+    {# ── Preview, test, send ──────────────────────────────────────────── #}
+    <div class="col-lg-6">
+      {% if campaign %}
+      <h5>Preview</h5>
+      <iframe src="{% url 'gallery:campaign_preview' campaign.pk %}"
+              title="Campaign preview" loading="lazy"
+              style="width:100%;height:26rem;border:1px solid rgba(0,0,0,.2);background:#fff"></iframe>
+      <p class="text-muted small mt-1">
+        A stand-in recipient. The unsubscribe link here does not resolve, on purpose.
+      </p>
+
+      {% if editable %}
+      <hr>
+      <h5>Send a test</h5>
+      <form method="post" action="{% url 'gallery:campaign_send_test' campaign.pk %}"
+            class="d-flex gap-2 align-items-start">{% csrf_token %}
+        <input type="email" name="address" value="{{ test_address }}" required
+               class="form-control form-control-sm" style="max-width:18rem"
+               aria-label="Test recipient">
+        <button type="submit" class="btn btn-sm btn-secondary">Send test</button>
+      </form>
+      <p class="text-muted small mt-1">
+        {% if campaign.test_sent_at %}
+          Last test {{ campaign.test_sent_at|date:"M j, Y H:i" }}.
+          {% if not campaign.is_tested %}<strong>Edited since — send another.</strong>{% endif %}
+        {% else %}
+          No test sent yet.
+        {% endif %}
+      </p>
+
+      <hr>
+      <h5>Send to the list</h5>
+      <p>
+        {{ recipient_count }} subscriber{{ recipient_count|pluralize }} on
+        <strong>{{ campaign.site.name|default:"the network-wide list" }}</strong>.
+      </p>
+      {% if campaign.can_send %}
+      <form method="post" action="{% url 'gallery:campaign_send' campaign.pk %}">{% csrf_token %}
+        <button type="submit" class="btn btn-danger"
+                onclick="return confirm('Send &quot;{{ campaign.subject|escapejs }}&quot; to {{ recipient_count }} subscriber(s)? This cannot be undone.')">
+          Send to {{ recipient_count }} subscriber{{ recipient_count|pluralize }}
+        </button>
+      </form>
+      {% else %}
+      <button type="button" class="btn btn-danger" disabled>Send</button>
+      <p class="text-muted small mt-1">{{ campaign.blocked_reason }}</p>
+      {% endif %}
+      {% endif %}
+
+      {% if campaign.sent_at %}
+      <hr>
+      <h5>After the send</h5>
+      {% comment %}
+        The half the page could not report before: a bounce or a complaint arriving after the
+        send is now recorded against the campaign that caused it. Both numbers matter for
+        different reasons — bounces say the list is stale, complaints are what a mailbox provider
+        actually judges you on.
+      {% endcomment %}
+      <table class="table table-sm w-auto">
+        <tr><td class="pe-4">Sent</td><td class="text-end">{{ campaign.sent_so_far }}</td><td></td></tr>
+        <tr>
+          <td class="pe-4">Bounced</td>
+          <td class="text-end">{{ campaign.bounced_count }}</td>
+          <td class="text-muted small ps-2">{{ campaign.bounce_rate }}%</td>
+        </tr>
+        <tr{% if campaign.complaint_rate_is_high %} class="table-danger"{% endif %}>
+          <td class="pe-4">Marked as spam</td>
+          <td class="text-end">{{ campaign.complained_count }}</td>
+          <td class="small ps-2">{{ campaign.complaint_rate }}%</td>
+        </tr>
+      </table>
+      {% if campaign.complaint_rate_is_high %}
+      <p class="text-danger small">
+        Above {{ complaint_limit }}%, which is where Gmail and Yahoo start putting a domain's mail in spam folders without telling you. Worth looking at who this went to before sending another.
+      </p>
+      {% else %}
+      <p class="text-muted small">
+        Anything over {{ complaint_limit }}% spam complaints is the level at which mailbox providers start filtering a domain.
+      </p>
+      {% endif %}
+      {% endif %}
+
+      {% if rejected %}
+      <hr>
+      <h5>Addresses the provider refused</h5>
+      {% comment %}
+        Named here rather than left in a server log, because "some addresses were rejected" is
+        not something anybody can act on and "mailbox does not exist" is. Nothing needs doing
+        about them — they are already off the list — so this is a report, not a task.
+      {% endcomment %}
+      {# One sentence per line: a wrapped sentence is neither greppable nor testable. #}
+      <p>
+        {% if rejected|length == 1 %}
+        1 address was rejected and is no longer on the list, the same as a bounce. Nothing else to do about it.
+        {% else %}
+        {{ rejected|length }} addresses were rejected and are no longer on the list, the same as a bounce. Nothing else to do about them.
+        {% endif %}
+      </p>
+      <ul class="small">
+        {% for delivery in rejected %}
+        <li>{{ delivery.subscription.subscriber.email }}
+          {% if delivery.error %}<span class="text-muted">— {{ delivery.error }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if campaign.can_resume %}
+      <hr>
+      <h5>Finish the send</h5>
+      <p>
+        {{ remaining_count }} subscriber{{ remaining_count|pluralize }} still to go, of
+        {{ sent_so_far|add:remaining_count }} on
+        <strong>{{ campaign.site.name|default:"the network-wide list" }}</strong>.
+      </p>
+      <form method="post" action="{% url 'gallery:campaign_resume' campaign.pk %}">{% csrf_token %}
+        <button type="submit" class="btn btn-warning"
+                onclick="return confirm('Send the remaining {{ remaining_count }} copy/copies of &quot;{{ campaign.subject|escapejs }}&quot;? The {{ sent_so_far }} already sent will not be repeated.')">
+          Resume &mdash; send the remaining {{ remaining_count }}
+        </button>
+      </form>
+      <p class="text-muted small mt-1">
+        Only people with no record of having received this are mailed, so it is safe to press
+        even if you are not sure how far the last attempt got.
+      </p>
+      {% elif in_flight %}
+      <hr>
+      <h5>Sending</h5>
+      <div class="progress" role="progressbar" aria-label="Send progress"
+           aria-valuenow="{{ sent_so_far }}" aria-valuemin="0"
+           aria-valuemax="{{ sent_so_far|add:remaining_count }}" style="height:1.25rem">
+        <div class="progress-bar progress-bar-striped progress-bar-animated"
+             style="width:{{ send_percent }}%">{{ send_percent }}%</div>
+      </div>
+      <p class="text-muted small mt-1">
+        {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} sent. Refreshing every 15
+        seconds. Closing this page does not stop the send.
+      </p>
+      {% comment %}
+        A plain meta-refresh rather than polling JavaScript: the only thing that changes is a
+        count read straight from the delivery records, and this keeps working with the tab in
+        the background, which is where an operator will actually leave it.
+      {% endcomment %}
+      <meta http-equiv="refresh" content="15">
+      {% endif %}
+
+      {% else %}
+      {% comment %}
+        A live preview before the draft exists. Choosing a template used to show nothing at all
+        until you had saved — the template is not copied into the body field, it *is* the body —
+        so the form looked like it had ignored you. Being made to commit before seeing what you
+        picked is a poor trade for a decision that is mostly visual.
+      {% endcomment %}
+      <h5>Preview</h5>
+      <iframe id="tplPreview" src="{% url 'gallery:campaign_template_preview' %}"
+              title="Template preview"
+              style="width:100%;height:26rem;border:1px solid rgba(0,0,0,.2);background:#fff"></iframe>
+      <p class="text-muted small mt-1">
+        Updates as you choose a template and a show. A stand-in recipient, so the unsubscribe
+        link here does not resolve.
+      </p>
+      {% comment %}
+        The subject is a template too, and it is the one line every recipient reads — but it
+        lands in the email's <title>, which an iframe will not show. So it is spelled out here,
+        filled in, rather than left to be discovered in the test send.
+      {% endcomment %}
+      <p class="small"><strong>Subject as it will arrive:</strong>
+        <span id="subjectPreview" class="text-muted">—</span></p>
+      <p class="text-muted small">
+        A template supplies the whole layout — it does not fill in the body field. Use the body
+        for anything you want to add to this one mailing; it appears inside the template.
+      </p>
+      <script>
+        // Rebuild the iframe URL from whatever the form currently says. Debounced, because the
+        // body field fires on every keystroke and each rebuild is a full MJML compile.
+        (function () {
+          var frame = document.getElementById('tplPreview');
+          if (!frame) return;
+          var base = frame.getAttribute('src');
+          var names = ['site', 'show', 'template_name', 'subject', 'preheader', 'body_markdown'];
+          var keys = {template_name: 'template', body_markdown: 'body'};
+          var timer = null;
+
+          function refresh() {
+            var params = new URLSearchParams();
+            names.forEach(function (name) {
+              var el = document.querySelector('[name="' + name + '"]');
+              if (el && el.value) params.set(keys[name] || name, el.value);
+            });
+            frame.src = base + '?' + params.toString();
+
+            // Ask the same endpoint what the subject resolves to, so what is shown is what the
+            // server will actually send rather than a second guess written in JavaScript.
+            fetch(base + '?subject_only=1&' + params.toString())
+              .then(function (r) { return r.text(); })
+              .then(function (text) {
+                var out = document.getElementById('subjectPreview');
+                if (out) out.textContent = text.trim() || '—';
+              })
+              .catch(function () { /* the iframe is the real preview; this is a nicety */ });
+          }
+
+          // Choosing a template fills in its default subject, but never overwrites a subject
+          // somebody has written: the defaults are only offered into an empty field or over
+          // another template's untouched default.
+          var defaults = {{ template_subjects|safe }};
+          var offered = Object.keys(defaults).map(function (k) { return defaults[k]; });
+          var tpl = document.querySelector('[name="template_name"]');
+          var subj = document.querySelector('[name="subject"]');
+          if (tpl && subj) {
+            tpl.addEventListener('change', function () {
+              var current = subj.value.trim();
+              if (current === '' || offered.indexOf(current) !== -1) {
+                subj.value = defaults[tpl.value] || '';
+                refresh();
+              }
+            });
+          }
+
+          names.forEach(function (name) {
+            var el = document.querySelector('[name="' + name + '"]');
+            if (!el) return;
+            el.addEventListener('change', refresh);
+            el.addEventListener('input', function () {
+              clearTimeout(timer);
+              timer = setTimeout(refresh, 700);
+            });
+          });
+          refresh();
+        })();
+      </script>
+
+      <p class="text-muted small mt-3">
+        Save the draft and this side gains the controls for sending yourself a test and then
+        sending to the list.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

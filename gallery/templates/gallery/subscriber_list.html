@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Subscribers{% endblock %}
+{% block block_title %}Subscribers{% endblock %}
+
+{% block content %}
+{% comment %}
+  Per-person actions only. Bulk import is import_subscribers and bulk sending is a
+  campaign; a button here that could unsubscribe or delete many people at once would be
+  one misclick from destroying a list, and nothing needs it.
+
+  Every action posts, and carries `back` so the operator returns to the same search and
+  filters rather than the top of an unfiltered list.
+{% endcomment %}
+<div class="col-11 mx-auto mt-4">
+
+  {# ── Per-list totals: what a campaign to each list would actually send ──── #}
+  <div class="sub-counts">
+    {% for c in counts %}
+    <a class="card__link{% if list_filter == c.value %} active{% endif %}"
+       href="?list={{ c.value }}{% if status %}&status={{ status }}{% endif %}">
+      {{ c.label }} <strong>{{ c.total }}</strong>
+    </a>
+    {% endfor %}
+    {% if list_filter or status or search %}
+    <a class="card__link" href="?">Clear filters</a>
+    {% endif %}
+  </div>
+
+  {# ── Search and status ──────────────────────────────────────────────────── #}
+  <form method="get" class="d-flex flex-wrap gap-2 align-items-center mt-3">
+    <input type="search" name="q" value="{{ search }}" placeholder="Email or name"
+           class="form-control form-control-sm" style="max-width:16rem" aria-label="Search">
+    {% if list_filter %}<input type="hidden" name="list" value="{{ list_filter }}">{% endif %}
+    <select name="status" class="form-select form-select-sm" style="max-width:12rem"
+            aria-label="Status">
+      <option value="">Everyone</option>
+      <option value="subscribed" {% if status == 'subscribed' %}selected{% endif %}>On a list</option>
+      <option value="unsubscribed" {% if status == 'unsubscribed' %}selected{% endif %}>Off every list</option>
+    </select>
+    <button type="submit" class="btn btn-sm btn-secondary">Search</button>
+  </form>
+
+  {# ── Add one by hand ────────────────────────────────────────────────────── #}
+  <details class="mt-3">
+    <summary class="card__link">Add someone by hand</summary>
+    <form method="post" action="{% url 'gallery:subscriber_add' %}"
+          class="d-flex flex-wrap gap-2 align-items-center mt-2">{% csrf_token %}
+      <input type="hidden" name="back" value="{{ query_string }}">
+      <input type="email" name="email" required placeholder="Email"
+             class="form-control form-control-sm" style="max-width:16rem" aria-label="Email">
+      <input type="text" name="first_name" placeholder="First name"
+             class="form-control form-control-sm" style="max-width:9rem" aria-label="First name">
+      <input type="text" name="last_name" placeholder="Last name"
+             class="form-control form-control-sm" style="max-width:9rem" aria-label="Last name">
+      <select name="site" class="form-select form-select-sm" style="max-width:12rem"
+              aria-label="List">
+        {% comment %}
+          This venue's list first and selected. Which list somebody is added to is not
+          something they can be taken back out of without noticing, so the usual answer is the
+          default rather than the network-wide one that happens to sort first.
+        {% endcomment %}
+        {% for s in sites %}
+        <option value="{{ s.slug }}"{% if s.pk == default_site.pk %} selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+        <option value="network">reset.art (network-wide)</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    </form>
+    <p class="text-muted small mt-1 mb-0">
+      Only for someone who asked to be added. Recorded as added by hand, so where the
+      consent came from stays answerable later.
+    </p>
+  </details>
+
+  {# ── The people ─────────────────────────────────────────────────────────── #}
+  <p class="text-muted small mt-3 mb-1">
+    {{ page_obj.paginator.count }} {{ page_obj.paginator.count|pluralize:"person,people" }}
+    {% if search or list_filter or status %}matching{% endif %}.
+  </p>
+
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th>Email</th><th>Name</th><th>Lists</th><th class="text-end">Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for person in page_obj %}
+      <tr>
+        <td>{{ person.email }}</td>
+        <td>{{ person.full_name|default:"—" }}</td>
+        <td>
+          {% for sub in person.subscriptions.all %}
+          <div class="sub-line">
+            {% if sub.is_subscribed %}
+            <span class="sub-on">on</span> {{ sub.list_name }}
+            <span class="text-muted small">({{ sub.get_source_display|lower }})</span>
+            <form method="post" action="{% url 'gallery:subscription_unsubscribe' sub.pk %}"
+                  class="d-inline">{% csrf_token %}
+              <input type="hidden" name="back" value="{{ query_string }}">
+              <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
+                      onclick="return confirm('Remove {{ person.email|escapejs }} from {{ sub.list_name|escapejs }}?')">remove</button>
+            </form>
+            {% else %}
+            <span class="sub-off">off</span> {{ sub.list_name }}
+            <span class="text-muted small">({{ sub.get_unsubscribed_reason_display|lower }}{% if sub.unsubscribed_at %}, {{ sub.unsubscribed_at|date:"M j, Y" }}{% endif %})</span>
+            {% if sub.unsubscribed_reason == 'requested' %}
+            <form method="post" action="{% url 'gallery:subscription_resubscribe' sub.pk %}"
+                  class="d-inline">{% csrf_token %}
+              <input type="hidden" name="back" value="{{ query_string }}">
+              <button type="submit" class="btn btn-sm btn-link p-0"
+                      onclick="return confirm('Add {{ person.email|escapejs }} back to {{ sub.list_name|escapejs }}? Only do this if they asked.')">add back</button>
+            </form>
+            {% endif %}
+            {% endif %}
+          </div>
+          {% empty %}
+          <span class="text-muted">no lists</span>
+          {% endfor %}
+        </td>
+        <td class="text-end text-nowrap">
+          <form method="post" action="{% url 'gallery:subscriber_unsubscribe_all' person.pk %}"
+                class="d-inline">{% csrf_token %}
+            <input type="hidden" name="back" value="{{ query_string }}">
+            <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
+                    onclick="return confirm('Remove {{ person.email|escapejs }} from every list?')">remove from all</button>
+          </form>
+          <form method="post" action="{% url 'gallery:subscriber_delete' person.pk %}"
+                class="d-inline ms-2">{% csrf_token %}
+            <input type="hidden" name="back" value="{{ query_string }}">
+            <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
+                    onclick="return confirm('Delete {{ person.email|escapejs }} entirely?\n\nThis also removes the record that they opted out, so a future import of an old export could add them again. To stop mailing them, use “remove from all” instead.')">delete</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="text-center text-muted py-4">Nobody matches that.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <nav class="d-flex gap-3 justify-content-center">
+    {% if page_obj.has_previous %}
+    <a class="card__link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+    {% endif %}
+    <span class="text-muted small">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a class="card__link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</div>
+
+<style>
+  .sub-counts { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; align-items: center; }
+  .sub-counts .active { font-weight: 700; }
+  .sub-line { line-height: 1.5; }
+  .sub-on { color: #2f9e6f; font-weight: 600; }
+  .sub-off { color: #999; font-weight: 600; }
+</style>
+{% endblock %}

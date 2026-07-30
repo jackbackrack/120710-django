@@ -61,11 +61,7 @@ def index(request):
 def contact(request, site_slug=None):
     if site_slug:
         visible_site_or_404(request, site_slug)
-    return render(request, 'public/contact.html', {
-        # Only advertise a mailing list when one is actually wired up. Subscribing is
-        # still a single shared Mailchimp audience, deliberately left alone for now.
-        'mailing_list_enabled': bool(settings.MAILCHIMP_AUDIENCE_ID),
-    })
+    return render(request, 'public/contact.html')
 
 
 def visit(request, site_slug=None):
@@ -78,6 +74,15 @@ def about(request, site_slug=None):
     if site_slug:
         visible_site_or_404(request, site_slug)
     return render(request, 'public/about.html')
+
+
+def privacy(request, site_slug=None):
+    """One policy for the whole network — same code, same database, same providers, so
+    per-venue variation would imply differences that do not exist. The venue's own name
+    and contact details come from `info_site`, as on the other info pages."""
+    if site_slug:
+        visible_site_or_404(request, site_slug)
+    return render(request, 'public/privacy.html')
 
 
 def linktree(request, site_slug=None):

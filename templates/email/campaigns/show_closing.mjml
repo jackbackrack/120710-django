@@ -1,0 +1,113 @@
+{% comment %}
+"Closing: <show>" — the mailing that goes out near the end of a run.
+
+Same shape as show_opening.mjml so the two read as a pair, with the emphasis moved: the date that
+matters here is the one the show comes down, and the works are given more room because by now the
+reader has seen the headline image and what might bring them back is a piece they have not.
+
+Everything comes from the Show row and its Events. The masthead, "Come visit" block, address and
+unsubscribe link come from the shell in templates/email/campaign_base.mjml.
+
+Available in context (gallery/campaigns.py::show_context):
+  show, show_url, artworks, events, opening, closing, curators, site
+  campaign_body / campaign_body_blocks — the curator's own words for this one, if any
+
+`closing` is the show's last Event, and only exists when there is more than one — a show with a
+single reception has an opening, not a finale, and this template must not present one as the
+other.
+{% endcomment %}
+<mj-section padding="16px 24px 0">
+  <mj-column>
+    <mj-text font-size="13px" color="#888888" letter-spacing="1px" padding="0 0 4px">LAST CHANCE</mj-text>
+    <mj-text font-size="28px" font-weight="bold" padding="0 0 10px">
+      {% if closing %}Closing: {% endif %}{{ show.name }}
+    </mj-text>
+    {% comment %}
+      One sentence, unbroken, and the closing date said once. An earlier version also named the
+      closing event here, which read "Closes Saturday 3 October, with closing party on Saturday 3
+      October" and then said it a third time below — invisible in the template and obvious the
+      moment the rendered text was read.
+    {% endcomment %}
+    <mj-text padding="0 0 10px">{{ show.name }} comes down on {{ show.end|date:"l, j F" }} — this is the last week to see it{% if site %} at {{ site.name }}{% endif %}.</mj-text>
+  </mj-column>
+</mj-section>
+
+{% comment %}
+  The same date/time/place block as the opening, so the pair are recognisably the same mail. Shows
+  the closing event when there is one, and the final day when there is not.
+{% endcomment %}
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-text font-size="18px" line-height="1.7" padding="8px 0">
+      📅 {% if closing %}{{ closing.date|date:"l, j F" }}{% else %}Until {{ show.end|date:"l, j F" }}{% endif %}<br />
+      {% if closing %}🕓 {{ closing.start|time:"g:i A" }}–{{ closing.end|time:"g:i A" }}<br />{% endif %}
+      📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
+    </mj-text>
+    {% if closing %}
+    <mj-text color="#666666" font-size="14px" padding="0 0 8px">{{ closing.name }}</mj-text>
+    {% endif %}
+  </mj-column>
+</mj-section>
+
+{% if show.image %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-image src="{{ show.image.url }}" alt="{{ show.name }}" padding="0" href="{{ show_url }}" />
+  </mj-column>
+</mj-section>
+{% endif %}
+
+{% comment %}
+Whatever the curator wrote for this mailing. On a closing that is usually the reason to come
+back — a piece that sold, a review, a talk added at the last minute. Placed above the show's
+standing description, which the reader has probably had once already.
+{% endcomment %}
+{% if campaign.body_markdown.strip %}{{ campaign_body }}{% endif %}
+
+{% if show.description %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-text padding="8px 0">{{ show.description|striptags|truncatewords:45 }}</mj-text>
+  </mj-column>
+</mj-section>
+{% endif %}
+
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-button href="{{ show_url }}" background-color="#198754" color="#ffffff" padding="16px 0">
+      See it before it goes
+    </mj-button>
+  </mj-column>
+</mj-section>
+
+{% if artworks %}
+{% comment %}
+  Six here rather than three, in two explicit slices. MJML needs each row to be its own section
+  with its own columns, and Django's template language has no grouper — so spelling out two rows
+  is both shorter than a clever loop and the only version that is obviously correct.
+{% endcomment %}
+<mj-section padding="0 24px 4px">
+  {% for artwork in artworks|slice:":3" %}
+  <mj-column width="33%">
+    {% if artwork.card_md %}<mj-image src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}" padding="4px" href="{{ show_url }}" />{% endif %}
+    <mj-text font-size="13px" align="center" padding="4px" line-height="1.4">
+      {{ artwork.name }}
+      {% if artwork.artists.all %}<br /><span style="color:#888888">{% for a in artwork.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+    </mj-text>
+  </mj-column>
+  {% endfor %}
+</mj-section>
+{% if artworks|length > 3 %}
+<mj-section padding="0 24px 16px">
+  {% for artwork in artworks|slice:"3:6" %}
+  <mj-column width="33%">
+    {% if artwork.card_md %}<mj-image src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}" padding="4px" href="{{ show_url }}" />{% endif %}
+    <mj-text font-size="13px" align="center" padding="4px" line-height="1.4">
+      {{ artwork.name }}
+      {% if artwork.artists.all %}<br /><span style="color:#888888">{% for a in artwork.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+    </mj-text>
+  </mj-column>
+  {% endfor %}
+</mj-section>
+{% endif %}
+{% endif %}

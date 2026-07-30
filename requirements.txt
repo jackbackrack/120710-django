@@ -10,6 +10,7 @@ defusedxml==0.7.1
 diff-match-patch==20230430
 dj-database-url==2.1.0
 django-allauth==65.18.0
+django-anymail[resend]==15.0
 django-countries==9.0.0
 django-crispy-forms==2.3
 django-debug-toolbar==4.4.6
@@ -24,8 +25,8 @@ fastapi==0.135.3
 gunicorn==23.0.0
 idna==3.18
 jmespath==1.0.1
-mailchimp-marketing==3.0.80
 MarkupPy==1.14
+mjml-python==1.4.1
 nh3==0.3.6
 oauthlib==3.3.1
 odfpy==1.4.1

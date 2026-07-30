@@ -80,14 +80,6 @@ class ArtistListView(ListView):
         return context
 
 
-class ArtistMailChimpView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    model = Artist
-    template_name = 'gallery/artist_mailchimp_list.html'
-
-    def test_func(self):
-        return is_staff_user(self.request.user)
-
-
 @login_required
 def artist_email_list(request):
     if not (is_staff_user(request.user) or is_curator_user(request.user)):

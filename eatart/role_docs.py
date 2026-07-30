@@ -515,6 +515,71 @@ HOW_TO_GUIDES = [
             'Full background, including how to add a capture script for a guide that does not have one yet, is in docs/visual-howto-documentation.md.',
         ],
     },
+    {
+        'title': 'How to send a mailing to the list (staff only)',
+        'summary': 'Write a campaign, preview it, send yourself a test, then send it to a list.',
+        # Stable anchor: the title says "mailing" but people call it the newsletter.
+        'anchor': 'send-a-mailing',
+        'roles': {'staff'},
+        'steps': [
+            'Open the Mailing List menu in the navigation and choose Campaigns. The list shows every past mailing and its status. Click New campaign.',
+            'Check which list it goes to. It defaults to this venue, which is almost always right, and getting it wrong sends one venue\'s news to somebody else\'s subscribers. The network-wide reset.art list is not offered at all until reset.art has email authentication of its own.',
+            'The subject can use the show\'s own details rather than being retyped: {{ show.name }}, {{ show.start|date:"j F" }}, {{ opening.date|date:"l j F" }}. Choosing a template fills in a sensible one — "Opening: {{ show.name }} — {{ opening.date|date:\'l j F\' }}" becomes "Opening: Full-Feel — Saturday 25 July". It will not overwrite a subject you have already written. Under the preview, the page shows the subject as it will actually arrive.',
+            'Write the subject, and the preview text — the grey line inboxes show after the subject. Leave the preview text blank and mail clients scrape the opening words of the body instead, which usually reads badly.',
+            'If this mailing is about a show, choose a show template — "Show opening" for the start of a run, "Closing soon" for the end, "Show announcement" for one that is coming — and then choose the show. Everything else comes from the show itself: the dates, the description, the reception time from its events, the curators, and a few of the artworks. That is the point of the templates: they are reused for every show and nobody retypes a date. You must pick a show, or the form will say so rather than sending a mailing with blanks in it.',
+            'You can still write something of your own alongside a show template. Whatever you type in the body field appears inside the template\'s layout, so a reusable format does not mean identical wording every time — use it for the sentence that is specific to this one.',
+            'Write the body. For a one-off with no template, type Markdown into the body field: "# " for a heading, "**bold**", "*italic*", "[text](url)" for a link, lines starting "- " for a bullet list or "1. " for a numbered one, "![alt](url)" for an image with any following text as its caption, and "[[Label|url]]" for a button.',
+            'That is the whole vocabulary, and anything else — a table, a blockquote, backticks — comes out as the literal characters you typed rather than as an error. This is why the test send matters: read it properly, rather than just checking it arrived.',
+            'For a recurring shape such as a show announcement, choose a template instead and the mailing fills itself in from the database, so nobody retypes a date. A template supplies the layout; some templates also place whatever you write in the body field inside that layout, so you can add a note to one mailing without changing the format.',
+            'The right-hand side previews the actual email as you go, before you have saved anything — choose a template and a show and it fills in. Note that a template does not put anything into the body field: the template is the whole layout, and the body field is for whatever you want to add to this one mailing, which appears inside it. An empty body with a template chosen is normal.',
+            'Click Create draft. The preview stays, and the page gains the sending controls. The unsubscribe link in the preview does not work, on purpose — it is a stand-in recipient rather than a real subscriber.',
+            'A test send needs RESEND_API_KEY set wherever you are running. It is already set on the live site, so the shortest way to see a campaign in a real mail client is usually to do this from the live site — it is one message to yourself. Running locally, see docs/mailing-list.md for where the variables go.',
+            'Send yourself a test. Your own address is filled in; change it if you want it somewhere else. This goes through the real mail provider, so it is the only way to see how your readers\' mail programs will actually render it — the preview on the page cannot tell you that. Open it in the client you care about, on a phone as well if you can, and check the subject, the images, the reception time and that the links go where you meant. The test is subject-prefixed [TEST] so you cannot confuse it with the real thing.',
+            'You cannot send to the list until a test has gone out since your last edit, and the page tells you which of those is missing. If you change so much as the subject afterwards, the test no longer counts and you have to send another — this is the guard that stops a draft going out with a placeholder still in it.',
+            'When the test looks right, press the send button. It names the number of people it is about to mail; read that number before confirming, because there is no undo and no recall.',
+            'The page then shows a progress bar and refreshes itself every fifteen seconds. The send runs on the server, not in your browser, so you can close the page or lose your connection without stopping it. A thousand-person list takes a few minutes.',
+            'If the send stops part-way — the provider failing, or the site being deployed mid-send — the campaign page says so and offers a Resume button, with a count of how many people already received it. Press Resume; only the people with no record of having received it are mailed, so nobody gets it twice. It is safe to press even if you are not sure how far the previous attempt got. See "How to finish a mailing that stopped part-way".',
+            'Some addresses on any real list are dead, and the mail provider will refuse them outright. Those are unsubscribed for you, the same as a bounce, and listed at the bottom of the campaign page with the reason the provider gave. There is nothing to do about them: the campaign still counts as sent, and they will not be tried again.',
+            'After a send, the campaign page gains an "After the send" table: how many went out, how many bounced, and how many people marked it as spam, each with a rate. The campaigns list shows the same three columns. These fill in over the following minutes and hours as the mail provider reports back — they are not final the moment the send finishes.',
+            'Watch the spam-complaint rate. Above 0.3% is where Gmail and Yahoo begin putting a domain\'s mail into spam folders without telling anyone, so the page turns that row red rather than leaving you to work it out. A high bounce rate means the list has gone stale rather than that anything is broken.',
+            'Once a campaign has been sent it becomes read-only. It is the record of what people actually received, so editing it would only make that record wrong.',
+            'To write next month\'s from last month\'s, use "Start a new draft from this one" on a campaign, or the copy link on the Campaigns list. It brings across the list, the show, the template, the subject, the preview text and the wording, and brings across nothing about the send — so the copy counts as untested and you have to send yourself a test before it can go anywhere. There is no separate "save as template": the recurring shapes are the show templates, and this is how you reuse the wording.',
+        ],
+    },
+    {
+        'title': 'How to finish a mailing that stopped part-way (staff only)',
+        'summary': 'Resume a send that failed or was interrupted, without mailing anyone twice.',
+        'anchor': 'resume-a-mailing',
+        'roles': {'staff'},
+        'steps': [
+            'A send can stop before it finishes for reasons that have nothing to do with you: the mail provider rate-limiting or erroring, or the site being redeployed while the send is in flight. The campaign is not lost and the list is not damaged — every person who has been sent it is recorded individually, which is what makes finishing it safe.',
+            'Open Mailing List → Campaigns. A campaign that stopped shows as failed, or as sending long after it should have finished. Open it.',
+            'The page says "This send stopped before it finished" and tells you how many of how many people received it. That count comes from the delivery records, not from a guess.',
+            'Press "Resume — send the remaining N". Only subscribers with no record of receiving this campaign are mailed. Anyone the earlier attempt reached is skipped, so pressing Resume when the send had in fact finished mails nobody at all.',
+            'The remaining list is re-read at the moment you resume, not frozen from when the send began — so somebody who unsubscribed in between does not get it.',
+            'If it stops again, press Resume again. Each attempt only ever narrows what is left — including addresses the provider refuses outright, which are recorded and unsubscribed rather than tried again, so Resume can never become a loop.',
+            'A campaign showing as sent with a list of rejected addresses at the bottom is not a failure and needs nothing from you. Those addresses are already off the list. Only a campaign offering a Resume button has anybody still waiting for it.',
+            'For a send interrupted by a deploy, or a list big enough that you would rather not run it inside the website at all, there is a command-line equivalent that uses the same engine and the same protections: ./env/bin/python manage.py send_campaign <id> --resume . Add --dry-run first to see who it would mail without sending anything.',
+            'The same command can send only part of a list, which is how you warm up a sending domain that has no history: send_campaign <id> --limit 100 on the first day, then send_campaign <id> --resume --limit 300 on the next, and so on. Each pass leaves the campaign "paused" rather than failed, because stopping on purpose is not the same as breaking. Pacing within a single send does not help here — a thousand messages on day one is judged on its volume however slowly they go out.',
+        ],
+    },
+    {
+        'title': 'How to manage subscribers (staff only)',
+        'summary': 'Look someone up, take them off a list at their request, add someone by hand, or delete them.',
+        'anchor': 'manage-subscribers',
+        'roles': {'staff'},
+        'steps': [
+            'Open the Mailing List menu in the navigation and choose Subscribers. Across the top is one entry per list with the number of people a mailing to that list would reach, this venue first; click one to filter to it.',
+            'Anyone who signs up through a form is subscribed straight away and sent a welcome email. There is no confirmation link to click, on purpose — that would cost signups — but the welcome email means a mistyped address bounces once and is removed before it ever receives a campaign, and anyone signed up by somebody else can leave immediately.',
+            'Search by email address or name to find one person. The status menu narrows to people who are on at least one list, or people who are off every list. Somebody on two lists who has left one still counts as being on a list.',
+            'Each person\'s row lists every list they are on or off, and for the ones they are off, why — whether they asked, their address bounced, or they marked a mailing as spam.',
+            'To take somebody off one list at their request, click remove on that line. To take them off everything, click "remove from all" at the end of their row.',
+            'The "add back" link only appears for somebody who asked to be removed, and only do it if they have asked to be put back. There is deliberately no way to undo a bounce or a spam complaint from this page: overriding those is how a sender ruins its own reputation, and re-adding an address that reported you as spam is the single worst thing you can do to your deliverability.',
+            'To add somebody who asked in person or by email, open "Add someone by hand", enter their address and which list, and click Add. It is recorded as added by hand, so if anybody ever asks where the consent came from, the answer is still in the database.',
+            'Delete removes the person entirely, which is what to use when somebody asks to be erased. Prefer "remove from all" for an ordinary unsubscribe: the record that they opted out is exactly what stops a future import of an old spreadsheet from mailing them again, and deleting throws that protection away along with the person.',
+            'Bulk work does not happen here, on purpose — a button that could unsubscribe or delete hundreds of people at once would be one misclick from destroying a list. To load a spreadsheet of subscribers use the import command: ./env/bin/python manage.py import_subscribers export.csv --dry-run first, then without --dry-run. To mail everybody, make a campaign.',
+        ],
+    },
 ]
 
 GENERAL_GUIDE = {
@@ -839,6 +904,21 @@ ROLE_DOCUMENTATION = {
             'Remove a collection claim on any artwork using the Remove link next to the claim on the artwork detail page.',
             'Create and edit sites, including room dimensions, per-wall texture images, and wall obstacles (doors, windows).',
             'Place artwork in the virtual room layout and view it in the 3D viewer.',
+            'See who is on the mailing list from the Subscribers page: search by name or '
+            'address, filter by list or by whether they are subscribed, take someone off '
+            'one list or all of them, add someone back when they ask, add one person by '
+            'hand, or delete them entirely. Each list shows the number a campaign to it '
+            'would reach.',
+            'Write, preview, test and send mailings to subscribers from Mailing List → Campaigns. '
+            'A campaign cannot be sent until a test has gone out since its last edit, and a '
+            'sent campaign becomes a read-only record of what went out.',
+            'A send runs on the server, not in your browser: the page shows a progress bar '
+            'and you can close it without stopping the send. If a send stops part-way, the '
+            'campaign page offers Resume, which mails only the people who have no record of '
+            'receiving it — so nobody gets it twice.',
+            'Addresses the mail provider refuses are unsubscribed automatically, the same as a '
+            'bounce, and listed on the campaign page with the reason. They do not need cleaning '
+            'up and they do not stop the campaign from finishing.',
             'Edit and Delete links are shown only for records you can manage.',
         ],
         'forms': [
@@ -928,6 +1008,39 @@ ROLE_DOCUMENTATION = {
                     {'name': 'y_in', 'input_type': 'numeric input', 'purpose': 'Vertical position of the obstacle\'s bottom edge, measured in inches from the floor.'},
                     {'name': 'w_in', 'input_type': 'numeric input', 'purpose': 'Width of the obstacle in inches.'},
                     {'name': 'h_in', 'input_type': 'numeric input', 'purpose': 'Height of the obstacle in inches.'},
+                ],
+            },
+            {
+                'name': 'Subscribers Page',
+                'where_used': 'Mailing List → Subscribers (staff only)',
+                'breadcrumb': 'Mailing List > Subscribers',
+                'fields': [
+                    {'name': 'list totals', 'input_type': 'read-only links', 'purpose': 'One per list, showing how many people a campaign to that list would reach. Click to filter to it.'},
+                    {'name': 'search', 'input_type': 'text input', 'purpose': 'Matches on email address, first name or last name.'},
+                    {'name': 'status', 'input_type': 'select', 'purpose': '"On a list" or "Off every list". Someone on two lists who left one still counts as on a list.'},
+                    {'name': 'Add someone by hand', 'input_type': 'collapsible form', 'purpose': 'For a person who asked in person or by email. Recorded as added by hand, so where the consent came from is answerable later.'},
+                    {'name': 'remove', 'input_type': 'button per list', 'purpose': 'Takes them off that one list, recorded as a request rather than a bounce.'},
+                    {'name': 'add back', 'input_type': 'button per list', 'purpose': 'Only offered for someone who asked to be removed. Not shown for a bounce or a spam complaint, because undoing those would make the suppression record meaningless.'},
+                    {'name': 'remove from all', 'input_type': 'button per person', 'purpose': 'Every list at once — what "stop emailing me" means.'},
+                    {'name': 'delete', 'input_type': 'button per person', 'purpose': 'Erases the person, which the privacy page offers on request. Also erases the record that they opted out, so a later import of an old export could add them again — prefer "remove from all" to stop mail.'},
+                ],
+            },
+            {
+                'name': 'Campaign Form',
+                'where_used': 'Mailing List → Campaigns → New, or an existing draft',
+                'breadcrumb': 'Mailing List > Campaigns > New',
+                'fields': [
+                    {'name': 'site', 'input_type': 'select', 'purpose': 'Whose subscribers this goes to. Defaults to this venue. The network-wide (reset.art) list is offered only once reset.art has its own email authentication — until then it can be collected onto but not mailed.'},
+                    {'name': 'subject', 'input_type': 'text input', 'purpose': 'What the inbox shows first. Required before the campaign can be sent. Can use the show\'s details — {{ show.name }}, {{ show.start|date:"j F" }}, {{ opening.date|date:"l j F" }} — which are filled in when the mailing goes out. Choosing a template offers a default. {% tags %} are not allowed, and a subject that will not render is reported here rather than at send time.'},
+                    {'name': 'preheader', 'input_type': 'text input', 'purpose': 'The line inboxes show after the subject, around 90 characters. Left blank, mail clients scrape the first words of the body instead.'},
+                    {'name': 'template_name', 'input_type': 'select', 'purpose': 'A recurring shape that fills itself from the database (e.g. a show announcement). It supplies the layout; whether the Markdown body appears inside it depends on the template. Choose "None" to write the body yourself.'},
+                    {'name': 'show', 'input_type': 'select', 'purpose': 'Which show the mailing is about. Required by the show templates, which take the dates, description, event times, curators and artworks from it. Lists shows newest first with the month and venue after the name, since a name alone is often not enough to tell them apart. Choosing a show that is not at the list\'s venue is refused.'},
+                    {'name': 'body_markdown', 'input_type': 'textarea (Markdown)', 'purpose': 'The body of a one-off mailing, or a note to place inside a template that makes room for one. Supports headings, paragraphs, bullet and numbered lists, bold, italic, links, images with captions, and buttons; anything else appears as the characters you typed. Either this or a template is required.'},
+                    {'name': 'Send test', 'input_type': 'email input + button', 'purpose': 'Sends one copy to the address given, subject prefixed with [TEST]. Defaults to your own address. Required before the real send is unlocked.'},
+                    {'name': 'Send to the list', 'input_type': 'button', 'purpose': 'Sends to every subscriber on the chosen list. Disabled until a test has gone out since the last edit; the reason it is disabled is shown beneath it. There is no undo. The send runs on the server and the page then shows its progress, refreshing every 15 seconds.'},
+                    {'name': 'Resume', 'input_type': 'button', 'purpose': 'Only shown for a send that stopped before it finished, either because it failed or because the server restarted mid-send. Sends only to subscribers with no record of having received this campaign, so nobody is mailed twice. Safe to press without knowing how far the previous attempt got.'},
+                    {'name': 'Start a new draft from this one', 'input_type': 'button', 'purpose': 'Copies the campaign into a fresh draft — same list, show, template, subject, preview text and body. Nothing about the send is copied, so the new draft is untested and must have a test sent before it can go to a list. The original is untouched. Also available as "copy" on the Campaigns list.'},
+                    {'name': 'Addresses the provider refused', 'input_type': 'read-only list', 'purpose': 'Shown after a send if any addresses were rejected outright. Each is named with the reason the mail provider gave. They have already been unsubscribed, the same as a bounce, and will not be tried again — this is a report, not something to act on.'},
                 ],
             },
             {

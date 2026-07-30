@@ -1,0 +1,81 @@
+{% comment %}
+A data-driven campaign: the shape is fixed, the content comes from the database. This is the
+case the whole MJML-through-Django-templates arrangement exists for — nobody retypes a date,
+and the artwork grid is however many pieces are actually in the show.
+
+Copy this file to make a new recurring format. Set Campaign.template_name to the filename
+and pass the objects it needs; see gallery/campaigns.py::render_campaign.
+
+A template can also place the author's own Markdown body inside its layout, which is what the
+optional note below does — so a recurring format does not have to mean identical wording every
+time, and adding a sentence to one mailing is not a deploy. Two forms are available:
+
+  {{ campaign_body }}          a whole <mj-section>, to drop between sections (used here)
+  {{ campaign_body_blocks }}   just the contents, to drop inside an existing <mj-column>
+
+Using the wrong one nests an mj-section inside an mj-column, which MJML rejects with an error
+that does not mention either.
+{% endcomment %}
+<mj-section padding="16px 24px 0">
+  <mj-column>
+    <mj-text font-size="13px" color="#888888" letter-spacing="1px" padding="0 0 4px">COMING UP</mj-text>
+    <mj-text font-size="28px" font-weight="bold" padding="0 0 10px">{{ show.name }}</mj-text>
+    {% if curators %}
+    <mj-text padding="0 0 10px">A new exhibition curated by {% for c in curators %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</mj-text>
+    {% endif %}
+  </mj-column>
+</mj-section>
+
+{% comment %}
+  The same date/place block the opening and closing use, so all three read as the same mail from
+  the same gallery. No time here: an announcement is about the run, not an event.
+{% endcomment %}
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-text font-size="18px" line-height="1.7" padding="8px 0">
+      📅 {{ show.start|date:"j F" }}–{{ show.end|date:"j F Y" }}<br />
+      📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
+    </mj-text>
+  </mj-column>
+</mj-section>
+
+{% if show.image %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-image src="{{ show.image.url }}" alt="{{ show.name }}" padding="0" href="{{ show_url }}" />
+  </mj-column>
+</mj-section>
+{% endif %}
+
+<mj-section padding="8px 24px">
+  <mj-column>
+    {% if show.description %}<mj-text padding="8px 0">{{ show.description|striptags|truncatewords:60 }}</mj-text>{% endif %}
+  </mj-column>
+</mj-section>
+
+{% if campaign.body_markdown.strip %}{{ campaign_body }}{% endif %}
+
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-button href="{{ show_url }}" background-color="#198754" color="#ffffff" padding="16px 0">
+      See the show
+    </mj-button>
+  </mj-column>
+</mj-section>
+
+{% comment %}
+Whatever the curator wrote for this particular announcement, if anything. Between the header
+and the artwork grid, so a note reads as an introduction to the works rather than a postscript.
+{% endcomment %}
+{% if artworks %}
+<mj-section padding="0 24px">
+  {% for artwork in artworks|slice:":3" %}
+  <mj-column width="33%">
+    {% if artwork.card_md %}<mj-image src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}" padding="4px" />{% endif %}
+    <mj-text font-size="13px" align="center" padding="4px">
+      {{ artwork.name }}{% if artwork.artists.all %}<br /><span style="color:#888888">{{ artwork.artists.all.0.name }}</span>{% endif %}
+    </mj-text>
+  </mj-column>
+  {% endfor %}
+</mj-section>
+{% endif %}

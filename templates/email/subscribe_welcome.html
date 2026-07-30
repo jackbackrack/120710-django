@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+{% comment %}
+Sent the moment somebody joins a list, and it is doing two jobs beyond being polite.
+
+It is how a bad address is caught: if it bounces, the webhook takes them off before they ever
+receive a campaign, so a typo costs one message instead of sitting in the list bouncing every
+mailing. And it is the escape hatch for anybody who did not sign up themselves — hence an
+unsubscribe link they cannot miss, rather than one buried in small print.
+
+Transactional, so it goes through the normal mail backend rather than the campaign provider.
+{% endcomment %}
+<p>{% if first_name %}Hello {{ first_name }} — thanks{% else %}Thanks{% endif %} for joining the {{ list_name }} mailing list.</p>
+
+<p>You will hear from us when there is a show opening, an open call for work, or something
+  happening at the gallery. Not often, and never anything else.</p>
+
+<p>We do not track whether you open these emails or what you click.{% if privacy_url %}
+  Our <a href="{{ privacy_url }}">privacy policy</a> says exactly what we keep.{% endif %}</p>
+
+<p>If you did not sign up for this, or you have changed your mind,
+  <a href="{{ unsubscribe_url }}">unsubscribe here</a> — one click, no questions.</p>
+
+<p>— {{ list_name }}</p>
+</body>
+</html>

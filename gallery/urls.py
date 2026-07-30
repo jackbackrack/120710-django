@@ -1,6 +1,14 @@
 from django.urls import path, re_path
 
 from gallery.views.placards import placard_html, placard_json, placard_json_for_site, placard_sheet_pdf
+from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign_list,
+                                     campaign_new, campaign_preview, campaign_resume,
+                                     campaign_send, campaign_send_test,
+                                     campaign_template_preview)
+from gallery.views.subscribers import (subscriber_add, subscriber_delete,
+                                       subscriber_list, subscriber_unsubscribe_all,
+                                       subscription_resubscribe,
+                                       subscription_unsubscribe)
 from gallery.views.checklist import show_checklist_html, show_checklist_pdf
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer, room_camera_save, room_2d, save_support_to_catalog, layout_snapshots, restore_layout_snapshot, delete_layout_snapshot
@@ -23,7 +31,6 @@ from gallery.views import (
     ArtistDetailView,
     artist_email_list,
     ArtistListView,
-    ArtistMailChimpView,
     ArtistUpdateView,
     EventCreateView,
     EventDeleteView,
@@ -112,9 +119,30 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/remove-artwork/(?P<pk>\d+)/$', remove_artwork_from_show, name='remove_artwork_from_show'),
     path('submission/<int:pk>/status/', update_submission_status, name='update_submission_status'),
     path('submissions/bulk-status/', bulk_update_submission_status, name='bulk_submission_status'),
+    # Campaigns: staff-only mailing-list composition and sending.
+    path('campaigns/', campaign_list, name='campaign_list'),
+    path('campaigns/new/', campaign_new, name='campaign_new'),
+    # Before the <int:pk> routes, or 'template-preview' would be matched as a pk.
+    path('campaigns/template-preview/', campaign_template_preview,
+         name='campaign_template_preview'),
+    path('campaigns/<int:pk>/', campaign_edit, name='campaign_edit'),
+    path('campaigns/<int:pk>/preview/', campaign_preview, name='campaign_preview'),
+    path('campaigns/<int:pk>/test/', campaign_send_test, name='campaign_send_test'),
+    path('campaigns/<int:pk>/send/', campaign_send, name='campaign_send'),
+    path('campaigns/<int:pk>/resume/', campaign_resume, name='campaign_resume'),
+    path('campaigns/<int:pk>/duplicate/', campaign_duplicate, name='campaign_duplicate'),
+    # The mailing list itself: who is on it, and acting on one person.
+    path('subscribers/', subscriber_list, name='subscriber_list'),
+    path('subscribers/add/', subscriber_add, name='subscriber_add'),
+    path('subscribers/<int:pk>/remove-all/', subscriber_unsubscribe_all,
+         name='subscriber_unsubscribe_all'),
+    path('subscribers/<int:pk>/delete/', subscriber_delete, name='subscriber_delete'),
+    path('subscription/<int:pk>/remove/', subscription_unsubscribe,
+         name='subscription_unsubscribe'),
+    path('subscription/<int:pk>/add-back/', subscription_resubscribe,
+         name='subscription_resubscribe'),
     path('artists/', ArtistListView.as_view(), name='artist_list'),
     path('collectors/', CollectorsListView.as_view(), name='collectors_list'),
-    path('artists/mailchimp', ArtistMailChimpView.as_view(), name='artist_mailchimp_list'),
     path('artists/emails', artist_email_list, name='artist_email_list'),
     path('artwork/<int:pk>/save/', toggle_save, name='toggle_save'),
     path('artwork/<int:pk>/add-to-collection/', artwork_add_to_collection, name='artwork_add_to_collection'),

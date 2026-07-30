@@ -16,8 +16,11 @@ from django.urls import reverse
 
 from accounts.roles import add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, ShowInvitation, Site
-from gallery.models import LinkTreeEntry
+from gallery.models import Campaign, LinkTreeEntry, Subscriber, Subscription
+from django.utils import timezone
+
 from gallery import calendars
+from gallery import campaigns
 from gallery import submission_area
 
 
@@ -1087,6 +1090,2024 @@ class ArtistCreationPermissionTests(TestCase):
         self.assertNotIn('new-button',
                          self.client.get(reverse('gallery:artist_list')).content.decode(),
                          'an artist who already has a profile should not be')
+
+
+
+class CampaignStaffPagesTests(TestCase):
+    """Compose / preview / test / send. The send guard is the point: a campaign cannot
+    go out until a test has been sent since the last edit, and the pages have to say so
+    rather than just disabling a button."""
+
+    def setUp(self):
+        from gallery.models import Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        for i in range(3):
+            Subscriber.opt_in(email='s%d@example.com' % i, first_name='Sub',
+                              last_name=str(i), sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.staff = User.objects.create_user(
+            username='camp@example.com', email='camp@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+
+    def _locmem(self):
+        """Campaigns open their own Resend connection; point it at locmem for tests."""
+        from unittest import mock
+        return mock.patch('gallery.campaigns._connection',
+                          lambda: mail.get_connection(
+                              'django.core.mail.backends.locmem.EmailBackend'))
+
+    def _draft(self, **kwargs):
+        from gallery.models import Campaign
+        data = {'site': self.site, 'subject': 'Spring show is open',
+                'body_markdown': 'Come and **see** it.'}
+        data.update(kwargs)
+        return Campaign.objects.create(**data)
+
+    def test_compose_creates_a_draft(self):
+        from gallery.models import Campaign
+        r = self.client.post(reverse('gallery:campaign_new'),
+                             {'site': self.site.pk, 'subject': 'Hello',
+                              'preheader': 'Three weeks only', 'template_name': '',
+                              'body_markdown': 'Body text'}, follow=True)
+        self.assertEqual(r.status_code, 200)
+        campaign = Campaign.objects.get()
+        self.assertEqual(campaign.status, Campaign.STATUS_DRAFT)
+        self.assertEqual(campaign.created_by, self.staff)
+
+    def test_a_body_is_required_one_way_or_the_other(self):
+        r = self.client.post(reverse('gallery:campaign_new'),
+                             {'site': self.site.pk, 'subject': 'Hello',
+                              'template_name': '', 'body_markdown': '   '})
+        self.assertContains(r, 'either choose a template or write some Markdown')
+
+    def test_preview_is_a_standalone_document_and_sends_nothing(self):
+        from gallery.models import Subscriber
+        campaign = self._draft()
+        before = Subscriber.objects.count()
+        r = self.client.get(reverse('gallery:campaign_preview', kwargs={'pk': campaign.pk}))
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode()
+        self.assertTrue(body.lstrip().lower().startswith('<!doctype'))
+        self.assertIn('see', body)
+        self.assertEqual(mail.outbox, [])
+        # The stand-in recipient must not become a real subscriber.
+        self.assertEqual(Subscriber.objects.count(), before)
+
+    def test_a_template_that_will_not_render_does_not_break_the_editor(self):
+        campaign = self._draft(template_name='no_such_template.mjml')
+        r = self.client.get(reverse('gallery:campaign_preview', kwargs={'pk': campaign.pk}))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('does not render yet', r.content.decode())
+
+    def test_send_is_refused_until_a_test_has_gone_out(self):
+        campaign = self._draft()
+        page = self.client.get(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}))
+        self.assertContains(page, 'Send a test to yourself first')
+        self.assertContains(page, '3 subscribers')
+
+        # A stale tab posting Send must not get through — the button being hidden is not
+        # the guard.
+        r = self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'draft')
+        self.assertEqual(mail.outbox, [])
+        self.assertContains(r, 'Send a test to yourself first')
+
+    def test_test_then_send_reaches_the_whole_list(self):
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+            campaign.refresh_from_db()
+            self.assertTrue(campaign.can_send)
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertTrue(mail.outbox[0].subject.startswith('[TEST]'))
+
+            mail.outbox.clear()
+            self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'sent')
+        self.assertEqual(campaign.recipient_count, 3)
+        self.assertEqual(len(mail.outbox), 3)
+        # RFC 8058 one-click headers on every message.
+        for message in mail.outbox:
+            self.assertIn('List-Unsubscribe', message.extra_headers)
+            self.assertEqual(message.extra_headers['List-Unsubscribe-Post'],
+                             'List-Unsubscribe=One-Click')
+
+    def test_editing_after_a_test_re_arms_the_guard(self):
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+        campaign.refresh_from_db()
+        self.assertTrue(campaign.can_send)
+
+        self.client.post(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}),
+                         {'site': self.site.pk, 'subject': 'Changed my mind',
+                          'template_name': '', 'body_markdown': 'Different words'},
+                         follow=True)
+        campaign.refresh_from_db()
+        self.assertFalse(campaign.can_send)
+        self.assertIn('changed since the last test', campaign.blocked_reason)
+
+    def test_a_sent_campaign_becomes_a_read_only_record(self):
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+            self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+        subject = campaign.subject
+
+        page = self.client.get(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}))
+        self.assertContains(page, 'can no longer be edited')
+        self.client.post(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}),
+                         {'site': self.site.pk, 'subject': 'Rewritten history',
+                          'template_name': '', 'body_markdown': 'x'})
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.subject, subject)
+
+    def test_both_previews_may_be_framed_by_our_own_page(self):
+        """Django defaults X_FRAME_OPTIONS to DENY, which blocks same-origin framing too.
+
+        Without the per-view exemption the iframe shows the browser's "refused to connect",
+        which reads like the server being down rather than a response header — so this is worth
+        a test rather than a comment.
+        """
+        campaign = self._draft()
+        for url in (reverse('gallery:campaign_preview', kwargs={'pk': campaign.pk}),
+                    reverse('gallery:campaign_template_preview')):
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.headers.get('X-Frame-Options'), 'SAMEORIGIN')
+
+    def test_the_rest_of_the_site_still_refuses_to_be_framed(self):
+        """Relaxed for the previews only. Everything else keeps the default."""
+        r = self.client.get(reverse('gallery:campaign_list'))
+        self.assertEqual(r.headers.get('X-Frame-Options'), 'DENY')
+
+    def test_a_template_can_be_previewed_before_any_draft_exists(self):
+        """Choosing a template used to show nothing until you had committed to a draft.
+
+        The template is not copied into the body field — it *is* the body — so the form looked
+        like it had ignored the choice.
+        """
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Autumn', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+
+        r = self.client.get(reverse('gallery:campaign_template_preview'), {
+            'site': self.site.pk, 'show': show.pk,
+            'template': 'show_opening.mjml', 'subject': 'Autumn opens'})
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode()
+        self.assertIn('Autumn', body)
+        self.assertIn('September', body)
+
+    def test_previewing_a_template_writes_nothing(self):
+        from gallery.models import Campaign
+        self.client.get(reverse('gallery:campaign_template_preview'),
+                        {'site': self.site.pk, 'template': 'show_opening.mjml'})
+        self.assertFalse(Campaign.objects.exists())
+
+    def test_a_show_template_with_no_show_yet_says_so_instead_of_rendering_blanks(self):
+        r = self.client.get(reverse('gallery:campaign_template_preview'),
+                            {'site': self.site.pk, 'template': 'show_opening.mjml'})
+        self.assertContains(r, 'takes its content from a show')
+
+    def test_an_empty_preview_invites_a_choice_rather_than_erroring(self):
+        r = self.client.get(reverse('gallery:campaign_template_preview'))
+        self.assertContains(r, 'Choose a template')
+
+    def test_markdown_alone_previews_too(self):
+        r = self.client.get(reverse('gallery:campaign_template_preview'),
+                            {'site': self.site.pk, 'body': 'Hello **there**'})
+        self.assertContains(r, '<strong>there</strong>')
+
+    def test_the_preview_route_is_not_swallowed_by_the_pk_route(self):
+        """'template-preview' sits before <int:pk>, and would otherwise 404 as a bad id."""
+        self.assertEqual(reverse('gallery:campaign_template_preview'),
+                         '/campaigns/template-preview/')
+
+    def test_template_preview_is_staff_only(self):
+        url = reverse('gallery:campaign_template_preview')
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+        artist = User.objects.create_user(
+            username='nope3@example.com', email='nope3@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_the_new_page_previews_and_explains_the_body_field(self):
+        page = self.client.get(reverse('gallery:campaign_new'))
+        self.assertContains(page, reverse('gallery:campaign_template_preview'))
+        self.assertContains(page, 'it does not fill in the body field')
+
+    def test_everything_a_reader_sees_is_centred(self):
+        """MJML defaults mj-text to left, which left half of an email ranged left and half centred.
+
+        Asserted on the rendered output rather than the templates, because the default is set
+        once in the shell's mj-attributes and a new template inherits it silently — so a
+        regression here would be a template that opts out, not one that forgets to opt in.
+        """
+        import re
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30))
+        show.sites.add(self.site)
+        for template in ('show_opening.mjml', 'show_closing.mjml', 'show_announcement.mjml'):
+            with self.subTest(template=template):
+                campaign = Campaign.objects.create(
+                    site=self.site, show=show, subject='Full-Feel',
+                    template_name=template, body_markdown='A note.')
+                html = campaigns.render_preview(campaign)
+                # The div MJML emits per mj-text block carries the visible alignment.
+                aligns = set(re.findall(
+                    r'<div style="font-family:[^"]*?text-align:(\w+)', html))
+                self.assertEqual(aligns, {'center'})
+
+    def test_a_bulleted_list_is_centred_as_a_block_but_reads_left(self):
+        """Centring each item puts every bullet somewhere different, which is unreadable."""
+        campaign = self._draft(body_markdown='- one\n- two')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('display:inline-block', html)
+        self.assertIn('margin:0 auto', html)
+
+    def test_every_campaign_carries_the_venue_information(self):
+        """Woven into the shell, not retyped per campaign — the difference from hand-writing them.
+
+        Modelled on the Mailchimp announcements these replaced, which carried a "Come Visit the
+        Gallery" block with hours, a phone number and a mapped address in every send.
+        """
+        from gallery.models import Site
+        site = Site.objects.get(pk=self.site.pk)
+        site.hours = 'Sundays 1–4pm, and by appointment.'
+        site.phone = '341-205-1331'
+        site.email = 'info@120710.art'
+        site.instagram = '120710art'
+        site.save()
+        campaign = self._draft(site=site)
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Come visit the gallery', html)
+        self.assertIn('Sundays 1–4pm', html)
+        self.assertIn('tel:341-205-1331', html)
+        self.assertIn('mailto:info@120710.art', html)
+        self.assertIn('google.com/maps', html)
+        self.assertIn('instagram.com/120710art', html)
+
+    def test_a_venue_that_has_filled_in_nothing_gets_no_empty_heading(self):
+        """Every line is conditional; a bare "Come visit" with nothing under it is worse than none."""
+        from gallery.models import Site
+        bare = Site.objects.create(name='Bare', slug='bare', status=Site.STATUS_PUBLISHED)
+        html = campaigns.render_preview(self._draft(site=bare))
+        self.assertNotIn('Come visit the gallery', html)
+
+    def test_the_full_address_is_not_printed_twice(self):
+        """CAN-SPAM needs it in the footer; repeating it in the visit block reads as a mistake."""
+        campaign = self._draft()
+        html = campaigns.render_preview(campaign)
+        self.assertEqual(html.count('United States of America'), 1)
+
+    def test_the_opening_reads_as_an_invitation_with_the_facts_on_their_own_lines(self):
+        """The shape the Mailchimp announcements used, and the part people screenshot."""
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30))
+        show.sites.add(self.site)
+        curator = Artist.objects.create(first_name='Jules', last_name='Bachrach',
+                                        email='j@example.com', instagram='juleszebra')
+        show.curators.add(curator)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 7, 25),
+                             start=datetime.time(16, 0), end=datetime.time(20, 0))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Opening: Full-Feel',
+            template_name='show_opening.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Opening: Full-Feel', html)
+        self.assertIn('Join us for the opening of Full-Feel, a new exhibition curated by '
+                      'Jules Bachrach', html)
+        self.assertIn('instagram.com/juleszebra', html)
+        for fact in ('📅', '🕓', '📍'):
+            self.assertIn(fact, html)
+        self.assertIn('Saturday, 25 July', html)
+        self.assertIn('4:00 PM', html)
+
+    # --- Subject lines ---
+
+    def _show_with_opening(self):
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 7, 25),
+                             start=datetime.time(16, 0), end=datetime.time(20, 0))
+        return show
+
+    def test_a_subject_fills_in_from_the_show(self):
+        """The last place a mailing could contradict itself — one date in the subject, another
+        three lines down."""
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(
+            site=self.site, show=self._show_with_opening(),
+            subject='Opening: {{ show.name }} — {{ opening.date|date:"l j F" }}',
+            template_name='show_opening.mjml')
+        self.assertEqual(campaign.rendered_subject,
+                         'Opening: Full-Feel — Saturday 25 July')
+
+    def test_the_sent_message_carries_the_filled_in_subject(self):
+        """Not just the preview: the actual message, and the test send."""
+        from gallery.models import Campaign, Subscriber, Subscription
+        Subscriber.opt_in(email='s@example.com', sites=[self.site],
+                          source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        campaign = Campaign.objects.create(
+            site=self.site, show=self._show_with_opening(),
+            subject='Opening: {{ show.name }}', template_name='show_opening.mjml')
+        campaign.test_sent_at = timezone.now()
+        campaign.save(update_fields=['test_sent_at'])
+
+        mail.outbox.clear()
+        with self._locmem():
+            campaigns.send_campaign(campaign)
+        self.assertEqual(mail.outbox[0].subject, 'Opening: Full-Feel')
+
+        mail.outbox.clear()
+        with self._locmem():
+            campaigns.send_test(campaign, 'me@example.com')
+        self.assertEqual(mail.outbox[0].subject, '[TEST] Opening: Full-Feel')
+
+    def test_a_plain_subject_is_left_exactly_as_written(self):
+        campaign = self._draft(subject='Just some words & an ampersand')
+        self.assertEqual(campaign.rendered_subject, 'Just some words & an ampersand')
+
+    def test_a_subject_that_will_not_render_falls_back_rather_than_failing_a_send(self):
+        """The form catches a bad subject where it is made. At send time the contract is that
+        rendering never raises — a stray brace must not stop nine hundred messages.
+
+        Forced rather than contrived: Django's template language is forgiving enough at render
+        time that a realistic bad subject is hard to write, and the property being pinned is the
+        handling, not the input.
+        """
+        from unittest import mock
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(site=self.site, subject='Opening: {{ show.name }}')
+        with mock.patch('django.template.Template.render',
+                        side_effect=RuntimeError('boom')):
+            self.assertEqual(campaign.rendered_subject, 'Opening: {{ show.name }}')
+
+    def test_an_unclosed_brace_is_left_alone_rather_than_swallowed(self):
+        """Django reads it as literal text, so the reader sees what was typed."""
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(site=self.site, subject='Half a thought {{ ')
+        self.assertEqual(campaign.rendered_subject, 'Half a thought {{')
+
+    def test_template_tags_are_refused_by_the_form(self):
+        from gallery.forms import CampaignForm
+        form = CampaignForm(data={'site': self.site.pk, 'subject': '{% load x %}hello',
+                                  'template_name': '', 'body_markdown': 'body'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('not', str(form.errors['subject']))
+
+    def test_a_malformed_subject_is_a_form_error(self):
+        from gallery.forms import CampaignForm
+        form = CampaignForm(data={'site': self.site.pk,
+                                  'subject': 'Opening: {{ show.name|nosuchfilter }}',
+                                  'template_name': '', 'body_markdown': 'body'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('will not render', str(form.errors['subject']))
+
+    def test_each_template_offers_a_default_subject(self):
+        from gallery.campaigns import CAMPAIGN_TEMPLATES, template_subject
+        for name in CAMPAIGN_TEMPLATES:
+            with self.subTest(name=name):
+                self.assertTrue(template_subject(name),
+                                f'{name} has no default subject to offer')
+
+    def test_the_new_page_ships_the_defaults_and_shows_the_resolved_subject(self):
+        page = self.client.get(reverse('gallery:campaign_new'))
+        self.assertContains(page, 'Subject as it will arrive')
+        self.assertContains(page, 'Opening: {{ show.name }}')
+
+    def test_the_preview_endpoint_can_return_just_the_subject(self):
+        show = self._show_with_opening()
+        r = self.client.get(reverse('gallery:campaign_template_preview'), {
+            'site': self.site.pk, 'show': show.pk, 'template': 'show_opening.mjml',
+            'subject': 'Opening: {{ show.name }} — {{ opening.date|date:"j F" }}',
+            'subject_only': '1'})
+        self.assertEqual(r.content.decode().strip(), 'Opening: Full-Feel — 25 July')
+
+    def test_a_show_at_another_venue_is_refused(self):
+        """Mailing one venue's subscribers about another venue's show."""
+        from gallery.forms import CampaignForm
+        from gallery.models import Show, Site
+        other = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                    status=Site.STATUS_PUBLISHED)
+        show = Show.objects.create(
+            name='Not Ours', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(other)
+
+        form = CampaignForm(data={'site': self.site.pk, 'subject': 'Oops',
+                                  'template_name': 'show_opening.mjml',
+                                  'show': show.pk, 'body_markdown': ''})
+        self.assertFalse(form.is_valid())
+        self.assertIn('is not at 120710', str(form.errors['show']))
+
+    def test_a_show_is_listed_with_its_date_and_venue(self):
+        """A name alone is not enough to pick from once there are years of them."""
+        from gallery.forms import CampaignForm
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Autumn', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        label = CampaignForm().fields['show'].label_from_instance(show)
+        self.assertEqual(label, 'Autumn — Sep 2026 · 120710')
+
+    def test_duplicating_carries_the_content_and_nothing_about_the_send(self):
+        """What "save as template" is usually reaching for: next month's, started from this one."""
+        from gallery.models import Campaign
+        campaign = self._draft(preheader='Three weeks only')
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+            self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'sent')
+
+        r = self.client.post(reverse('gallery:campaign_duplicate',
+                                     kwargs={'pk': campaign.pk}), follow=True)
+        self.assertEqual(r.status_code, 200)
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+
+        # Everything a reader would see.
+        self.assertEqual(copy.subject, campaign.subject)
+        self.assertEqual(copy.preheader, 'Three weeks only')
+        self.assertEqual(copy.body_markdown, campaign.body_markdown)
+        self.assertEqual(copy.site, campaign.site)
+
+        # And nothing about the send.
+        self.assertEqual(copy.status, 'draft')
+        self.assertIsNone(copy.sent_at)
+        self.assertEqual(copy.recipient_count, 0)
+        self.assertEqual(copy.deliveries.count(), 0)
+        self.assertEqual(copy.created_by, self.staff)
+        # The original is untouched — this is a copy, not a reopening.
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'sent')
+
+    def test_a_duplicate_has_to_be_tested_again_before_it_can_go_out(self):
+        """The one thing that must not be inherited. The copy has never been looked at."""
+        from gallery.models import Campaign
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+        campaign.refresh_from_db()
+        self.assertTrue(campaign.can_send)
+
+        self.client.post(reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk}))
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+        self.assertIsNone(copy.test_sent_at)
+        self.assertFalse(copy.can_send)
+        self.assertIn('Send a test to yourself first', copy.blocked_reason)
+
+    def test_duplicating_keeps_the_template_and_the_show(self):
+        """A show mailing copied for the next show should need only the show changing."""
+        from gallery.models import Campaign, Show
+        show = Show.objects.create(
+            name='Autumn', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Autumn opens',
+            template_name='show_opening.mjml')
+
+        self.client.post(reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk}))
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+        self.assertEqual(copy.template_name, 'show_opening.mjml')
+        self.assertEqual(copy.show, show)
+
+    def test_the_subject_is_not_prefixed(self):
+        """A "Copy of" prefix is one forgotten edit away from arriving in every inbox."""
+        from gallery.models import Campaign
+        campaign = self._draft()
+        self.client.post(reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk}))
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+        self.assertEqual(copy.subject, 'Spring show is open')
+        self.assertNotIn('Copy', copy.subject)
+
+    def test_duplicate_is_staff_only_and_needs_a_post(self):
+        from gallery.models import Campaign
+        campaign = self._draft()
+        url = reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk})
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+        self.client.logout()
+        self.assertEqual(self.client.post(url).status_code, 302)
+        artist = User.objects.create_user(
+            username='nope2@example.com', email='nope2@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertEqual(Campaign.objects.count(), 1)
+
+    def test_only_staff_get_in(self):
+        campaign = self._draft()
+        send = reverse('gallery:campaign_send', kwargs={'pk': campaign.pk})
+
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('gallery:campaign_list')).status_code, 302)
+        self.assertEqual(self.client.post(send).status_code, 302)
+
+        artist = User.objects.create_user(
+            username='nope@example.com', email='nope@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.get(reverse('gallery:campaign_list')).status_code, 404)
+        self.assertEqual(self.client.post(send).status_code, 404)
+        self.assertEqual(mail.outbox, [])
+
+
+class NetworkListDisabledTests(TestCase):
+    """The reset.art list is collectable but not mailable yet.
+
+    reset.art has no email authentication of its own — DKIM keys are per-domain and none of
+    120710.art's carry over. A network-wide mailing would still leave the building, which is
+    exactly the danger: it would arrive branded as a domain nobody can verify as the sender, on
+    a first impression that is hard to take back.
+    """
+
+    def setUp(self):
+        from gallery.models import Campaign, Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        Subscriber.opt_in(email='n@example.com', sites=[None],
+                          source=Subscription.SOURCE_IMPORT)
+        # site=None is the network-wide list.
+        self.campaign = Campaign.objects.create(
+            site=None, subject='Across the network', body_markdown='Hello **all**.')
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+
+        self.staff = User.objects.create_user(
+            username='net@example.com', email='net@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+
+    def test_a_network_wide_campaign_cannot_be_sent(self):
+        self.assertFalse(self.campaign.list_is_sendable)
+        self.assertFalse(self.campaign.can_send)
+        self.assertIn('reset.art', self.campaign.blocked_reason)
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign)
+        self.assertEqual(mail.outbox, [])
+
+    def test_it_cannot_be_resumed_into_sending_either(self):
+        """The obvious way round a send guard is the resume path; it is closed too."""
+        from gallery.models import Campaign
+        Campaign.objects.filter(pk=self.campaign.pk).update(status=Campaign.STATUS_FAILED)
+        self.campaign.refresh_from_db()
+        self.assertFalse(self.campaign.can_resume)
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign, resume=True)
+        self.assertEqual(mail.outbox, [])
+
+    def test_the_page_says_why_rather_than_just_disabling_the_button(self):
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'cannot be mailed yet')
+        self.assertContains(page, 'reset.art')
+
+    def test_posting_send_from_a_stale_tab_is_refused(self):
+        r = self.client.post(reverse('gallery:campaign_send',
+                                     kwargs={'pk': self.campaign.pk}), follow=True)
+        self.assertContains(r, 'cannot be mailed yet')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'draft')
+        self.assertEqual(mail.outbox, [])
+
+    def test_the_form_does_not_offer_a_list_that_cannot_be_mailed(self):
+        page = self.client.get(reverse('gallery:campaign_new'))
+        self.assertNotContains(page, 'Everyone (network-wide list)')
+        self.assertContains(page, 'unavailable until reset.art has its own email')
+
+    def test_people_can_still_be_collected_onto_the_list(self):
+        """Only sending is blocked. The list keeps growing so it is ready when reset.art is."""
+        from gallery.models import Subscription
+        self.assertEqual(
+            Subscription.objects.filter(site__isnull=True, is_subscribed=True).count(), 1)
+
+    def test_one_setting_lifts_it(self):
+        with self.settings(CAMPAIGN_NETWORK_LIST_ENABLED=True):
+            self.campaign.refresh_from_db()
+            self.assertTrue(self.campaign.list_is_sendable)
+            self.assertTrue(self.campaign.can_send)
+            self.assertEqual(self.campaign.blocked_reason, '')
+
+    def test_a_venue_list_is_unaffected(self):
+        from gallery.models import Campaign
+        venue = Campaign.objects.create(
+            site=self.site, subject='Just us', body_markdown='Hello.')
+        venue.test_sent_at = timezone.now()
+        venue.save(update_fields=['test_sent_at'])
+        self.assertTrue(venue.can_send)
+
+
+class CampaignOutcomeTests(TestCase):
+    """What happened after the send, not just what we did.
+
+    Before this the pages could report that a campaign went to 412 people and nothing else — a
+    bounce arriving ten minutes later unsubscribed the person and left no mark on the campaign.
+    Bounce rate is how a stale imported list announces itself, and complaint rate is the number
+    Gmail and Yahoo actually judge a sender on, so neither being visible was the gap.
+    """
+
+    def setUp(self):
+        from gallery.models import Campaign, Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 10th St', city='Berkeley', state='CA', postal_code='94710')
+        for i in range(4):
+            Subscriber.opt_in(email='o%d@example.com' % i, sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.campaign = Campaign.objects.create(
+            site=self.site, subject='Opening night', body_markdown='Hello.')
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.staff = User.objects.create_user(
+            username='out@example.com', email='out@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+        mail.outbox.clear()
+
+    def _send(self):
+        from unittest import mock
+        with mock.patch('gallery.campaigns._connection',
+                        lambda: mail.get_connection(
+                            'django.core.mail.backends.locmem.EmailBackend')):
+            campaigns.send_campaign(self.campaign)
+        self.campaign.refresh_from_db()
+
+    def _event(self, kind, address):
+        from anymail.signals import AnymailTrackingEvent, EventType, tracking
+        tracking.send(sender=object(), esp_name='Resend',
+                      event=AnymailTrackingEvent(
+                          event_type=getattr(EventType, kind), recipient=address))
+
+    def test_a_bounce_is_counted_against_the_campaign_that_caused_it(self):
+        self._send()
+        self.assertEqual(self.campaign.sent_so_far, 4)
+
+        self._event('BOUNCED', 'o0@example.com')
+        self.assertEqual(self.campaign.bounced_count, 1)
+        self.assertEqual(self.campaign.bounce_rate, 25.0)
+        # And the send count is untouched: what we did does not change because of what followed.
+        self.assertEqual(self.campaign.sent_so_far, 4)
+
+    def test_a_complaint_is_counted_and_its_rate_reported(self):
+        self._send()
+        self._event('COMPLAINED', 'o0@example.com')
+        self.assertEqual(self.campaign.complained_count, 1)
+        self.assertEqual(self.campaign.complaint_rate, 25.0)
+        self.assertTrue(self.campaign.complaint_rate_is_high)
+
+    def test_a_healthy_campaign_is_not_flagged(self):
+        self._send()
+        self.assertEqual(self.campaign.complaint_rate, 0.0)
+        self.assertFalse(self.campaign.complaint_rate_is_high)
+
+    def test_the_person_is_still_unsubscribed_everywhere(self):
+        """Attribution is an addition; the thing that protects the domain must still happen."""
+        from gallery.models import Subscriber
+        self._send()
+        self._event('BOUNCED', 'o0@example.com')
+        subscription = Subscriber.objects.get(email='o0@example.com').subscriptions.get()
+        self.assertFalse(subscription.is_subscribed)
+        self.assertEqual(subscription.unsubscribed_reason, 'bounced')
+
+    def test_a_retried_webhook_cannot_count_one_complaint_twice(self):
+        """Providers retry. Double-counting would double a campaign's rate."""
+        self._send()
+        for _ in range(3):
+            self._event('COMPLAINED', 'o0@example.com')
+        self.assertEqual(self.campaign.complained_count, 1)
+
+    def test_an_event_for_a_long_past_send_is_not_blamed_on_a_recent_campaign(self):
+        """People press the spam button on months-old mail.
+
+        Attributing that to whatever went out last week would blame a campaign that had nothing
+        to do with it and inflate its complaint rate.
+        """
+        from gallery.models import CampaignDelivery
+        self._send()
+        CampaignDelivery.objects.update(
+            sent_at=timezone.now() - datetime.timedelta(days=60))
+
+        self._event('COMPLAINED', 'o0@example.com')
+        self.assertEqual(self.campaign.complained_count, 0)
+        # But they are still taken off the list, which is the part that matters.
+        from gallery.models import Subscriber
+        self.assertFalse(
+            Subscriber.objects.get(email='o0@example.com').subscriptions.get().is_subscribed)
+
+    def test_an_event_for_someone_who_was_never_mailed_records_nothing(self):
+        from gallery.models import Subscriber, Subscription
+        self._send()
+        Subscriber.opt_in(email='later@example.com', sites=[self.site],
+                          source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self._event('BOUNCED', 'later@example.com')
+        self.assertEqual(self.campaign.bounced_count, 0)
+
+    def test_the_campaign_page_reports_what_happened_after(self):
+        self._send()
+        self._event('BOUNCED', 'o0@example.com')
+        self._event('COMPLAINED', 'o1@example.com')
+
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'After the send')
+        self.assertContains(page, 'Marked as spam')
+        self.assertContains(page, '25.0%')
+        # Literal template text is not escaped — only variables are.
+        self.assertContains(page, "start putting a domain's mail in spam folders")
+
+    def test_the_list_shows_the_rates_without_a_query_per_row(self):
+        self._send()
+        self._event('BOUNCED', 'o0@example.com')
+        with self.assertNumQueries(6):
+            page = self.client.get(reverse('gallery:campaign_list'))
+        self.assertContains(page, 'Bounced')
+        self.assertContains(page, '25.0%')
+
+
+class CampaignResumeTests(TestCase):
+    """A send that stops part-way must be finishable without mailing anyone twice.
+
+    This is the failure that would actually hurt. Before delivery records, a send that died
+    at message 400 of 900 left no trace of how far it got: the campaign could not be sent
+    again, and re-creating it would have mailed the first 400 people a second time. These
+    tests pin the two properties that make it recoverable — every send skips people with a
+    delivery record, and a stopped send is visible as stopped.
+    """
+
+    def setUp(self):
+        from gallery.models import Campaign, Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        for i in range(5):
+            Subscriber.opt_in(email='r%d@example.com' % i, first_name='Reader',
+                              last_name=str(i), sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.campaign = Campaign.objects.create(
+            site=self.site, subject='Opening night', body_markdown='Come **along**.')
+        # After creation, not in it: edited_at is auto_now_add, so a test timestamp passed to
+        # create() predates it and the send guard would refuse every one of these tests.
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.staff = User.objects.create_user(
+            username='res@example.com', email='res@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+        # The outbox is process-wide. Django empties it between tests, but signals firing
+        # during this setUp can put mail in it, and these tests assert on exactly who was
+        # mailed — so start from empty.
+        mail.outbox.clear()
+
+    def _batches_of_two(self):
+        """Two per batch, so a five-person list takes three batches and can fail between."""
+        from unittest import mock
+        return mock.patch('gallery.campaigns.BATCH_SIZE', 2)
+
+    def _dies_after(self, messages):
+        """A connection that delivers `messages` messages and then becomes unreachable.
+
+        Models the provider going away mid-campaign — an outage, a network drop, a rate limit
+        that never clears. Deliberately a *transient* failure, because that is what a resume
+        exists for: nobody is at fault, the addresses are still owed the mailing, and they must
+        be left pending rather than written off.
+
+        Per message rather than per batch, because that is what the backend really does: one
+        API call each, which is exactly why every delivery can be recorded individually and no
+        resume ever repeats one.
+        """
+        import contextlib
+        from unittest import mock
+
+        outer = self
+
+        class Dying:
+            done = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                if Dying.done >= messages:
+                    error = Exception('provider went away')
+                    error.status_code = 503
+                    raise error
+                Dying.done += len(batch)
+                outer.delivered.extend(m.to[0] for m in batch)
+                return len(batch)
+
+        self.delivered = []
+
+        @contextlib.contextmanager
+        def patched():
+            with mock.patch('gallery.campaigns._connection', lambda: Dying()), \
+                    mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+                yield
+
+        return patched()
+
+    def _locmem(self):
+        from unittest import mock
+        return mock.patch('gallery.campaigns._connection',
+                          lambda: mail.get_connection(
+                              'django.core.mail.backends.locmem.EmailBackend'))
+
+    def _sent_to(self):
+        """The addresses this send reached.
+
+        A set of addresses rather than a count of the outbox: the outbox is process-wide, and
+        asserting on its length made these tests fail intermittently depending on which other
+        test ran before them in the same worker. What matters here is who got the campaign.
+        """
+        return {m.to[0] for m in mail.outbox}
+
+    # --- The engine ---
+
+    def test_a_send_that_dies_part_way_records_what_it_delivered(self):
+        with self._batches_of_two(), self._dies_after(4):
+            self.assertEqual(campaigns.send_campaign(self.campaign), 4)
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'failed')
+        # Four went out and are recorded individually; the fifth never did.
+        self.assertEqual(self.campaign.sent_so_far, 4)
+        self.assertEqual(self.campaign.remaining_count, 1)
+        self.assertTrue(self.campaign.can_resume)
+
+    def test_resuming_mails_only_the_people_who_missed_it(self):
+        with self._batches_of_two(), self._dies_after(4):
+            campaigns.send_campaign(self.campaign)
+        already = set(self.delivered)
+        self.assertEqual(len(already), 4)
+
+        self.campaign.refresh_from_db()
+        with self._locmem():
+            sent = campaigns.send_campaign(self.campaign, resume=True)
+
+        self.assertEqual(sent, 1, 'a resume must not re-send to the four already reached')
+        self.assertEqual([m.to[0] for m in mail.outbox],
+                         [e for e in ['r0@example.com', 'r1@example.com', 'r2@example.com',
+                                      'r3@example.com', 'r4@example.com']
+                          if e not in already])
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(self.campaign.recipient_count, 5)
+        self.assertEqual(self.campaign.remaining_count, 0)
+
+    def test_nobody_is_mailed_twice_even_if_resume_is_pressed_repeatedly(self):
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
+        for _ in range(3):
+            self.campaign.refresh_from_db()
+            if not self.campaign.remaining_count:
+                break
+            with self._locmem():
+                campaigns.send_campaign(self.campaign, resume=True)
+
+        addresses = [m.to[0] for m in mail.outbox] + self.delivered
+        self.assertEqual(len(addresses), 5)
+        self.assertEqual(len(set(addresses)), 5, 'somebody received it twice')
+
+    def test_someone_who_unsubscribes_after_the_failure_is_not_mailed_by_the_resume(self):
+        """The list is re-read on resume, not frozen at the moment the send started.
+
+        Sending to somebody who opted out in between is the one thing worse than not
+        finishing at all.
+        """
+        from gallery.models import Subscription
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
+        missed = campaigns.pending(self.campaign).first()
+        gone = missed.subscriber.email
+        missed.unsubscribe(reason=Subscription.UNSUB_REQUESTED)
+
+        self.campaign.refresh_from_db()
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, resume=True)
+
+        self.assertNotIn(gone, [m.to[0] for m in mail.outbox])
+
+    def test_a_send_abandoned_by_a_dead_process_becomes_resumable(self):
+        """Nothing can report from inside a process that has been killed.
+
+        A deploy mid-send leaves the row saying `sending` forever, which looks like work in
+        progress rather than a problem. Absence of progress is the only available signal.
+        """
+        from gallery.models import Campaign
+        Campaign.objects.filter(pk=self.campaign.pk).update(
+            status=Campaign.STATUS_SENDING,
+            progress_at=timezone.now() - datetime.timedelta(minutes=11))
+        self.campaign.refresh_from_db()
+
+        self.assertTrue(self.campaign.is_stalled)
+        self.assertTrue(self.campaign.can_resume)
+        self.assertIn('stopped after', self.campaign.blocked_reason)
+
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, resume=True)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(self._sent_to(), {'r0@example.com', 'r1@example.com',
+                                           'r2@example.com', 'r3@example.com',
+                                           'r4@example.com'})
+
+    def test_a_running_send_keeps_saying_it_is_alive(self):
+        """Otherwise a slow send looks abandoned and can be resumed alongside itself.
+
+        The progress clock is what `is_stalled` reads, so it has to move on elapsed time rather
+        than message count — a throttled send can spend longer than STALL_AFTER inside a single
+        batch.
+        """
+        from unittest import mock
+        with self._locmem(), mock.patch('gallery.campaigns.PROGRESS_EVERY_SECONDS', 0):
+            campaigns.send_campaign(self.campaign)
+        self.campaign.refresh_from_db()
+        self.assertIsNotNone(self.campaign.progress_at)
+        self.assertFalse(self.campaign.is_stalled)
+
+    def test_a_send_still_making_progress_is_not_treated_as_stopped(self):
+        from gallery.models import Campaign
+        Campaign.objects.filter(pk=self.campaign.pk).update(
+            status=Campaign.STATUS_SENDING, progress_at=timezone.now())
+        self.campaign.refresh_from_db()
+        self.assertFalse(self.campaign.is_stalled)
+        self.assertFalse(self.campaign.can_resume)
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign, resume=True)
+
+    def test_two_sends_at_once_cannot_both_claim_the_campaign(self):
+        """A double-clicked button, or two workers behind one URL.
+
+        The unique constraint on the delivery records would catch the duplicate, but only
+        after the mail had gone out. The claim has to happen first.
+        """
+        from gallery.models import Campaign
+        stale = Campaign.objects.get(pk=self.campaign.pk)
+
+        with self._locmem():
+            campaigns.send_campaign(self.campaign)
+        self.assertEqual(len(mail.outbox), 5)
+
+        # The second caller is holding the row as it was before the first one claimed it.
+        mail.outbox.clear()
+        with self._locmem():
+            with self.assertRaises(ValueError):
+                campaigns.send_campaign(stale)
+        self.assertEqual(mail.outbox, [])
+
+    def test_resume_is_refused_on_a_campaign_that_never_stopped(self):
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign, resume=True)
+
+    def test_deleting_a_subscriber_takes_their_delivery_record_with_them(self):
+        """Erasure means erasure, including the record of having mailed them."""
+        from gallery.models import CampaignDelivery, Subscriber
+        with self._locmem():
+            campaigns.send_campaign(self.campaign)
+        self.assertEqual(CampaignDelivery.objects.count(), 5)
+
+        Subscriber.objects.get(email='r0@example.com').delete()
+        self.assertEqual(CampaignDelivery.objects.count(), 4)
+
+    # --- The page ---
+
+    def test_the_page_offers_resume_and_says_how_far_it_got(self):
+        with self._batches_of_two(), self._dies_after(4):
+            campaigns.send_campaign(self.campaign)
+
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'This send stopped before it finished')
+        self.assertContains(page, '4 of 5 subscriber')
+        self.assertContains(page, 'nobody who already got it will get it twice')
+        self.assertContains(page, reverse('gallery:campaign_resume',
+                                          kwargs={'pk': self.campaign.pk}))
+        # And not the banner that describes a finished send as a record.
+        self.assertNotContains(page, 'it is the record of what went out')
+
+    def test_resuming_from_the_page_finishes_the_send(self):
+        with self._batches_of_two(), self._dies_after(4):
+            campaigns.send_campaign(self.campaign)
+
+        with self._locmem():
+            r = self.client.post(reverse('gallery:campaign_resume',
+                                         kwargs={'pk': self.campaign.pk}), follow=True)
+        self.assertContains(r, 'Resuming to 1 subscriber')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_resume_from_the_page_is_refused_when_there_is_nothing_to_finish(self):
+        r = self.client.post(reverse('gallery:campaign_resume',
+                                     kwargs={'pk': self.campaign.pk}), follow=True)
+        self.assertContains(r, 'nothing to resume')
+        self.assertEqual(mail.outbox, [])
+
+    def test_only_staff_can_resume(self):
+        url = reverse('gallery:campaign_resume', kwargs={'pk': self.campaign.pk})
+        self.client.logout()
+        self.assertEqual(self.client.post(url).status_code, 302)
+        artist = User.objects.create_user(
+            username='no@example.com', email='no@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertEqual(mail.outbox, [])
+
+    # --- Rate limits and a provider having a bad day ---
+
+    def test_a_rate_limit_is_retried_rather_than_failing_the_campaign(self):
+        """The most likely failure on a real list, and it must not need a human.
+
+        The backend makes one API request per message, so a thousand-person send is a thousand
+        requests against a two-a-second allowance. A 429 is ordinary weather; stopping the
+        campaign and waiting for somebody to press Resume would be the wrong response to it.
+        """
+        from unittest import mock
+
+        class RateLimited:
+            attempts = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                RateLimited.attempts += 1
+                if RateLimited.attempts == 2:
+                    error = Exception('Too many requests')
+                    error.status_code = 429
+                    raise error
+                return len(batch)
+
+        with mock.patch('gallery.campaigns._connection', lambda: RateLimited()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            sent = campaigns.send_campaign(self.campaign)
+
+        self.assertEqual(sent, 5, 'the rate-limited message should have been retried')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(self.campaign.sent_so_far, 5)
+
+    def test_a_refused_address_is_unsubscribed_and_does_not_hold_the_campaign_open(self):
+        """The common case, and it must not need any cleaning up by hand.
+
+        A provider refusing an address outright is a hard bounce told to us up front rather than
+        by webhook ten minutes later, so it gets the same treatment: stop mailing them. The
+        campaign finishes, because there is nothing a resume could usefully do about an address
+        that will never accept mail — pressing Resume forever was the old behaviour and it was
+        no behaviour at all.
+        """
+        from unittest import mock
+        from gallery.models import CampaignDelivery, Subscriber
+
+        class Picky:
+            calls = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                Picky.calls += 1
+                if batch[0].to[0] == 'r2@example.com':
+                    error = Exception('Invalid `to` field: mailbox does not exist')
+                    error.status_code = 422
+                    raise error
+                return len(batch)
+
+        with mock.patch('gallery.campaigns._connection', lambda: Picky()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            sent = campaigns.send_campaign(self.campaign)
+
+        self.assertEqual(sent, 4)
+        self.assertEqual(Picky.calls, 5, 'a 422 about the address must not be retried')
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent',
+                         'four of five delivered and the fifth refused is a finished campaign')
+        self.assertEqual(self.campaign.sent_so_far, 4)
+        self.assertEqual(self.campaign.recipient_count, 4)
+
+        # The refusal is recorded, with the provider's own words.
+        rejected = list(self.campaign.rejected)
+        self.assertEqual(len(rejected), 1)
+        self.assertEqual(rejected[0].subscription.subscriber.email, 'r2@example.com')
+        self.assertIn('mailbox does not exist', rejected[0].error)
+
+        # And they are off the list, exactly as a webhook bounce would leave them.
+        subscription = Subscriber.objects.get(email='r2@example.com').subscriptions.get()
+        self.assertFalse(subscription.is_subscribed)
+        self.assertEqual(subscription.unsubscribed_reason, 'bounced')
+
+        # Nothing is owed, so there is nothing to resume and no way to loop on it.
+        self.assertEqual(self.campaign.remaining_count, 0)
+        self.assertFalse(self.campaign.can_resume)
+        self.assertEqual(CampaignDelivery.objects.count(), 5)
+
+    def test_a_refused_address_is_reported_on_the_page_not_buried_in_a_log(self):
+        from unittest import mock
+
+        class Picky:
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                if batch[0].to[0] == 'r2@example.com':
+                    error = Exception('Invalid `to` field: mailbox does not exist')
+                    error.status_code = 422
+                    raise error
+                return len(batch)
+
+        with mock.patch('gallery.campaigns._connection', lambda: Picky()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            campaigns.send_campaign(self.campaign)
+
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, '1 address was rejected')
+        self.assertContains(page, 'r2@example.com')
+        self.assertContains(page, 'mailbox does not exist')
+        self.assertContains(page, 'no longer on the list')
+
+    def test_a_transient_failure_leaves_people_pending_rather_than_writing_them_off(self):
+        """The distinction that matters: an outage is not the recipient's fault.
+
+        Treating a provider having a bad minute like a bad address would unsubscribe people who
+        did nothing wrong, and they would never hear from us again.
+        """
+        from gallery.models import Subscriber
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'failed')
+        self.assertEqual(self.campaign.sent_so_far, 2)
+        self.assertEqual(self.campaign.remaining_count, 3)
+        self.assertEqual(self.campaign.rejected.count(), 0)
+        # Still subscribed, still owed the mailing.
+        for subscription in campaigns.pending(self.campaign):
+            self.assertTrue(subscription.is_subscribed)
+        self.assertEqual(Subscriber.objects.filter(
+            subscriptions__unsubscribed_reason='bounced').count(), 0)
+
+    def test_a_provider_refusing_everything_stops_before_working_through_the_list(self):
+        """Do not spend an hour hammering an API that is down. Stop and be resumable."""
+        from unittest import mock
+        from gallery.models import Subscriber, Subscription
+
+        for i in range(30):
+            Subscriber.opt_in(email='extra%d@example.com' % i, sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+
+        class Dead:
+            calls = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                Dead.calls += 1
+                error = Exception('everything is on fire')
+                error.status_code = 503
+                raise error
+
+        with mock.patch('gallery.campaigns._connection', lambda: Dead()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            with self.assertRaises(RuntimeError):
+                campaigns.send_campaign(self.campaign)
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'failed')
+        self.assertEqual(self.campaign.sent_so_far, 0)
+        # Ten consecutive failures, each attempted three times — and then it gave up, rather
+        # than trying all thirty-five.
+        self.assertLess(Dead.calls, 35)
+        self.assertTrue(self.campaign.can_resume)
+
+    def test_the_throttle_paces_sends_and_does_not_sleep_when_disabled(self):
+        import time as time_module
+        throttle = campaigns._Throttle(50)
+        started = time_module.monotonic()
+        for _ in range(3):
+            throttle.wait()
+        # Two gaps of a fiftieth of a second; loose bound so a busy machine cannot fail it.
+        self.assertGreater(time_module.monotonic() - started, 0.02)
+
+        instant = campaigns._Throttle(0)
+        started = time_module.monotonic()
+        for _ in range(100):
+            instant.wait()
+        self.assertLess(time_module.monotonic() - started, 0.5)
+
+    # --- Warming up a new sending domain ---
+
+    def test_a_limited_pass_sends_part_of_the_list_and_pauses(self):
+        """Sending a few hundred a day is the only real warm-up.
+
+        Pacing inside one send does not help a domain with no history: a thousand messages on
+        day one gets filtered on volume however gently they are spaced. So the ramp has to be
+        across days, which means a send that deliberately stops short.
+        """
+        with self._locmem():
+            sent = campaigns.send_campaign(self.campaign, limit=2)
+
+        self.assertEqual(sent, 2)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'paused',
+                         'stopping on purpose is not the same as failing')
+        self.assertEqual(self.campaign.sent_so_far, 2)
+        self.assertEqual(self.campaign.remaining_count, 3)
+        self.assertTrue(self.campaign.can_resume)
+        self.assertIn('was paused after 2 of 5', self.campaign.blocked_reason)
+
+    def test_successive_passes_finish_the_list_without_repeating_anyone(self):
+        # Day one is a plain limited send; every day after is a limited resume.
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, limit=2)
+
+        for _ in range(3):
+            self.campaign.refresh_from_db()
+            if not self.campaign.remaining_count:
+                break
+            with self._locmem():
+                campaigns.send_campaign(self.campaign, resume=True, limit=2)
+
+        addresses = [m.to[0] for m in mail.outbox]
+        self.assertEqual(len(addresses), 5)
+        self.assertEqual(len(set(addresses)), 5, 'somebody received it twice')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+
+    def test_a_limit_larger_than_the_list_simply_finishes_it(self):
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, limit=500)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertFalse(self.campaign.can_resume)
+
+    def test_a_paused_campaign_says_so_on_the_page_rather_than_looking_broken(self):
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, limit=2)
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'This send is paused part-way, on purpose')
+        self.assertNotContains(page, 'This send stopped before it finished')
+
+    def test_the_command_takes_a_limit(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        out = StringIO()
+        with self._locmem():
+            call_command('send_campaign', self.campaign.pk, '--limit', '2', stdout=out)
+        self.assertIn('sending at most 2', out.getvalue())
+        self.assertEqual(len(mail.outbox), 2)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'paused')
+
+    # --- The command ---
+
+    def test_the_command_can_finish_what_the_web_send_started(self):
+        """The path that survives a deploy: same engine, no web process involved."""
+        from io import StringIO
+        from django.core.management import call_command
+
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
+        out = StringIO()
+        with self._locmem():
+            call_command('send_campaign', self.campaign.pk, '--resume', stdout=out)
+        self.assertIn('Sent 3 message(s)', out.getvalue())
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(len(mail.outbox), 3)
+
+    def test_the_command_dry_run_sends_nothing(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command('send_campaign', self.campaign.pk, '--dry-run', stdout=out)
+        self.assertIn('5 still to go', out.getvalue())
+        self.assertIn('r0@example.com', out.getvalue())
+        self.assertEqual(mail.outbox, [])
+        self.assertEqual(self.campaign.sent_so_far, 0)
+
+
+class ResendWebhookTests(TestCase):
+    """Delivery events from Resend stop mail without anyone watching a dashboard."""
+
+    def setUp(self):
+        from gallery.models import Site
+        self.a = Site.objects.create(name='120710', slug='120710',
+                                     status=Site.STATUS_PUBLISHED)
+        self.b = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                     status=Site.STATUS_PUBLISHED)
+
+    def _subscriber(self, email='sub@example.com'):
+        from gallery.models import Subscriber, Subscription
+        subscriber, _ = Subscriber.opt_in(
+            email=email, sites=[self.a, self.b],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        return subscriber
+
+    def _fire(self, event_type, recipient):
+        from anymail.signals import AnymailTrackingEvent, tracking
+        tracking.send(sender=None, esp_name='Resend',
+                      event=AnymailTrackingEvent(event_type=event_type,
+                                                 recipient=recipient))
+
+    def _state(self, subscriber):
+        subscriber.refresh_from_db()
+        return [(s.is_subscribed, s.unsubscribed_reason)
+                for s in subscriber.subscriptions.order_by('pk')]
+
+    def test_the_webhook_is_routed(self):
+        self.assertEqual(reverse('anymail:resend_tracking_webhook'),
+                         '/anymail/resend/tracking/')
+
+    def test_a_hard_bounce_stops_every_list(self):
+        """A dead address cannot be reached on any list, so narrowing to one would
+        keep mailing a mailbox that does not exist."""
+        from anymail.signals import EventType
+        subscriber = self._subscriber('bouncer@example.com')
+        self._fire(EventType.BOUNCED, 'bouncer@example.com')
+        self.assertEqual(self._state(subscriber),
+                         [(False, 'bounced'), (False, 'bounced')])
+
+    def test_a_complaint_stops_every_list(self):
+        """Stricter than the unsubscribe link on purpose: someone reporting us as spam
+        must not keep hearing from a sibling gallery."""
+        from anymail.signals import EventType
+        subscriber = self._subscriber('angry@example.com')
+        self._fire(EventType.COMPLAINED, 'ANGRY@Example.com')   # case-insensitive
+        self.assertEqual(self._state(subscriber),
+                         [(False, 'complained'), (False, 'complained')])
+
+    def test_bounce_and_complaint_are_recorded_apart(self):
+        from anymail.signals import EventType
+        from gallery.models import Subscription
+        one = self._subscriber('one@example.com')
+        two = self._subscriber('two@example.com')
+        self._fire(EventType.BOUNCED, 'one@example.com')
+        self._fire(EventType.COMPLAINED, 'two@example.com')
+        self.assertEqual(one.subscriptions.first().unsubscribed_reason,
+                         Subscription.UNSUB_BOUNCED)
+        self.assertEqual(two.subscriptions.first().unsubscribed_reason,
+                         Subscription.UNSUB_COMPLAINED)
+
+    def test_other_events_change_nothing(self):
+        """We keep no behavioural data about subscribers, so opens and clicks are
+        ignored rather than stored."""
+        from anymail.signals import EventType
+        subscriber = self._subscriber('fine@example.com')
+        for event_type in (EventType.DELIVERED, EventType.OPENED, EventType.CLICKED,
+                           EventType.DEFERRED, EventType.QUEUED, EventType.SENT):
+            self._fire(event_type, 'fine@example.com')
+        self.assertEqual(self._state(subscriber), [(True, ''), (True, '')])
+
+    def test_an_unknown_recipient_is_ignored_not_an_error(self):
+        from anymail.signals import EventType
+        with self.assertLogs('gallery.webhooks', level='WARNING') as log:
+            self._fire(EventType.BOUNCED, 'stranger@example.com')
+        self.assertIn('not a subscriber', ''.join(log.output))
+
+    def test_a_repeated_bounce_does_not_move_the_timestamp(self):
+        from anymail.signals import EventType
+        subscriber = self._subscriber('again@example.com')
+        self._fire(EventType.BOUNCED, 'again@example.com')
+        subscriber.refresh_from_db()
+        first = subscriber.subscriptions.first().unsubscribed_at
+        self._fire(EventType.BOUNCED, 'again@example.com')
+        subscriber.refresh_from_db()
+        self.assertEqual(subscriber.subscriptions.first().unsubscribed_at, first)
+
+    def test_a_bounced_address_is_not_a_campaign_recipient(self):
+        """The point of the whole thing: the next send must skip them."""
+        from anymail.signals import EventType
+        from gallery import campaigns as engine
+        from gallery.models import Campaign
+        self._subscriber('gone@example.com')
+        keep = self._subscriber('here@example.com')
+        campaign = Campaign.objects.create(site=self.a, subject='S', body_markdown='Hi')
+        self._fire(EventType.BOUNCED, 'gone@example.com')
+        addresses = {s.subscriber.email for s in engine.recipients(campaign)}
+        self.assertEqual(addresses, {'here@example.com'})
+        self.assertTrue(keep.subscriptions.filter(is_subscribed=True).exists())
+
+
+
+
+class SubscribePagesTests(TestCase):
+    """The public subscribe form, the kiosk form, and being able to find them."""
+
+    def setUp(self):
+        from gallery.models import Site
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+
+    # `address` is the honeypot field (settings.HONEYPOT_FIELD_NAME); it must be present
+    # and empty or django-honeypot rejects the post.
+    def _post(self, url, email, **extra):
+        data = {'first_name': 'New', 'last_name': 'Person', 'email': email, 'address': ''}
+        data.update(extra)
+        return self.client.post(url, data, follow=True)
+
+    def test_the_form_writes_to_our_own_table(self):
+        from gallery.models import Subscriber, Subscription
+        r = self._post(reverse('subscribe'), 'new@example.com')
+        self.assertEqual(r.status_code, 200)
+        subscriber = Subscriber.objects.get(email='new@example.com')
+        self.assertEqual(subscriber.full_name, 'New Person')
+        subscription = subscriber.subscriptions.get()
+        self.assertTrue(subscription.is_subscribed)
+        self.assertEqual(subscription.source, Subscription.SOURCE_SUBSCRIBE_FORM)
+
+    def test_the_kiosk_form_records_where_it_came_from(self):
+        from gallery.models import Subscriber, Subscription
+        with self.settings(KIOSK_TOKEN='tok'):
+            self._post(reverse('subscribe_kiosk', kwargs={'token': 'tok'}), 'k@example.com')
+        subscriber = Subscriber.objects.get(email='k@example.com')
+        self.assertEqual(subscriber.subscriptions.get().source, Subscription.SOURCE_KIOSK)
+
+    def test_the_kiosk_needs_its_token(self):
+        from gallery.models import Subscriber
+        with self.settings(KIOSK_TOKEN='tok'):
+            r = self.client.get(reverse('subscribe_kiosk', kwargs={'token': 'wrong'}))
+        self.assertEqual(r.status_code, 404)
+        self.assertFalse(Subscriber.objects.exists())
+
+    def test_subscribing_twice_does_not_duplicate_the_person(self):
+        from gallery.models import Subscriber
+        self._post(reverse('subscribe'), 'twice@example.com')
+        self._post(reverse('subscribe'), 'TWICE@Example.com')
+        self.assertEqual(Subscriber.objects.filter(email='twice@example.com').count(), 1)
+
+    # --- The welcome email ---
+
+    def test_a_new_subscriber_gets_a_welcome_email_at_once(self):
+        """Chosen over double opt-in: no gate, so no signup is lost, but a dead address bounces
+        on this one message and the webhook removes it before any campaign goes out."""
+        self._post(reverse('subscribe'), 'new@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['new@example.com'])
+        self.assertIn('mailing list', message.subject.lower())
+
+    def test_the_welcome_email_makes_leaving_easy(self):
+        """The other job it does: somebody added by a stranger has to be able to get out."""
+        self._post(reverse('subscribe'), 'new@example.com')
+        body = mail.outbox[0].alternatives[0][0]
+        self.assertIn('/unsubscribe/', body)
+        self.assertIn('unsubscribe here', body)
+        # One-click, so the button Gmail renders works on it too.
+        self.assertIn('List-Unsubscribe', mail.outbox[0].extra_headers)
+        self.assertEqual(mail.outbox[0].extra_headers['List-Unsubscribe-Post'],
+                         'List-Unsubscribe=One-Click')
+
+    def test_the_unsubscribe_link_in_a_welcome_email_actually_works(self):
+        from gallery.models import Subscriber
+        self._post(reverse('subscribe'), 'new@example.com')
+        body = mail.outbox[0].alternatives[0][0]
+        start = body.index('/unsubscribe/')
+        path = body[start:body.index('"', start)]
+
+        self.client.post(path)
+        subscription = Subscriber.objects.get(email='new@example.com').subscriptions.get()
+        self.assertFalse(subscription.is_subscribed)
+
+    def test_the_kiosk_welcomes_too(self):
+        """An address mistyped on a tablet at an opening is exactly the kind that would
+        otherwise bounce on every mailing for years."""
+        with self.settings(KIOSK_TOKEN='tok'):
+            self._post(reverse('subscribe_kiosk', kwargs={'token': 'tok'}), 'k@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['k@example.com'])
+
+    def test_resubmitting_the_form_does_not_send_another_welcome(self):
+        """Otherwise the form is a way to pester somebody who is already on the list."""
+        self._post(reverse('subscribe'), 'twice@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+        self._post(reverse('subscribe'), 'twice@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_someone_rejoining_after_leaving_is_welcomed_again(self):
+        from gallery.models import Subscriber
+        self._post(reverse('subscribe'), 'back@example.com')
+        Subscriber.objects.get(email='back@example.com').unsubscribe_all()
+        mail.outbox.clear()
+
+        self._post(reverse('subscribe'), 'back@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_mail_failure_does_not_cost_the_subscription(self):
+        """They are already subscribed by the time the welcome is sent. Refusing to subscribe
+        somebody because our own mail server was briefly unhappy is the worse outcome."""
+        from unittest import mock
+        from gallery.models import Subscriber
+
+        with mock.patch('eatart.views.subscribe.EmailMultiAlternatives.send',
+                        side_effect=RuntimeError('mail server down')):
+            r = self._post(reverse('subscribe'), 'resilient@example.com')
+
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(Subscriber.objects.get(
+            email='resilient@example.com').subscriptions.get().is_subscribed)
+
+    def test_the_welcome_email_does_not_go_through_the_campaign_provider(self):
+        """A spam complaint about a newsletter must not be able to swallow this."""
+        import inspect
+        from eatart.views import subscribe as view_module
+        source = inspect.getsource(view_module.send_welcome)
+        self.assertNotIn('_connection', source,
+                         'the welcome email must use the transactional backend')
+
+    def test_subscribe_is_reachable_from_the_nav_with_a_default_venue(self):
+        """It used to be gated on mailing_list_enabled, which only the contact view set —
+        so everywhere else it fell back to "not current_site", and with a default venue
+        configured that is never true. The link was missing site-wide."""
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            import importlib
+            from eatart import context_processors
+            importlib.reload(context_processors)
+            try:
+                for path in ('/', reverse('contact'), self.site.get_absolute_url()):
+                    with self.subTest(path=path):
+                        body = self.client.get(path, follow=True).content.decode()
+                        self.assertIn('>Subscribe</a>', body)
+            finally:
+                importlib.reload(context_processors)
+
+    def test_the_contact_page_always_offers_the_list(self):
+        """No provider to configure any more, so there is no state in which the list
+        should be hidden."""
+        body = self.client.get(reverse('contact')).content.decode()
+        self.assertIn('Mailing List', body)
+        self.assertIn(reverse('subscribe'), body)
+
+
+
+
+class ImportSubscribersTests(TestCase):
+    """Merging Mailchimp exports. The rule that matters: no path through this may end
+    with someone subscribed who said no in any export."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _csv(self, name, rows, header='Email Address,First Name,Last Name,Status'):
+        import os
+        path = os.path.join(self.tmp, name)
+        with open(path, 'w', newline='') as handle:
+            handle.write(header + '\n')
+            for row in rows:
+                handle.write(','.join(row) + '\n')
+        return path
+
+    def _run(self, *paths, **opts):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('import_subscribers', *paths, stdout=out, **opts)
+        return out.getvalue()
+
+    def test_several_files_in_one_run(self):
+        from gallery.models import Subscriber
+        a = self._csv('a.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        b = self._csv('b.csv', [('bo@example.com', 'Bo', 'Chen', 'subscribed')])
+        out = self._run(a, b)
+        self.assertIn('2 file(s)', out)
+        self.assertEqual(Subscriber.objects.count(), 2)
+
+    def test_the_same_person_across_files_is_one_record(self):
+        from gallery.models import Subscriber
+        a = self._csv('a.csv', [('Ana@Example.com', 'Ana', 'Ruiz', 'subscribed')])
+        b = self._csv('b.csv', [('ANA@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(a, b)
+        self.assertEqual(Subscriber.objects.count(), 1)
+        self.assertIn('duplicate row(s) merged', out)
+
+    def test_repeated_rows_within_one_file_are_merged(self):
+        from gallery.models import Subscriber
+        path = self._csv('dupes.csv', [
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(path)
+        self.assertEqual(Subscriber.objects.count(), 1)
+        self.assertIn('3 row(s)', out)
+        self.assertIn('1 distinct people', out)
+
+    def test_an_opt_out_anywhere_wins(self):
+        """Listed as subscribed in one export and unsubscribed in another: being
+        subscribed somewhere must not undo having said no."""
+        from gallery.models import Subscriber
+        yes = self._csv('yes.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        no = self._csv('no.csv', [('ana@example.com', 'Ana', 'Ruiz', 'unsubscribed')])
+        for order in ((yes, no), (no, yes)):
+            with self.subTest(order=[p[-6:] for p in order]):
+                Subscriber.objects.all().delete()
+                self._run(*order)
+                subscription = Subscriber.objects.get(email='ana@example.com').subscriptions.get()
+                self.assertFalse(subscription.is_subscribed)
+
+    def test_cleaned_and_unknown_statuses_are_treated_as_opted_out(self):
+        from gallery.models import Subscriber
+        path = self._csv('mixed.csv', [
+            ('a@example.com', 'A', 'One', 'cleaned'),
+            ('b@example.com', 'B', 'Two', 'archived'),
+            ('c@example.com', 'C', 'Three', 'something-new'),
+            ('d@example.com', 'D', 'Four', 'subscribed')])
+        self._run(path)
+        subscribed = {s.subscriber.email for s in
+                      Subscriber.objects.first().subscriptions.model.objects.filter(
+                          is_subscribed=True)}
+        self.assertEqual(subscribed, {'d@example.com'})
+
+    def test_a_blank_name_in_one_row_does_not_erase_it_from_another(self):
+        from gallery.models import Subscriber
+        path = self._csv('names.csv', [
+            ('bo@example.com', '', '', 'subscribed'),
+            ('bo@example.com', 'Bo', 'Chen', 'subscribed')])
+        self._run(path)
+        self.assertEqual(Subscriber.objects.get(email='bo@example.com').full_name, 'Bo Chen')
+
+    def test_an_existing_corrected_name_is_not_overwritten(self):
+        """A name fixed here outranks the export it was fixed from; a blank one is
+        filled in."""
+        from gallery.models import Subscriber
+        Subscriber.objects.create(email='ana@example.com', first_name='Ana',
+                                  last_name='Ruiz-Corrected')
+        Subscriber.objects.create(email='bo@example.com')
+        path = self._csv('again.csv', [
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('bo@example.com', 'Bo', 'Chen', 'subscribed')])
+        self._run(path)
+        self.assertEqual(Subscriber.objects.get(email='ana@example.com').last_name,
+                         'Ruiz-Corrected')
+        self.assertEqual(Subscriber.objects.get(email='bo@example.com').full_name, 'Bo Chen')
+
+    def test_running_it_twice_changes_nothing(self):
+        from gallery.models import Subscriber
+        path = self._csv('twice.csv', [
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('bo@example.com', 'Bo', 'Chen', 'unsubscribed')])
+        self._run(path)
+        before = [(s.email, s.full_name, s.subscriptions.get().is_subscribed,
+                   s.subscriptions.get().unsubscribed_at)
+                  for s in Subscriber.objects.order_by('email')]
+        out = self._run(path)
+        after = [(s.email, s.full_name, s.subscriptions.get().is_subscribed,
+                  s.subscriptions.get().unsubscribed_at)
+                 for s in Subscriber.objects.order_by('email')]
+        self.assertEqual(before, after)
+        self.assertIn('0 new, 2 already present', out)
+
+    def test_dry_run_writes_nothing(self):
+        from gallery.models import Subscriber
+        path = self._csv('dry.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(path, dry_run=True)
+        self.assertIn('Nothing was written', out)
+        self.assertFalse(Subscriber.objects.exists())
+
+    def test_alternative_column_spellings_are_accepted(self):
+        from gallery.models import Subscriber
+        path = self._csv('alt.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')],
+                         header='email_address,fname,lname,member status')
+        self._run(path)
+        self.assertEqual(Subscriber.objects.get(email='ana@example.com').full_name, 'Ana Ruiz')
+
+    def test_a_file_with_no_email_column_is_refused(self):
+        from django.core.management.base import CommandError
+        path = self._csv('bad.csv', [('x', 'y')], header='name,notes')
+        with self.assertRaises(CommandError):
+            self._run(path)
+
+    def test_rows_without_a_usable_email_are_counted_and_skipped(self):
+        from gallery.models import Subscriber
+        path = self._csv('partial.csv', [
+            ('', 'No', 'Email', 'subscribed'),
+            ('not-an-address', 'Bad', 'One', 'subscribed'),
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(path)
+        self.assertIn('2 row(s) had no usable email', out)
+        self.assertEqual(Subscriber.objects.count(), 1)
+
+    def test_importing_into_a_named_venue(self):
+        from gallery.models import Site, Subscriber
+        site = Site.objects.create(name='120710', slug='120710',
+                                   status=Site.STATUS_PUBLISHED)
+        path = self._csv('venue.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        self._run(path, site='120710')
+        subscription = Subscriber.objects.get(email='ana@example.com').subscriptions.get()
+        self.assertEqual(subscription.site, site)
+
+    def test_an_unknown_venue_slug_is_refused(self):
+        from django.core.management.base import CommandError
+        path = self._csv('venue.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        with self.assertRaises(CommandError):
+            self._run(path, site='no-such-venue')
+
+
+
+
+class PrivacyPageTests(TestCase):
+    """The policy has to be reachable, venue-aware, and true. The last one is what the
+    tests can actually help with: each claim below is paired with the behaviour that
+    makes it honest, so changing the behaviour breaks the claim."""
+
+    def setUp(self):
+        from gallery.models import Site
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA',
+            postal_code='94710', email='info@120710.art')
+
+    def test_reachable_scoped_and_unscoped(self):
+        for url in (reverse('privacy'),
+                    reverse('site_privacy', kwargs={'site_slug': self.site.slug})):
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 200)
+                self.assertContains(r, '120710')
+                self.assertContains(r, 'info@120710.art')
+
+    def test_an_unpublished_venue_has_no_public_policy_page(self):
+        from gallery.models import Site
+        hidden = Site.objects.create(name='Hidden', slug='hidden',
+                                     status=Site.STATUS_DRAFT)
+        r = self.client.get(reverse('site_privacy', kwargs={'site_slug': hidden.slug}))
+        self.assertEqual(r.status_code, 404)
+
+    def test_linked_from_the_nav_and_the_subscribe_form(self):
+        self.assertContains(self.client.get('/', follow=True), '>Privacy</a>')
+        self.assertContains(self.client.get(reverse('subscribe')), 'privacy page')
+
+    def test_every_campaign_links_it(self):
+        """A mailing list's policy has to be reachable from the mail itself, not only
+        from a site someone would have to go looking for."""
+        from gallery import campaigns as engine
+        from gallery.models import Campaign, Subscriber, Subscription
+        subscriber, _ = Subscriber.opt_in(
+            email='s@example.com', sites=[self.site],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        campaign = Campaign.objects.create(site=self.site, subject='S',
+                                           body_markdown='Hi')
+        html = engine.render_campaign(campaign, subscriber.subscriptions.get())
+        self.assertIn(reverse('site_privacy', kwargs={'site_slug': self.site.slug}), html)
+
+    def test_the_no_tracking_claim_is_true(self):
+        """It says our mail carries no tracking pixel and no rewritten links, and that
+        we discard open/click events. Both halves are checked here."""
+        from anymail.signals import AnymailTrackingEvent, EventType, tracking
+        from gallery import campaigns as engine
+        from gallery.models import Campaign, Subscriber, Subscription
+        subscriber, _ = Subscriber.opt_in(
+            email='t@example.com', sites=[self.site],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        campaign = Campaign.objects.create(site=self.site, subject='S',
+                                           body_markdown='Read [this](https://example.com/a).')
+        html = engine.render_campaign(campaign, subscriber.subscriptions.get())
+
+        # The link the author wrote survives verbatim — not rewritten through a tracker.
+        self.assertIn('https://example.com/a', html)
+        # No 1x1 beacon.
+        self.assertNotIn('width="1"', html)
+
+        # And an open reported anyway changes nothing.
+        before = list(subscriber.subscriptions.values_list('is_subscribed', flat=True))
+        tracking.send(sender=None, esp_name='Resend',
+                      event=AnymailTrackingEvent(event_type=EventType.OPENED,
+                                                 recipient='t@example.com'))
+        self.assertEqual(list(subscriber.subscriptions.values_list('is_subscribed', flat=True)),
+                         before)
+
+    def test_the_contact_details_are_not_public_claim_is_true(self):
+        """It says an artist's email, phone, postal address and Venmo are not public and
+        are kept out of the machine-readable listings."""
+        from django.test import RequestFactory
+        from eatart.schemaorg.mappers import artist_to_schema, schema_to_dict
+        artist = Artist.objects.create(
+            first_name='Pia', last_name='Private', email='pia@example.com',
+            phone='555-0100', venmo='@pia', street='1 Test Lane', bio='A bio.')
+        art = Artwork.objects.create(name='W', end_year=2025)
+        art.artists.add(artist)
+        show = Show.objects.create(name='Pub', status=Show.STATUS_PUBLISHED,
+                                   start=datetime.date.today(), end=datetime.date.today())
+        art.shows.add(show)
+
+        body = self.client.get(artist.get_absolute_url(), follow=True).content.decode()
+        for secret in ('pia@example.com', '555-0100', '@pia', '1 Test Lane'):
+            self.assertNotIn(secret, body)
+        self.assertIn('A bio.', body)      # the public half still is public
+
+        blob = str(schema_to_dict(artist_to_schema(artist, RequestFactory().get('/'))))
+        for secret in ('pia@example.com', '555-0100', '@pia'):
+            self.assertNotIn(secret, blob)
+
+
+
+
+class SubscriberManagementTests(TestCase):
+    """Staff pages for the list. The reason this exists is that somebody emails asking to
+    be taken off and there has to be somewhere to do it — so that path is tested first."""
+
+    def setUp(self):
+        from gallery.models import Site, Subscriber, Subscription
+        self.a = Site.objects.create(name='120710', slug='120710',
+                                     status=Site.STATUS_PUBLISHED)
+        self.b = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                     status=Site.STATUS_PUBLISHED)
+        self.both, _ = Subscriber.opt_in(
+            email='both@example.com', first_name='Both', last_name='Lists',
+            sites=[self.a, self.b], source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.bounced, _ = Subscriber.opt_in(
+            email='gone@example.com', sites=[self.a],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.bounced.unsubscribe_all(reason=Subscription.UNSUB_BOUNCED)
+        self.staff = User.objects.create_user(
+            username='subs@example.com', email='subs@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+
+    def _lists(self, subscriber):
+        subscriber.refresh_from_db()
+        return sorted((s.list_name, s.is_subscribed) for s in subscriber.subscriptions.all())
+
+    def test_removing_someone_from_one_list_leaves_the_others(self):
+        subscription = self.both.subscriptions.get(site=self.a)
+        r = self.client.post(reverse('gallery:subscription_unsubscribe',
+                                     kwargs={'pk': subscription.pk}), follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self._lists(self.both), [('120710', False), ('Elsewhere', True)])
+
+    def test_removing_someone_from_everything(self):
+        self.client.post(reverse('gallery:subscriber_unsubscribe_all',
+                                 kwargs={'pk': self.both.pk}), follow=True)
+        self.assertEqual(self._lists(self.both), [('120710', False), ('Elsewhere', False)])
+
+    def test_a_removal_is_recorded_as_requested_not_as_a_bounce(self):
+        """The reason has to stay honest: it decides whether an address is ever tried
+        again."""
+        from gallery.models import Subscription
+        subscription = self.both.subscriptions.get(site=self.a)
+        self.client.post(reverse('gallery:subscription_unsubscribe',
+                                 kwargs={'pk': subscription.pk}))
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.unsubscribed_reason, Subscription.UNSUB_REQUESTED)
+
+    def test_someone_can_be_added_back_when_they_ask(self):
+        subscription = self.both.subscriptions.get(site=self.a)
+        self.client.post(reverse('gallery:subscription_unsubscribe',
+                                 kwargs={'pk': subscription.pk}))
+        self.client.post(reverse('gallery:subscription_resubscribe',
+                                 kwargs={'pk': subscription.pk}))
+        self.assertEqual(self._lists(self.both), [('120710', True), ('Elsewhere', True)])
+
+    def test_a_bounced_address_offers_no_add_back_button(self):
+        """Undoing a bounce or complaint from here would make the suppression record
+        meaningless, so the button is only offered for a plain request."""
+        body = self.client.get(reverse('gallery:subscriber_list')).content.decode()
+        self.assertIn('hard bounce', body.lower())
+        subscription = self.bounced.subscriptions.get()
+        self.assertNotIn(reverse('gallery:subscription_resubscribe',
+                                 kwargs={'pk': subscription.pk}), body)
+
+    def test_adding_one_person_by_hand(self):
+        from gallery.models import Subscriber, Subscription
+        self.client.post(reverse('gallery:subscriber_add'),
+                         {'email': 'HAND@Example.com', 'first_name': 'By',
+                          'last_name': 'Hand', 'site': 'elsewhere'})
+        person = Subscriber.objects.get(email='hand@example.com')   # lower-cased
+        self.assertEqual(person.full_name, 'By Hand')
+        subscription = person.subscriptions.get()
+        self.assertEqual(subscription.site, self.b)
+        self.assertEqual(subscription.source, Subscription.SOURCE_MANUAL)
+
+    def test_adding_a_bad_address_is_refused(self):
+        from gallery.models import Subscriber
+        before = Subscriber.objects.count()
+        self.client.post(reverse('gallery:subscriber_add'), {'email': 'not-an-address'})
+        self.assertEqual(Subscriber.objects.count(), before)
+
+    def test_deleting_someone_entirely(self):
+        from gallery.models import Subscriber, Subscription
+        self.client.post(reverse('gallery:subscriber_delete'.replace('x', 'x'),
+                                 kwargs={'pk': self.bounced.pk}))
+        self.assertFalse(Subscriber.objects.filter(email='gone@example.com').exists())
+        # And their subscriptions went with them.
+        self.assertFalse(Subscription.objects.filter(
+            subscriber__email='gone@example.com').exists())
+
+    def test_search_and_filters(self):
+        url = reverse('gallery:subscriber_list')
+        cases = [
+            ({'q': 'both'}, True, False),
+            ({'q': 'gone'}, False, True),
+            ({'status': 'unsubscribed'}, False, True),
+            ({'status': 'subscribed'}, True, False),
+            ({'list': 'elsewhere'}, True, False),
+        ]
+        for params, wants_both, wants_gone in cases:
+            with self.subTest(**params):
+                body = self.client.get(url, params).content.decode()
+                self.assertEqual('both@example.com' in body, wants_both)
+                self.assertEqual('gone@example.com' in body, wants_gone)
+
+    def test_someone_on_two_lists_who_left_one_is_not_listed_as_unsubscribed(self):
+        subscription = self.both.subscriptions.get(site=self.a)
+        # follow=True so the "removed from…" flash message is consumed by the redirect.
+        # Left queued it renders on the next page and names the address, which would look
+        # like the filter had matched them.
+        self.client.post(reverse('gallery:subscription_unsubscribe',
+                                 kwargs={'pk': subscription.pk}), follow=True)
+        body = self.client.get(reverse('gallery:subscriber_list'),
+                               {'status': 'unsubscribed'}).content.decode()
+        self.assertNotIn('both@example.com', body)
+
+    def test_the_counts_match_what_a_campaign_would_send_to(self):
+        from gallery import campaigns as engine
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(site=self.a, subject='S', body_markdown='Hi')
+        expected = engine.recipients(campaign).count()
+        body = self.client.get(reverse('gallery:subscriber_list')).content.decode()
+        self.assertIn('120710 <strong>%d</strong>' % expected,
+                      ' '.join(body.split()))
+
+    def test_only_staff_get_in(self):
+        from gallery.models import Subscriber
+        actions = [
+            reverse('gallery:subscriber_list'),
+            reverse('gallery:subscriber_delete', kwargs={'pk': self.both.pk}),
+            reverse('gallery:subscriber_unsubscribe_all', kwargs={'pk': self.both.pk}),
+        ]
+        self.client.logout()
+        for url in actions:
+            with self.subTest(url=url, who='anonymous'):
+                self.assertEqual(self.client.post(url).status_code, 302)
+
+        artist = User.objects.create_user(
+            username='nope2@example.com', email='nope2@example.com', password='pw')
+        self.client.force_login(artist)
+        for url in actions:
+            with self.subTest(url=url, who='non-staff'):
+                self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertTrue(Subscriber.objects.filter(email='both@example.com').exists())
+
 
 
 class HowToAnchorTests(TestCase):
@@ -6201,3 +8222,527 @@ class RobotsTests(TestCase):
             self.assertIn(f'User-agent: {agent}', body)
         # ...and the ones that only take are not.
         self.assertRegex(body, r'User-agent: SemrushBot\s+Disallow: /')
+
+
+class SubscriberTests(TestCase):
+    """One person, many lists.
+
+    The model was first written as one row per (site, email), which made a person on two
+    galleries' lists two rows with two names and two independent unsubscribe states — and
+    left "stop emailing me" with nowhere single to be recorded.
+    """
+
+    def setUp(self):
+        self.venue = Site.objects.create(name='Venue One', status=Site.STATUS_PUBLISHED,
+                                         country='US')
+        self.other = Site.objects.create(name='Venue Two', status=Site.STATUS_PUBLISHED,
+                                         country='US')
+
+    def test_one_person_on_two_lists_is_one_row(self):
+        Subscriber.opt_in(email='both@example.com', first_name='Bo',
+                          sites=[self.venue, self.other])
+        self.assertEqual(Subscriber.objects.filter(email='both@example.com').count(), 1)
+        self.assertEqual(Subscription.objects.count(), 2)
+
+    def test_email_is_case_insensitive(self):
+        Subscriber.opt_in(email='Person@Example.COM ', sites=[self.venue])
+        Subscriber.opt_in(email='person@example.com', sites=[self.venue])
+        self.assertEqual(Subscriber.objects.count(), 1)
+        self.assertEqual(Subscription.objects.count(), 1)
+
+    def test_unsubscribing_one_list_leaves_the_others(self):
+        subscriber, subs = Subscriber.opt_in(email='a@example.com',
+                                             sites=[self.venue, self.other])
+        subs[0].unsubscribe()
+        remaining = [s.list_name for s in subscriber.subscriptions.filter(is_subscribed=True)]
+        self.assertEqual(remaining, [self.other.name])
+
+    def test_unsubscribe_all_clears_every_list(self):
+        subscriber, _ = Subscriber.opt_in(email='a@example.com',
+                                          sites=[self.venue, self.other, None])
+        self.assertEqual(subscriber.unsubscribe_all(), 3)
+        self.assertFalse(subscriber.subscriptions.filter(is_subscribed=True).exists())
+
+    def test_unsubscribing_twice_does_not_move_the_timestamp(self):
+        _, subs = Subscriber.opt_in(email='a@example.com', sites=[self.venue])
+        subs[0].unsubscribe()
+        first = subs[0].unsubscribed_at
+        self.assertFalse(subs[0].unsubscribe())
+        subs[0].refresh_from_db()
+        self.assertEqual(subs[0].unsubscribed_at, first)
+
+    def test_opting_in_again_after_unsubscribing_is_honoured(self):
+        """They asked. Refusing would be worse than honouring it."""
+        subscriber, subs = Subscriber.opt_in(email='a@example.com', sites=[self.venue])
+        subs[0].unsubscribe()
+        Subscriber.opt_in(email='a@example.com', sites=[self.venue])
+        subs[0].refresh_from_db()
+        self.assertTrue(subs[0].is_subscribed)
+        self.assertEqual(subs[0].unsubscribed_reason, '')
+
+    def test_a_later_form_submission_improves_a_blank_imported_name(self):
+        Subscription.objects.create(
+            subscriber=Subscriber.objects.create(email='a@example.com'), site=self.venue,
+            source=Subscription.SOURCE_IMPORT)
+        Subscriber.opt_in(email='a@example.com', first_name='Real', last_name='Name',
+                          sites=[self.venue])
+        self.assertEqual(Subscriber.objects.get(email='a@example.com').full_name,
+                         'Real Name')
+
+
+class CampaignTests(TestCase):
+    """Rendering, the send guard, and who a campaign reaches."""
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            name='Test Gallery', status=Site.STATUS_PUBLISHED, country='US',
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        self.campaign = Campaign.objects.create(
+            subject='Opening night', site=self.site,
+            body_markdown='# Come along\n\nOpening **Saturday**, [details](https://x.test/).')
+
+    # --- Rendering ---
+
+    def test_markdown_compiles_to_table_based_html(self):
+        """MJML's whole job: Outlook renders with the Word engine and needs tables."""
+        html = campaigns.render_preview(self.campaign)
+        self.assertGreater(html.count('<table'), 3)
+        self.assertIn('<strong>Saturday</strong>', html)
+        self.assertIn('href="https://x.test/"', html)
+
+    def test_no_email_reaches_out_to_a_third_party_for_a_font(self):
+        """MJML adds a <link> to fonts.googleapis.com if it recognises a Google font name.
+
+        Caught by accident: adding Roboto to the font stack made an unrelated list assertion
+        fail, because "<li" also matches "<link". A Google Fonts tag would make every email
+        fetch a resource from Google on open, which is a tracking vector and contradicts what
+        the privacy page promises.
+        """
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('fonts.googleapis.com', html)
+        self.assertNotIn('<link', html)
+
+    def test_lists_become_real_lists(self):
+        """The construct a newsletter author reaches for most, and the one that used to fail.
+
+        Dash bullets rendered as literal "- " text, and star bullets were worse: the emphasis
+        pattern spanned the line break, so "* one\n* two" came out as one long italic.
+        """
+        for source, tag in (('- one\n- two', 'ul'),
+                            ('* one\n* two', 'ul'),
+                            ('+ one\n+ two', 'ul'),
+                            ('1. one\n2. two', 'ol')):
+            with self.subTest(source=source):
+                self.campaign.body_markdown = source
+                self.campaign.save()
+                html = campaigns.render_preview(self.campaign)
+                self.assertIn(f'<{tag}', html)
+                self.assertEqual(html.count('<li '), 2)
+                self.assertNotIn('<em>', html)
+                # And the marker itself is gone rather than printed alongside the bullet.
+                self.assertNotIn('- one', html)
+
+    def test_emphasis_does_not_span_a_line_break(self):
+        self.campaign.body_markdown = 'one *two\nthree* four'
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('<em>', html)
+
+    def test_a_paragraph_containing_a_dash_is_not_mistaken_for_a_list(self):
+        """All-or-nothing: a chunk where only some lines look like items is prose."""
+        self.campaign.body_markdown = 'We open on Friday.\n- and close on Sunday'
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('<ul', html)
+
+    def test_text_after_an_image_becomes_a_caption_instead_of_vanishing(self):
+        """It used to be dropped on the floor, silently, which is the worst way to lose writing."""
+        self.campaign.body_markdown = ('![Opening night](https://x.test/p.jpg)\n'
+                                       'Photograph by *Sam Ready*.')
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertIn('https://x.test/p.jpg', html)
+        self.assertIn('Photograph by', html)
+        self.assertIn('<em>Sam Ready</em>', html)
+
+    def test_a_show_template_gets_its_show_without_the_caller_passing_it(self):
+        """The bug this fixes made every show template useless in the app.
+
+        The show came only from `extra_context`, which nothing in the application ever passed —
+        so a show campaign rendered with every field blank in the preview, in the test send and
+        in the real send alike, and only the tests ever saw one work.
+        """
+        show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3),
+            description='Fourteen artists on making, unmaking and mending.')
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Repetition and Repair opens',
+            template_name='show_opening.mjml')
+
+        # render_preview, deliberately: it is what the page shows and it passes no context.
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Repetition and Repair', html)
+        self.assertIn('September', html)
+        self.assertIn('making, unmaking and mending', html)
+
+    def test_the_opening_template_names_the_reception_from_the_events(self):
+        """Nobody retypes a reception time — which is the whole reason for the template route."""
+        show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 9, 4),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        Event.objects.create(name='Artist Talk', show=show,
+                             date=datetime.date(2026, 9, 19),
+                             start=datetime.time(19, 0), end=datetime.time(20, 30))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Opens Friday',
+            template_name='show_opening.mjml')
+
+        html = campaigns.render_preview(campaign)
+        # The time comes from the event, which is the whole point — the heading already says
+        # "Opening", so the template does not repeat the event's name under it.
+        self.assertIn('6:00 PM', html)
+        self.assertIn('Friday, 4 September', html)
+        # And the later event is listed rather than presented as the opening.
+        self.assertIn('Artist Talk', html)
+
+    def test_the_closing_template_leads_with_the_end_date_and_says_it_once(self):
+        """Caught by reading the rendered output: an earlier version said the date three times."""
+        show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 9, 4),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        Event.objects.create(name='Closing Party', show=show,
+                             date=datetime.date(2026, 10, 3),
+                             start=datetime.time(17, 0), end=datetime.time(20, 0))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Last chance',
+            template_name='show_closing.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('LAST CHANCE', html)
+        self.assertIn('comes down on Saturday, 3 October', html)
+        self.assertIn('Closing Party', html)
+        # The closing mailing is not an invitation to the opening.
+        self.assertNotIn('Opening Reception', html)
+        self.assertEqual(html.count('3 October'), 2,
+                         'the closing date belongs in the lead and the date block, not thrice')
+
+    def test_a_show_with_one_event_has_an_opening_but_no_closing(self):
+        """A single reception is an opening, not a finale, and must not be shown as one."""
+        show = Show.objects.create(
+            name='Solo', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 9, 4),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        context = campaigns.show_context(show)
+        self.assertEqual(context['opening'].name, 'Opening Reception')
+        self.assertIsNone(context['closing'])
+
+    def test_a_show_with_no_events_falls_back_to_its_own_dates(self):
+        show = Show.objects.create(
+            name='Quiet', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Quiet opens',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Quiet', html)
+        self.assertIn('4 September', html)
+
+    def test_a_show_template_without_a_show_is_a_form_error_not_a_blank_email(self):
+        from gallery.forms import CampaignForm
+        form = CampaignForm(data={'site': self.site.pk, 'subject': 'Oops',
+                                  'template_name': 'show_opening.mjml',
+                                  'show': '', 'body_markdown': ''})
+        self.assertFalse(form.is_valid())
+        self.assertIn('needs one chosen', str(form.errors['show']))
+
+    def test_the_templates_are_offered_in_the_order_a_show_happens(self):
+        """Alphabetical put closing before opening, which is not how a show goes."""
+        from gallery.forms import CampaignForm
+        values = [v for v, _ in CampaignForm().fields['template_name'].choices if v]
+        self.assertEqual(values[:3], ['show_announcement.mjml', 'show_opening.mjml',
+                                      'show_closing.mjml'])
+
+    def test_the_template_dropdown_shows_readable_names(self):
+        from gallery.forms import CampaignForm
+        labels = dict(CampaignForm().fields['template_name'].choices)
+        self.assertEqual(labels['show_opening.mjml'],
+                         'Show opening — dates, reception, a few works')
+
+    def test_a_template_can_place_the_authors_prose_inside_its_layout(self):
+        """Templates and Markdown used to be mutually exclusive.
+
+        That meant a designed layout and editable wording were an either/or: staff could write
+        something this week, or have it laid out properly, and getting both took a deploy.
+        """
+        show = Show.objects.create(
+            name='Autumn Group Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            subject='Autumn opens', site=self.site,
+            template_name='show_announcement.mjml',
+            body_markdown='A note from the curator:\n\n- one thing\n- another')
+
+        html = self._render_with_show(campaign, show)
+        # The template's own content...
+        self.assertIn('Autumn Group Show', html)
+        # ...and the author's prose inside it, as a real list.
+        self.assertIn('A note from the curator', html)
+        self.assertIn('<ul', html)
+        self.assertEqual(html.count('<li '), 2)
+
+    def test_a_template_without_a_body_renders_unchanged(self):
+        """The hybrid must be opt-in per campaign, not a blank block on every one."""
+        show = Show.objects.create(
+            name='Autumn Group Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            subject='Autumn opens', site=self.site,
+            template_name='show_announcement.mjml', body_markdown='   ')
+        html = self._render_with_show(campaign, show)
+        self.assertIn('Autumn Group Show', html)
+        self.assertNotIn('<ul', html)
+
+    def _render_with_show(self, campaign, show):
+        """A template campaign needs the objects it names; render_preview cannot know them."""
+        stand_in = Subscription(
+            pk=0, site=self.site,
+            subscriber=Subscriber(pk=0, email='r@example.com'))
+        return campaigns.render_campaign(
+            campaign, stand_in,
+            extra_context={'show': show, 'show_url': 'https://x.test/show/', 'artworks': []})
+
+    def test_author_text_is_escaped_but_generated_markup_is_not(self):
+        """The body is markup we generate around text they wrote — only one of those is safe."""
+        self.campaign.body_markdown = 'Hello <script>alert(1)</script>'
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('<script>', html)
+        self.assertIn('&lt;script&gt;', html)
+        # ...and the surrounding MJML still compiled rather than being escaped into text.
+        self.assertNotIn('&lt;mj-text', html)
+
+    def test_a_template_campaign_pulls_its_content_from_the_database(self):
+        """The main authoring route: a fixed shape, filled from real objects.
+
+        MJML rendered *through* Django's template engine, so the campaign reaches the ORM
+        and nobody retypes a date.
+        """
+        show = Show.objects.create(
+            name='Autumn Group Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30),
+            description='Fourteen artists on the theme of repetition.')
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            subject='Autumn Group Show opens', site=self.site,
+            template_name='show_announcement.mjml')
+
+        stand_in = Subscription(
+            pk=0, site=self.site,
+            subscriber=Subscriber(pk=0, email='r@example.com'))
+        html = campaigns.render_campaign(
+            campaign, stand_in,
+            extra_context={'show': show, 'show_url': 'https://x.test/show/',
+                           'artworks': []})
+
+        self.assertIn('Autumn Group Show', html)
+        self.assertIn('1 September', html)
+        self.assertIn('30 September 2026', html)
+        self.assertIn('repetition', html)
+        # The proof it compiled rather than being escaped into the page as literal markup.
+        self.assertGreater(html.count('<table'), 3)
+        self.assertNotIn('&lt;mj-', html)
+
+    def test_every_campaign_carries_the_postal_address(self):
+        """CAN-SPAM requires it in every marketing email, and it comes from the venue."""
+        html = campaigns.render_preview(self.campaign)
+        self.assertIn('1207 Tenth Street', html)
+
+    def test_every_campaign_carries_an_unsubscribe_link(self):
+        html = campaigns.render_preview(self.campaign)
+        self.assertIn('/unsubscribe/', html)
+
+    def test_rendering_a_preview_creates_nothing(self):
+        campaigns.render_preview(self.campaign)
+        self.assertEqual(Subscriber.objects.count(), 0)
+
+    # --- The send guard ---
+
+    def test_a_campaign_cannot_be_sent_untested(self):
+        self.assertFalse(self.campaign.can_send)
+        self.assertIn('test', self.campaign.blocked_reason.lower())
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign)
+
+    def test_editing_after_a_test_rearms_the_guard(self):
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.assertTrue(self.campaign.can_send)
+
+        self.campaign.subject = 'Changed my mind'
+        self.campaign.save()
+        self.assertFalse(self.campaign.can_send,
+                         'a content change must invalidate the earlier test')
+        self.assertIn('changed', self.campaign.blocked_reason.lower())
+
+    def test_a_non_content_change_does_not_re_arm_the_guard(self):
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.campaign.recipient_count = 5
+        self.campaign.save()
+        self.assertTrue(self.campaign.can_send)
+
+    # --- Recipients ---
+
+    def test_only_subscribed_people_receive_it(self):
+        Subscriber.opt_in(email='yes@example.com', sites=[self.site])
+        _, gone = Subscriber.opt_in(email='no@example.com', sites=[self.site])
+        gone[0].unsubscribe()
+        addresses = {s.subscriber.email for s in campaigns.recipients(self.campaign)}
+        self.assertEqual(addresses, {'yes@example.com'})
+
+    def test_a_venues_campaign_does_not_reach_another_venues_list(self):
+        elsewhere = Site.objects.create(name='Elsewhere', status=Site.STATUS_PUBLISHED,
+                                        country='US')
+        Subscriber.opt_in(email='ours@example.com', sites=[self.site])
+        Subscriber.opt_in(email='theirs@example.com', sites=[elsewhere])
+        addresses = {s.subscriber.email for s in campaigns.recipients(self.campaign)}
+        self.assertEqual(addresses, {'ours@example.com'})
+
+    def test_a_network_campaign_reaches_only_the_network_list(self):
+        Subscriber.opt_in(email='network@example.com', sites=[None])
+        Subscriber.opt_in(email='venue@example.com', sites=[self.site])
+        network_campaign = Campaign.objects.create(subject='All of us', site=None)
+        addresses = {s.subscriber.email for s in campaigns.recipients(network_campaign)}
+        self.assertEqual(addresses, {'network@example.com'})
+
+
+class UnsubscribeTests(TestCase):
+    """The link in the footer, and the button Gmail renders."""
+
+    def setUp(self):
+        self.site = Site.objects.create(name='Venue', status=Site.STATUS_PUBLISHED,
+                                        country='US')
+        self.other = Site.objects.create(name='Other Venue', status=Site.STATUS_PUBLISHED,
+                                         country='US')
+        self.subscriber, self.subs = Subscriber.opt_in(
+            email='reader@example.com', sites=[self.site, self.other])
+        self.url = reverse('unsubscribe', kwargs={
+            'token': campaigns.unsubscribe_token(self.subs[0])})
+
+    def test_get_asks_rather_than_unsubscribing(self):
+        """Security appliances and mail previewers fetch every link in a message."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.subs[0].refresh_from_db()
+        self.assertTrue(self.subs[0].is_subscribed, 'a GET must not unsubscribe anyone')
+
+    def test_post_unsubscribes_one_click(self):
+        """What Gmail's Unsubscribe button calls, driven by List-Unsubscribe-Post."""
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.subs[0].refresh_from_db()
+        self.assertFalse(self.subs[0].is_subscribed)
+
+    def test_one_click_leaves_the_other_lists_alone(self):
+        self.client.post(self.url)
+        self.subs[1].refresh_from_db()
+        self.assertTrue(self.subs[1].is_subscribed,
+                        "a mail client's button must not unsubscribe lists it never named")
+
+    def test_unsubscribe_from_everything_is_one_more_click(self):
+        self.client.post(self.url, {'scope': 'all'})
+        self.assertFalse(self.subscriber.subscriptions.filter(is_subscribed=True).exists())
+
+    def test_a_tampered_token_still_answers_200(self):
+        """Telling a mail client the unsubscribe failed makes it warn the recipient."""
+        bad = reverse('unsubscribe', kwargs={'token': 'not-a-real-token'})
+        self.assertEqual(self.client.post(bad).status_code, 200)
+        self.assertEqual(self.client.get(bad).status_code, 200)
+
+    def test_a_token_is_only_good_for_the_person_it_names(self):
+        """The email travels in the token beside the pk, so a reused row cannot be caught
+        by an old link."""
+        token = campaigns.unsubscribe_token(self.subs[0])
+        self.assertIsNotNone(campaigns.subscription_from_token(token))
+        # Same row, different person: the token must stop resolving.
+        self.subs[0].subscriber.email = 'someone.else@example.com'
+        self.subs[0].subscriber.save()
+        self.assertIsNone(campaigns.subscription_from_token(token))
+
+    def test_a_token_for_a_deleted_subscription_resolves_to_nothing(self):
+        token = campaigns.unsubscribe_token(self.subs[0])
+        self.subs[0].delete()
+        self.assertIsNone(campaigns.subscription_from_token(token))
+
+    def test_the_message_carries_the_one_click_headers(self):
+        campaign = Campaign.objects.create(subject='Hello', site=self.site)
+        message = campaigns.build_message(campaign, self.subs[0])
+        self.assertIn('List-Unsubscribe', message.extra_headers)
+        self.assertEqual(message.extra_headers['List-Unsubscribe-Post'],
+                         'List-Unsubscribe=One-Click')
+
+
+class ArtistMailingListOptInTests(TestCase):
+    """The checkbox on the artist profile."""
+
+    def setUp(self):
+        self.site = Site.objects.create(name='Default Venue', slug='default-venue',
+                                        status=Site.STATUS_PUBLISHED, country='US')
+        self.artist = Artist.objects.create(
+            name='Opt Artist', first_name='Opt', last_name='Artist',
+            email='opt@example.com', phone='', country='US', zipcode='94710')
+        self.artist.image.save('opt.jpg', _test_jpg(), save=True)
+
+    def _form(self, subscribe):
+        from django.contrib.auth.models import AnonymousUser
+
+        from gallery.forms import ArtistForm
+        data = {
+            'first_name': 'Opt', 'last_name': 'Artist', 'email': 'opt@example.com',
+            'country': 'US', 'zipcode': '94710',
+            'subscribe_to_mailing_list': 'on' if subscribe else '',
+        }
+        return ArtistForm(data=data, instance=self.artist, user=AnonymousUser())
+
+    def test_the_box_is_unticked_by_default(self):
+        """Consent is given, not merely not-withdrawn. A pre-ticked box is not consent."""
+        from django.contrib.auth.models import AnonymousUser
+
+        from gallery.forms import ArtistForm
+        form = ArtistForm(instance=self.artist, user=AnonymousUser())
+        self.assertFalse(form.fields['subscribe_to_mailing_list'].initial)
+
+    def test_ticking_it_subscribes_them(self):
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            form = self._form(subscribe=True)
+            self.assertTrue(form.is_valid(), form.errors)
+            form.save()
+        self.assertTrue(Subscription.objects.filter(
+            subscriber__email='opt@example.com', site=self.site,
+            is_subscribed=True).exists())
+
+    def test_unticking_it_unsubscribes_them(self):
+        """Withdrawing consent has to be honoured, not read as "no change"."""
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            Subscriber.opt_in(email='opt@example.com', sites=[self.site])
+            form = self._form(subscribe=False)
+            self.assertTrue(form.is_valid(), form.errors)
+            form.save()
+        self.assertFalse(Subscription.objects.filter(
+            subscriber__email='opt@example.com', is_subscribed=True).exists())

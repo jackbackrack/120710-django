@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Unsubscribe{% endblock %}
+{% block block_title %}Unsubscribe{% endblock %}
+
+{% block content %}
+<div class="container text-center" style="max-width:520px">
+{% if invalid %}
+  <p>That unsubscribe link isn’t valid. It may have been altered in transit.</p>
+  <p class="text-muted">Email <a class="card__link" href="mailto:info@120710.art">info@120710.art</a>
+     and we’ll take you off the list by hand.</p>
+{% elif already %}
+  <p><strong>{{ subscriber.email }}</strong> is already unsubscribed from
+     {{ subscription.list_name }}.</p>
+  {% if others %}
+  <p class="text-muted">You still receive mailings from
+     {% for other in others %}{{ other.list_name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <input type="hidden" name="scope" value="all">
+    <button type="submit" class="btn btn-outline-danger btn-sm">Unsubscribe from those too</button>
+  </form>
+  {% endif %}
+{% else %}
+  {% comment %}
+    A button, not an unsubscribe on page load. Link-scanning security appliances and mail
+    previewers fetch every URL in a message, and would otherwise unsubscribe people who
+    never clicked anything.
+  {% endcomment %}
+  <p>Unsubscribe <strong>{{ subscriber.email }}</strong> from
+     <strong>{{ subscription.list_name }}</strong>?</p>
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Unsubscribe from {{ subscription.list_name }}</button>
+  </form>
+
+  {% if others %}
+  {% comment %}
+    Offered, not defaulted. Someone tired of one gallery has not necessarily finished with
+    the others — but "stop emailing me entirely" has to be reachable in one click, or the
+    only remaining option is the spam button.
+  {% endcomment %}
+  <p class="mt-4 text-muted small">You also hear from
+     {% for other in others %}{{ other.list_name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="scope" value="all">
+    <button type="submit" class="btn btn-outline-danger btn-sm">Unsubscribe from everything</button>
+  </form>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock %}

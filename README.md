@@ -2,7 +2,7 @@
 
 Open-source Django gallery management application for [120710.art](https://www.120710.art), an experimental art gallery at 1207 Tenth Street, Berkeley, CA.
 
-Manages artists, artworks, exhibitions (shows), events, and juror reviews/ratings with public-facing pages, a role-based admin workflow, Mailchimp mailing list integration, and Schema.org JSON-LD structured data on every content page.
+Manages artists, artworks, exhibitions (shows), events, and juror reviews/ratings with public-facing pages, a role-based admin workflow, a mailing list of its own, and Schema.org JSON-LD structured data on every content page.
 
 ---
 
@@ -18,7 +18,7 @@ Manages artists, artworks, exhibitions (shows), events, and juror reviews/rating
 - **Google OAuth** via django-allauth
 - **Admin** — ShowAdmin with artwork inline and filter_horizontal for artists/curators/tags; CSV/Excel import-export on all models
 - **Schema.org JSON-LD** — Pydantic-validated structured data on every public detail page
-- **Mailchimp sync** — mailing list management via Mailchimp API
+- **Mailing list** — subscribers, campaigns and unsubscribes in our own database; campaigns render from MJML and send via Resend, while transactional mail stays on smtp2go. Sends run in the background and a send that stops part-way can be resumed without mailing anyone twice — see [docs/mailing-list.md](docs/mailing-list.md)
 
 ---
 
@@ -100,10 +100,25 @@ RECAPTCHA_PRIVATE_KEY=
 # Optional explicit override (True/False)
 RECAPTCHA_ENABLED=
 
-# Optional: Mailchimp
-MAILCHIMP_API_KEY=
-MAILCHIMP_DATA_CENTER=
-MAILCHIMP_AUDIENCE_ID=
+# Transactional mail (production only). Read by the smtp2go library from the environment
+# directly, not via settings.py — so it shows up in no Django setting.
+SMTP2GO_API_KEY=
+
+# Optional: Resend, for mailing-list campaigns only
+RESEND_API_KEY=
+RESEND_SIGNING_SECRET=
+
+# Absolute base for links in campaign mail. Campaign sends run in a background thread with
+# no request to build URLs from, so this is where the unsubscribe link's host comes from.
+SITE_BASE_URL=https://www.120710.art
+# Set false to send campaigns inline rather than in a background thread (the tests do this)
+CAMPAIGN_SEND_IN_BACKGROUND=
+# Messages a second when sending a campaign. One API request per message, so this is the
+# provider's rate limit — Resend allows about two a second by default.
+CAMPAIGN_MESSAGES_PER_SECOND=2
+# Allow sending to the network-wide (reset.art) list. Off until reset.art has its own DKIM
+# and SPF; subscribers can be collected onto it meanwhile, just not mailed.
+CAMPAIGN_NETWORK_LIST_ENABLED=false
 
 # Optional: AWS S3 (set USE_S3=True to enable)
 USE_S3=False
@@ -125,8 +140,6 @@ eatart/             # Django project package
     mappers.py      # Model → Schema.org converters
     profile.py      # GALLERY_PROFILE — address, hours, social links
   views/            # Public views: index, about, contact, howto, subscribe
-  services/
-    mailchimp.py    # Mailchimp API integration
 
 gallery/            # Main gallery app
   models/
