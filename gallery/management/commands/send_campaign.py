@@ -3,6 +3,8 @@
     manage.py send_campaign 12 --dry-run
     manage.py send_campaign 12
     manage.py send_campaign 12 --resume
+    manage.py send_campaign 12 --limit 100           # day one of a warm-up
+    manage.py send_campaign 12 --resume --limit 300  # day two, and so on
 
 The web page starts sends in a background thread, which is enough for the ordinary case and
 gives the operator a progress bar. This exists for the cases that thread cannot cover:
@@ -12,6 +14,11 @@ gives the operator a progress bar. This exists for the cases that thread cannot 
   * A list large enough that minutes of sending inside a web container is the wrong place
     for it.
   * Diagnosing a failure with the provider's error in front of you rather than in a log.
+  * Warming up a new sending domain, with --limit: a domain with no sending history that puts a
+    thousand messages out on its first day is filtered on volume however gently they are paced,
+    so the ramp has to be across days. Each pass leaves the campaign paused with the rest still
+    owed. Note that a second pass needs --resume as well as --limit; being told "there is
+    nothing to resume" is better than a stray --limit re-sending a finished campaign.
 
 It is the same engine and the same guards, so it cannot send an untested draft either, and
 `--resume` mails only the people with no delivery record.
@@ -30,6 +37,9 @@ class Command(BaseCommand):
         parser.add_argument('--resume', action='store_true',
                             help='Finish a send that failed or was interrupted, skipping '
                                  'everyone already sent it.')
+        parser.add_argument('--limit', type=int,
+                            help='Send at most this many, then pause with the rest still owed. '
+                                 'For warming up a new sending domain across several days.')
         parser.add_argument('--dry-run', action='store_true',
                             help='Report who would be mailed and send nothing.')
 
@@ -44,6 +54,9 @@ class Command(BaseCommand):
         self.stdout.write(f'  {campaign.sent_so_far} already sent, {owed} still to go '
                           f'(status: {campaign.get_status_display().lower()})')
 
+        if options['limit']:
+            self.stdout.write(f'  sending at most {options["limit"]} this pass')
+
         if options['dry_run']:
             for subscription in engine.pending(campaign)[:10]:
                 self.stdout.write(f'    {subscription.subscriber.email}')
@@ -57,7 +70,8 @@ class Command(BaseCommand):
             return
 
         try:
-            sent = engine.send_campaign(campaign, resume=options['resume'])
+            sent = engine.send_campaign(campaign, resume=options['resume'],
+                                        limit=options['limit'])
         except ValueError as exc:
             # A refused guard, not a provider failure — say what to do rather than traceback.
             raise CommandError(str(exc))

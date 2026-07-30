@@ -21,9 +21,15 @@
   {% endcomment %}
   {% if campaign.can_resume %}
   <div class="alert alert-warning">
+    {% if campaign.status == 'paused' %}
+    <strong>This send is paused part-way, on purpose.</strong>
+    {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} subscriber{{ remaining_count|pluralize }} received it.
+    Send the rest when you are ready &mdash; nobody who already got it will get it twice.
+    {% else %}
     <strong>This send stopped before it finished.</strong>
     {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} subscriber{{ remaining_count|pluralize }} received it.
     Resume it below to send the rest &mdash; nobody who already got it will get it twice.
+    {% endif %}
   </div>
   {% elif in_flight %}
   <div class="alert alert-info">

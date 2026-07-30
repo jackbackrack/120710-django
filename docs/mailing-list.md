@@ -207,6 +207,22 @@ column, so a double-clicked button, two workers behind one URL, or Resume presse
 that is genuinely still running all lose the race and send nothing. The unique constraint on
 `CampaignDelivery` would catch the duplicate too, but only after the mail had gone out.
 
+### Warming up a new sending domain
+
+Pacing inside one send does nothing for a domain with no sending history. A thousand messages on
+day one is filtered on volume however gently they are spaced, so the ramp has to be across days,
+which means a send that deliberately stops short:
+
+    ./env/bin/python manage.py send_campaign 12 --limit 100           # day one
+    ./env/bin/python manage.py send_campaign 12 --resume --limit 300  # day two, and so on
+
+A limited pass leaves the campaign **`paused`** rather than `failed` — stopping on purpose is not
+the same as breaking, and the page says so in those words. Everything about resume applies: each
+pass only mails people with no delivery record, so no ordering or bookkeeping is needed.
+
+The second pass needs `--resume` as well as `--limit`. Being told "there is nothing to resume" is
+better than a stray `--limit` starting a finished campaign over.
+
 ### From the command line
 
 Same engine, same guards, no web process involved. Use it for a send interrupted by a deploy,

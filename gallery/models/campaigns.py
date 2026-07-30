@@ -21,11 +21,16 @@ class Campaign(models.Model):
     STATUS_SENDING = 'sending'
     STATUS_SENT = 'sent'
     STATUS_FAILED = 'failed'
+    # Stopped deliberately, part-way, with people still to go. A warm-up sends a few hundred a
+    # day to a domain with no sending history, and calling that state "failed" would be a lie
+    # told to the one person who needs to know the difference.
+    STATUS_PAUSED = 'paused'
     STATUS_CHOICES = [
         (STATUS_DRAFT, 'Draft'),
         (STATUS_SENDING, 'Sending'),
         (STATUS_SENT, 'Sent'),
         (STATUS_FAILED, 'Failed'),
+        (STATUS_PAUSED, 'Paused'),
     ]
 
     site = models.ForeignKey(
@@ -111,7 +116,8 @@ class Campaign(models.Model):
         No fresh test is required. The content has not changed since the send that started,
         and demanding one would put a hurdle between a half-mailed list and finishing it.
         """
-        return self.status == self.STATUS_FAILED or self.is_stalled
+        return (self.status in (self.STATUS_FAILED, self.STATUS_PAUSED)
+                or self.is_stalled)
 
     @property
     def sent_so_far(self):
@@ -138,7 +144,8 @@ class Campaign(models.Model):
     def blocked_reason(self):
         """Why the send button is disabled, in words a person can act on."""
         if self.can_resume:
-            what = 'failed' if self.status == self.STATUS_FAILED else 'stopped'
+            what = {self.STATUS_FAILED: 'failed', self.STATUS_PAUSED: 'was paused'}.get(
+                self.status, 'stopped')
             return (f'This send {what} after {self.sent_so_far} of '
                     f'{self.sent_so_far + self.remaining_count} message(s). '
                     f'Resume it to send the rest — nobody will get it twice.')

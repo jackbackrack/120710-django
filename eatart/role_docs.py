@@ -552,6 +552,7 @@ HOW_TO_GUIDES = [
             'If it stops again, press Resume again. Each attempt only ever narrows what is left — including addresses the provider refuses outright, which are recorded and unsubscribed rather than tried again, so Resume can never become a loop.',
             'A campaign showing as sent with a list of rejected addresses at the bottom is not a failure and needs nothing from you. Those addresses are already off the list. Only a campaign offering a Resume button has anybody still waiting for it.',
             'For a send interrupted by a deploy, or a list big enough that you would rather not run it inside the website at all, there is a command-line equivalent that uses the same engine and the same protections: ./env/bin/python manage.py send_campaign <id> --resume . Add --dry-run first to see who it would mail without sending anything.',
+            'The same command can send only part of a list, which is how you warm up a sending domain that has no history: send_campaign <id> --limit 100 on the first day, then send_campaign <id> --resume --limit 300 on the next, and so on. Each pass leaves the campaign "paused" rather than failed, because stopping on purpose is not the same as breaking. Pacing within a single send does not help here — a thousand messages on day one is judged on its volume however slowly they go out.',
         ],
     },
     {

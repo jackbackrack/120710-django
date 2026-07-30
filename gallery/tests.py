@@ -1740,6 +1740,72 @@ class CampaignResumeTests(TestCase):
             instant.wait()
         self.assertLess(time_module.monotonic() - started, 0.5)
 
+    # --- Warming up a new sending domain ---
+
+    def test_a_limited_pass_sends_part_of_the_list_and_pauses(self):
+        """Sending a few hundred a day is the only real warm-up.
+
+        Pacing inside one send does not help a domain with no history: a thousand messages on
+        day one gets filtered on volume however gently they are spaced. So the ramp has to be
+        across days, which means a send that deliberately stops short.
+        """
+        with self._locmem():
+            sent = campaigns.send_campaign(self.campaign, limit=2)
+
+        self.assertEqual(sent, 2)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'paused',
+                         'stopping on purpose is not the same as failing')
+        self.assertEqual(self.campaign.sent_so_far, 2)
+        self.assertEqual(self.campaign.remaining_count, 3)
+        self.assertTrue(self.campaign.can_resume)
+        self.assertIn('was paused after 2 of 5', self.campaign.blocked_reason)
+
+    def test_successive_passes_finish_the_list_without_repeating_anyone(self):
+        # Day one is a plain limited send; every day after is a limited resume.
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, limit=2)
+
+        for _ in range(3):
+            self.campaign.refresh_from_db()
+            if not self.campaign.remaining_count:
+                break
+            with self._locmem():
+                campaigns.send_campaign(self.campaign, resume=True, limit=2)
+
+        addresses = [m.to[0] for m in mail.outbox]
+        self.assertEqual(len(addresses), 5)
+        self.assertEqual(len(set(addresses)), 5, 'somebody received it twice')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+
+    def test_a_limit_larger_than_the_list_simply_finishes_it(self):
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, limit=500)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertFalse(self.campaign.can_resume)
+
+    def test_a_paused_campaign_says_so_on_the_page_rather_than_looking_broken(self):
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, limit=2)
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'This send is paused part-way, on purpose')
+        self.assertNotContains(page, 'This send stopped before it finished')
+
+    def test_the_command_takes_a_limit(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        out = StringIO()
+        with self._locmem():
+            call_command('send_campaign', self.campaign.pk, '--limit', '2', stdout=out)
+        self.assertIn('sending at most 2', out.getvalue())
+        self.assertEqual(len(mail.outbox), 2)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'paused')
+
     # --- The command ---
 
     def test_the_command_can_finish_what_the_web_send_started(self):

@@ -387,7 +387,7 @@ def _claim(campaign, resume=False):
         # latter, the observed progress_at is part of the condition, so a send that is in
         # fact still running (and has moved the timestamp since) will not be stolen.
         query = query.filter(
-            models.Q(status=Campaign.STATUS_FAILED)
+            models.Q(status__in=[Campaign.STATUS_FAILED, Campaign.STATUS_PAUSED])
             | models.Q(status=Campaign.STATUS_SENDING, progress_at=campaign.progress_at))
     else:
         query = query.filter(status=Campaign.STATUS_DRAFT)
@@ -444,8 +444,14 @@ def _send_one(connection, message, campaign_pk, email):
     return False, False, ''
 
 
-def send_campaign(campaign, request=None, resume=False):
+def send_campaign(campaign, request=None, resume=False, limit=None):
     """Send to everyone who has not had it yet. Returns how many went out on this pass.
+
+    `limit` sends at most that many and leaves the campaign paused with the rest still owed —
+    which is how a warm-up works. A domain with no sending history that puts a thousand messages
+    out on its first day gets filtered on volume alone, however gently they are paced, so the
+    ramp has to be across days rather than within one send. Resume, or another limited pass,
+    continues from exactly where it stopped.
 
     Runs to completion — ten minutes for a thousand-person list, given the rate limit — so it
     belongs off the request thread. See `start_send`. Called directly it is still correct,
@@ -466,7 +472,9 @@ def send_campaign(campaign, request=None, resume=False):
 
     # The recipient list is fixed here rather than iterated lazily, because the loop writes
     # delivery rows that would otherwise change the very queryset being walked.
-    remaining = list(pending(campaign).values_list('pk', flat=True))
+    everyone = list(pending(campaign).values_list('pk', flat=True))
+    remaining = everyone[:limit] if limit else everyone
+    held_back = len(everyone) - len(remaining)
 
     sent = 0
     rejected = 0
@@ -538,6 +546,15 @@ def send_campaign(campaign, request=None, resume=False):
         _fail(campaign, sent)
         logger.error('Campaign %s: %s address(es) could not be reached this pass: %s',
                      campaign.pk, len(stalled_on), ', '.join(stalled_on[:20]))
+        return sent
+
+    if held_back:
+        # Deliberately short of the whole list. Paused rather than sent, so the page and the
+        # command both keep saying that people are still waiting for it.
+        campaign.status = Campaign.STATUS_PAUSED
+        campaign.save(update_fields=['status'])
+        logger.info('Campaign %s paused after %s message(s); %s still to go',
+                    campaign.pk, sent, held_back)
         return sent
 
     # Rejections do not hold a campaign open. Those addresses are settled — refused, recorded,
