@@ -7,7 +7,8 @@ from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Field, Row, Column, HTML, Fieldset
 
-from gallery.models import Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show, Site, Tag
+from gallery.models import (Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show,
+                            Site, Subscriber, Subscription, Tag)
 from gallery.permissions import is_curator_user, is_staff_user
 
 
@@ -153,6 +154,19 @@ class ArtistForm(UserAwareModelForm):
         # which only matters for artists actually consigned from, so the consignment flow
         # is where they get asked. Requiring them at submission would collect home
         # addresses from every entrant to an open call and use almost none of them.
+        # Opt-in, unchecked by default, and never pre-ticked. Consent has to be given
+        # rather than not-withdrawn — that is what makes it consent, and a pre-ticked box
+        # is specifically what GDPR rules out. Not a model field: the subscription lives in
+        # Subscriber, and copying it onto Artist would make two things to keep in step.
+        self.fields['subscribe_to_mailing_list'] = forms.BooleanField(
+            required=False,
+            label='Email me about open calls, shows and events',
+            help_text='Occasional. Every email has a one-click unsubscribe.')
+        if self.instance and self.instance.pk and self.instance.email:
+            self.fields['subscribe_to_mailing_list'].initial = Subscription.objects.filter(
+                subscriber__email=self.instance.email.lower(),
+                site=Subscriber.default_site(), is_subscribed=True).exists()
+
         required = ['first_name', 'last_name', 'email', 'country', 'zipcode', 'image']
         optional = ['street', 'city', 'state', 'phone', 'website', 'instagram',
                     'venmo', 'bio', 'statement']
@@ -167,10 +181,34 @@ class ArtistForm(UserAwareModelForm):
                      'here. The rest help people get in touch.</p>'),
                 *optional,
             ),
+            Fieldset('Mailing list', 'subscribe_to_mailing_list'),
         )
         if 'user' in self.fields:
             layout.append(Fieldset('Admin', 'user'))
         self.helper.layout = layout
+
+    def save(self, commit=True):
+        """Apply the mailing-list choice alongside the profile.
+
+        Both directions: ticking subscribes, unticking unsubscribes. Unticking is a genuine
+        withdrawal of consent and has to be honoured here, not just ignored as "no change".
+        """
+        artist = super().save(commit=commit)
+        if commit and artist.email:
+            wants = self.cleaned_data.get('subscribe_to_mailing_list')
+            site = Subscriber.default_site()
+            if wants:
+                Subscriber.opt_in(
+                    email=artist.email, sites=[site],
+                    first_name=artist.first_name, last_name=artist.last_name,
+                    source=Subscription.SOURCE_ARTIST_PROFILE)
+            else:
+                existing = Subscription.objects.filter(
+                    subscriber__email=artist.email.lower(), site=site,
+                    is_subscribed=True).first()
+                if existing:
+                    existing.unsubscribe()
+        return artist
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()

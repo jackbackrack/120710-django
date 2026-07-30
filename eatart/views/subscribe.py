@@ -4,10 +4,9 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 
 from honeypot.decorators import check_honeypot
-from mailchimp_marketing.api_client import ApiClientError
 
 from eatart.forms.subscribe import KioskSubscribeForm, SubscribeForm
-from eatart.services.mailchimp import subscribe_to_mailing_list
+from gallery.models import Subscriber, Subscription
 
 
 @check_honeypot()
@@ -16,16 +15,17 @@ def subscribe(request):
         form = SubscribeForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data['email']
-            try:
-                subscribe_to_mailing_list(
-                    first_name=form.cleaned_data['first_name'],
-                    last_name=form.cleaned_data['last_name'],
-                    email=email,
-                )
-                messages.success(request, f'Successfully subscribed {email}!')
-            except ApiClientError:
-                messages.error(request, f'Failed to subscribe {email}!')
-
+            # Straight into our own table. There is no third-party call to fail here any
+            # more, which is the point: the list is ours, and a provider outage cannot lose
+            # a subscriber between the form and the send.
+            Subscriber.opt_in(
+                email=email,
+                first_name=form.cleaned_data['first_name'],
+                last_name=form.cleaned_data['last_name'],
+                sites=[Subscriber.default_site()],
+                source=Subscription.SOURCE_SUBSCRIBE_FORM,
+            )
+            messages.success(request, f'Successfully subscribed {email}!')
             return redirect(request.path)
     else:
         form = SubscribeForm()
@@ -43,15 +43,14 @@ def subscribe_kiosk(request, token):
         form = KioskSubscribeForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data['email']
-            try:
-                subscribe_to_mailing_list(
-                    first_name=form.cleaned_data['first_name'],
-                    last_name=form.cleaned_data['last_name'],
-                    email=email,
-                )
-                success = f'Thanks! {email} has been subscribed.'
-            except ApiClientError:
-                failure = f'Something went wrong — {email} could not be subscribed.'
+            Subscriber.opt_in(
+                email=email,
+                first_name=form.cleaned_data['first_name'],
+                last_name=form.cleaned_data['last_name'],
+                sites=[Subscriber.default_site()],
+                source=Subscription.SOURCE_KIOSK,
+            )
+            success = f'Thanks! {email} has been subscribed.'
             form = KioskSubscribeForm()
     else:
         form = KioskSubscribeForm()

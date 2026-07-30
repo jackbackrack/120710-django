@@ -144,6 +144,13 @@ class Site(models.Model):
         help_text='IANA name for the venue\u2019s local time, e.g. America/Los_Angeles. '
                   'Used to publish event times correctly in the calendar feed. Filled in '
                   'from the state when that settles it; set it by hand otherwise.')
+    # The venue's own mailing list at the email provider. Blank falls back to
+    # settings.RESEND_AUDIENCE_ID, which is the network-level list — so a single-venue
+    # deployment needs no per-site configuration at all.
+    resend_audience_id = models.CharField(
+        max_length=64, blank=True, default='', verbose_name='Resend audience ID',
+        help_text='The venue’s own mailing list in Resend. Leave blank to use the '
+                  'network-wide list.')
     latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

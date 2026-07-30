@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     "crispy_bootstrap5",
     'django_recaptcha',
     'django_countries',
+    'anymail',
     'honeypot',
     "debug_toolbar",
     'accounts',
@@ -153,6 +154,18 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "allauth.account.middleware.AccountMiddleware",  # django-allauth
 ]
+
+# Resend, via django-anymail, for *campaigns only*. Transactional mail stays on smtp2go —
+# see docs: a shared provider means a spam complaint about a newsletter suppresses that
+# address account-wide, which would silently swallow an artist's acceptance email.
+ANYMAIL = {
+    'RESEND_API_KEY': os.environ.get('RESEND_API_KEY'),
+    # Webhook signature verification. Resend signs with Svix; anymail checks it for us.
+    'RESEND_SIGNING_SECRET': os.environ.get('RESEND_SIGNING_SECRET'),
+}
+# The audience subscribers are pushed to. Without it the site still records subscribers
+# locally and simply does not sync — see gallery.models.Subscriber.
+RESEND_AUDIENCE_ID = os.environ.get('RESEND_AUDIENCE_ID', '')
 
 MAILCHIMP_API_KEY = os.environ.get("MAILCHIMP_API_KEY")
 MAILCHIMP_DATA_CENTER = os.environ.get("MAILCHIMP_DATA_CENTER")

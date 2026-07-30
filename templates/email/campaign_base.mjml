@@ -1,0 +1,63 @@
+{% comment %}
+The one shell every campaign renders through, whether its body came from a template or from
+Markdown. Written once so the parts that must be right every time — the physical address and
+the unsubscribe link — cannot be forgotten by whoever writes the body.
+
+MJML compiles this to table-based HTML that survives Outlook's Word renderer. Do not
+hand-edit the compiled output; edit here.
+
+Two constraints this is built around:
+  - Gmail clips messages over 102KB and hides the rest behind "View entire message" — which
+    would hide the unsubscribe link. Keep bodies lean; reference images by URL, never inline.
+  - Dark mode inverts unpredictably in Gmail and is ignored by Outlook, so every background
+    and text colour is stated rather than left to a default.
+{% endcomment %}<mjml>
+  <mj-head>
+    <mj-title>{{ subject }}</mj-title>
+    <mj-preview>{{ preheader }}</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="1.5" color="#222222" />
+      <mj-section background-color="#ffffff" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f4f4f4" width="600px">
+
+    {% if site.icon %}
+    <mj-section padding="24px 0 8px">
+      <mj-column>
+        <mj-image src="{{ site_icon_url }}" width="48px" alt="{{ site_name }}" />
+      </mj-column>
+    </mj-section>
+    {% endif %}
+
+    <mj-section padding="8px 0 0">
+      <mj-column>
+        <mj-text align="center" font-size="13px" color="#888888" letter-spacing="1px">
+          {{ site_name|upper }}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    {{ body_mjml }}
+
+    <mj-section padding="8px 0 32px">
+      <mj-column>
+        <mj-divider border-width="1px" border-color="#e0e0e0" padding="16px 0" />
+        {% comment %}
+          CAN-SPAM requires a physical postal address in every marketing email. It comes from
+          the venue's own record, so a network of galleries each carries the right one
+          without anybody remembering to change it.
+        {% endcomment %}
+        <mj-text align="center" font-size="12px" color="#888888" line-height="1.6">
+          {{ site_name }}{% if postal_address %}<br />{{ postal_address }}{% endif %}
+        </mj-text>
+        <mj-text align="center" font-size="12px" color="#888888">
+          You are receiving this because you subscribed at {{ site_name }}.<br />
+          <a href="{{ unsubscribe_url }}" style="color:#888888">Unsubscribe</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>

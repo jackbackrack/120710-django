@@ -1,0 +1,33 @@
+{% comment %}
+A data-driven campaign: the shape is fixed, the content comes from the database. This is the
+case the whole MJML-through-Django-templates arrangement exists for — nobody retypes a date,
+and the artwork grid is however many pieces are actually in the show.
+
+Copy this file to make a new recurring format. Set Campaign.template_name to the filename
+and pass the objects it needs; see gallery/campaigns.py::render_campaign.
+{% endcomment %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-text font-size="26px" font-weight="bold" padding="12px 0 4px">{{ show.name }}</mj-text>
+    <mj-text color="#666666" padding="0 0 12px">
+      {{ show.start|date:"j F" }}–{{ show.end|date:"j F Y" }}{% if site %} · {{ site.name }}{% endif %}
+    </mj-text>
+    {% if show.description %}<mj-text padding="8px 0">{{ show.description|striptags|truncatewords:60 }}</mj-text>{% endif %}
+    <mj-button href="{{ show_url }}" background-color="#198754" color="#ffffff" padding="16px 0">
+      See the show
+    </mj-button>
+  </mj-column>
+</mj-section>
+
+{% if artworks %}
+<mj-section padding="0 24px">
+  {% for artwork in artworks|slice:":3" %}
+  <mj-column width="33%">
+    {% if artwork.card_md %}<mj-image src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}" padding="4px" />{% endif %}
+    <mj-text font-size="13px" align="center" padding="4px">
+      {{ artwork.name }}{% if artwork.artists.all %}<br /><span style="color:#888888">{{ artwork.artists.all.0.name }}</span>{% endif %}
+    </mj-text>
+  </mj-column>
+  {% endfor %}
+</mj-section>
+{% endif %}

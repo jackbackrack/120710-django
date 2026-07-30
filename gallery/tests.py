@@ -16,8 +16,11 @@ from django.urls import reverse
 
 from accounts.roles import add_staff_role
 from gallery.models import Artist, Artwork, ArtworkSubmission, Event, Show, ShowArtworkNumber, ShowInvitation, Site
-from gallery.models import LinkTreeEntry
+from gallery.models import Campaign, LinkTreeEntry, Subscriber, Subscription
+from django.utils import timezone
+
 from gallery import calendars
+from gallery import campaigns
 from gallery import submission_area
 
 
@@ -6201,3 +6204,310 @@ class RobotsTests(TestCase):
             self.assertIn(f'User-agent: {agent}', body)
         # ...and the ones that only take are not.
         self.assertRegex(body, r'User-agent: SemrushBot\s+Disallow: /')
+
+
+class SubscriberTests(TestCase):
+    """One person, many lists.
+
+    The model was first written as one row per (site, email), which made a person on two
+    galleries' lists two rows with two names and two independent unsubscribe states — and
+    left "stop emailing me" with nowhere single to be recorded.
+    """
+
+    def setUp(self):
+        self.venue = Site.objects.create(name='Venue One', status=Site.STATUS_PUBLISHED,
+                                         country='US')
+        self.other = Site.objects.create(name='Venue Two', status=Site.STATUS_PUBLISHED,
+                                         country='US')
+
+    def test_one_person_on_two_lists_is_one_row(self):
+        Subscriber.opt_in(email='both@example.com', first_name='Bo',
+                          sites=[self.venue, self.other])
+        self.assertEqual(Subscriber.objects.filter(email='both@example.com').count(), 1)
+        self.assertEqual(Subscription.objects.count(), 2)
+
+    def test_email_is_case_insensitive(self):
+        Subscriber.opt_in(email='Person@Example.COM ', sites=[self.venue])
+        Subscriber.opt_in(email='person@example.com', sites=[self.venue])
+        self.assertEqual(Subscriber.objects.count(), 1)
+        self.assertEqual(Subscription.objects.count(), 1)
+
+    def test_unsubscribing_one_list_leaves_the_others(self):
+        subscriber, subs = Subscriber.opt_in(email='a@example.com',
+                                             sites=[self.venue, self.other])
+        subs[0].unsubscribe()
+        remaining = [s.list_name for s in subscriber.subscriptions.filter(is_subscribed=True)]
+        self.assertEqual(remaining, [self.other.name])
+
+    def test_unsubscribe_all_clears_every_list(self):
+        subscriber, _ = Subscriber.opt_in(email='a@example.com',
+                                          sites=[self.venue, self.other, None])
+        self.assertEqual(subscriber.unsubscribe_all(), 3)
+        self.assertFalse(subscriber.subscriptions.filter(is_subscribed=True).exists())
+
+    def test_unsubscribing_twice_does_not_move_the_timestamp(self):
+        _, subs = Subscriber.opt_in(email='a@example.com', sites=[self.venue])
+        subs[0].unsubscribe()
+        first = subs[0].unsubscribed_at
+        self.assertFalse(subs[0].unsubscribe())
+        subs[0].refresh_from_db()
+        self.assertEqual(subs[0].unsubscribed_at, first)
+
+    def test_opting_in_again_after_unsubscribing_is_honoured(self):
+        """They asked. Refusing would be worse than honouring it."""
+        subscriber, subs = Subscriber.opt_in(email='a@example.com', sites=[self.venue])
+        subs[0].unsubscribe()
+        Subscriber.opt_in(email='a@example.com', sites=[self.venue])
+        subs[0].refresh_from_db()
+        self.assertTrue(subs[0].is_subscribed)
+        self.assertEqual(subs[0].unsubscribed_reason, '')
+
+    def test_a_later_form_submission_improves_a_blank_imported_name(self):
+        Subscription.objects.create(
+            subscriber=Subscriber.objects.create(email='a@example.com'), site=self.venue,
+            source=Subscription.SOURCE_IMPORT)
+        Subscriber.opt_in(email='a@example.com', first_name='Real', last_name='Name',
+                          sites=[self.venue])
+        self.assertEqual(Subscriber.objects.get(email='a@example.com').full_name,
+                         'Real Name')
+
+
+class CampaignTests(TestCase):
+    """Rendering, the send guard, and who a campaign reaches."""
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            name='Test Gallery', status=Site.STATUS_PUBLISHED, country='US',
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        self.campaign = Campaign.objects.create(
+            subject='Opening night', site=self.site,
+            body_markdown='# Come along\n\nOpening **Saturday**, [details](https://x.test/).')
+
+    # --- Rendering ---
+
+    def test_markdown_compiles_to_table_based_html(self):
+        """MJML's whole job: Outlook renders with the Word engine and needs tables."""
+        html = campaigns.render_preview(self.campaign)
+        self.assertGreater(html.count('<table'), 3)
+        self.assertIn('<strong>Saturday</strong>', html)
+        self.assertIn('href="https://x.test/"', html)
+
+    def test_author_text_is_escaped_but_generated_markup_is_not(self):
+        """The body is markup we generate around text they wrote — only one of those is safe."""
+        self.campaign.body_markdown = 'Hello <script>alert(1)</script>'
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('<script>', html)
+        self.assertIn('&lt;script&gt;', html)
+        # ...and the surrounding MJML still compiled rather than being escaped into text.
+        self.assertNotIn('&lt;mj-text', html)
+
+    def test_a_template_campaign_pulls_its_content_from_the_database(self):
+        """The main authoring route: a fixed shape, filled from real objects.
+
+        MJML rendered *through* Django's template engine, so the campaign reaches the ORM
+        and nobody retypes a date.
+        """
+        show = Show.objects.create(
+            name='Autumn Group Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30),
+            description='Fourteen artists on the theme of repetition.')
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            subject='Autumn Group Show opens', site=self.site,
+            template_name='show_announcement.mjml')
+
+        stand_in = Subscription(
+            pk=0, site=self.site,
+            subscriber=Subscriber(pk=0, email='r@example.com'))
+        html = campaigns.render_campaign(
+            campaign, stand_in,
+            extra_context={'show': show, 'show_url': 'https://x.test/show/',
+                           'artworks': []})
+
+        self.assertIn('Autumn Group Show', html)
+        self.assertIn('1 September', html)
+        self.assertIn('30 September 2026', html)
+        self.assertIn('repetition', html)
+        # The proof it compiled rather than being escaped into the page as literal markup.
+        self.assertGreater(html.count('<table'), 3)
+        self.assertNotIn('&lt;mj-', html)
+
+    def test_every_campaign_carries_the_postal_address(self):
+        """CAN-SPAM requires it in every marketing email, and it comes from the venue."""
+        html = campaigns.render_preview(self.campaign)
+        self.assertIn('1207 Tenth Street', html)
+
+    def test_every_campaign_carries_an_unsubscribe_link(self):
+        html = campaigns.render_preview(self.campaign)
+        self.assertIn('/unsubscribe/', html)
+
+    def test_rendering_a_preview_creates_nothing(self):
+        campaigns.render_preview(self.campaign)
+        self.assertEqual(Subscriber.objects.count(), 0)
+
+    # --- The send guard ---
+
+    def test_a_campaign_cannot_be_sent_untested(self):
+        self.assertFalse(self.campaign.can_send)
+        self.assertIn('test', self.campaign.blocked_reason.lower())
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign)
+
+    def test_editing_after_a_test_rearms_the_guard(self):
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.assertTrue(self.campaign.can_send)
+
+        self.campaign.subject = 'Changed my mind'
+        self.campaign.save()
+        self.assertFalse(self.campaign.can_send,
+                         'a content change must invalidate the earlier test')
+        self.assertIn('changed', self.campaign.blocked_reason.lower())
+
+    def test_a_non_content_change_does_not_re_arm_the_guard(self):
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.campaign.recipient_count = 5
+        self.campaign.save()
+        self.assertTrue(self.campaign.can_send)
+
+    # --- Recipients ---
+
+    def test_only_subscribed_people_receive_it(self):
+        Subscriber.opt_in(email='yes@example.com', sites=[self.site])
+        _, gone = Subscriber.opt_in(email='no@example.com', sites=[self.site])
+        gone[0].unsubscribe()
+        addresses = {s.subscriber.email for s in campaigns.recipients(self.campaign)}
+        self.assertEqual(addresses, {'yes@example.com'})
+
+    def test_a_venues_campaign_does_not_reach_another_venues_list(self):
+        elsewhere = Site.objects.create(name='Elsewhere', status=Site.STATUS_PUBLISHED,
+                                        country='US')
+        Subscriber.opt_in(email='ours@example.com', sites=[self.site])
+        Subscriber.opt_in(email='theirs@example.com', sites=[elsewhere])
+        addresses = {s.subscriber.email for s in campaigns.recipients(self.campaign)}
+        self.assertEqual(addresses, {'ours@example.com'})
+
+    def test_a_network_campaign_reaches_only_the_network_list(self):
+        Subscriber.opt_in(email='network@example.com', sites=[None])
+        Subscriber.opt_in(email='venue@example.com', sites=[self.site])
+        network_campaign = Campaign.objects.create(subject='All of us', site=None)
+        addresses = {s.subscriber.email for s in campaigns.recipients(network_campaign)}
+        self.assertEqual(addresses, {'network@example.com'})
+
+
+class UnsubscribeTests(TestCase):
+    """The link in the footer, and the button Gmail renders."""
+
+    def setUp(self):
+        self.site = Site.objects.create(name='Venue', status=Site.STATUS_PUBLISHED,
+                                        country='US')
+        self.other = Site.objects.create(name='Other Venue', status=Site.STATUS_PUBLISHED,
+                                         country='US')
+        self.subscriber, self.subs = Subscriber.opt_in(
+            email='reader@example.com', sites=[self.site, self.other])
+        self.url = reverse('unsubscribe', kwargs={
+            'token': campaigns.unsubscribe_token(self.subs[0])})
+
+    def test_get_asks_rather_than_unsubscribing(self):
+        """Security appliances and mail previewers fetch every link in a message."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.subs[0].refresh_from_db()
+        self.assertTrue(self.subs[0].is_subscribed, 'a GET must not unsubscribe anyone')
+
+    def test_post_unsubscribes_one_click(self):
+        """What Gmail's Unsubscribe button calls, driven by List-Unsubscribe-Post."""
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.subs[0].refresh_from_db()
+        self.assertFalse(self.subs[0].is_subscribed)
+
+    def test_one_click_leaves_the_other_lists_alone(self):
+        self.client.post(self.url)
+        self.subs[1].refresh_from_db()
+        self.assertTrue(self.subs[1].is_subscribed,
+                        "a mail client's button must not unsubscribe lists it never named")
+
+    def test_unsubscribe_from_everything_is_one_more_click(self):
+        self.client.post(self.url, {'scope': 'all'})
+        self.assertFalse(self.subscriber.subscriptions.filter(is_subscribed=True).exists())
+
+    def test_a_tampered_token_still_answers_200(self):
+        """Telling a mail client the unsubscribe failed makes it warn the recipient."""
+        bad = reverse('unsubscribe', kwargs={'token': 'not-a-real-token'})
+        self.assertEqual(self.client.post(bad).status_code, 200)
+        self.assertEqual(self.client.get(bad).status_code, 200)
+
+    def test_a_token_is_only_good_for_the_person_it_names(self):
+        """The email travels in the token beside the pk, so a reused row cannot be caught
+        by an old link."""
+        token = campaigns.unsubscribe_token(self.subs[0])
+        self.assertIsNotNone(campaigns.subscription_from_token(token))
+        # Same row, different person: the token must stop resolving.
+        self.subs[0].subscriber.email = 'someone.else@example.com'
+        self.subs[0].subscriber.save()
+        self.assertIsNone(campaigns.subscription_from_token(token))
+
+    def test_a_token_for_a_deleted_subscription_resolves_to_nothing(self):
+        token = campaigns.unsubscribe_token(self.subs[0])
+        self.subs[0].delete()
+        self.assertIsNone(campaigns.subscription_from_token(token))
+
+    def test_the_message_carries_the_one_click_headers(self):
+        campaign = Campaign.objects.create(subject='Hello', site=self.site)
+        message = campaigns.build_message(campaign, self.subs[0])
+        self.assertIn('List-Unsubscribe', message.extra_headers)
+        self.assertEqual(message.extra_headers['List-Unsubscribe-Post'],
+                         'List-Unsubscribe=One-Click')
+
+
+class ArtistMailingListOptInTests(TestCase):
+    """The checkbox on the artist profile."""
+
+    def setUp(self):
+        self.site = Site.objects.create(name='Default Venue', slug='default-venue',
+                                        status=Site.STATUS_PUBLISHED, country='US')
+        self.artist = Artist.objects.create(
+            name='Opt Artist', first_name='Opt', last_name='Artist',
+            email='opt@example.com', phone='', country='US', zipcode='94710')
+        self.artist.image.save('opt.jpg', _test_jpg(), save=True)
+
+    def _form(self, subscribe):
+        from django.contrib.auth.models import AnonymousUser
+
+        from gallery.forms import ArtistForm
+        data = {
+            'first_name': 'Opt', 'last_name': 'Artist', 'email': 'opt@example.com',
+            'country': 'US', 'zipcode': '94710',
+            'subscribe_to_mailing_list': 'on' if subscribe else '',
+        }
+        return ArtistForm(data=data, instance=self.artist, user=AnonymousUser())
+
+    def test_the_box_is_unticked_by_default(self):
+        """Consent is given, not merely not-withdrawn. A pre-ticked box is not consent."""
+        from django.contrib.auth.models import AnonymousUser
+
+        from gallery.forms import ArtistForm
+        form = ArtistForm(instance=self.artist, user=AnonymousUser())
+        self.assertFalse(form.fields['subscribe_to_mailing_list'].initial)
+
+    def test_ticking_it_subscribes_them(self):
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            form = self._form(subscribe=True)
+            self.assertTrue(form.is_valid(), form.errors)
+            form.save()
+        self.assertTrue(Subscription.objects.filter(
+            subscriber__email='opt@example.com', site=self.site,
+            is_subscribed=True).exists())
+
+    def test_unticking_it_unsubscribes_them(self):
+        """Withdrawing consent has to be honoured, not read as "no change"."""
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            Subscriber.opt_in(email='opt@example.com', sites=[self.site])
+            form = self._form(subscribe=False)
+            self.assertTrue(form.is_valid(), form.errors)
+            form.save()
+        self.assertFalse(Subscription.objects.filter(
+            subscriber__email='opt@example.com', is_subscribed=True).exists())

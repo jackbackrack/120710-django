@@ -6,6 +6,7 @@ from accounts.views import ArtistUserCreateView, CustomPasswordResetView, Custom
 from eatart.views.public import (index, visit, contact, about, howto, howto_guide,
                                  howto_reference, linktree)
 from eatart.views.subscribe import subscribe, subscribe_kiosk
+from eatart.views.unsubscribe import unsubscribe
 
 #temporary hack as well as + static(...) below
 from django.conf import settings
@@ -36,6 +37,9 @@ urlpatterns = [
     path('howto/<slug:anchor>/', howto_guide, name='howto_guide'),
     path('links/', linktree, name='linktree'),
     path('subscribe/', subscribe, name='subscribe'),
+    # One URL, two behaviours: a confirmation page on GET, one-click on POST for the
+    # Unsubscribe button Gmail and Yahoo render. See the view.
+    path('unsubscribe/<str:token>/', unsubscribe, name='unsubscribe'),
     path('subscribe/kiosk/<str:token>/', subscribe_kiosk, name='subscribe_kiosk'),
     path('accounts/artist_user_new/', ArtistUserCreateView.as_view()),
     path('accounts/claim-artist/', claim_artist, name='claim_artist'),
