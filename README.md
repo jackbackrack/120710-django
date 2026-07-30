@@ -100,6 +100,10 @@ RECAPTCHA_PRIVATE_KEY=
 # Optional explicit override (True/False)
 RECAPTCHA_ENABLED=
 
+# Transactional mail (production only). Read by the smtp2go library from the environment
+# directly, not via settings.py — so it shows up in no Django setting.
+SMTP2GO_API_KEY=
+
 # Optional: Resend, for mailing-list campaigns only
 RESEND_API_KEY=
 RESEND_SIGNING_SECRET=

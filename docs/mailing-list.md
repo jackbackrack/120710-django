@@ -65,14 +65,23 @@ command:
 
     RESEND_API_KEY=re_xxx ./env/bin/python manage.py runserver
 
-The full list, with what each one does, is in `.env.local.example`. The two that matter:
+The full list, with what each one does, is in `.env.local.example`. The two Resend ones:
 
 - **`RESEND_API_KEY`** — required to send anything, including a test. Use a key with *sending*
   access, not full access.
 - **`RESEND_SIGNING_SECRET`** — from Resend's webhook page. Without it the bounce/complaint
   webhook rejects everything it receives, so nobody is ever suppressed and you will not know.
 
-And one that is easy to miss: **`SITE_BASE_URL`**. Campaign sends run in a background thread with
+One that is easy to miss entirely: **`SMTP2GO_API_KEY`**. It is read by the smtp2go library
+straight from `os.getenv`, never through a Django setting, so it appears nowhere in
+`settings.py` and is invisible to any search of it. It is what sends the transactional mail —
+account confirmations, acceptance letters, and the mailing-list welcome email — and it is
+required in production. Locally it is not needed: `DJANGO_ENV=local` swaps in the console
+backend, so a welcome email prints to the `runserver` terminal instead of being sent, which is
+the easy way to read one.
+
+And one that is easy to miss for the opposite reason — it has a working default:
+**`SITE_BASE_URL`**. Campaign sends run in a background thread with
 no request to build URLs from, so this is where the unsubscribe link's host comes from. It
 defaults to `https://www.120710.art`, which is right in production and wrong locally — set it to
 `http://localhost:8000` in `.env.local` so a local test send's unsubscribe link points at your own
