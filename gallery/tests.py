@@ -1427,6 +1427,174 @@ class SubscribePagesTests(TestCase):
 
 
 
+
+class ImportSubscribersTests(TestCase):
+    """Merging Mailchimp exports. The rule that matters: no path through this may end
+    with someone subscribed who said no in any export."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _csv(self, name, rows, header='Email Address,First Name,Last Name,Status'):
+        import os
+        path = os.path.join(self.tmp, name)
+        with open(path, 'w', newline='') as handle:
+            handle.write(header + '\n')
+            for row in rows:
+                handle.write(','.join(row) + '\n')
+        return path
+
+    def _run(self, *paths, **opts):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('import_subscribers', *paths, stdout=out, **opts)
+        return out.getvalue()
+
+    def test_several_files_in_one_run(self):
+        from gallery.models import Subscriber
+        a = self._csv('a.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        b = self._csv('b.csv', [('bo@example.com', 'Bo', 'Chen', 'subscribed')])
+        out = self._run(a, b)
+        self.assertIn('2 file(s)', out)
+        self.assertEqual(Subscriber.objects.count(), 2)
+
+    def test_the_same_person_across_files_is_one_record(self):
+        from gallery.models import Subscriber
+        a = self._csv('a.csv', [('Ana@Example.com', 'Ana', 'Ruiz', 'subscribed')])
+        b = self._csv('b.csv', [('ANA@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(a, b)
+        self.assertEqual(Subscriber.objects.count(), 1)
+        self.assertIn('duplicate row(s) merged', out)
+
+    def test_repeated_rows_within_one_file_are_merged(self):
+        from gallery.models import Subscriber
+        path = self._csv('dupes.csv', [
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(path)
+        self.assertEqual(Subscriber.objects.count(), 1)
+        self.assertIn('3 row(s)', out)
+        self.assertIn('1 distinct people', out)
+
+    def test_an_opt_out_anywhere_wins(self):
+        """Listed as subscribed in one export and unsubscribed in another: being
+        subscribed somewhere must not undo having said no."""
+        from gallery.models import Subscriber
+        yes = self._csv('yes.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        no = self._csv('no.csv', [('ana@example.com', 'Ana', 'Ruiz', 'unsubscribed')])
+        for order in ((yes, no), (no, yes)):
+            with self.subTest(order=[p[-6:] for p in order]):
+                Subscriber.objects.all().delete()
+                self._run(*order)
+                subscription = Subscriber.objects.get(email='ana@example.com').subscriptions.get()
+                self.assertFalse(subscription.is_subscribed)
+
+    def test_cleaned_and_unknown_statuses_are_treated_as_opted_out(self):
+        from gallery.models import Subscriber
+        path = self._csv('mixed.csv', [
+            ('a@example.com', 'A', 'One', 'cleaned'),
+            ('b@example.com', 'B', 'Two', 'archived'),
+            ('c@example.com', 'C', 'Three', 'something-new'),
+            ('d@example.com', 'D', 'Four', 'subscribed')])
+        self._run(path)
+        subscribed = {s.subscriber.email for s in
+                      Subscriber.objects.first().subscriptions.model.objects.filter(
+                          is_subscribed=True)}
+        self.assertEqual(subscribed, {'d@example.com'})
+
+    def test_a_blank_name_in_one_row_does_not_erase_it_from_another(self):
+        from gallery.models import Subscriber
+        path = self._csv('names.csv', [
+            ('bo@example.com', '', '', 'subscribed'),
+            ('bo@example.com', 'Bo', 'Chen', 'subscribed')])
+        self._run(path)
+        self.assertEqual(Subscriber.objects.get(email='bo@example.com').full_name, 'Bo Chen')
+
+    def test_an_existing_corrected_name_is_not_overwritten(self):
+        """A name fixed here outranks the export it was fixed from; a blank one is
+        filled in."""
+        from gallery.models import Subscriber
+        Subscriber.objects.create(email='ana@example.com', first_name='Ana',
+                                  last_name='Ruiz-Corrected')
+        Subscriber.objects.create(email='bo@example.com')
+        path = self._csv('again.csv', [
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('bo@example.com', 'Bo', 'Chen', 'subscribed')])
+        self._run(path)
+        self.assertEqual(Subscriber.objects.get(email='ana@example.com').last_name,
+                         'Ruiz-Corrected')
+        self.assertEqual(Subscriber.objects.get(email='bo@example.com').full_name, 'Bo Chen')
+
+    def test_running_it_twice_changes_nothing(self):
+        from gallery.models import Subscriber
+        path = self._csv('twice.csv', [
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed'),
+            ('bo@example.com', 'Bo', 'Chen', 'unsubscribed')])
+        self._run(path)
+        before = [(s.email, s.full_name, s.subscriptions.get().is_subscribed,
+                   s.subscriptions.get().unsubscribed_at)
+                  for s in Subscriber.objects.order_by('email')]
+        out = self._run(path)
+        after = [(s.email, s.full_name, s.subscriptions.get().is_subscribed,
+                  s.subscriptions.get().unsubscribed_at)
+                 for s in Subscriber.objects.order_by('email')]
+        self.assertEqual(before, after)
+        self.assertIn('0 new, 2 already present', out)
+
+    def test_dry_run_writes_nothing(self):
+        from gallery.models import Subscriber
+        path = self._csv('dry.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(path, dry_run=True)
+        self.assertIn('Nothing was written', out)
+        self.assertFalse(Subscriber.objects.exists())
+
+    def test_alternative_column_spellings_are_accepted(self):
+        from gallery.models import Subscriber
+        path = self._csv('alt.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')],
+                         header='email_address,fname,lname,member status')
+        self._run(path)
+        self.assertEqual(Subscriber.objects.get(email='ana@example.com').full_name, 'Ana Ruiz')
+
+    def test_a_file_with_no_email_column_is_refused(self):
+        from django.core.management.base import CommandError
+        path = self._csv('bad.csv', [('x', 'y')], header='name,notes')
+        with self.assertRaises(CommandError):
+            self._run(path)
+
+    def test_rows_without_a_usable_email_are_counted_and_skipped(self):
+        from gallery.models import Subscriber
+        path = self._csv('partial.csv', [
+            ('', 'No', 'Email', 'subscribed'),
+            ('not-an-address', 'Bad', 'One', 'subscribed'),
+            ('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        out = self._run(path)
+        self.assertIn('2 row(s) had no usable email', out)
+        self.assertEqual(Subscriber.objects.count(), 1)
+
+    def test_importing_into_a_named_venue(self):
+        from gallery.models import Site, Subscriber
+        site = Site.objects.create(name='120710', slug='120710',
+                                   status=Site.STATUS_PUBLISHED)
+        path = self._csv('venue.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        self._run(path, site='120710')
+        subscription = Subscriber.objects.get(email='ana@example.com').subscriptions.get()
+        self.assertEqual(subscription.site, site)
+
+    def test_an_unknown_venue_slug_is_refused(self):
+        from django.core.management.base import CommandError
+        path = self._csv('venue.csv', [('ana@example.com', 'Ana', 'Ruiz', 'subscribed')])
+        with self.assertRaises(CommandError):
+            self._run(path, site='no-such-venue')
+
+
+
 class HowToAnchorTests(TestCase):
     """Every link into the help system must land on a guide that exists.
 
