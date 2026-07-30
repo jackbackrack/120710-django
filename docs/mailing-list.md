@@ -208,7 +208,11 @@ every time: whatever the curator typed into the Markdown field appears inside th
 
 **To add a format:** copy one of these into `templates/email/campaigns/`, add an entry to
 `CAMPAIGN_TEMPLATES`, and it appears in the dropdown. Anything not in the registry still works —
-it just gets its filename as a label and is assumed to need nothing.
+it just gets its filename as a label, is assumed to need nothing, and sorts after the registered
+ones.
+
+`CAMPAIGN_TEMPLATES` also fixes the **order** of the dropdown, which reads in the order a show
+actually happens: announcement, opening, closing. Sorting by filename put closing before opening.
 
 ### There is no "save as template", and why
 

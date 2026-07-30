@@ -874,12 +874,23 @@ def _show_choice_label(show):
 
 
 def _campaign_template_names():
-    """MJML campaign templates on disk, so the form can offer them."""
+    """MJML campaign templates on disk, so the form can offer them.
+
+    Ordered by CAMPAIGN_TEMPLATES rather than alphabetically, so the list reads in the order a
+    show actually happens — announcement, opening, closing — instead of the order the filenames
+    happen to sort in, which put closing before opening. Anything on disk but not in the registry
+    follows, alphabetically.
+    """
     import os
     from django.conf import settings
+
+    from gallery.campaigns import CAMPAIGN_TEMPLATES
+
     names = set()
     for directory in [os.path.join(str(settings.BASE_DIR), 'templates')]:
         folder = os.path.join(directory, 'email', 'campaigns')
         if os.path.isdir(folder):
             names.update(f for f in os.listdir(folder) if f.endswith('.mjml'))
-    return sorted(names)
+
+    known = [name for name in CAMPAIGN_TEMPLATES if name in names]
+    return known + sorted(names - set(known))

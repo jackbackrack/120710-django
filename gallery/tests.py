@@ -8237,6 +8237,13 @@ class CampaignTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('needs one chosen', str(form.errors['show']))
 
+    def test_the_templates_are_offered_in_the_order_a_show_happens(self):
+        """Alphabetical put closing before opening, which is not how a show goes."""
+        from gallery.forms import CampaignForm
+        values = [v for v, _ in CampaignForm().fields['template_name'].choices if v]
+        self.assertEqual(values[:3], ['show_announcement.mjml', 'show_opening.mjml',
+                                      'show_closing.mjml'])
+
     def test_the_template_dropdown_shows_readable_names(self):
         from gallery.forms import CampaignForm
         labels = dict(CampaignForm().fields['template_name'].choices)
