@@ -115,26 +115,65 @@ def privacy_url(site=None, request=None):
 
 # ── Rendering ────────────────────────────────────────────────────────────────
 
-def _markdown_to_mjml(text):
-    """A deliberately small Markdown subset, rendered as MJML blocks.
+# A line that opens a bullet or a numbered item. Kept narrow on purpose: one level, no
+# nesting. A newsletter needs "three things are happening", not an outline.
+_BULLET = re.compile(r'^\s*[-*+]\s+(?P<item>.+)$')
+_NUMBERED = re.compile(r'^\s*\d+[.)]\s+(?P<item>.+)$')
 
-    Not a full Markdown implementation and not trying to be. Campaign bodies are headings,
-    paragraphs, links, emphasis and the occasional image or button — and every construct
-    supported here has to survive Outlook, which rules out most of what a general Markdown
-    renderer would emit.
+# Email clients disagree about default list indentation, and Outlook ignores margin on <ul>.
+# Stating both leaves nothing to a default.
+_LIST_STYLE = 'margin:0;padding-left:20px'
+_ITEM_STYLE = 'padding-bottom:6px'
+
+
+def _list_block(chunk):
+    """A `<ul>` or `<ol>` if every line of the chunk is an item, otherwise None.
+
+    All-or-nothing, because a chunk where only some lines look like items is far more likely
+    to be a paragraph that happens to contain a dash than a list someone typed wrong.
+    """
+    lines = [line for line in chunk.split('\n') if line.strip()]
+    if not lines:
+        return None
+    for tag, pattern in (('ul', _BULLET), ('ol', _NUMBERED)):
+        matches = [pattern.match(line) for line in lines]
+        if all(matches):
+            # No line breaks inside an item: each item is already its own line, and turning
+            # its newline into a <br /> would put a blank line inside every bullet.
+            items = ''.join(
+                f'<li style="{_ITEM_STYLE}">{_inline_markdown(m.group("item"), breaks=False)}</li>'
+                for m in matches)
+            return (f'<mj-text padding="8px 0">'
+                    f'<{tag} style="{_LIST_STYLE}">{items}</{tag}></mj-text>')
+    return None
+
+
+def _markdown_blocks(text):
+    """The MJML blocks for a body, without the section and column around them.
+
+    Separate from `_markdown_to_mjml` so a campaign template can place an author's prose
+    inside its own layout — see `render_campaign`.
     """
     blocks = []
     for chunk in re.split(r'\n\s*\n', (text or '').strip()):
         chunk = chunk.strip()
         if not chunk:
             continue
-        if chunk.startswith('!['):                      # ![alt](url) on its own line
+
+        if chunk.startswith('!['):                      # ![alt](url), then anything after it
             match = re.match(r'!\[(?P<alt>[^\]]*)\]\((?P<src>[^)]+)\)', chunk)
             if match:
                 blocks.append(
                     f'<mj-image src="{escape(match.group("src"))}" '
                     f'alt="{escape(match.group("alt"))}" padding="8px 0" />')
+                # Whatever followed the image is a caption, and it used to be dropped on the
+                # floor — silently, which is the worst way to lose someone's writing.
+                rest = chunk[match.end():].strip()
+                if rest:
+                    blocks.append(f'<mj-text font-size="13px" color="#666666" '
+                                  f'padding="0 0 8px">{_inline_markdown(rest)}</mj-text>')
                 continue
+
         if chunk.startswith('[[') and chunk.endswith(']]'):   # [[Label|url]] → a button
             inner = chunk[2:-2]
             label, _, href = inner.partition('|')
@@ -142,33 +181,62 @@ def _markdown_to_mjml(text):
                 f'<mj-button href="{escape(href.strip())}" background-color="#198754" '
                 f'color="#ffffff" padding="16px 0">{escape(label.strip())}</mj-button>')
             continue
-        html = _inline_markdown(chunk)
+
         if chunk.startswith('###'):
             blocks.append(f'<mj-text font-size="18px" font-weight="bold" padding="12px 0 4px">'
                           f'{_inline_markdown(chunk.lstrip("#").strip())}</mj-text>')
-        elif chunk.startswith('##'):
+            continue
+        if chunk.startswith('##'):
             blocks.append(f'<mj-text font-size="22px" font-weight="bold" padding="16px 0 4px">'
                           f'{_inline_markdown(chunk.lstrip("#").strip())}</mj-text>')
-        elif chunk.startswith('#'):
+            continue
+        if chunk.startswith('#'):
             blocks.append(f'<mj-text font-size="26px" font-weight="bold" padding="20px 0 4px">'
                           f'{_inline_markdown(chunk.lstrip("#").strip())}</mj-text>')
-        else:
-            blocks.append(f'<mj-text padding="8px 0">{html}</mj-text>')
-    body = '\n        '.join(blocks)
+            continue
+
+        # Checked after the headings so a "#" line is never mistaken for anything else, and
+        # before the paragraph fallback, which is what a list used to fall through to.
+        listing = _list_block(chunk)
+        if listing:
+            blocks.append(listing)
+            continue
+
+        blocks.append(f'<mj-text padding="8px 0">{_inline_markdown(chunk)}</mj-text>')
+
+    return '\n        '.join(blocks)
+
+
+def _markdown_to_mjml(text):
+    """A deliberately small Markdown subset, rendered as MJML blocks.
+
+    Not a full Markdown implementation and not trying to be. Campaign bodies are headings,
+    paragraphs, lists, links, emphasis and the occasional image or button — and every construct
+    supported here has to survive Outlook, which rules out most of what a general Markdown
+    renderer would emit.
+
+    Anything unsupported renders as the literal text the author typed rather than raising. That
+    is a deliberate trade: the send guard means somebody always looks at a real copy before it
+    goes out, so a visible oddity gets caught, whereas a hard error on a stray character would
+    block a mailing over nothing.
+    """
     return mark_safe(
-        f'<mj-section padding="8px 24px">\n      <mj-column>\n        {body}\n'
-        f'      </mj-column>\n    </mj-section>')
+        f'<mj-section padding="8px 24px">\n      <mj-column>\n        '
+        f'{_markdown_blocks(text)}\n      </mj-column>\n    </mj-section>')
 
 
-def _inline_markdown(text):
+def _inline_markdown(text, breaks=True):
     # Escaped first, then the markdown patterns insert real tags. Campaign authors are
     # staff, but "staff" is not "trusted to hand-write MJML by accident" — an unescaped
     # angle bracket in a body would otherwise land in the markup and break the compile.
     text = escape(text)
     text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" style="color:#198754">\1</a>', text)
-    text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', text)
-    text = re.sub(r'(?<!\*)\*([^*]+)\*(?!\*)', r'<em>\1</em>', text)
-    return text.replace('\n', '<br />')
+    # Emphasis cannot span a line break. Without that bound, a star-bulleted list read as one
+    # long italic — "* one\n* two" became "<em> one</em> two" — so the one construct people
+    # reach for most produced the most mangled output.
+    text = re.sub(r'\*\*([^*\n]+)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'(?<!\*)\*([^*\n]+)\*(?!\*)', r'<em>\1</em>', text)
+    return text.replace('\n', '<br />') if breaks else text
 
 
 def render_campaign(campaign, subscription, request=None, extra_context=None):
@@ -191,11 +259,22 @@ def render_campaign(campaign, subscription, request=None, extra_context=None):
     }
     context.update(extra_context or {})
 
+    # The author's prose, offered to the template as well as used on its own. A template used
+    # to *replace* the Markdown body, which meant a designed layout and editable prose were
+    # mutually exclusive: staff could either write something this week or have it laid out
+    # properly, and getting both took a deploy.
+    #
+    # Two forms, because MJML nesting is strict and the mistake is otherwise a baffling compile
+    # error: `campaign_body` is a whole section, to drop between other sections, and
+    # `campaign_body_blocks` is just the contents, to drop inside an existing <mj-column>.
+    context['campaign_body'] = _markdown_to_mjml(campaign.body_markdown)
+    context['campaign_body_blocks'] = mark_safe(_markdown_blocks(campaign.body_markdown))
+
     if campaign.template_name:
         body_mjml = render_to_string(
             f'email/campaigns/{campaign.template_name}', context, request=request)
     else:
-        body_mjml = _markdown_to_mjml(campaign.body_markdown)
+        body_mjml = context['campaign_body']
 
     # Both sources are already safe strings — render_to_string returns one, and
     # _markdown_to_mjml marks its own output. That matters: without it Django escapes the

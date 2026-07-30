@@ -798,8 +798,9 @@ class CampaignForm(forms.ModelForm):
         choices += [(name, name) for name in _campaign_template_names()]
         self.fields['template_name'] = forms.ChoiceField(
             choices=choices, required=False, label='Template',
-            help_text='A recurring shape that fills itself from the database. '
-                      'Takes precedence over the Markdown body.')
+            help_text='A recurring shape that fills itself from the database. It supplies the '
+                      'layout; whether your Markdown body appears inside it is up to the '
+                      'template.')
 
     def clean(self):
         cleaned = super().clean()

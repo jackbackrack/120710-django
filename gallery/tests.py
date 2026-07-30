@@ -7559,6 +7559,94 @@ class CampaignTests(TestCase):
         self.assertIn('<strong>Saturday</strong>', html)
         self.assertIn('href="https://x.test/"', html)
 
+    def test_lists_become_real_lists(self):
+        """The construct a newsletter author reaches for most, and the one that used to fail.
+
+        Dash bullets rendered as literal "- " text, and star bullets were worse: the emphasis
+        pattern spanned the line break, so "* one\n* two" came out as one long italic.
+        """
+        for source, tag in (('- one\n- two', 'ul'),
+                            ('* one\n* two', 'ul'),
+                            ('+ one\n+ two', 'ul'),
+                            ('1. one\n2. two', 'ol')):
+            with self.subTest(source=source):
+                self.campaign.body_markdown = source
+                self.campaign.save()
+                html = campaigns.render_preview(self.campaign)
+                self.assertIn(f'<{tag}', html)
+                self.assertEqual(html.count('<li'), 2)
+                self.assertNotIn('<em>', html)
+                # And the marker itself is gone rather than printed alongside the bullet.
+                self.assertNotIn('- one', html)
+
+    def test_emphasis_does_not_span_a_line_break(self):
+        self.campaign.body_markdown = 'one *two\nthree* four'
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('<em>', html)
+
+    def test_a_paragraph_containing_a_dash_is_not_mistaken_for_a_list(self):
+        """All-or-nothing: a chunk where only some lines look like items is prose."""
+        self.campaign.body_markdown = 'We open on Friday.\n- and close on Sunday'
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('<ul', html)
+
+    def test_text_after_an_image_becomes_a_caption_instead_of_vanishing(self):
+        """It used to be dropped on the floor, silently, which is the worst way to lose writing."""
+        self.campaign.body_markdown = ('![Opening night](https://x.test/p.jpg)\n'
+                                       'Photograph by *Sam Ready*.')
+        self.campaign.save()
+        html = campaigns.render_preview(self.campaign)
+        self.assertIn('https://x.test/p.jpg', html)
+        self.assertIn('Photograph by', html)
+        self.assertIn('<em>Sam Ready</em>', html)
+
+    def test_a_template_can_place_the_authors_prose_inside_its_layout(self):
+        """Templates and Markdown used to be mutually exclusive.
+
+        That meant a designed layout and editable wording were an either/or: staff could write
+        something this week, or have it laid out properly, and getting both took a deploy.
+        """
+        show = Show.objects.create(
+            name='Autumn Group Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            subject='Autumn opens', site=self.site,
+            template_name='show_announcement.mjml',
+            body_markdown='A note from the curator:\n\n- one thing\n- another')
+
+        html = self._render_with_show(campaign, show)
+        # The template's own content...
+        self.assertIn('Autumn Group Show', html)
+        # ...and the author's prose inside it, as a real list.
+        self.assertIn('A note from the curator', html)
+        self.assertIn('<ul', html)
+        self.assertEqual(html.count('<li'), 2)
+
+    def test_a_template_without_a_body_renders_unchanged(self):
+        """The hybrid must be opt-in per campaign, not a blank block on every one."""
+        show = Show.objects.create(
+            name='Autumn Group Show', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            subject='Autumn opens', site=self.site,
+            template_name='show_announcement.mjml', body_markdown='   ')
+        html = self._render_with_show(campaign, show)
+        self.assertIn('Autumn Group Show', html)
+        self.assertNotIn('<ul', html)
+
+    def _render_with_show(self, campaign, show):
+        """A template campaign needs the objects it names; render_preview cannot know them."""
+        stand_in = Subscription(
+            pk=0, site=self.site,
+            subscriber=Subscriber(pk=0, email='r@example.com'))
+        return campaigns.render_campaign(
+            campaign, stand_in,
+            extra_context={'show': show, 'show_url': 'https://x.test/show/', 'artworks': []})
+
     def test_author_text_is_escaped_but_generated_markup_is_not(self):
         """The body is markup we generate around text they wrote — only one of those is safe."""
         self.campaign.body_markdown = 'Hello <script>alert(1)</script>'

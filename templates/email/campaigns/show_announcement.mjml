@@ -5,6 +5,16 @@ and the artwork grid is however many pieces are actually in the show.
 
 Copy this file to make a new recurring format. Set Campaign.template_name to the filename
 and pass the objects it needs; see gallery/campaigns.py::render_campaign.
+
+A template can also place the author's own Markdown body inside its layout, which is what the
+optional note below does — so a recurring format does not have to mean identical wording every
+time, and adding a sentence to one mailing is not a deploy. Two forms are available:
+
+  {{ campaign_body }}          a whole <mj-section>, to drop between sections (used here)
+  {{ campaign_body_blocks }}   just the contents, to drop inside an existing <mj-column>
+
+Using the wrong one nests an mj-section inside an mj-column, which MJML rejects with an error
+that does not mention either.
 {% endcomment %}
 <mj-section padding="8px 24px">
   <mj-column>
@@ -18,6 +28,12 @@ and pass the objects it needs; see gallery/campaigns.py::render_campaign.
     </mj-button>
   </mj-column>
 </mj-section>
+
+{% comment %}
+Whatever the curator wrote for this particular announcement, if anything. Between the header
+and the artwork grid, so a note reads as an introduction to the works rather than a postscript.
+{% endcomment %}
+{% if campaign.body_markdown.strip %}{{ campaign_body }}{% endif %}
 
 {% if artworks %}
 <mj-section padding="0 24px">

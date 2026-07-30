@@ -117,6 +117,53 @@ Because the send has no request to build URLs from, links in campaign mail come 
 `SITE_BASE_URL`. Getting that wrong breaks the unsubscribe link in mail that has already
 gone out, so it is an explicit setting rather than a fallback buried in the mail code.
 
+## Writing the body
+
+Two authoring paths, and they are not alternatives — they are for different jobs.
+
+**Markdown, for a one-off.** Typed into the campaign form, changed in the browser, no deploy.
+The supported vocabulary is deliberately small, because every construct has to survive Outlook:
+
+| Syntax | Result |
+| --- | --- |
+| `# ` `## ` `### ` | headings |
+| blank-line-separated text | paragraphs |
+| `- ` `* ` `+ ` items | bullet list (one level, no nesting) |
+| `1. ` items | numbered list |
+| `**bold**` `*italic*` | emphasis — cannot span a line break |
+| `[text](url)` | link |
+| `![alt](url)` | image; anything after it becomes a caption |
+| `[[Label\|url]]` | a button |
+
+Anything else — blockquotes, tables, code, rules, bare URLs — **renders as the literal text
+typed**, rather than raising. That is a deliberate trade rather than an oversight: the send guard
+means somebody always looks at a real copy first, so a visible oddity gets caught, whereas a hard
+error on a stray character would block a mailing over nothing. The cost is that the failure is
+silent, so the test send is doing real work — read it, do not just check it arrived.
+
+A list is all-or-nothing: every non-empty line of a block must be an item, otherwise the block
+is a paragraph. A paragraph that happens to contain a line starting with a dash is far more
+likely to be prose than a list somebody typed wrong.
+
+**An MJML template, for a recurring shape.** A file under `templates/email/campaigns/`, rendered
+through Django's template engine — so it reaches the ORM and nobody retypes a date. Full layout
+vocabulary: sections, columns, spacers, per-client overrides. The cost is that it lives in the
+repo, so changing it is a deploy.
+
+**Both at once.** A template can place the author's prose inside its own layout, which is how a
+recurring format avoids meaning identical wording every time:
+
+    {{ campaign_body }}          a whole <mj-section>, to drop between sections
+    {{ campaign_body_blocks }}   just the contents, to drop inside an existing <mj-column>
+
+Use the wrong one and you nest an `mj-section` inside an `mj-column`, which MJML rejects with an
+error mentioning neither. `show_announcement.mjml` does this for an optional curator's note.
+
+Do not grow the Markdown subset much past this. It is regex-based, which is fine for a closed
+vocabulary and rots quickly for an open one; and swapping in a general Markdown library would put
+arbitrary HTML into email, which is how the Outlook problems MJML exists to solve come back. Past
+lists, a template is the right answer.
+
 ## When a send stops part-way
 
 It will happen: the provider rate-limits, or the site gets deployed mid-send. This is the
