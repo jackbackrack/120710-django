@@ -178,6 +178,15 @@ useful to say. It is deliberately *not* gated on the postal address, which is ne
 country defaults in, so a venue that has filled in nothing at all still has an address of "United
 States of America" and would get a heading above nothing.
 
+**Everything is centred**, set once as `align="center"` on `mj-text` in the shell's
+`mj-attributes` rather than per block — MJML's default is left, which is what had half an email
+ranged left and half centred. A new template inherits it, so the way to break this is to opt out
+rather than forget to opt in; a test asserts every rendered text block is centred.
+
+The one exception is a bulleted list, which is centred *as a block* with its items reading
+left-aligned inside (`display:inline-block; text-align:left`). Centring each item individually
+puts every bullet in a different place, which is unreadable.
+
 **Do not put a Google font in the stack.** MJML recognises Google font names and helpfully adds a
 `<link>` to `fonts.googleapis.com`, which makes every email fetch a resource from Google when it
 is opened. That is a tracking vector, it contradicts what the privacy page promises, and most

@@ -173,7 +173,11 @@ _NUMBERED = re.compile(r'^\s*\d+[.)]\s+(?P<item>.+)$')
 
 # Email clients disagree about default list indentation, and Outlook ignores margin on <ul>.
 # Stating both leaves nothing to a default.
-_LIST_STYLE = 'margin:0;padding-left:20px'
+#
+# inline-block so the list sits in the middle of a centred column while its items still read
+# left-aligned against their bullets. Fully centring list items puts every bullet in a different
+# place and is unreadable; this is what "centred" should mean for a list.
+_LIST_STYLE = ('margin:0 auto;padding-left:20px;display:inline-block;text-align:left')
 _ITEM_STYLE = 'padding-bottom:6px'
 
 

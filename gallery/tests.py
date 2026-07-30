@@ -1312,6 +1312,37 @@ class CampaignStaffPagesTests(TestCase):
         self.assertContains(page, reverse('gallery:campaign_template_preview'))
         self.assertContains(page, 'it does not fill in the body field')
 
+    def test_everything_a_reader_sees_is_centred(self):
+        """MJML defaults mj-text to left, which left half of an email ranged left and half centred.
+
+        Asserted on the rendered output rather than the templates, because the default is set
+        once in the shell's mj-attributes and a new template inherits it silently — so a
+        regression here would be a template that opts out, not one that forgets to opt in.
+        """
+        import re
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30))
+        show.sites.add(self.site)
+        for template in ('show_opening.mjml', 'show_closing.mjml', 'show_announcement.mjml'):
+            with self.subTest(template=template):
+                campaign = Campaign.objects.create(
+                    site=self.site, show=show, subject='Full-Feel',
+                    template_name=template, body_markdown='A note.')
+                html = campaigns.render_preview(campaign)
+                # The div MJML emits per mj-text block carries the visible alignment.
+                aligns = set(re.findall(
+                    r'<div style="font-family:[^"]*?text-align:(\w+)', html))
+                self.assertEqual(aligns, {'center'})
+
+    def test_a_bulleted_list_is_centred_as_a_block_but_reads_left(self):
+        """Centring each item puts every bullet somewhere different, which is unreadable."""
+        campaign = self._draft(body_markdown='- one\n- two')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('display:inline-block', html)
+        self.assertIn('margin:0 auto', html)
+
     def test_every_campaign_carries_the_venue_information(self):
         """Woven into the shell, not retyped per campaign — the difference from hand-writing them.
 
