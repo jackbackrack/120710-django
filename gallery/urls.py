@@ -1,6 +1,9 @@
 from django.urls import path, re_path
 
 from gallery.views.placards import placard_html, placard_json, placard_json_for_site, placard_sheet_pdf
+from gallery.views.campaigns import (campaign_edit, campaign_list, campaign_new,
+                                     campaign_preview, campaign_send,
+                                     campaign_send_test)
 from gallery.views.checklist import show_checklist_html, show_checklist_pdf
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer, room_camera_save, room_2d, save_support_to_catalog, layout_snapshots, restore_layout_snapshot, delete_layout_snapshot
@@ -112,6 +115,13 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/remove-artwork/(?P<pk>\d+)/$', remove_artwork_from_show, name='remove_artwork_from_show'),
     path('submission/<int:pk>/status/', update_submission_status, name='update_submission_status'),
     path('submissions/bulk-status/', bulk_update_submission_status, name='bulk_submission_status'),
+    # Campaigns: staff-only mailing-list composition and sending.
+    path('campaigns/', campaign_list, name='campaign_list'),
+    path('campaigns/new/', campaign_new, name='campaign_new'),
+    path('campaigns/<int:pk>/', campaign_edit, name='campaign_edit'),
+    path('campaigns/<int:pk>/preview/', campaign_preview, name='campaign_preview'),
+    path('campaigns/<int:pk>/test/', campaign_send_test, name='campaign_send_test'),
+    path('campaigns/<int:pk>/send/', campaign_send, name='campaign_send'),
     path('artists/', ArtistListView.as_view(), name='artist_list'),
     path('collectors/', CollectorsListView.as_view(), name='collectors_list'),
     path('artists/mailchimp', ArtistMailChimpView.as_view(), name='artist_mailchimp_list'),

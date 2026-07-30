@@ -64,6 +64,11 @@
             <a class="nav-link{% if 'site' in u %} active{% endif %}" href="{% url 'gallery:site_list' %}">Sites</a>
           </li>
           {% endif %}
+          {% if is_staff_user %}
+          <li class="nav-item">
+            <a class="nav-link{% if 'campaigns' in u %} active{% endif %}" href="{% url 'gallery:campaign_list' %}">Campaigns</a>
+          </li>
+          {% endif %}
 
           <li class="nav-item">
             {% if current_site %}

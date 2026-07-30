@@ -1092,6 +1092,165 @@ class ArtistCreationPermissionTests(TestCase):
                          'an artist who already has a profile should not be')
 
 
+
+class CampaignStaffPagesTests(TestCase):
+    """Compose / preview / test / send. The send guard is the point: a campaign cannot
+    go out until a test has been sent since the last edit, and the pages have to say so
+    rather than just disabling a button."""
+
+    def setUp(self):
+        from gallery.models import Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        for i in range(3):
+            Subscriber.opt_in(email='s%d@example.com' % i, first_name='Sub',
+                              last_name=str(i), sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.staff = User.objects.create_user(
+            username='camp@example.com', email='camp@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+
+    def _locmem(self):
+        """Campaigns open their own Resend connection; point it at locmem for tests."""
+        from unittest import mock
+        return mock.patch('gallery.campaigns._connection',
+                          lambda: mail.get_connection(
+                              'django.core.mail.backends.locmem.EmailBackend'))
+
+    def _draft(self, **kwargs):
+        from gallery.models import Campaign
+        data = {'site': self.site, 'subject': 'Spring show is open',
+                'body_markdown': 'Come and **see** it.'}
+        data.update(kwargs)
+        return Campaign.objects.create(**data)
+
+    def test_compose_creates_a_draft(self):
+        from gallery.models import Campaign
+        r = self.client.post(reverse('gallery:campaign_new'),
+                             {'site': self.site.pk, 'subject': 'Hello',
+                              'preheader': 'Three weeks only', 'template_name': '',
+                              'body_markdown': 'Body text'}, follow=True)
+        self.assertEqual(r.status_code, 200)
+        campaign = Campaign.objects.get()
+        self.assertEqual(campaign.status, Campaign.STATUS_DRAFT)
+        self.assertEqual(campaign.created_by, self.staff)
+
+    def test_a_body_is_required_one_way_or_the_other(self):
+        r = self.client.post(reverse('gallery:campaign_new'),
+                             {'site': self.site.pk, 'subject': 'Hello',
+                              'template_name': '', 'body_markdown': '   '})
+        self.assertContains(r, 'either choose a template or write some Markdown')
+
+    def test_preview_is_a_standalone_document_and_sends_nothing(self):
+        from gallery.models import Subscriber
+        campaign = self._draft()
+        before = Subscriber.objects.count()
+        r = self.client.get(reverse('gallery:campaign_preview', kwargs={'pk': campaign.pk}))
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode()
+        self.assertTrue(body.lstrip().lower().startswith('<!doctype'))
+        self.assertIn('see', body)
+        self.assertEqual(mail.outbox, [])
+        # The stand-in recipient must not become a real subscriber.
+        self.assertEqual(Subscriber.objects.count(), before)
+
+    def test_a_template_that_will_not_render_does_not_break_the_editor(self):
+        campaign = self._draft(template_name='no_such_template.mjml')
+        r = self.client.get(reverse('gallery:campaign_preview', kwargs={'pk': campaign.pk}))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('does not render yet', r.content.decode())
+
+    def test_send_is_refused_until_a_test_has_gone_out(self):
+        campaign = self._draft()
+        page = self.client.get(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}))
+        self.assertContains(page, 'Send a test to yourself first')
+        self.assertContains(page, '3 subscribers')
+
+        # A stale tab posting Send must not get through — the button being hidden is not
+        # the guard.
+        r = self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'draft')
+        self.assertEqual(mail.outbox, [])
+        self.assertContains(r, 'Send a test to yourself first')
+
+    def test_test_then_send_reaches_the_whole_list(self):
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+            campaign.refresh_from_db()
+            self.assertTrue(campaign.can_send)
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertTrue(mail.outbox[0].subject.startswith('[TEST]'))
+
+            mail.outbox.clear()
+            self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'sent')
+        self.assertEqual(campaign.recipient_count, 3)
+        self.assertEqual(len(mail.outbox), 3)
+        # RFC 8058 one-click headers on every message.
+        for message in mail.outbox:
+            self.assertIn('List-Unsubscribe', message.extra_headers)
+            self.assertEqual(message.extra_headers['List-Unsubscribe-Post'],
+                             'List-Unsubscribe=One-Click')
+
+    def test_editing_after_a_test_re_arms_the_guard(self):
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+        campaign.refresh_from_db()
+        self.assertTrue(campaign.can_send)
+
+        self.client.post(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}),
+                         {'site': self.site.pk, 'subject': 'Changed my mind',
+                          'template_name': '', 'body_markdown': 'Different words'},
+                         follow=True)
+        campaign.refresh_from_db()
+        self.assertFalse(campaign.can_send)
+        self.assertIn('changed since the last test', campaign.blocked_reason)
+
+    def test_a_sent_campaign_becomes_a_read_only_record(self):
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+            self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+        subject = campaign.subject
+
+        page = self.client.get(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}))
+        self.assertContains(page, 'can no longer be edited')
+        self.client.post(reverse('gallery:campaign_edit', kwargs={'pk': campaign.pk}),
+                         {'site': self.site.pk, 'subject': 'Rewritten history',
+                          'template_name': '', 'body_markdown': 'x'})
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.subject, subject)
+
+    def test_only_staff_get_in(self):
+        campaign = self._draft()
+        send = reverse('gallery:campaign_send', kwargs={'pk': campaign.pk})
+
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('gallery:campaign_list')).status_code, 302)
+        self.assertEqual(self.client.post(send).status_code, 302)
+
+        artist = User.objects.create_user(
+            username='nope@example.com', email='nope@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.get(reverse('gallery:campaign_list')).status_code, 404)
+        self.assertEqual(self.client.post(send).status_code, 404)
+        self.assertEqual(mail.outbox, [])
+
+
+
 class HowToAnchorTests(TestCase):
     """Every link into the help system must land on a guide that exists.
 

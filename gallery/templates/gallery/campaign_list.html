@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Campaigns{% endblock %}
+{% block block_title %}Campaigns
+<a class="card__link new-button" href="{% url 'gallery:campaign_new' %}">New</a>
+{% endblock %}
+
+{% block content %}
+<div class="col-11 col-md-9 mx-auto mt-4">
+  {% if campaigns %}
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>List</th>
+        <th>Status</th>
+        <th class="text-end">Sent to</th>
+        <th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in campaigns %}
+      <tr>
+        <td><a class="card__link" href="{% url 'gallery:campaign_edit' c.pk %}">{{ c.subject|default:"(no subject)" }}</a></td>
+        <td>{{ c.site.name|default:"Everyone" }}</td>
+        <td>
+          {{ c.get_status_display }}
+          {% if c.status == 'draft' and not c.is_tested %}
+          <span class="text-muted small">&middot; untested</span>
+          {% endif %}
+        </td>
+        <td class="text-end">{% if c.sent_at %}{{ c.recipient_count }}{% else %}&mdash;{% endif %}</td>
+        <td class="text-muted small">{{ c.sent_at|default:c.created_at|date:"M j, Y" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-center text-muted mt-4">
+    No campaigns yet. <a class="card__link" href="{% url 'gallery:campaign_new' %}">Write one</a>.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

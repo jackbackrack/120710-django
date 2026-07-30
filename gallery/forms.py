@@ -771,3 +771,51 @@ class ArtistScheduleForm(forms.Form):
                 raise forms.ValidationError('Please pick a time within the selected window.')
             cleaned['window_obj'] = w
         return cleaned
+
+class CampaignForm(forms.ModelForm):
+    """Compose a campaign. Both authoring paths on one form, since which one a campaign
+    uses is a choice made while writing it, not a different kind of object."""
+
+    class Meta:
+        from gallery.models import Campaign
+        model = Campaign
+        fields = ('site', 'subject', 'preheader', 'template_name', 'body_markdown')
+        widgets = {
+            'subject': forms.TextInput(attrs={'placeholder': 'What the inbox shows first'}),
+            'preheader': forms.TextInput(
+                attrs={'placeholder': 'The line after the subject — around 90 characters'}),
+            'body_markdown': forms.Textarea(attrs={'rows': 16}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['site'].empty_label = 'Everyone (network-wide list)'
+        self.fields['site'].help_text = self.instance._meta.get_field('site').help_text
+
+        # A dropdown of the MJML templates that actually exist, rather than a text box
+        # where a typo becomes a TemplateDoesNotExist at send time.
+        choices = [('', 'None — write the body in Markdown below')]
+        choices += [(name, name) for name in _campaign_template_names()]
+        self.fields['template_name'] = forms.ChoiceField(
+            choices=choices, required=False, label='Template',
+            help_text='A recurring shape that fills itself from the database. '
+                      'Takes precedence over the Markdown body.')
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get('template_name') and not (cleaned.get('body_markdown') or '').strip():
+            raise forms.ValidationError(
+                'Give it a body: either choose a template or write some Markdown.')
+        return cleaned
+
+
+def _campaign_template_names():
+    """MJML campaign templates on disk, so the form can offer them."""
+    import os
+    from django.conf import settings
+    names = set()
+    for directory in [os.path.join(str(settings.BASE_DIR), 'templates')]:
+        folder = os.path.join(directory, 'email', 'campaigns')
+        if os.path.isdir(folder):
+            names.update(f for f in os.listdir(folder) if f.endswith('.mjml'))
+    return sorted(names)

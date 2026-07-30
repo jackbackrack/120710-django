@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if campaign %}{{ campaign.subject|default:"Draft" }}{% else %}New campaign{% endif %}{% endblock %}
+{% block block_title %}{% if campaign %}{{ campaign.subject|default:"Draft campaign" }}{% else %}New campaign{% endif %}{% endblock %}
+
+{% block content %}
+{% comment %}
+  Compose, preview, test and send on one page. The send guard is a sequence — a test has
+  to post-date the last edit — and splitting it across pages hides where you are in it.
+  blocked_reason is printed verbatim rather than paraphrased, so the page never refuses
+  without saying why.
+{% endcomment %}
+<div class="col-11 col-lg-10 mx-auto mt-4">
+
+  {% if campaign and not editable %}
+  <div class="alert alert-secondary">
+    {# Keep user-facing sentences unbroken so they stay greppable and testable. #}
+    This campaign is <strong>{{ campaign.get_status_display|lower }}</strong> and can no longer be edited
+    &mdash; it is the record of what went out{% if campaign.sent_at %} on {{ campaign.sent_at|date:"F j, Y" }} to {{ campaign.recipient_count }} subscriber{{ campaign.recipient_count|pluralize }}{% endif %}.
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+    {# ── Compose ──────────────────────────────────────────────────────── #}
+    <div class="col-lg-6">
+      {% if editable or not campaign %}
+      <form method="post">{% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">
+          {% if campaign %}Save{% else %}Create draft{% endif %}
+        </button>
+        {% if campaign %}
+        <a class="card__link ms-3" href="{% url 'gallery:campaign_list' %}">All campaigns</a>
+        {% endif %}
+      </form>
+      {% else %}
+      <dl>
+        <dt>List</dt><dd>{{ campaign.site.name|default:"Everyone" }}</dd>
+        <dt>Subject</dt><dd>{{ campaign.subject }}</dd>
+        {% if campaign.preheader %}<dt>Preview text</dt><dd>{{ campaign.preheader }}</dd>{% endif %}
+        {% if campaign.template_name %}<dt>Template</dt><dd>{{ campaign.template_name }}</dd>{% endif %}
+      </dl>
+      <a class="card__link" href="{% url 'gallery:campaign_list' %}">All campaigns</a>
+      {% endif %}
+    </div>
+
+    {# ── Preview, test, send ──────────────────────────────────────────── #}
+    <div class="col-lg-6">
+      {% if campaign %}
+      <h5>Preview</h5>
+      <iframe src="{% url 'gallery:campaign_preview' campaign.pk %}"
+              title="Campaign preview" loading="lazy"
+              style="width:100%;height:26rem;border:1px solid rgba(0,0,0,.2);background:#fff"></iframe>
+      <p class="text-muted small mt-1">
+        A stand-in recipient. The unsubscribe link here does not resolve, on purpose.
+      </p>
+
+      {% if editable %}
+      <hr>
+      <h5>Send a test</h5>
+      <form method="post" action="{% url 'gallery:campaign_send_test' campaign.pk %}"
+            class="d-flex gap-2 align-items-start">{% csrf_token %}
+        <input type="email" name="address" value="{{ test_address }}" required
+               class="form-control form-control-sm" style="max-width:18rem"
+               aria-label="Test recipient">
+        <button type="submit" class="btn btn-sm btn-secondary">Send test</button>
+      </form>
+      <p class="text-muted small mt-1">
+        {% if campaign.test_sent_at %}
+          Last test {{ campaign.test_sent_at|date:"M j, Y H:i" }}.
+          {% if not campaign.is_tested %}<strong>Edited since — send another.</strong>{% endif %}
+        {% else %}
+          No test sent yet.
+        {% endif %}
+      </p>
+
+      <hr>
+      <h5>Send to the list</h5>
+      <p>
+        {{ recipient_count }} subscriber{{ recipient_count|pluralize }} on
+        <strong>{{ campaign.site.name|default:"the network-wide list" }}</strong>.
+      </p>
+      {% if campaign.can_send %}
+      <form method="post" action="{% url 'gallery:campaign_send' campaign.pk %}">{% csrf_token %}
+        <button type="submit" class="btn btn-danger"
+                onclick="return confirm('Send &quot;{{ campaign.subject|escapejs }}&quot; to {{ recipient_count }} subscriber(s)? This cannot be undone.')">
+          Send to {{ recipient_count }} subscriber{{ recipient_count|pluralize }}
+        </button>
+      </form>
+      {% else %}
+      <button type="button" class="btn btn-danger" disabled>Send</button>
+      <p class="text-muted small mt-1">{{ campaign.blocked_reason }}</p>
+      {% endif %}
+      {% endif %}
+
+      {% else %}
+      <p class="text-muted">
+        Save the draft and this side will show a preview, plus the controls for sending
+        yourself a test and then sending to the list.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

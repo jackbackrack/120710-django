@@ -839,6 +839,9 @@ ROLE_DOCUMENTATION = {
             'Remove a collection claim on any artwork using the Remove link next to the claim on the artwork detail page.',
             'Create and edit sites, including room dimensions, per-wall texture images, and wall obstacles (doors, windows).',
             'Place artwork in the virtual room layout and view it in the 3D viewer.',
+            'Write, preview, test and send mailings to subscribers from the Campaigns page. '
+            'A campaign cannot be sent until a test has gone out since its last edit, and a '
+            'sent campaign becomes a read-only record of what went out.',
             'Edit and Delete links are shown only for records you can manage.',
         ],
         'forms': [
@@ -928,6 +931,20 @@ ROLE_DOCUMENTATION = {
                     {'name': 'y_in', 'input_type': 'numeric input', 'purpose': 'Vertical position of the obstacle\'s bottom edge, measured in inches from the floor.'},
                     {'name': 'w_in', 'input_type': 'numeric input', 'purpose': 'Width of the obstacle in inches.'},
                     {'name': 'h_in', 'input_type': 'numeric input', 'purpose': 'Height of the obstacle in inches.'},
+                ],
+            },
+            {
+                'name': 'Campaign Form',
+                'where_used': 'Campaigns → New, or an existing draft',
+                'breadcrumb': 'Campaigns > New',
+                'fields': [
+                    {'name': 'site', 'input_type': 'select', 'purpose': 'Whose subscribers this goes to. "Everyone (network-wide list)" sends to the list that is not tied to a venue.'},
+                    {'name': 'subject', 'input_type': 'text input', 'purpose': 'What the inbox shows first. Required before the campaign can be sent.'},
+                    {'name': 'preheader', 'input_type': 'text input', 'purpose': 'The line inboxes show after the subject, around 90 characters. Left blank, mail clients scrape the first words of the body instead.'},
+                    {'name': 'template_name', 'input_type': 'select', 'purpose': 'A recurring shape that fills itself from the database (e.g. a show announcement). Takes precedence over the Markdown body. Choose "None" to write the body yourself.'},
+                    {'name': 'body_markdown', 'input_type': 'textarea (Markdown)', 'purpose': 'The body of a one-off mailing. Either this or a template is required.'},
+                    {'name': 'Send test', 'input_type': 'email input + button', 'purpose': 'Sends one copy to the address given, subject prefixed with [TEST]. Defaults to your own address. Required before the real send is unlocked.'},
+                    {'name': 'Send to the list', 'input_type': 'button', 'purpose': 'Sends to every subscriber on the chosen list. Disabled until a test has gone out since the last edit; the reason it is disabled is shown beneath it. There is no undo.'},
                 ],
             },
             {
