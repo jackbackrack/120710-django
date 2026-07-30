@@ -3,7 +3,8 @@ from django.urls import path, re_path
 from gallery.views.placards import placard_html, placard_json, placard_json_for_site, placard_sheet_pdf
 from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign_list,
                                      campaign_new, campaign_preview, campaign_resume,
-                                     campaign_send, campaign_send_test)
+                                     campaign_send, campaign_send_test,
+                                     campaign_template_preview)
 from gallery.views.subscribers import (subscriber_add, subscriber_delete,
                                        subscriber_list, subscriber_unsubscribe_all,
                                        subscription_resubscribe,
@@ -121,6 +122,9 @@ urlpatterns = [
     # Campaigns: staff-only mailing-list composition and sending.
     path('campaigns/', campaign_list, name='campaign_list'),
     path('campaigns/new/', campaign_new, name='campaign_new'),
+    # Before the <int:pk> routes, or 'template-preview' would be matched as a pk.
+    path('campaigns/template-preview/', campaign_template_preview,
+         name='campaign_template_preview'),
     path('campaigns/<int:pk>/', campaign_edit, name='campaign_edit'),
     path('campaigns/<int:pk>/preview/', campaign_preview, name='campaign_preview'),
     path('campaigns/<int:pk>/test/', campaign_send_test, name='campaign_send_test'),

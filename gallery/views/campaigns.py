@@ -18,7 +18,7 @@ from django.views.decorators.http import require_POST
 
 from gallery import campaigns as engine
 from gallery.forms import CampaignForm
-from gallery.models import Campaign
+from gallery.models import Campaign, Show, Site
 from gallery.permissions import is_staff_user
 
 logger = logging.getLogger(__name__)
@@ -111,6 +111,52 @@ def campaign_preview(request, pk):
             f'<p style="font-family:sans-serif;color:#b00">This campaign does not render '
             f'yet:</p><pre style="white-space:pre-wrap">{exc}</pre>',
             status=200, content_type='text/html')
+    return HttpResponse(html)
+
+
+@login_required
+def campaign_template_preview(request):
+    """The compiled email for a template and show that have not been saved to anything yet.
+
+    Exists because choosing a template used to show nothing at all until you had committed to a
+    draft: the template is not copied into the body field — it *is* the body — so the form looked
+    like it had done nothing. Being asked to save before you can see what you picked is a poor
+    trade for a decision that is mostly visual.
+
+    Renders an unsaved Campaign, so it writes nothing. Bare HTML for an iframe, like
+    campaign_preview.
+    """
+    _staff_only(request)
+
+    site = Site.objects.filter(pk=request.GET.get('site')).first()
+    show = Show.objects.filter(pk=request.GET.get('show')).first()
+    draft = Campaign(
+        site=site,
+        show=show,
+        subject=request.GET.get('subject') or 'Subject goes here',
+        preheader=request.GET.get('preheader') or '',
+        template_name=request.GET.get('template') or '',
+        body_markdown=request.GET.get('body') or '',
+    )
+
+    if draft.template_name and 'show' in engine.template_needs(draft.template_name) and not show:
+        return HttpResponse(
+            '<p style="font-family:sans-serif;color:#666;padding:1rem">This template takes its '
+            'content from a show. Choose one and the preview will fill in.</p>',
+            content_type='text/html')
+    if not draft.template_name and not draft.body_markdown.strip():
+        return HttpResponse(
+            '<p style="font-family:sans-serif;color:#666;padding:1rem">Choose a template, or '
+            'write something in the body, and it will appear here.</p>',
+            content_type='text/html')
+
+    try:
+        html = engine.render_preview(draft, request=request)
+    except Exception as exc:   # noqa: BLE001 — a broken template must not 500 the editor
+        logger.exception('Template preview failed for %r', draft.template_name)
+        return HttpResponse(
+            f'<p style="font-family:sans-serif;color:#b00">This does not render yet:</p>'
+            f'<pre style="white-space:pre-wrap">{exc}</pre>', content_type='text/html')
     return HttpResponse(html)
 
 

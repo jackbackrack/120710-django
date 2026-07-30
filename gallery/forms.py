@@ -817,10 +817,15 @@ class CampaignForm(forms.ModelForm):
         # where a typo becomes a TemplateDoesNotExist at send time.
         # Newest first, and only shows that are actually public or on the way there — mailing
         # about something under consideration would announce a show that may never happen.
-        self.fields['show'].queryset = Show.objects.filter(
-            status__in=[Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED,
-                        Show.STATUS_OPEN_CALL]).order_by('-start')
+        self.fields['show'].queryset = (
+            Show.objects.filter(
+                status__in=[Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED,
+                            Show.STATUS_OPEN_CALL])
+            .prefetch_related('sites').order_by('-start'))
         self.fields['show'].empty_label = 'None — not about a particular show'
+        # Dated and located, because a name on its own is not enough to pick from. A gallery
+        # accumulates shows with similar names, and the list is not short.
+        self.fields['show'].label_from_instance = _show_choice_label
 
         from gallery.campaigns import template_label
         choices = [('', 'None — write the body in Markdown below')]
@@ -842,10 +847,30 @@ class CampaignForm(forms.ModelForm):
         # for no stated reason.
         from gallery.campaigns import template_needs
         template = cleaned.get('template_name')
-        if template and 'show' in template_needs(template) and not cleaned.get('show'):
+        show = cleaned.get('show')
+        if template and 'show' in template_needs(template) and not show:
             self.add_error('show', 'This template takes its content from a show, so it needs '
                                    'one chosen.')
+
+        # Mailing one venue's subscribers about another venue's show is a mistake nobody makes
+        # on purpose and nothing else would catch — the show list has to span sites so any
+        # venue's campaign can find its own shows.
+        site = cleaned.get('site')
+        if show and site and not show.sites.filter(pk=site.pk).exists():
+            self.add_error('show', f'“{show.name}” is not at {site.name}. Pick a show at this '
+                                   f'venue, or change the list this goes to.')
         return cleaned
+
+
+def _show_choice_label(show):
+    """A show in a dropdown: name, when, and where.
+
+    The name alone is not enough to choose from once a gallery has a few years of them, and the
+    consequence of picking the wrong one is a mailing about the wrong show.
+    """
+    where = ', '.join(site.name for site in show.sites.all())
+    when = show.start.strftime('%b %Y') if show.start else 'no date'
+    return f'{show.name} — {when}{f" · {where}" if where else ""}'
 
 
 def _campaign_template_names():

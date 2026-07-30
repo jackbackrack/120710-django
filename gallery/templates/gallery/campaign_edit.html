@@ -193,9 +193,60 @@
       {% endif %}
 
       {% else %}
-      <p class="text-muted">
-        Save the draft and this side will show a preview, plus the controls for sending
-        yourself a test and then sending to the list.
+      {% comment %}
+        A live preview before the draft exists. Choosing a template used to show nothing at all
+        until you had saved — the template is not copied into the body field, it *is* the body —
+        so the form looked like it had ignored you. Being made to commit before seeing what you
+        picked is a poor trade for a decision that is mostly visual.
+      {% endcomment %}
+      <h5>Preview</h5>
+      <iframe id="tplPreview" src="{% url 'gallery:campaign_template_preview' %}"
+              title="Template preview"
+              style="width:100%;height:26rem;border:1px solid rgba(0,0,0,.2);background:#fff"></iframe>
+      <p class="text-muted small mt-1">
+        Updates as you choose a template and a show. A stand-in recipient, so the unsubscribe
+        link here does not resolve.
+      </p>
+      <p class="text-muted small">
+        A template supplies the whole layout — it does not fill in the body field. Use the body
+        for anything you want to add to this one mailing; it appears inside the template.
+      </p>
+      <script>
+        // Rebuild the iframe URL from whatever the form currently says. Debounced, because the
+        // body field fires on every keystroke and each rebuild is a full MJML compile.
+        (function () {
+          var frame = document.getElementById('tplPreview');
+          if (!frame) return;
+          var base = frame.getAttribute('src');
+          var names = ['site', 'show', 'template_name', 'subject', 'preheader', 'body_markdown'];
+          var keys = {template_name: 'template', body_markdown: 'body'};
+          var timer = null;
+
+          function refresh() {
+            var params = new URLSearchParams();
+            names.forEach(function (name) {
+              var el = document.querySelector('[name="' + name + '"]');
+              if (el && el.value) params.set(keys[name] || name, el.value);
+            });
+            frame.src = base + '?' + params.toString();
+          }
+
+          names.forEach(function (name) {
+            var el = document.querySelector('[name="' + name + '"]');
+            if (!el) return;
+            el.addEventListener('change', refresh);
+            el.addEventListener('input', function () {
+              clearTimeout(timer);
+              timer = setTimeout(refresh, 700);
+            });
+          });
+          refresh();
+        })();
+      </script>
+
+      <p class="text-muted small mt-3">
+        Save the draft and this side gains the controls for sending yourself a test and then
+        sending to the list.
       </p>
       {% endif %}
     </div>

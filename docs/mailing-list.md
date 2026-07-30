@@ -199,6 +199,19 @@ forgotten edit away from arriving in every inbox, and the list already tells dra
 If you ever need one *specific* thing to vary per show that the Markdown body cannot express, the
 answer is a new field on the campaign feeding a fixed layout — not editable template source.
 
+**A template does not populate the body field.** The template is the whole layout; the body field
+is for what you add to this one mailing. An empty body with a template chosen is correct, and the
+form says so — it read as the form having ignored the choice otherwise.
+
+The campaign page previews before anything is saved: `campaign_template_preview` renders an
+**unsaved** `Campaign` built from the current form values, so choosing a template shows you the
+result without committing to a draft. Its route sits before `campaigns/<int:pk>/`, or
+`template-preview` would be matched as a primary key.
+
+Shows are listed as `Name — Mon YYYY · Venue`, because a name alone stops being enough to choose
+from after a couple of years, and picking a show whose venue is not the list's venue is refused —
+mailing one venue's subscribers about another's show is a mistake nothing else would catch.
+
 ### Checking one in a real mail client
 
 Nothing here can tell you how Outlook will render it, so the workflow makes you look:

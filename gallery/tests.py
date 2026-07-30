@@ -1234,6 +1234,93 @@ class CampaignStaffPagesTests(TestCase):
         campaign.refresh_from_db()
         self.assertEqual(campaign.subject, subject)
 
+    def test_a_template_can_be_previewed_before_any_draft_exists(self):
+        """Choosing a template used to show nothing until you had committed to a draft.
+
+        The template is not copied into the body field — it *is* the body — so the form looked
+        like it had ignored the choice.
+        """
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Autumn', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+
+        r = self.client.get(reverse('gallery:campaign_template_preview'), {
+            'site': self.site.pk, 'show': show.pk,
+            'template': 'show_opening.mjml', 'subject': 'Autumn opens'})
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode()
+        self.assertIn('Autumn', body)
+        self.assertIn('September', body)
+
+    def test_previewing_a_template_writes_nothing(self):
+        from gallery.models import Campaign
+        self.client.get(reverse('gallery:campaign_template_preview'),
+                        {'site': self.site.pk, 'template': 'show_opening.mjml'})
+        self.assertFalse(Campaign.objects.exists())
+
+    def test_a_show_template_with_no_show_yet_says_so_instead_of_rendering_blanks(self):
+        r = self.client.get(reverse('gallery:campaign_template_preview'),
+                            {'site': self.site.pk, 'template': 'show_opening.mjml'})
+        self.assertContains(r, 'takes its content from a show')
+
+    def test_an_empty_preview_invites_a_choice_rather_than_erroring(self):
+        r = self.client.get(reverse('gallery:campaign_template_preview'))
+        self.assertContains(r, 'Choose a template')
+
+    def test_markdown_alone_previews_too(self):
+        r = self.client.get(reverse('gallery:campaign_template_preview'),
+                            {'site': self.site.pk, 'body': 'Hello **there**'})
+        self.assertContains(r, '<strong>there</strong>')
+
+    def test_the_preview_route_is_not_swallowed_by_the_pk_route(self):
+        """'template-preview' sits before <int:pk>, and would otherwise 404 as a bad id."""
+        self.assertEqual(reverse('gallery:campaign_template_preview'),
+                         '/campaigns/template-preview/')
+
+    def test_template_preview_is_staff_only(self):
+        url = reverse('gallery:campaign_template_preview')
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+        artist = User.objects.create_user(
+            username='nope3@example.com', email='nope3@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_the_new_page_previews_and_explains_the_body_field(self):
+        page = self.client.get(reverse('gallery:campaign_new'))
+        self.assertContains(page, reverse('gallery:campaign_template_preview'))
+        self.assertContains(page, 'it does not fill in the body field')
+
+    def test_a_show_at_another_venue_is_refused(self):
+        """Mailing one venue's subscribers about another venue's show."""
+        from gallery.forms import CampaignForm
+        from gallery.models import Show, Site
+        other = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                    status=Site.STATUS_PUBLISHED)
+        show = Show.objects.create(
+            name='Not Ours', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(other)
+
+        form = CampaignForm(data={'site': self.site.pk, 'subject': 'Oops',
+                                  'template_name': 'show_opening.mjml',
+                                  'show': show.pk, 'body_markdown': ''})
+        self.assertFalse(form.is_valid())
+        self.assertIn('is not at 120710', str(form.errors['show']))
+
+    def test_a_show_is_listed_with_its_date_and_venue(self):
+        """A name alone is not enough to pick from once there are years of them."""
+        from gallery.forms import CampaignForm
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Autumn', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        label = CampaignForm().fields['show'].label_from_instance(show)
+        self.assertEqual(label, 'Autumn — Sep 2026 · 120710')
+
     def test_duplicating_carries_the_content_and_nothing_about_the_send(self):
         """What "save as template" is usually reaching for: next month's, started from this one."""
         from gallery.models import Campaign
