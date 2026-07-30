@@ -49,9 +49,22 @@ Consolidating link equity into one domain is a feature here, not a cost: every g
 joins compounds one domain's authority rather than diluting across N. Keep 120710.art
 registered and pointed forever — it costs nothing and it is the gallery's name.
 
-**2. `GALLERY_DEFAULT_SITE_SLUG = None` on reset.art.**
-Today it pins every unscoped page to 120710's context, which would make the network home
-wear one gallery's name. Low blast radius: it changes branding, not data (see above).
+**2. `GALLERY_DEFAULT_SITE_SLUG` repoints at the reset.art row; the `current_site` fallback
+is removed.**
+
+An earlier draft of this said "set it to `None`". That was written before `default_site` and
+`info_site` existed and is now wrong: with `None`, `default_site` resolves to nothing,
+`info_site` follows it, and /about/, /visit/, /contact/ and /links/ render their empty states
+on reset.art. Two separate changes are needed instead:
+
+- `GALLERY_DEFAULT_SITE_SLUG = 'reset-art'`, so `default_site` — and therefore `info_site` —
+  is the umbrella's own row.
+- Delete the `elif _DEFAULT_SITE_SLUG: … current_site = default_site` branch in
+  `eatart/context_processors.py`, so `current_site` is `None` at the root. That is what keeps
+  `surl` emitting unscoped URLs on the network home instead of `/site/reset-art/show/foo/`.
+
+`base.html` already copes with `current_site` being `None`: it falls back to the reset.art
+brand mark and unscoped nav links, so no template work is needed.
 
 **3. Sites keep the `/site/<slug>/` prefix. Do not promote gallery slugs to the root.**
 A prefix earns its place by protecting against *unbounded, user-generated* names. Gallery
@@ -365,14 +378,6 @@ in, since the URL is shared and cacheable.
 
 ## Cutover order
 
-1. Make `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` env-driven; add reset.art in Railway with
-   its certificate.
-2. Serve both domains, unredirected, and check reset.art renders correctly while
-   `GALLERY_DEFAULT_SITE_SLUG` is still `'120710'`.
-3. Set it to `None`. reset.art becomes the network home; verify the navbar loses 120710's
-   branding at the root and keeps it under `/site/120710/`.
-4. Turn on the 301s from 120710.art (with the scope rewrites) and `shows.120710.art`.
-5. Canonical tags on scoped duplicates.
-
-Step 3 is the one to verify by eye rather than by exit code: it is a branding change with no
-test that can tell you it looks right.
+In `docs/reset-art-cutover.md`, as a checklist with verification and rollback for each phase.
+Kept there rather than here so the steps and the reasoning cannot drift apart — this file
+records *why*, that one records *what next*.
