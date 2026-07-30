@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import TemplateView
 
 from accounts.views import ArtistUserCreateView, CustomPasswordResetView, CustomSignupView, UserNameUpdateView, claim_artist, link_artist_to_user
 from eatart.views.public import (index, visit, contact, about, howto, howto_guide,
@@ -12,6 +13,11 @@ from django.conf.urls.static import static
 # 
 
 urlpatterns = [
+    # Before everything else, and served straight from a template: /robots.txt used to 404,
+    # which cost a full request cycle *and* left crawlers unguided. TemplateView means no
+    # database query and no context processors.
+    path('robots.txt', TemplateView.as_view(
+        template_name='robots.txt', content_type='text/plain'), name='robots'),
     path('', index, name='index'),
     path('', include('gallery.urls')),
     path('', include('reviews.urls')),

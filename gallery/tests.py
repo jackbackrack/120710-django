@@ -6166,3 +6166,38 @@ class CalendarTests(TestCase):
             response = self.client.get(
                 reverse(f'gallery:{name}', kwargs={'site_slug': draft.slug}))
             self.assertEqual(response.status_code, 404, name)
+
+
+class RobotsTests(TestCase):
+    """/robots.txt used to 404.
+
+    Which cost a full request cycle to say nothing, and left every crawler unguided over
+    every URL. The logs that prompted this had SemrushBot crawling from nine IPs at once
+    while real visitors waited twenty seconds behind a single worker.
+    """
+
+    def test_robots_is_served_as_plain_text(self):
+        response = self.client.get('/robots.txt')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/plain')
+
+    def test_it_costs_at_most_one_query(self):
+        """A crawler-facing file should not do database work to answer."""
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        with CaptureQueriesContext(connection) as ctx:
+            self.client.get('/robots.txt')
+        self.assertLessEqual(len(ctx), 1)
+
+    def test_auth_and_inquiry_pages_are_disallowed(self):
+        """Nothing to index, and following them burns a worker on a form."""
+        body = self.client.get('/robots.txt').content.decode()
+        self.assertIn('Disallow: /accounts/', body)
+        self.assertIn('Disallow: /artwork/*/inquire/', body)
+
+    def test_search_engines_that_send_readers_are_still_allowed(self):
+        body = self.client.get('/robots.txt').content.decode()
+        for agent in ('Googlebot', 'bingbot'):
+            self.assertIn(f'User-agent: {agent}', body)
+        # ...and the ones that only take are not.
+        self.assertRegex(body, r'User-agent: SemrushBot\s+Disallow: /')

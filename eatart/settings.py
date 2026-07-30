@@ -35,7 +35,11 @@ LOGIN_REDIRECT_URL = "/"
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-for-dev-and-testing-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
+# Default on, so a fresh checkout is a working dev environment. Any of the usual spellings
+# turns it off — the previous test was `!= 'False'`, exact and case-sensitive, so setting
+# DJANGO_DEBUG=false or 0 in production would have quietly left debug on, with the debug
+# toolbar instrumenting every request and connection.queries growing without bound.
+DEBUG = os.environ.get('DJANGO_DEBUG', '').strip().lower() not in ('false', '0', 'no', 'off')
 
 LOCAL_DEV = DEBUG and os.environ.get('DJANGO_ENV', 'local') == 'local'
 

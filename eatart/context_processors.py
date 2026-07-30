@@ -26,33 +26,30 @@ def navigation_roles(request):
         )
 
     from gallery.models.sites import Site
-    current_site = None
-    m = _SITE_SLUG_RE.match(request.path)
-    if m:
-        current_site = Site.objects.filter(slug=m.group(1)).first()
-    elif _DEFAULT_SITE_SLUG:
-        current_site = Site.objects.filter(
-            slug=_DEFAULT_SITE_SLUG, status=Site.STATUS_PUBLISHED
-        ).first()
 
-    # Three site variables, because they answer three different questions.
-    #
-    #   current_site  — what the URL is scoped to. Drives `surl`, so it must be None on
-    #                   network pages or every card would link to /site/<default>/... .
-    #   default_site  — the deployment's own identity, whatever the URL says. This is the
-    #                   umbrella (reset.art) once the network cutover happens.
-    #   info_site     — where the public info pages read their content from: the scoped
-    #                   site if there is one, else the default.
-    #
-    # Today current_site falls back to the default anyway, so info_site equals it. The
-    # distinction only starts to matter at the network cutover, when the fallback above
-    # goes away and current_site becomes None at the root — which is exactly when
-    # /about/ still needs to render something. See docs/reset-art-network.md.
+    # One Site query per request, not two. current_site and default_site are the same row
+    # whenever the path is not site-scoped, or is scoped to the default venue — which is
+    # every request on a single-venue deployment. Resolved together because this runs on
+    # literally every rendered response, /robots.txt included.
+    current_site = None
     default_site = None
-    if _DEFAULT_SITE_SLUG:
+    m = _SITE_SLUG_RE.match(request.path)
+    path_slug = m.group(1) if m else None
+
+    if path_slug and path_slug != _DEFAULT_SITE_SLUG:
+        current_site = Site.objects.filter(slug=path_slug).first()
+        if _DEFAULT_SITE_SLUG:
+            default_site = Site.objects.filter(
+                slug=_DEFAULT_SITE_SLUG, status=Site.STATUS_PUBLISHED).first()
+    elif _DEFAULT_SITE_SLUG:
         default_site = Site.objects.filter(
-            slug=_DEFAULT_SITE_SLUG, status=Site.STATUS_PUBLISHED
-        ).first()
+            slug=_DEFAULT_SITE_SLUG, status=Site.STATUS_PUBLISHED).first()
+        # Scoped to the default venue, or falling back to it — the same row either way.
+        # The fallback for an unscoped path goes away at the network cutover; see
+        # docs/reset-art-network.md.
+        current_site = default_site
+    elif path_slug:
+        current_site = Site.objects.filter(slug=path_slug).first()
 
     return {
         'default_site': default_site,

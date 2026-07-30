@@ -1,0 +1,53 @@
+{% comment %}
+Served by a view rather than as a static file, because static files live on S3 behind
+CloudFront in production and /robots.txt has to answer on the site's own domain.
+
+There was no robots.txt at all until now — it 404ed — so every crawler had free rein over
+every URL, including ones that cost real work and return nothing useful to a search index.
+{% endcomment %}# 120710 / reset.art
+
+User-agent: *
+# Auth pages: nothing to index, and a crawler that follows them burns a worker on a form.
+Disallow: /accounts/
+# The inquiry form is per-artwork, so crawling it multiplies by the whole catalogue.
+Disallow: /artwork/*/inquire/
+Disallow: /artist/search/
+# Infinite-scroll fragments — the same cards the full page already carries.
+Disallow: /*?*partial=
+Disallow: /*?*page=
+# Curation and review surfaces are login-gated anyway; no reason to knock on them.
+Disallow: /show/*/submissions/
+Disallow: /reviews/
+Crawl-delay: 10
+
+# SemrushBot is a competitor-analysis crawler, not a search engine: it sends no readers and
+# in the 30 seconds of logs that prompted this file it accounted for most of the traffic,
+# from nine separate IPs at once, while real visitors waited 20+ seconds. Delete this block
+# if you ever subscribe to Semrush and want it indexing the site.
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# Search engines that actually send visitors get the whole public site, just paced.
+User-agent: Googlebot
+Crawl-delay: 5
+Disallow: /accounts/
+Disallow: /artwork/*/inquire/
+
+User-agent: bingbot
+Crawl-delay: 5
+Disallow: /accounts/
+Disallow: /artwork/*/inquire/
+
+User-agent: Baiduspider
+Crawl-delay: 20
+Disallow: /accounts/
+Disallow: /artwork/*/inquire/
