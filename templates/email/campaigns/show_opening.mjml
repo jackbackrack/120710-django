@@ -1,0 +1,110 @@
+{% comment %}
+"The show opens" — the mailing that goes out before a run starts.
+
+Everything comes from the Show row and its Events, so nobody retypes a date and nobody sends a
+reception time that changed last week. Reused for every show: pick the template, pick the show.
+
+Available in context (gallery/campaigns.py::show_context):
+  show, show_url, artworks, events, opening, closing, curators, site
+  campaign_body / campaign_body_blocks — whatever the curator wrote for this one, if anything
+
+`opening` is the show's first Event, which is the reception in the ordinary case. There is no
+field marking one, so a show with no events at all falls back to its own start date rather than
+rendering a hole.
+{% endcomment %}
+<mj-section padding="16px 24px 0">
+  <mj-column>
+    <mj-text font-size="13px" color="#888888" letter-spacing="1px" padding="0 0 4px">
+      {% if show.show_type == 'open_studio' %}OPEN STUDIO{% else %}NEW SHOW{% endif %}
+    </mj-text>
+    <mj-text font-size="26px" font-weight="bold" padding="0 0 8px">{{ show.name }}</mj-text>
+    <mj-text color="#666666" padding="0 0 4px">
+      {% if show.start == show.end %}{{ show.start|date:"l j F Y" }}{% else %}{{ show.start|date:"j F" }}–{{ show.end|date:"j F Y" }}{% endif %}{% if site %} · {{ site.name }}{% endif %}
+    </mj-text>
+    {% if curators %}
+    <mj-text font-size="14px" color="#888888" padding="0 0 8px">
+      Curated by {% for c in curators %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </mj-text>
+    {% endif %}
+  </mj-column>
+</mj-section>
+
+{% if show.image %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-image src="{{ show.image.url }}" alt="{{ show.name }}" padding="0" />
+  </mj-column>
+</mj-section>
+{% endif %}
+
+{% if opening %}
+{% comment %}
+  The reception, called out rather than buried in prose — it is the one thing in this email a
+  reader might act on today, by putting it in a calendar.
+{% endcomment %}
+<mj-section padding="8px 24px" background-color="#f7f7f7">
+  <mj-column>
+    <mj-text font-weight="bold" padding="12px 0 2px">{{ opening.name }}</mj-text>
+    <mj-text padding="0 0 12px">
+      {{ opening.date|date:"l j F" }}, {{ opening.start|time:"g:i A" }}–{{ opening.end|time:"g:i A" }}
+      {% if site.street %}<br /><span style="color:#666666">{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}</span>{% endif %}
+    </mj-text>
+  </mj-column>
+</mj-section>
+{% endif %}
+
+{% if show.description %}
+<mj-section padding="8px 24px">
+  <mj-column>
+    <mj-text padding="8px 0">{{ show.description|striptags|truncatewords:70 }}</mj-text>
+  </mj-column>
+</mj-section>
+{% endif %}
+
+{% comment %}
+Anything the curator wrote for this particular mailing, dropped in as its own section. This is
+what stops a reusable format meaning identical wording every time.
+{% endcomment %}
+{% if campaign.body_markdown.strip %}{{ campaign_body }}{% endif %}
+
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-button href="{{ show_url }}" background-color="#198754" color="#ffffff" padding="16px 0">
+      See the show
+    </mj-button>
+  </mj-column>
+</mj-section>
+
+{% if artworks %}
+{% comment %}
+  Three works, one row. More than three and the columns get too narrow to read on a phone, where
+  MJML stacks them anyway; Gmail also clips a message over 102KB, which would take the
+  unsubscribe link with it.
+{% endcomment %}
+<mj-section padding="0 24px 16px">
+  {% for artwork in artworks|slice:":3" %}
+  <mj-column width="33%">
+    {% if artwork.card_md %}
+    <mj-image src="{{ artwork.card_md.url }}" alt="{{ artwork.name }}" padding="4px" />
+    {% endif %}
+    <mj-text font-size="13px" align="center" padding="4px" line-height="1.4">
+      {{ artwork.name }}
+      {% if artwork.artists.all %}<br /><span style="color:#888888">{% for a in artwork.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+    </mj-text>
+  </mj-column>
+  {% endfor %}
+</mj-section>
+{% endif %}
+
+{% if events|length > 1 %}
+<mj-section padding="0 24px 16px">
+  <mj-column>
+    <mj-text font-weight="bold" font-size="14px" padding="8px 0 4px">Also on</mj-text>
+    {% for event in events %}{% if not forloop.first %}
+    <mj-text font-size="14px" padding="2px 0">
+      {{ event.date|date:"j F" }} · {{ event.start|time:"g:i A" }} — {{ event.name }}
+    </mj-text>
+    {% endif %}{% endfor %}
+  </mj-column>
+</mj-section>
+{% endif %}

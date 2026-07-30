@@ -779,7 +779,7 @@ class CampaignForm(forms.ModelForm):
     class Meta:
         from gallery.models import Campaign
         model = Campaign
-        fields = ('site', 'subject', 'preheader', 'template_name', 'body_markdown')
+        fields = ('site', 'subject', 'preheader', 'template_name', 'show', 'body_markdown')
         widgets = {
             'subject': forms.TextInput(attrs={'placeholder': 'What the inbox shows first'}),
             'preheader': forms.TextInput(
@@ -815,8 +815,16 @@ class CampaignForm(forms.ModelForm):
 
         # A dropdown of the MJML templates that actually exist, rather than a text box
         # where a typo becomes a TemplateDoesNotExist at send time.
+        # Newest first, and only shows that are actually public or on the way there — mailing
+        # about something under consideration would announce a show that may never happen.
+        self.fields['show'].queryset = Show.objects.filter(
+            status__in=[Show.STATUS_DRAFT, Show.STATUS_PUBLISHED, Show.STATUS_CLOSED,
+                        Show.STATUS_OPEN_CALL]).order_by('-start')
+        self.fields['show'].empty_label = 'None — not about a particular show'
+
+        from gallery.campaigns import template_label
         choices = [('', 'None — write the body in Markdown below')]
-        choices += [(name, name) for name in _campaign_template_names()]
+        choices += [(name, template_label(name)) for name in _campaign_template_names()]
         self.fields['template_name'] = forms.ChoiceField(
             choices=choices, required=False, label='Template',
             help_text='A recurring shape that fills itself from the database. It supplies the '
@@ -828,6 +836,15 @@ class CampaignForm(forms.ModelForm):
         if not cleaned.get('template_name') and not (cleaned.get('body_markdown') or '').strip():
             raise forms.ValidationError(
                 'Give it a body: either choose a template or write some Markdown.')
+
+        # A show template with no show renders every field blank. Caught here, where it is a
+        # form error next to the field, rather than discovered in a preview that looks broken
+        # for no stated reason.
+        from gallery.campaigns import template_needs
+        template = cleaned.get('template_name')
+        if template and 'show' in template_needs(template) and not cleaned.get('show'):
+            self.add_error('show', 'This template takes its content from a show, so it needs '
+                                   'one chosen.')
         return cleaned
 
 

@@ -44,6 +44,15 @@ class Campaign(models.Model):
         max_length=255, blank=True, default='', verbose_name='Preview text',
         help_text='The line inboxes show after the subject. Around 90 characters.')
 
+    # Which show a show-shaped template is about. The whole point of the template route is that
+    # a mailing reaches the ORM instead of somebody retyping a date, and that needs an object to
+    # start from — without this, a show template renders with every field blank.
+    show = models.ForeignKey(
+        'gallery.Show', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='campaigns',
+        help_text='Required by the show templates. They take the dates, description, artworks '
+                  'and event times from it.')
+
     body_markdown = models.TextField(
         blank=True, default='', verbose_name='Body (Markdown)',
         help_text='For a one-off. Leave blank if this campaign uses a template.')

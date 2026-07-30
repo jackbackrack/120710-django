@@ -150,6 +150,48 @@ through Django's template engine — so it reaches the ORM and nobody retypes a 
 vocabulary: sections, columns, spacers, per-client overrides. The cost is that it lives in the
 repo, so changing it is a deploy.
 
+Three exist, all driven by a show:
+
+| Template | For |
+| --- | --- |
+| `show_announcement.mjml` | a show is coming |
+| `show_opening.mjml` | dates, the reception, a few works |
+| `show_closing.mjml` | last chance, with the closing event |
+
+Pick the template, pick the show, and everything else is derived. `CAMPAIGN_TEMPLATES` in
+`gallery/campaigns.py` gives each one a readable label for the dropdown and declares what it
+needs; a template that needs a show and has none is a **form error**, because a blank email is
+worse than being told to choose.
+
+`show_context()` supplies `show`, `show_url`, `artworks`, `events`, `opening`, `closing` and
+`curators`. Openings and closings are `Event` rows and nothing marks which is which, so they are
+taken by date — first event is the opening, last is the closing, and a show with one reception has
+an opening but no closing rather than the same event presented as both. A show with no events falls
+back to its own start and end dates.
+
+Every template also gets `campaign_body`, so a reusable format does not mean identical wording
+every time: whatever the curator typed into the Markdown field appears inside the layout.
+
+**To add a format:** copy one of these into `templates/email/campaigns/`, add an entry to
+`CAMPAIGN_TEMPLATES`, and it appears in the dropdown. Anything not in the registry still works —
+it just gets its filename as a label and is assumed to need nothing.
+
+### Checking one in a real mail client
+
+Nothing here can tell you how Outlook will render it, so the workflow makes you look:
+
+1. **The preview**, on the campaign page — an iframe of the actual compiled email. Catches layout
+   and missing data, not client quirks. Its unsubscribe link deliberately does not resolve.
+2. **Send test**, on the same page. One copy to any address, subject prefixed `[TEST]`, through
+   the real provider. **This is required** — a campaign cannot be sent to a list until a test has
+   gone out since its last edit, so this step is not skippable.
+
+Open the test in the client your readers actually use. Locally, a test send needs `RESEND_API_KEY`
+set; on Railway it is already there, so testing from production is usually the shortest path — it
+is one message to yourself.
+
+Editing anything after the test re-arms the guard and you send another. That is the point.
+
 **Both at once.** A template can place the author's prose inside its own layout, which is how a
 recurring format avoids meaning identical wording every time:
 

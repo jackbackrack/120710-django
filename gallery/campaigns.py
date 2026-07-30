@@ -113,6 +113,57 @@ def privacy_url(site=None, request=None):
     return _absolute(reverse('privacy'), request)
 
 
+# ── Templates ────────────────────────────────────────────────────────────────
+
+# The recurring formats, with a readable name and what each needs to render. A template not
+# listed here still works — drop a .mjml file in templates/email/campaigns/ and it is offered —
+# it just gets its filename as a label and is assumed to need nothing.
+CAMPAIGN_TEMPLATES = {
+    'show_announcement.mjml': {
+        'label': 'Show announcement — a show is coming',
+        'needs': ('show',),
+    },
+    'show_opening.mjml': {
+        'label': 'Show opening — dates, reception, a few works',
+        'needs': ('show',),
+    },
+    'show_closing.mjml': {
+        'label': 'Closing soon — last chance to see it',
+        'needs': ('show',),
+    },
+}
+
+
+def template_label(name):
+    return CAMPAIGN_TEMPLATES.get(name, {}).get('label') or name
+
+
+def template_needs(name):
+    return CAMPAIGN_TEMPLATES.get(name, {}).get('needs', ())
+
+
+def show_context(show, request=None):
+    """Everything a show-shaped template needs, derived from the show itself.
+
+    Openings and closings are `Event` rows rather than fields, and nothing marks which is which,
+    so they are taken by date: the first event is the opening and the last is the closing. That
+    is right for the ordinary case of a show with one reception at each end, and a template that
+    finds neither falls back to the show's own start and end dates rather than rendering a gap.
+    """
+    events = list(show.events.order_by('date', 'start'))
+    return {
+        'show': show,
+        'show_url': _absolute(show.get_absolute_url(), request),
+        # Ordered as the show itself orders them, and capped in the template rather than here so
+        # one query serves a template that wants three works and one that wants six.
+        'artworks': list(show.artworks.all()),
+        'events': events,
+        'opening': events[0] if events else None,
+        'closing': events[-1] if len(events) > 1 else None,
+        'curators': list(show.curators.order_by('last_name', 'first_name')),
+    }
+
+
 # ── Rendering ────────────────────────────────────────────────────────────────
 
 # A line that opens a bullet or a numbered item. Kept narrow on purpose: one level, no
@@ -257,6 +308,13 @@ def render_campaign(campaign, subscription, request=None, extra_context=None):
         'unsubscribe_url': unsubscribe_url(subscription, request),
         'privacy_url': privacy_url(site, request),
     }
+    # Resolved here rather than left to the caller. It used to come only from `extra_context`,
+    # which nothing in the app ever passed — so a show template rendered with every field blank
+    # in the preview, in the test send and in the real send alike, and only the tests ever saw
+    # it work.
+    if campaign.show_id:
+        context.update(show_context(campaign.show, request=request))
+
     context.update(extra_context or {})
 
     # The author's prose, offered to the template as well as used on its own. A template used

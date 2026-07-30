@@ -7833,6 +7833,114 @@ class CampaignTests(TestCase):
         self.assertIn('Photograph by', html)
         self.assertIn('<em>Sam Ready</em>', html)
 
+    def test_a_show_template_gets_its_show_without_the_caller_passing_it(self):
+        """The bug this fixes made every show template useless in the app.
+
+        The show came only from `extra_context`, which nothing in the application ever passed —
+        so a show campaign rendered with every field blank in the preview, in the test send and
+        in the real send alike, and only the tests ever saw one work.
+        """
+        show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3),
+            description='Fourteen artists on making, unmaking and mending.')
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Repetition and Repair opens',
+            template_name='show_opening.mjml')
+
+        # render_preview, deliberately: it is what the page shows and it passes no context.
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Repetition and Repair', html)
+        self.assertIn('September', html)
+        self.assertIn('making, unmaking and mending', html)
+
+    def test_the_opening_template_names_the_reception_from_the_events(self):
+        """Nobody retypes a reception time — which is the whole reason for the template route."""
+        show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 9, 4),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        Event.objects.create(name='Artist Talk', show=show,
+                             date=datetime.date(2026, 9, 19),
+                             start=datetime.time(19, 0), end=datetime.time(20, 30))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Opens Friday',
+            template_name='show_opening.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Opening Reception', html)
+        self.assertIn('6:00 PM', html)
+        # And the later event is listed rather than presented as the opening.
+        self.assertIn('Artist Talk', html)
+
+    def test_the_closing_template_leads_with_the_end_date_and_says_it_once(self):
+        """Caught by reading the rendered output: an earlier version said the date three times."""
+        show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 9, 4),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        Event.objects.create(name='Closing Party', show=show,
+                             date=datetime.date(2026, 10, 3),
+                             start=datetime.time(17, 0), end=datetime.time(20, 0))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Last chance',
+            template_name='show_closing.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('LAST CHANCE', html)
+        self.assertIn('On until Saturday 3 October 2026', html)
+        self.assertIn('Closing Party', html)
+        # The closing mailing is not an invitation to the opening.
+        self.assertNotIn('Opening Reception', html)
+        self.assertEqual(html.count('3 October'), 2,
+                         'the closing date belongs in the lead and the event block, not thrice')
+
+    def test_a_show_with_one_event_has_an_opening_but_no_closing(self):
+        """A single reception is an opening, not a finale, and must not be shown as one."""
+        show = Show.objects.create(
+            name='Solo', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 9, 4),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        context = campaigns.show_context(show)
+        self.assertEqual(context['opening'].name, 'Opening Reception')
+        self.assertIsNone(context['closing'])
+
+    def test_a_show_with_no_events_falls_back_to_its_own_dates(self):
+        show = Show.objects.create(
+            name='Quiet', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Quiet opens',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Quiet', html)
+        self.assertIn('4 September', html)
+
+    def test_a_show_template_without_a_show_is_a_form_error_not_a_blank_email(self):
+        from gallery.forms import CampaignForm
+        form = CampaignForm(data={'site': self.site.pk, 'subject': 'Oops',
+                                  'template_name': 'show_opening.mjml',
+                                  'show': '', 'body_markdown': ''})
+        self.assertFalse(form.is_valid())
+        self.assertIn('needs one chosen', str(form.errors['show']))
+
+    def test_the_template_dropdown_shows_readable_names(self):
+        from gallery.forms import CampaignForm
+        labels = dict(CampaignForm().fields['template_name'].choices)
+        self.assertEqual(labels['show_opening.mjml'],
+                         'Show opening — dates, reception, a few works')
+
     def test_a_template_can_place_the_authors_prose_inside_its_layout(self):
         """Templates and Markdown used to be mutually exclusive.
 
