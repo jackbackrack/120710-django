@@ -23,29 +23,35 @@ other.
       {% if closing %}Closing: {% endif %}{{ show.name }}
     </mj-text>
     {% comment %}
-      One sentence, unbroken, and the closing date said once. An earlier version also named the
-      closing event here, which read "Closes Saturday 3 October, with closing party on Saturday 3
-      October" and then said it a third time below — invisible in the template and obvious the
-      moment the rendered text was read.
+      The last day it is *open*, never the day it comes down. "Comes down on Saturday" leaves a
+      reader unsure whether Saturday is too late, and next to a closing event on that same Saturday
+      it reads as a contradiction — which is exactly how this was first noticed. Naming the last
+      day you can see it has neither problem.
+
+      One sentence per branch, unbroken, so each stays greppable and testable.
     {% endcomment %}
-    <mj-text padding="0 0 10px">{{ show.name }} comes down on {{ show.end|date:"l, j F" }} — this is the last week to see it{% if site %} at {{ site.name }}{% endif %}.</mj-text>
+    {% if closing and closing.date == show.end %}
+    <mj-text padding="0 0 10px">The last day to see {{ show.name }} is {{ show.end|date:"l, j F" }}, ending with {{ closing.name }}.</mj-text>
+    {% elif closing %}
+    <mj-text padding="0 0 10px">The last day to see {{ show.name }} is {{ show.end|date:"l, j F" }}, and {{ closing.name }} is on {{ closing.date|date:"l, j F" }}.</mj-text>
+    {% else %}
+    <mj-text padding="0 0 10px">The last day to see {{ show.name }} is {{ show.end|date:"l, j F" }}{% if site %} at {{ site.name }}{% endif %}.</mj-text>
+    {% endif %}
   </mj-column>
 </mj-section>
 
 {% comment %}
-  The same date/time/place block as the opening, so the pair are recognisably the same mail. Shows
-  the closing event when there is one, and the final day when there is not.
+  The same date/time/place block as the opening, so the pair are recognisably the same mail — but
+  labelled, because on a closing the date needs to say which date it is. The event carries its own
+  date only when it is not the last day, so the common case does not print it twice.
 {% endcomment %}
 <mj-section padding="0 24px 8px">
   <mj-column>
     <mj-text font-size="18px" line-height="1.7" padding="8px 0">
-      📅 {% if closing %}{{ closing.date|date:"l, j F" }}{% else %}Until {{ show.end|date:"l, j F" }}{% endif %}<br />
-      {% if closing %}🕓 {{ closing.start|time:"g:i A" }}–{{ closing.end|time:"g:i A" }}<br />{% endif %}
+      📅 Last day: {{ show.end|date:"l, j F" }}<br />
+      {% if closing %}🕓 {{ closing.name }}{% if closing.date != show.end %}, {{ closing.date|date:"l, j F" }}{% endif %}, {{ closing.start|time:"g:i A" }}–{{ closing.end|time:"g:i A" }}<br />{% endif %}
       📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
     </mj-text>
-    {% if closing %}
-    <mj-text color="#666666" font-size="14px" padding="0 0 8px">{{ closing.name }}</mj-text>
-    {% endif %}
   </mj-column>
 </mj-section>
 

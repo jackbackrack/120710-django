@@ -1491,6 +1491,39 @@ class CampaignStaffPagesTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('will not render', str(form.errors['subject']))
 
+    def test_the_default_subjects_carry_the_event_times(self):
+        """An opening is an invitation, and "Saturday" without an hour is not one."""
+        from gallery.models import Campaign
+        from gallery.campaigns import template_subject
+        show = self._show_with_opening()
+        Event.objects.create(name='Closing Party', show=show,
+                             date=datetime.date(2026, 8, 30),
+                             start=datetime.time(17, 0), end=datetime.time(20, 0))
+
+        opening = Campaign.objects.create(
+            site=self.site, show=show, template_name='show_opening.mjml',
+            subject=template_subject('show_opening.mjml'))
+        self.assertEqual(opening.rendered_subject,
+                         'Opening: Full-Feel — Saturday 25 July, 4:00 PM')
+
+        closing = Campaign.objects.create(
+            site=self.site, show=show, template_name='show_closing.mjml',
+            subject=template_subject('show_closing.mjml'))
+        self.assertEqual(closing.rendered_subject,
+                         'Last chance: Full-Feel — last day 30 August · Closing Party 5:00 PM')
+
+    def test_a_subject_falls_back_to_the_day_when_a_show_has_no_events(self):
+        from gallery.models import Campaign, Show
+        from gallery.campaigns import template_subject
+        show = Show.objects.create(
+            name='Quiet', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, template_name='show_opening.mjml',
+            subject=template_subject('show_opening.mjml'))
+        self.assertEqual(campaign.rendered_subject, 'Opening: Quiet — Saturday 25 July')
+
     def test_each_template_offers_a_default_subject(self):
         from gallery.campaigns import CAMPAIGN_TEMPLATES, template_subject
         for name in CAMPAIGN_TEMPLATES:
@@ -8535,12 +8568,73 @@ class CampaignTests(TestCase):
 
         html = campaigns.render_preview(campaign)
         self.assertIn('LAST CHANCE', html)
-        self.assertIn('comes down on Saturday, 3 October', html)
+        # The last day it is open, never the day it comes down: "comes down on Saturday" leaves a
+        # reader unsure whether Saturday is already too late.
+        self.assertIn('The last day to see Repetition and Repair is Saturday, 3 October', html)
+        self.assertNotIn('comes down', html)
+        self.assertIn('Last day:', html)
         self.assertIn('Closing Party', html)
         # The closing mailing is not an invitation to the opening.
         self.assertNotIn('Opening Reception', html)
         self.assertEqual(html.count('3 October'), 2,
                          'the closing date belongs in the lead and the date block, not thrice')
+
+    def test_a_closing_event_on_the_last_day_is_not_printed_as_a_second_date(self):
+        """The common case: a party on the final day. Repeating the date reads as a discrepancy —
+        which is how the wording problem was first noticed, when the two genuinely disagreed."""
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 16))
+        show.sites.add(self.site)
+        # Two events: `closing` is the last of several, because a show with one reception has an
+        # opening rather than a finale.
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 7, 25),
+                             start=datetime.time(16, 0), end=datetime.time(20, 0))
+        Event.objects.create(name='Closing Party', show=show,
+                             date=datetime.date(2026, 8, 16),
+                             start=datetime.time(17, 0), end=datetime.time(20, 0))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Last chance',
+            template_name='show_closing.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('is Sunday, 16 August, ending with Closing Party', html)
+        self.assertEqual(html.count('16 August'), 2,
+                         'the event is on the last day, so its date must not be printed again')
+
+    def test_a_closing_event_before_the_last_day_carries_its_own_date(self):
+        """When they really do differ, say so rather than leaving two bare dates to be reconciled."""
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 16))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 7, 25),
+                             start=datetime.time(16, 0), end=datetime.time(20, 0))
+        Event.objects.create(name='Closing Party', show=show,
+                             date=datetime.date(2026, 8, 14),
+                             start=datetime.time(17, 0), end=datetime.time(20, 0))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Last chance',
+            template_name='show_closing.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('is Sunday, 16 August, and Closing Party is on Friday, 14 August', html)
+
+    def test_the_opening_says_up_through_rather_than_until(self):
+        """"Until" and "on until" both leave a reader unsure whether the last day is included."""
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 16))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Opens',
+            template_name='show_opening.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Up through 16 August 2026', html)
+        self.assertNotIn('Then on until', html)
 
     def test_a_show_with_one_event_has_an_opening_but_no_closing(self):
         """A single reception is an opening, not a finale, and must not be shown as one."""

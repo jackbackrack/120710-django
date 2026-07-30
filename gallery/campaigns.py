@@ -129,14 +129,21 @@ CAMPAIGN_TEMPLATES = {
         'needs': ('show',),
         # `opening` is the first event; a show with none falls back to its own start date, so
         # the subject never reads "Opening: X — " with nothing after it.
+        # The time as well as the day: an opening is an invitation, and "Saturday" without an
+        # hour is not one. Falls back to the day alone when the show has no event to take it from.
         'subject': 'Opening: {{ show.name }} — '
-                   '{% if opening %}{{ opening.date|date:"l j F" }}'
+                   '{% if opening %}{{ opening.date|date:"l j F" }}, '
+                   '{{ opening.start|time:"g:i A" }}'
                    '{% else %}{{ show.start|date:"l j F" }}{% endif %}',
     },
     'show_closing.mjml': {
         'label': 'Closing soon — last chance to see it',
         'needs': ('show',),
-        'subject': 'Last chance: {{ show.name }} closes {{ show.end|date:"j F" }}',
+        # The last day is the point of the mailing, and the closing event's time is what somebody
+        # would act on today — so both, with the event named so its hour is not left dangling.
+        'subject': 'Last chance: {{ show.name }} — last day {{ show.end|date:"j F" }}'
+                   '{% if closing %} · {{ closing.name }} {{ closing.start|time:"g:i A" }}'
+                   '{% endif %}',
     },
 }
 

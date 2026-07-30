@@ -55,8 +55,12 @@ rendering a hole where the invitation should be.
       {% if opening %}🕓 {{ opening.start|time:"g:i A" }}–{{ opening.end|time:"g:i A" }}<br />{% endif %}
       📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
     </mj-text>
+    {% comment %}
+      "Up through", not "until" or "on until": both leave a reader unsure whether the last day is
+      included, which is the same ambiguity the closing mailing had in reverse.
+    {% endcomment %}
     {% if show.start != show.end %}
-    <mj-text color="#666666" font-size="14px" padding="0 0 8px">Then on until {{ show.end|date:"j F Y" }}.</mj-text>
+    <mj-text color="#666666" font-size="14px" padding="0 0 8px">Up through {{ show.end|date:"j F Y" }}.</mj-text>
     {% endif %}
   </mj-column>
 </mj-section>

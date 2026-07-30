@@ -208,6 +208,13 @@ somebody needs in order to turn up, on their own lines with the emoji the old ca
 Then the hero image, the show's description, whatever the curator wrote for this one, a button,
 and the works.
 
+**Say the last day a show is open, never the day it comes down.** "Comes down on Saturday" leaves
+a reader unsure whether Saturday is already too late, and beside a closing event on that same
+Saturday it reads as a contradiction. The closing template says *"The last day to see Full-Feel is
+Sunday, 16 August, ending with Closing Party"*, and the opening says *"Up through 16 August"*
+rather than "until". The closing event carries its own date only when it is **not** the last day,
+so the ordinary case does not print the date twice and invite the same doubt.
+
 **The venue information is in the shell, not the templates.** `campaign_base.mjml` carries the
 logo masthead, and below the body a **Come visit the gallery** block with opening hours, a phone
 number, an email link and the address linked to a map — the section the Mailchimp campaigns
@@ -304,7 +311,11 @@ answer is a new field on the campaign feeding a fixed layout — not editable te
       → Last chance: Full-Feel closes 30 August
 
 That closes the last place a mailing could contradict itself — one date in the subject and a
-different one three lines down. Each template in `CAMPAIGN_TEMPLATES` carries a default subject,
+different one three lines down. The defaults carry the **event time** as well as the day: an
+opening is an invitation, and "Saturday" without an hour is not one.
+
+The most important words come first, because inboxes truncate the tail: `Last chance: Full-Feel`
+survives a 40-character preview even though the whole line is longer. Each template in `CAMPAIGN_TEMPLATES` carries a default subject,
 offered into the field when you choose the template and never written over a subject you have
 already typed.
 
