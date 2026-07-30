@@ -1234,6 +1234,25 @@ class CampaignStaffPagesTests(TestCase):
         campaign.refresh_from_db()
         self.assertEqual(campaign.subject, subject)
 
+    def test_both_previews_may_be_framed_by_our_own_page(self):
+        """Django defaults X_FRAME_OPTIONS to DENY, which blocks same-origin framing too.
+
+        Without the per-view exemption the iframe shows the browser's "refused to connect",
+        which reads like the server being down rather than a response header — so this is worth
+        a test rather than a comment.
+        """
+        campaign = self._draft()
+        for url in (reverse('gallery:campaign_preview', kwargs={'pk': campaign.pk}),
+                    reverse('gallery:campaign_template_preview')):
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.headers.get('X-Frame-Options'), 'SAMEORIGIN')
+
+    def test_the_rest_of_the_site_still_refuses_to_be_framed(self):
+        """Relaxed for the previews only. Everything else keeps the default."""
+        r = self.client.get(reverse('gallery:campaign_list'))
+        self.assertEqual(r.headers.get('X-Frame-Options'), 'DENY')
+
     def test_a_template_can_be_previewed_before_any_draft_exists(self):
         """Choosing a template used to show nothing until you had committed to a draft.
 

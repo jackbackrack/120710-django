@@ -14,6 +14,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from gallery import campaigns as engine
@@ -95,6 +96,11 @@ def campaign_edit(request, pk):
 
 
 @login_required
+# Django defaults X_FRAME_OPTIONS to DENY, which blocks framing even from the same origin — so
+# without this the iframe shows the browser's "refused to connect", which reads like the server
+# being down rather than a header. Relaxed per-view rather than site-wide: everything else on the
+# site should still refuse to be framed.
+@xframe_options_sameorigin
 def campaign_preview(request, pk):
     """The compiled email, served bare for an <iframe>.
 
@@ -115,6 +121,7 @@ def campaign_preview(request, pk):
 
 
 @login_required
+@xframe_options_sameorigin   # See campaign_preview: DENY is the default and blocks same-origin.
 def campaign_template_preview(request):
     """The compiled email for a template and show that have not been saved to anything yet.
 
