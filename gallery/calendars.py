@@ -50,6 +50,16 @@ class Entry:
     def spans_days(self):
         return self.end_date > self.sort_date
 
+    @property
+    def show_start(self):
+        """The run this entry belongs to — its own, for a show; its show's, for an event.
+
+        Lets the past be ordered by show while keeping each show above its own events. Plain
+        descending order splits them: an opening on the 3rd sorts above the show that opened
+        on the 2nd, so the event appears above the thing it is part of.
+        """
+        return self.sort_date if self.is_show else self.obj.show.start or self.sort_date
+
     def __repr__(self):                                  # pragma: no cover — debugging aid
         return f'<Entry {self.kind} {self.name!r} {self.sort_date}>'
 
@@ -108,6 +118,20 @@ def timeline(site=None, user=None, include_past=True):
     # read in that order.
     entries.sort(key=lambda e: (e.sort_date, e.kind != KIND_SHOW, e.name))
     return entries
+
+
+def archive_order(entries):
+    """Past entries, most recent show first, each show above its own events.
+
+    Not a plain reverse of the timeline. Browsing history is browsing *shows* — the archive
+    is a list of what has hung here — so the show leads and its events follow it, even though
+    an event's own date is later.
+    """
+    return sorted(
+        entries,
+        key=lambda e: (e.show_start, e.is_show, e.sort_date),
+        reverse=True,
+    )
 
 
 def group_by_month(entries):

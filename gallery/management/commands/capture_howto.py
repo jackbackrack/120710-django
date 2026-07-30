@@ -1815,11 +1815,8 @@ def capture_shows_calendar(rec, facts):
     rec.expect_text('see the calendar', 'Subscribe to this calendar')
     rec.shot_region(2, '#calendar-agenda')
 
-    # Step 3 — "Past shows and events are collected behind the 'Past' toggle."
-    # Opened first: collapsed, the <details> is one line and the step is about what is
-    # inside it.
+    # Step 3 — "Everything is on the one page ... then a 'Past' heading."
     rec.at_step(3)
-    rec.click('open the Past toggle', rec.page.locator('#calendar-past summary'))
     rec.shot_region(3, '#calendar-past')
 
     # Step 4 — "Click 'Subscribe to this calendar'."

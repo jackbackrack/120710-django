@@ -8,9 +8,14 @@
 
 {% comment %}
   An agenda rather than a month grid, on purpose. Shows run for weeks, so a grid fills with
-  long bars that say little; the things that would use grid cells are the events, and there
+  long bars that say little; the entries that would use grid cells are the events, and there
   are rarely enough of them on one page to need it. Month headings give the scanning a grid
   would have provided.
+
+  Everything on one page: no pagination, no lazy loading, no Upcoming/Past switch. An earlier
+  version had all three and they put a navigation decision in front of a reader who only
+  wanted to see the programme. Upcoming first, then the past most-recent-first, so what is on
+  now is at the top rather than buried under every show the gallery has ever hung.
 {% endcomment %}
 
 <p class="text-center" id="calendar-subscribe">
@@ -20,58 +25,17 @@
 </p>
 
 <div id="calendar-agenda">
-{% if upcoming_months %}
-  {% for month, entries in upcoming_months %}
-  <h2 class="mt-4">{{ month|date:"F Y" }}</h2>
-  <ul class="list-unstyled">
-    {% for entry in entries %}
-    <li class="mb-2 d-flex gap-3">
-      <span class="text-muted" style="min-width:7.5em;font-variant-numeric:tabular-nums">
-        {% if entry.is_show %}
-          {% if entry.spans_days %}{{ entry.sort_date|date:"j M" }}–{{ entry.end_date|date:"j M" }}{% else %}{{ entry.sort_date|date:"D j M" }}{% endif %}
-        {% else %}
-          {{ entry.sort_date|date:"D j M" }}
-        {% endif %}
-      </span>
-      <span>
-        <a class="card__link" href="{{ entry.url }}">{{ entry.name }}</a>
-        {% if entry.is_show %}
-          {% if entry.sort_date <= today and entry.end_date >= today %}<span class="badge bg-success">on now</span>{% endif %}
-        {% else %}
-          <span class="text-muted">· {{ entry.obj.time_range }}</span>
-          <br><span class="text-muted small">{{ entry.obj.show.name }}</span>
-        {% endif %}
-      </span>
-    </li>
-    {% endfor %}
-  </ul>
-  {% endfor %}
-{% else %}
-  <p class="text-center text-muted">Nothing scheduled yet.</p>
-{% endif %}
-</div>
+  {% if upcoming_rows %}
+    {% include 'public/_calendar_entries.html' with rows=upcoming_rows %}
+  {% elif not past_rows %}
+    <p class="text-center text-muted">Nothing scheduled yet.</p>
+  {% endif %}
 
-{% if past_months %}
-<details class="mt-5" id="calendar-past">
-  <summary class="card__link" style="cursor:pointer">Past ({{ past_count }})</summary>
-  {% for month, entries in past_months %}
-  <h2 class="mt-4">{{ month|date:"F Y" }}</h2>
-  <ul class="list-unstyled">
-    {% for entry in entries %}
-    <li class="mb-2 d-flex gap-3">
-      <span class="text-muted" style="min-width:7.5em;font-variant-numeric:tabular-nums">
-        {% if entry.is_show and entry.spans_days %}{{ entry.sort_date|date:"j M" }}–{{ entry.end_date|date:"j M" }}{% else %}{{ entry.sort_date|date:"D j M" }}{% endif %}
-      </span>
-      <span>
-        <a class="card__link" href="{{ entry.url }}">{{ entry.name }}</a>
-        {% if not entry.is_show %}<br><span class="text-muted small">{{ entry.obj.show.name }}</span>{% endif %}
-      </span>
-    </li>
-    {% endfor %}
-  </ul>
-  {% endfor %}
-</details>
-{% endif %}
+  {% if past_rows %}
+  <h2 class="mt-5 pt-3 border-top text-muted" id="calendar-past">Past</h2>
+  {% include 'public/_calendar_entries.html' with rows=past_rows %}
+  {% endif %}
+</div>
 
 </div>
 {% endblock %}

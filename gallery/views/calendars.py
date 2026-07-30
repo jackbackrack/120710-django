@@ -18,17 +18,37 @@ def _scope(request, site_slug):
     return visible_site_or_404(request, site_slug) if site_slug else None
 
 
+def _rows(entries):
+    """Pair each entry with a month heading, or None when it repeats the one above."""
+    rows, last = [], None
+    for entry in entries:
+        month = entry.sort_date.replace(day=1)
+        rows.append({'entry': entry, 'month': month if month != last else None})
+        last = month
+    return rows
+
+
 @require_safe
 def calendar_view(request, site_slug=None):
-    """Shows and events on one timeline, month by month.
+    """Every show and event on one page, upcoming first and then back through the past.
 
-    Past entries are included but collapsed behind a toggle: a gallery's history is worth
-    browsing, and it should not be the first thing on the page.
+    Deliberately not paginated and not lazily loaded. An earlier version split it into
+    Upcoming and Past with a link between them, which put a navigation decision in front of a
+    reader who only wanted to see the programme. One page has no such seam, and the whole
+    thing is scrollable and findable with the browser's own search.
+
+    The cost is that the response grows with the archive. Fine at the current scale and for a
+    long time yet; if a gallery's history reaches the point where this page is slow, the
+    answer is to load the past half on demand, and the split will have earned its place by
+    then rather than being imposed up front.
     """
     site = _scope(request, site_slug)
     entries = calendars.timeline(site=site, user=request.user)
     today = dt.date.today()
 
+    # Upcoming ascending, then the past most-recent-first. Not one strict chronology: that
+    # would bury what is on now under every show the gallery has ever hung. The past is
+    # ordered by show rather than reversed outright — see calendars.archive_order.
     upcoming = [e for e in entries if e.end_date >= today]
     past = [e for e in entries if e.end_date < today]
 
@@ -36,13 +56,12 @@ def calendar_view(request, site_slug=None):
                 if site else reverse('gallery:shows_ics'))
     return render(request, 'public/calendar.html', {
         'site': site,
-        'upcoming_months': calendars.group_by_month(upcoming),
-        'past_months': list(reversed(calendars.group_by_month(past))),
-        'past_count': len(past),
+        'upcoming_rows': _rows(upcoming),
+        'past_rows': _rows(calendars.archive_order(past)),
+        'today': today,
         'feed_url': feed_url,
         # webcal:// makes a click subscribe rather than download a snapshot.
         'feed_webcal': 'webcal://' + request.get_host() + feed_url,
-        'today': today,
     })
 
 

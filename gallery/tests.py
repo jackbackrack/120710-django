@@ -6076,6 +6076,89 @@ class CalendarTests(TestCase):
             reverse('gallery:site_calendar', kwargs={'site_slug': self.site.slug}))
         self.assertContains(response, f'Calendar at {self.site.name}')
 
+    # --- One page, everything on it ---
+
+    def _many_shows(self, count, first=datetime.date(2026, 9, 1)):
+        """One show a day from `first`, so the run crosses month boundaries."""
+        for i in range(count):
+            day = first + datetime.timedelta(days=i)
+            show = Show.objects.create(name=f'Show {i:03d}', status=Show.STATUS_PUBLISHED,
+                                       start=day, end=day)
+            show.sites.add(self.site)
+
+    def test_every_show_is_on_the_one_page(self):
+        """No pagination and no lazy loading: a reader scrolls, or uses browser search."""
+        self._many_shows(60)
+        response = self.client.get(reverse('gallery:calendar'))
+        # 60 created, plus Summer Show and its Opening Reception from setUp.
+        self.assertEqual(len(response.context['upcoming_rows']), 62)
+        self.assertContains(response, 'Show 000')
+        self.assertContains(response, 'Show 059')
+
+    def test_there_is_no_pagination_or_partial_loading(self):
+        """Guards against the version this replaced, which split the page in two."""
+        response = self.client.get(reverse('gallery:calendar'))
+        body = response.content.decode()
+        self.assertNotContains(response, 'data-infinite-grid')
+        self.assertNotContains(response, 'infinite-meta')
+        self.assertNotContains(response, 'past=1')
+        self.assertNotIn('page=2', body)
+
+    def test_past_and_upcoming_are_both_present_without_a_switch(self):
+        old = Show.objects.create(name='Ancient Show', status=Show.STATUS_PUBLISHED,
+                                  start=datetime.date(2020, 1, 1),
+                                  end=datetime.date(2020, 2, 1))
+        old.sites.add(self.site)
+        response = self.client.get(reverse('gallery:calendar'))
+        self.assertContains(response, 'Summer Show')      # upcoming
+        self.assertContains(response, 'Ancient Show')     # and the past, same response
+
+    def test_upcoming_comes_before_the_past(self):
+        """What is on now belongs at the top, not under the whole archive."""
+        old = Show.objects.create(name='Ancient Show', status=Show.STATUS_PUBLISHED,
+                                  start=datetime.date(2020, 1, 1),
+                                  end=datetime.date(2020, 2, 1))
+        old.sites.add(self.site)
+        body = self.client.get(reverse('gallery:calendar')).content.decode()
+        self.assertLess(body.index('Summer Show'), body.index('Ancient Show'))
+
+    def test_past_runs_backwards_from_the_most_recent(self):
+        for year in (2020, 2021, 2022):
+            show = Show.objects.create(name=f'Show {year}', status=Show.STATUS_PUBLISHED,
+                                       start=datetime.date(year, 1, 1),
+                                       end=datetime.date(year, 2, 1))
+            show.sites.add(self.site)
+        names = [r['entry'].name
+                 for r in self.client.get(reverse('gallery:calendar')).context['past_rows']]
+        self.assertEqual(names, ['Show 2022', 'Show 2021', 'Show 2020'])
+
+    def test_a_past_show_stays_above_its_own_events(self):
+        """Plain reverse order splits them: an opening on the 3rd sorts above the show that
+        opened on the 2nd, so the event appears above the thing it is part of."""
+        old = Show.objects.create(name='Old Show', status=Show.STATUS_PUBLISHED,
+                                  start=datetime.date(2020, 9, 2),
+                                  end=datetime.date(2020, 12, 1))
+        old.sites.add(self.site)
+        Event.objects.create(show=old, name='Old Opening',
+                             date=datetime.date(2020, 9, 3),
+                             start=datetime.time(18, 0), end=datetime.time(21, 0))
+        rows = self.client.get(reverse('gallery:calendar')).context['past_rows']
+        names = [r['entry'].name for r in rows]
+        self.assertLess(names.index('Old Show'), names.index('Old Opening'))
+
+    def test_a_month_heading_appears_once_per_month(self):
+        self._many_shows(40, first=datetime.date(2026, 10, 1))
+        rows = self.client.get(reverse('gallery:calendar')).context['upcoming_rows']
+        months = [r['month'] for r in rows if r['month']]
+        self.assertEqual(len(months), len(set(months)), 'a month heading was repeated')
+
+    # --- Event rows ---
+
+    def test_an_event_links_to_the_show_it_belongs_to(self):
+        response = self.client.get(reverse('gallery:calendar'))
+        self.assertContains(response, self.show.get_absolute_url())
+        self.assertContains(response, 'part of')
+
     def test_draft_venue_calendar_is_not_public(self):
         draft = Site.objects.create(name='Draft Venue', status=Site.STATUS_DRAFT,
                                     state='CA', country='US')

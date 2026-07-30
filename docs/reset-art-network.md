@@ -334,6 +334,27 @@ An agenda rather than a month grid: shows run for weeks, so a grid fills with lo
 say little, and the entries that would use grid cells are the events, which are rarely dense
 enough on one page to need it.
 
+Everything on one page: no pagination, no lazy loading, no Upcoming/Past switch. All three
+were built and then removed — they put a navigation decision in front of a reader who only
+wanted to see the programme. Upcoming runs ascending, then a "Past" heading and the archive
+below it, so what is on now is at the top rather than buried under every show the gallery has
+ever hung. The cost is a response that grows with the archive; fine at this scale and for a
+long time yet, and if it ever is not, loading the past half on demand will have earned its
+place rather than being imposed up front.
+
+The past is ordered by show, not simply reversed. Browsing history is browsing *shows*, and a
+plain reverse splits a show from its own events: an opening on the 3rd sorts above the show
+that opened on the 2nd, so the event appears above the thing it is part of.
+
+Shows and events both stay on the timeline. Dropping the show ranges was considered — two
+kinds of row on one list invites a "why is this listed twice" reading — and rejected on the
+numbers: of the four seeded shows, two have no events at all, so an events-only calendar
+silently omits half the programme. Instead the show is drawn as the *container* it is: a
+green left edge and bold title at the outer indent, its events indented inside it, and each
+event carrying a "part of <show>" link. Strict chronology means an event can still appear
+directly beneath a different show than its own, so the link rather than the indentation is
+what actually settles which show an event belongs to.
+
 Feed details worth not relearning: `DTEND` is *exclusive* for all-day events, so a show
 ending 31 August publishes 1 September; UIDs are stable (`show-<pk>@domain`) or every client
 poll creates duplicates instead of updating; lines fold at 75 octets, and an unfolded long

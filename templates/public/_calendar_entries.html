@@ -1,0 +1,42 @@
+{% load site_tags %}
+{% comment %}
+  One run of agenda rows. Included twice by calendar.html — once for upcoming, once for past
+  — so the two read identically and cannot drift apart.
+
+  Shows carry a left border and their own weight because a show is the *container*: its
+  events sit inside its run, and without that distinction a show and its opening read as two
+  competing entries on the same footing.
+{% endcomment %}
+{% for row in rows %}
+  {% if row.month %}<h2 class="mt-4 mb-2">{{ row.month|date:"F Y" }}</h2>{% endif %}
+  <div class="d-flex gap-3 mb-2 {% if row.entry.is_show %}ps-2{% else %}ps-4{% endif %}"
+       {% if row.entry.is_show %}style="border-left:3px solid #198754"{% endif %}>
+    <span class="text-muted" style="min-width:7.5em;font-variant-numeric:tabular-nums">
+      {% if row.entry.is_show and row.entry.spans_days %}
+        {{ row.entry.sort_date|date:"j M" }}–{{ row.entry.end_date|date:"j M" }}
+      {% else %}
+        {{ row.entry.sort_date|date:"D j M" }}
+      {% endif %}
+    </span>
+    <span>
+      {% if row.entry.is_show %}
+        <a class="card__link" href="{% surl row.entry.obj %}"><strong>{{ row.entry.name }}</strong></a>
+        {% if row.entry.sort_date <= today and row.entry.end_date >= today %}
+          <span class="badge bg-success">on now</span>
+        {% endif %}
+      {% else %}
+        <a class="card__link" href="{{ row.entry.url }}">{{ row.entry.name }}</a>
+        <span class="text-muted">· {{ row.entry.obj.time_range }}</span>
+        {% comment %}
+          The show is a link, not a label: an event is only meaningful in the context of the
+          show it belongs to, and strict chronology means the show above an event is not
+          always its own — so this line, rather than the indentation, is what settles it.
+        {% endcomment %}
+        <br><span class="small">
+          <span class="text-muted">part of</span>
+          <a class="card__link" href="{% surl row.entry.obj.show %}">{{ row.entry.obj.show.name }}</a>
+        </span>
+      {% endif %}
+    </span>
+  </div>
+{% endfor %}
