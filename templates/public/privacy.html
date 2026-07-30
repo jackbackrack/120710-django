@@ -9,6 +9,7 @@
   page that overstates is worse than none. Every claim here is checkable:
 
     subscriber fields          gallery/models/subscribers.py
+    signup and welcome mail    eatart/views/subscribe.py
     unsubscribe handling       gallery/campaigns.py, eatart/views/unsubscribe.py
     bounces and complaints     gallery/webhooks.py
     no open/click tracking     templates/email/campaign_base.mjml has no pixel and no
@@ -38,6 +39,11 @@
 <p>
   We store your email address, your name if you gave one, and where the signup came
   from — our own database, not a third-party marketing platform.
+</p>
+<p>
+  You are subscribed straight away and we send you one welcome message. If somebody else put
+  your address in without asking, that message is how you find out, and one click gets you off
+  the list again.
 </p>
 <p>
   Every mailing carries an unsubscribe link, and one click is enough; it removes you

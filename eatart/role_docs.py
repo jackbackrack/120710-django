@@ -562,6 +562,7 @@ HOW_TO_GUIDES = [
         'roles': {'staff'},
         'steps': [
             'Open Subscribers in the navigation. Across the top is one entry per list with the number of people a mailing to that list would reach; click one to filter to it.',
+            'Anyone who signs up through a form is subscribed straight away and sent a welcome email. There is no confirmation link to click, on purpose — that would cost signups — but the welcome email means a mistyped address bounces once and is removed before it ever receives a campaign, and anyone signed up by somebody else can leave immediately.',
             'Search by email address or name to find one person. The status menu narrows to people who are on at least one list, or people who are off every list. Somebody on two lists who has left one still counts as being on a list.',
             'Each person\'s row lists every list they are on or off, and for the ones they are off, why — whether they asked, their address bounced, or they marked a mailing as spam.',
             'To take somebody off one list at their request, click remove on that line. To take them off everything, click "remove from all" at the end of their row.',

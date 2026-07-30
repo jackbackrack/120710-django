@@ -233,6 +233,35 @@ it:
     ./env/bin/python manage.py send_campaign 12              # send
     ./env/bin/python manage.py send_campaign 12 --resume     # finish a stopped send
 
+## Joining a list: single opt-in plus a welcome email
+
+Both signup forms are **single opt-in** — submitting subscribes you, with no link to click first.
+That was chosen over double opt-in deliberately, and the reasoning matters if anybody revisits it:
+
+- Double opt-in loses a real share of signups at the confirmation step.
+- What it protects against is small here. The public form takes a handful of submissions a week;
+  the actual deliverability exposure is the imported list of roughly a thousand addresses of
+  unknown age, and confirming new signups does nothing about that.
+
+What replaces it is a **welcome email sent immediately**, which buys most of the same protection
+with none of the friction:
+
+- A dead address bounces on that one message, and the bounce webhook removes it **before** it ever
+  receives a campaign. A typo costs one bounce instead of bouncing on every mailing for years.
+- Anybody signed up by somebody else gets a prominent one-click unsubscribe straight away, rather
+  than finding out months later.
+- It is an engaged send, which is the useful kind of volume on a young sending domain.
+
+It carries the same RFC 8058 one-click headers as a campaign, since it is the message most likely
+to reach somebody who never asked to be on the list.
+
+It is **transactional**, so it goes through the normal backend rather than Resend, and a failure to
+send it is logged and otherwise ignored — the person is already subscribed by then, and refusing a
+subscription because our own mail server was briefly unhappy is the worse outcome.
+
+The artist profile form has a subscribe checkbox and deliberately sends no welcome email: that
+person is signed in, and their address was already proved deliverable by the account verification.
+
 ## Subscribers
 
 **Subscribers** in the nav (staff only). Per-person only: look somebody up, take them off one

@@ -1986,6 +1986,85 @@ class SubscribePagesTests(TestCase):
         self._post(reverse('subscribe'), 'TWICE@Example.com')
         self.assertEqual(Subscriber.objects.filter(email='twice@example.com').count(), 1)
 
+    # --- The welcome email ---
+
+    def test_a_new_subscriber_gets_a_welcome_email_at_once(self):
+        """Chosen over double opt-in: no gate, so no signup is lost, but a dead address bounces
+        on this one message and the webhook removes it before any campaign goes out."""
+        self._post(reverse('subscribe'), 'new@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['new@example.com'])
+        self.assertIn('mailing list', message.subject.lower())
+
+    def test_the_welcome_email_makes_leaving_easy(self):
+        """The other job it does: somebody added by a stranger has to be able to get out."""
+        self._post(reverse('subscribe'), 'new@example.com')
+        body = mail.outbox[0].alternatives[0][0]
+        self.assertIn('/unsubscribe/', body)
+        self.assertIn('unsubscribe here', body)
+        # One-click, so the button Gmail renders works on it too.
+        self.assertIn('List-Unsubscribe', mail.outbox[0].extra_headers)
+        self.assertEqual(mail.outbox[0].extra_headers['List-Unsubscribe-Post'],
+                         'List-Unsubscribe=One-Click')
+
+    def test_the_unsubscribe_link_in_a_welcome_email_actually_works(self):
+        from gallery.models import Subscriber
+        self._post(reverse('subscribe'), 'new@example.com')
+        body = mail.outbox[0].alternatives[0][0]
+        start = body.index('/unsubscribe/')
+        path = body[start:body.index('"', start)]
+
+        self.client.post(path)
+        subscription = Subscriber.objects.get(email='new@example.com').subscriptions.get()
+        self.assertFalse(subscription.is_subscribed)
+
+    def test_the_kiosk_welcomes_too(self):
+        """An address mistyped on a tablet at an opening is exactly the kind that would
+        otherwise bounce on every mailing for years."""
+        with self.settings(KIOSK_TOKEN='tok'):
+            self._post(reverse('subscribe_kiosk', kwargs={'token': 'tok'}), 'k@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['k@example.com'])
+
+    def test_resubmitting_the_form_does_not_send_another_welcome(self):
+        """Otherwise the form is a way to pester somebody who is already on the list."""
+        self._post(reverse('subscribe'), 'twice@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+        self._post(reverse('subscribe'), 'twice@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_someone_rejoining_after_leaving_is_welcomed_again(self):
+        from gallery.models import Subscriber
+        self._post(reverse('subscribe'), 'back@example.com')
+        Subscriber.objects.get(email='back@example.com').unsubscribe_all()
+        mail.outbox.clear()
+
+        self._post(reverse('subscribe'), 'back@example.com')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_mail_failure_does_not_cost_the_subscription(self):
+        """They are already subscribed by the time the welcome is sent. Refusing to subscribe
+        somebody because our own mail server was briefly unhappy is the worse outcome."""
+        from unittest import mock
+        from gallery.models import Subscriber
+
+        with mock.patch('eatart.views.subscribe.EmailMultiAlternatives.send',
+                        side_effect=RuntimeError('mail server down')):
+            r = self._post(reverse('subscribe'), 'resilient@example.com')
+
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(Subscriber.objects.get(
+            email='resilient@example.com').subscriptions.get().is_subscribed)
+
+    def test_the_welcome_email_does_not_go_through_the_campaign_provider(self):
+        """A spam complaint about a newsletter must not be able to swallow this."""
+        import inspect
+        from eatart.views import subscribe as view_module
+        source = inspect.getsource(view_module.send_welcome)
+        self.assertNotIn('_connection', source,
+                         'the welcome email must use the transactional backend')
+
     def test_subscribe_is_reachable_from_the_nav_with_a_default_venue(self):
         """It used to be gated on mailing_list_enabled, which only the contact view set —
         so everywhere else it fell back to "not current_site", and with a default venue
