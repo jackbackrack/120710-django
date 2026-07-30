@@ -8,3 +8,6 @@ class GalleryConfig(AppConfig):
 
     def ready(self):
         import gallery.signals  # noqa
+        # Connects the Resend bounce/complaint receiver. Importing here rather than at
+        # module scope keeps it out of the app-loading path until Django is ready.
+        import gallery.webhooks  # noqa

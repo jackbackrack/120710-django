@@ -1251,6 +1251,110 @@ class CampaignStaffPagesTests(TestCase):
 
 
 
+
+class ResendWebhookTests(TestCase):
+    """Delivery events from Resend stop mail without anyone watching a dashboard."""
+
+    def setUp(self):
+        from gallery.models import Site
+        self.a = Site.objects.create(name='120710', slug='120710',
+                                     status=Site.STATUS_PUBLISHED)
+        self.b = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                     status=Site.STATUS_PUBLISHED)
+
+    def _subscriber(self, email='sub@example.com'):
+        from gallery.models import Subscriber, Subscription
+        subscriber, _ = Subscriber.opt_in(
+            email=email, sites=[self.a, self.b],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        return subscriber
+
+    def _fire(self, event_type, recipient):
+        from anymail.signals import AnymailTrackingEvent, tracking
+        tracking.send(sender=None, esp_name='Resend',
+                      event=AnymailTrackingEvent(event_type=event_type,
+                                                 recipient=recipient))
+
+    def _state(self, subscriber):
+        subscriber.refresh_from_db()
+        return [(s.is_subscribed, s.unsubscribed_reason)
+                for s in subscriber.subscriptions.order_by('pk')]
+
+    def test_the_webhook_is_routed(self):
+        self.assertEqual(reverse('anymail:resend_tracking_webhook'),
+                         '/anymail/resend/tracking/')
+
+    def test_a_hard_bounce_stops_every_list(self):
+        """A dead address cannot be reached on any list, so narrowing to one would
+        keep mailing a mailbox that does not exist."""
+        from anymail.signals import EventType
+        subscriber = self._subscriber('bouncer@example.com')
+        self._fire(EventType.BOUNCED, 'bouncer@example.com')
+        self.assertEqual(self._state(subscriber),
+                         [(False, 'bounced'), (False, 'bounced')])
+
+    def test_a_complaint_stops_every_list(self):
+        """Stricter than the unsubscribe link on purpose: someone reporting us as spam
+        must not keep hearing from a sibling gallery."""
+        from anymail.signals import EventType
+        subscriber = self._subscriber('angry@example.com')
+        self._fire(EventType.COMPLAINED, 'ANGRY@Example.com')   # case-insensitive
+        self.assertEqual(self._state(subscriber),
+                         [(False, 'complained'), (False, 'complained')])
+
+    def test_bounce_and_complaint_are_recorded_apart(self):
+        from anymail.signals import EventType
+        from gallery.models import Subscription
+        one = self._subscriber('one@example.com')
+        two = self._subscriber('two@example.com')
+        self._fire(EventType.BOUNCED, 'one@example.com')
+        self._fire(EventType.COMPLAINED, 'two@example.com')
+        self.assertEqual(one.subscriptions.first().unsubscribed_reason,
+                         Subscription.UNSUB_BOUNCED)
+        self.assertEqual(two.subscriptions.first().unsubscribed_reason,
+                         Subscription.UNSUB_COMPLAINED)
+
+    def test_other_events_change_nothing(self):
+        """We keep no behavioural data about subscribers, so opens and clicks are
+        ignored rather than stored."""
+        from anymail.signals import EventType
+        subscriber = self._subscriber('fine@example.com')
+        for event_type in (EventType.DELIVERED, EventType.OPENED, EventType.CLICKED,
+                           EventType.DEFERRED, EventType.QUEUED, EventType.SENT):
+            self._fire(event_type, 'fine@example.com')
+        self.assertEqual(self._state(subscriber), [(True, ''), (True, '')])
+
+    def test_an_unknown_recipient_is_ignored_not_an_error(self):
+        from anymail.signals import EventType
+        with self.assertLogs('gallery.webhooks', level='WARNING') as log:
+            self._fire(EventType.BOUNCED, 'stranger@example.com')
+        self.assertIn('not a subscriber', ''.join(log.output))
+
+    def test_a_repeated_bounce_does_not_move_the_timestamp(self):
+        from anymail.signals import EventType
+        subscriber = self._subscriber('again@example.com')
+        self._fire(EventType.BOUNCED, 'again@example.com')
+        subscriber.refresh_from_db()
+        first = subscriber.subscriptions.first().unsubscribed_at
+        self._fire(EventType.BOUNCED, 'again@example.com')
+        subscriber.refresh_from_db()
+        self.assertEqual(subscriber.subscriptions.first().unsubscribed_at, first)
+
+    def test_a_bounced_address_is_not_a_campaign_recipient(self):
+        """The point of the whole thing: the next send must skip them."""
+        from anymail.signals import EventType
+        from gallery import campaigns as engine
+        from gallery.models import Campaign
+        self._subscriber('gone@example.com')
+        keep = self._subscriber('here@example.com')
+        campaign = Campaign.objects.create(site=self.a, subject='S', body_markdown='Hi')
+        self._fire(EventType.BOUNCED, 'gone@example.com')
+        addresses = {s.subscriber.email for s in engine.recipients(campaign)}
+        self.assertEqual(addresses, {'here@example.com'})
+        self.assertTrue(keep.subscriptions.filter(is_subscribed=True).exists())
+
+
+
 class HowToAnchorTests(TestCase):
     """Every link into the help system must land on a guide that exists.
 

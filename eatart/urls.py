@@ -40,6 +40,10 @@ urlpatterns = [
     # One URL, two behaviours: a confirmation page on GET, one-click on POST for the
     # Unsubscribe button Gmail and Yahoo render. See the view.
     path('unsubscribe/<str:token>/', unsubscribe, name='unsubscribe'),
+    # Resend delivery events. Anymail verifies the Svix signature before the
+    # receiver in gallery/webhooks.py sees anything; the shared secret is
+    # ANYMAIL['RESEND_SIGNING_SECRET'].
+    path('anymail/', include('anymail.urls')),
     path('subscribe/kiosk/<str:token>/', subscribe_kiosk, name='subscribe_kiosk'),
     path('accounts/artist_user_new/', ArtistUserCreateView.as_view()),
     path('accounts/claim-artist/', claim_artist, name='claim_artist'),
