@@ -781,7 +781,8 @@ class CampaignForm(forms.ModelForm):
         model = Campaign
         fields = ('site', 'subject', 'preheader', 'template_name', 'show', 'body_markdown')
         widgets = {
-            'subject': forms.TextInput(attrs={'placeholder': 'What the inbox shows first'}),
+            'subject': forms.TextInput(
+                attrs={'placeholder': 'What the inbox shows first'}),
             'preheader': forms.TextInput(
                 attrs={'placeholder': 'The line after the subject — around 90 characters'}),
             'body_markdown': forms.Textarea(attrs={'rows': 16}),
@@ -826,6 +827,9 @@ class CampaignForm(forms.ModelForm):
         # Dated and located, because a name on its own is not enough to pick from. A gallery
         # accumulates shows with similar names, and the list is not short.
         self.fields['show'].label_from_instance = _show_choice_label
+        self.fields['subject'].help_text = (
+            'Can use the show\'s details: {{ show.name }}, {{ show.start|date:"j F" }}, '
+            '{{ opening.date|date:"l j F" }}. Choosing a template fills in a sensible one.')
 
         from gallery.campaigns import template_label
         choices = [('', 'None — write the body in Markdown below')]
@@ -841,6 +845,20 @@ class CampaignForm(forms.ModelForm):
         if not cleaned.get('template_name') and not (cleaned.get('body_markdown') or '').strip():
             raise forms.ValidationError(
                 'Give it a body: either choose a template or write some Markdown.')
+
+        # A subject is a template too, so a mistake in it is a mistake in the one line every
+        # recipient reads. Caught here rather than at send time, where the engine deliberately
+        # falls back to the raw text rather than failing a whole send over a stray brace.
+        subject = cleaned.get('subject') or ''
+        if '{%' in subject:
+            self.add_error('subject', 'A subject can use {{ show.name }} and the like, but not '
+                                      '{% tags %}.')
+        elif '{{' in subject:
+            from django.template import Template, TemplateSyntaxError
+            try:
+                Template(subject)
+            except TemplateSyntaxError as exc:
+                self.add_error('subject', f'That subject will not render: {exc}')
 
         # A show template with no show renders every field blank. Caught here, where it is a
         # form error next to the field, rather than discovered in a preview that looks broken

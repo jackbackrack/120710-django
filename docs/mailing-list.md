@@ -276,6 +276,33 @@ forgotten edit away from arriving in every inbox, and the list already tells dra
 If you ever need one *specific* thing to vary per show that the Markdown body cannot express, the
 answer is a new field on the campaign feeding a fixed layout — not editable template source.
 
+### The subject is a template too
+
+`Campaign.subject` is rendered with the same context as the body, so it can carry the same facts:
+
+    Opening: {{ show.name }} — {{ opening.date|date:"l j F" }}
+      → Opening: Full-Feel — Saturday 25 July
+
+    Last chance: {{ show.name }} closes {{ show.end|date:"j F" }}
+      → Last chance: Full-Feel closes 30 August
+
+That closes the last place a mailing could contradict itself — one date in the subject and a
+different one three lines down. Each template in `CAMPAIGN_TEMPLATES` carries a default subject,
+offered into the field when you choose the template and never written over a subject you have
+already typed.
+
+Only `{{ }}` is supported. `{% tags %}` are refused by the form: a one-line subject has no use for
+them, and `{% load %}` / `{% include %}` are a much larger surface than variable substitution.
+Django guards the dangerous callables itself — `Model.delete` and `Model.save` are marked
+`alters_data` — so `{{ show.delete }}` renders nothing rather than deleting a show.
+
+A subject that will not render is a **form error**, caught where the mistake is made. At send time
+the contract is the opposite: `render_subject` never raises and falls back to the raw text,
+because a stray brace should not stop nine hundred messages at the point it is discovered.
+
+The resolved subject is shown on the campaign page under the preview, since the subject lands in
+the email's `<title>` and an iframe will not show it.
+
 **A template does not populate the body field.** The template is the whole layout; the body field
 is for what you add to this one mailing. An empty body with a template chosen is correct, and the
 form says so — it read as the form having ignored the choice otherwise.

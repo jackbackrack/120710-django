@@ -122,16 +122,27 @@ CAMPAIGN_TEMPLATES = {
     'show_announcement.mjml': {
         'label': 'Show announcement — a show is coming',
         'needs': ('show',),
+        'subject': 'Coming up: {{ show.name }}',
     },
     'show_opening.mjml': {
         'label': 'Show opening — dates, reception, a few works',
         'needs': ('show',),
+        # `opening` is the first event; a show with none falls back to its own start date, so
+        # the subject never reads "Opening: X — " with nothing after it.
+        'subject': 'Opening: {{ show.name }} — '
+                   '{% if opening %}{{ opening.date|date:"l j F" }}'
+                   '{% else %}{{ show.start|date:"l j F" }}{% endif %}',
     },
     'show_closing.mjml': {
         'label': 'Closing soon — last chance to see it',
         'needs': ('show',),
+        'subject': 'Last chance: {{ show.name }} closes {{ show.end|date:"j F" }}',
     },
 }
+
+
+def template_subject(name):
+    return CAMPAIGN_TEMPLATES.get(name, {}).get('subject', '')
 
 
 def template_label(name):
@@ -140,6 +151,51 @@ def template_label(name):
 
 def template_needs(name):
     return CAMPAIGN_TEMPLATES.get(name, {}).get('needs', ())
+
+
+SUBJECT_MAX = 255
+
+
+def subject_context(campaign, request=None):
+    """The names a subject line may use. The same objects the body gets."""
+    site = campaign.site
+    context = {
+        'campaign': campaign,
+        'site': site,
+        'site_name': site.name if site else 'reset.art',
+    }
+    if campaign.show_id:
+        context.update(show_context(campaign.show, request=request))
+    return context
+
+
+def render_subject(campaign, request=None):
+    """The subject as it will arrive, with {{ show.name }} and friends filled in.
+
+    A subject is the one line every recipient reads, and it carries the same facts as the body —
+    which show, which date. Retyping them there was the last place a mailing could contradict
+    itself, saying one date in the subject and another three lines down.
+
+    Only `{{ }}` substitution is supported; `{% %}` is rejected by the form. Django guards the
+    dangerous callables itself (`Model.delete` and `Model.save` are marked `alters_data`), but
+    tags like `{% load %}` and `{% include %}` are a different surface, and a one-line subject has
+    no use for them.
+
+    Never raises: a subject that will not render falls back to its own source text. The form
+    catches the mistake at the point it is made, and failing a whole send over a stray brace would
+    be the wrong trade at the point it is discovered.
+    """
+    from django.template import Context, Template, TemplateSyntaxError
+
+    source = campaign.subject or ''
+    if '{{' not in source:
+        return source
+    try:
+        rendered = Template(source).render(Context(subject_context(campaign, request)))
+    except (TemplateSyntaxError, Exception):   # noqa: BLE001 — a subject must not break a send
+        logger.exception('Campaign %s subject would not render: %r', campaign.pk, source)
+        return source
+    return rendered.strip()[:SUBJECT_MAX]
 
 
 def show_context(show, request=None):
@@ -301,7 +357,7 @@ def render_campaign(campaign, subscription, request=None, extra_context=None):
     site = campaign.site
     context = {
         'campaign': campaign,
-        'subject': campaign.subject,
+        'subject': render_subject(campaign, request),
         'preheader': campaign.preheader,
         'site': site,
         'site_name': site.name if site else 'reset.art',
@@ -394,7 +450,8 @@ def _connection():
 
 def build_message(campaign, subscription, request=None, connection=None, test=False):
     html = render_campaign(campaign, subscription, request=request)
-    subject = f'[TEST] {campaign.subject}' if test else campaign.subject
+    line = render_subject(campaign, request)
+    subject = f'[TEST] {line}' if test else line
     message = EmailMultiAlternatives(
         subject=subject,
         body=strip_tags(html),

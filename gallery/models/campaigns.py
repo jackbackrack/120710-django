@@ -89,6 +89,12 @@ class Campaign(models.Model):
         return self.subject
 
     @property
+    def rendered_subject(self):
+        """The subject as it will arrive. Import-local to avoid a cycle."""
+        from gallery.campaigns import render_subject
+        return render_subject(self)
+
+    @property
     def is_tested(self):
         """A test has gone out since the last content change."""
         return bool(self.test_sent_at and self.test_sent_at >= self.edited_at)

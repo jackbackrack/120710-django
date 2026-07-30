@@ -1406,6 +1406,111 @@ class CampaignStaffPagesTests(TestCase):
         self.assertIn('Saturday, 25 July', html)
         self.assertIn('4:00 PM', html)
 
+    # --- Subject lines ---
+
+    def _show_with_opening(self):
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30))
+        show.sites.add(self.site)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 7, 25),
+                             start=datetime.time(16, 0), end=datetime.time(20, 0))
+        return show
+
+    def test_a_subject_fills_in_from_the_show(self):
+        """The last place a mailing could contradict itself — one date in the subject, another
+        three lines down."""
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(
+            site=self.site, show=self._show_with_opening(),
+            subject='Opening: {{ show.name }} — {{ opening.date|date:"l j F" }}',
+            template_name='show_opening.mjml')
+        self.assertEqual(campaign.rendered_subject,
+                         'Opening: Full-Feel — Saturday 25 July')
+
+    def test_the_sent_message_carries_the_filled_in_subject(self):
+        """Not just the preview: the actual message, and the test send."""
+        from gallery.models import Campaign, Subscriber, Subscription
+        Subscriber.opt_in(email='s@example.com', sites=[self.site],
+                          source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        campaign = Campaign.objects.create(
+            site=self.site, show=self._show_with_opening(),
+            subject='Opening: {{ show.name }}', template_name='show_opening.mjml')
+        campaign.test_sent_at = timezone.now()
+        campaign.save(update_fields=['test_sent_at'])
+
+        mail.outbox.clear()
+        with self._locmem():
+            campaigns.send_campaign(campaign)
+        self.assertEqual(mail.outbox[0].subject, 'Opening: Full-Feel')
+
+        mail.outbox.clear()
+        with self._locmem():
+            campaigns.send_test(campaign, 'me@example.com')
+        self.assertEqual(mail.outbox[0].subject, '[TEST] Opening: Full-Feel')
+
+    def test_a_plain_subject_is_left_exactly_as_written(self):
+        campaign = self._draft(subject='Just some words & an ampersand')
+        self.assertEqual(campaign.rendered_subject, 'Just some words & an ampersand')
+
+    def test_a_subject_that_will_not_render_falls_back_rather_than_failing_a_send(self):
+        """The form catches a bad subject where it is made. At send time the contract is that
+        rendering never raises — a stray brace must not stop nine hundred messages.
+
+        Forced rather than contrived: Django's template language is forgiving enough at render
+        time that a realistic bad subject is hard to write, and the property being pinned is the
+        handling, not the input.
+        """
+        from unittest import mock
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(site=self.site, subject='Opening: {{ show.name }}')
+        with mock.patch('django.template.Template.render',
+                        side_effect=RuntimeError('boom')):
+            self.assertEqual(campaign.rendered_subject, 'Opening: {{ show.name }}')
+
+    def test_an_unclosed_brace_is_left_alone_rather_than_swallowed(self):
+        """Django reads it as literal text, so the reader sees what was typed."""
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(site=self.site, subject='Half a thought {{ ')
+        self.assertEqual(campaign.rendered_subject, 'Half a thought {{')
+
+    def test_template_tags_are_refused_by_the_form(self):
+        from gallery.forms import CampaignForm
+        form = CampaignForm(data={'site': self.site.pk, 'subject': '{% load x %}hello',
+                                  'template_name': '', 'body_markdown': 'body'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('not', str(form.errors['subject']))
+
+    def test_a_malformed_subject_is_a_form_error(self):
+        from gallery.forms import CampaignForm
+        form = CampaignForm(data={'site': self.site.pk,
+                                  'subject': 'Opening: {{ show.name|nosuchfilter }}',
+                                  'template_name': '', 'body_markdown': 'body'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('will not render', str(form.errors['subject']))
+
+    def test_each_template_offers_a_default_subject(self):
+        from gallery.campaigns import CAMPAIGN_TEMPLATES, template_subject
+        for name in CAMPAIGN_TEMPLATES:
+            with self.subTest(name=name):
+                self.assertTrue(template_subject(name),
+                                f'{name} has no default subject to offer')
+
+    def test_the_new_page_ships_the_defaults_and_shows_the_resolved_subject(self):
+        page = self.client.get(reverse('gallery:campaign_new'))
+        self.assertContains(page, 'Subject as it will arrive')
+        self.assertContains(page, 'Opening: {{ show.name }}')
+
+    def test_the_preview_endpoint_can_return_just_the_subject(self):
+        show = self._show_with_opening()
+        r = self.client.get(reverse('gallery:campaign_template_preview'), {
+            'site': self.site.pk, 'show': show.pk, 'template': 'show_opening.mjml',
+            'subject': 'Opening: {{ show.name }} — {{ opening.date|date:"j F" }}',
+            'subject_only': '1'})
+        self.assertEqual(r.content.decode().strip(), 'Opening: Full-Feel — 25 July')
+
     def test_a_show_at_another_venue_is_refused(self):
         """Mailing one venue's subscribers about another venue's show."""
         from gallery.forms import CampaignForm

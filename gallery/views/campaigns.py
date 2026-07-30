@@ -31,6 +31,13 @@ def _staff_only(request):
         raise Http404
 
 
+def _template_subjects():
+    """The default subject for each template, as JSON for the page to fill in with."""
+    import json
+    return json.dumps({name: spec.get('subject', '')
+                       for name, spec in engine.CAMPAIGN_TEMPLATES.items()})
+
+
 def _percent(campaign):
     """How far a send has got, for the progress bar. Zero rather than a division error."""
     done = campaign.sent_so_far
@@ -53,6 +60,7 @@ def campaign_list(request):
     return render(request, 'gallery/campaign_list.html', {
         'campaigns': [_with_rates(c) for c in campaigns],
         'complaint_limit': Campaign.COMPLAINT_RATE_LIMIT,
+        'template_subjects': _template_subjects(),
     })
 
 
@@ -78,7 +86,8 @@ def campaign_new(request):
             return redirect('gallery:campaign_edit', pk=campaign.pk)
     else:
         form = CampaignForm()
-    return render(request, 'gallery/campaign_edit.html', {'form': form, 'campaign': None})
+    return render(request, 'gallery/campaign_edit.html', {
+        'form': form, 'campaign': None, 'template_subjects': _template_subjects()})
 
 
 @login_required
@@ -166,6 +175,12 @@ def campaign_template_preview(request):
         template_name=request.GET.get('template') or '',
         body_markdown=request.GET.get('body') or '',
     )
+
+    # The subject resolves server-side too, so the page shows what will really be sent rather
+    # than a second implementation of the same rendering written in JavaScript.
+    if request.GET.get('subject_only'):
+        return HttpResponse(engine.render_subject(draft, request=request),
+                            content_type='text/plain; charset=utf-8')
 
     if draft.template_name and 'show' in engine.template_needs(draft.template_name) and not show:
         return HttpResponse(

@@ -240,6 +240,13 @@
         Updates as you choose a template and a show. A stand-in recipient, so the unsubscribe
         link here does not resolve.
       </p>
+      {% comment %}
+        The subject is a template too, and it is the one line every recipient reads — but it
+        lands in the email's <title>, which an iframe will not show. So it is spelled out here,
+        filled in, rather than left to be discovered in the test send.
+      {% endcomment %}
+      <p class="small"><strong>Subject as it will arrive:</strong>
+        <span id="subjectPreview" class="text-muted">—</span></p>
       <p class="text-muted small">
         A template supplies the whole layout — it does not fill in the body field. Use the body
         for anything you want to add to this one mailing; it appears inside the template.
@@ -262,6 +269,33 @@
               if (el && el.value) params.set(keys[name] || name, el.value);
             });
             frame.src = base + '?' + params.toString();
+
+            // Ask the same endpoint what the subject resolves to, so what is shown is what the
+            // server will actually send rather than a second guess written in JavaScript.
+            fetch(base + '?subject_only=1&' + params.toString())
+              .then(function (r) { return r.text(); })
+              .then(function (text) {
+                var out = document.getElementById('subjectPreview');
+                if (out) out.textContent = text.trim() || '—';
+              })
+              .catch(function () { /* the iframe is the real preview; this is a nicety */ });
+          }
+
+          // Choosing a template fills in its default subject, but never overwrites a subject
+          // somebody has written: the defaults are only offered into an empty field or over
+          // another template's untouched default.
+          var defaults = {{ template_subjects|safe }};
+          var offered = Object.keys(defaults).map(function (k) { return defaults[k]; });
+          var tpl = document.querySelector('[name="template_name"]');
+          var subj = document.querySelector('[name="subject"]');
+          if (tpl && subj) {
+            tpl.addEventListener('change', function () {
+              var current = subj.value.trim();
+              if (current === '' || offered.indexOf(current) !== -1) {
+                subj.value = defaults[tpl.value] || '';
+                refresh();
+              }
+            });
           }
 
           names.forEach(function (name) {
