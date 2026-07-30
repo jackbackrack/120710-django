@@ -16,13 +16,47 @@ time, and adding a sentence to one mailing is not a deploy. Two forms are availa
 Using the wrong one nests an mj-section inside an mj-column, which MJML rejects with an error
 that does not mention either.
 {% endcomment %}
+<mj-section padding="16px 24px 0">
+  <mj-column>
+    <mj-text font-size="13px" color="#888888" letter-spacing="1px" padding="0 0 4px">COMING UP</mj-text>
+    <mj-text font-size="28px" font-weight="bold" padding="0 0 10px">{{ show.name }}</mj-text>
+    {% if curators %}
+    <mj-text padding="0 0 10px">A new exhibition curated by {% for c in curators %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</mj-text>
+    {% endif %}
+  </mj-column>
+</mj-section>
+
+{% comment %}
+  The same date/place block the opening and closing use, so all three read as the same mail from
+  the same gallery. No time here: an announcement is about the run, not an event.
+{% endcomment %}
+<mj-section padding="0 24px 8px">
+  <mj-column>
+    <mj-text font-size="18px" line-height="1.7" padding="8px 0">
+      📅 {{ show.start|date:"j F" }}–{{ show.end|date:"j F Y" }}<br />
+      📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
+    </mj-text>
+  </mj-column>
+</mj-section>
+
+{% if show.image %}
 <mj-section padding="8px 24px">
   <mj-column>
-    <mj-text font-size="26px" font-weight="bold" padding="12px 0 4px">{{ show.name }}</mj-text>
-    <mj-text color="#666666" padding="0 0 12px">
-      {{ show.start|date:"j F" }}–{{ show.end|date:"j F Y" }}{% if site %} · {{ site.name }}{% endif %}
-    </mj-text>
+    <mj-image src="{{ show.image.url }}" alt="{{ show.name }}" padding="0" href="{{ show_url }}" />
+  </mj-column>
+</mj-section>
+{% endif %}
+
+<mj-section padding="8px 24px">
+  <mj-column>
     {% if show.description %}<mj-text padding="8px 0">{{ show.description|striptags|truncatewords:60 }}</mj-text>{% endif %}
+  </mj-column>
+</mj-section>
+
+{% if campaign.body_markdown.strip %}{{ campaign_body }}{% endif %}
+
+<mj-section padding="0 24px 8px">
+  <mj-column>
     <mj-button href="{{ show_url }}" background-color="#198754" color="#ffffff" padding="16px 0">
       See the show
     </mj-button>
@@ -33,8 +67,6 @@ that does not mention either.
 Whatever the curator wrote for this particular announcement, if anything. Between the header
 and the artwork grid, so a note reads as an introduction to the works rather than a postscript.
 {% endcomment %}
-{% if campaign.body_markdown.strip %}{{ campaign_body }}{% endif %}
-
 {% if artworks %}
 <mj-section padding="0 24px">
   {% for artwork in artworks|slice:":3" %}

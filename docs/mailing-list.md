@@ -150,13 +150,38 @@ through Django's template engine — so it reaches the ORM and nobody retypes a 
 vocabulary: sections, columns, spacers, per-client overrides. The cost is that it lives in the
 repo, so changing it is a deploy.
 
-Three exist, all driven by a show:
+Three exist, all driven by a show, and all following the shape of the Mailchimp announcements
+they replaced — because that shape was already working and readers recognise it:
 
 | Template | For |
 | --- | --- |
 | `show_announcement.mjml` | a show is coming |
-| `show_opening.mjml` | dates, the reception, a few works |
-| `show_closing.mjml` | last chance, with the closing event |
+| `show_opening.mjml` | an invitation, the reception, a few works |
+| `show_closing.mjml` | last chance, with the closing event and six works |
+
+Each leads with a heading and a one-sentence invitation naming the curator, then the three facts
+somebody needs in order to turn up, on their own lines with the emoji the old campaigns used:
+
+    📅 Saturday, 25 July
+    🕓 4:00–8:00 PM
+    📍 120710          ← links to the address in a map
+
+Then the hero image, the show's description, whatever the curator wrote for this one, a button,
+and the works.
+
+**The venue information is in the shell, not the templates.** `campaign_base.mjml` carries the
+logo masthead, and below the body a **Come visit the gallery** block with opening hours, a phone
+number, an email link and the address linked to a map — the section the Mailchimp campaigns
+carried, now filled from the `Site` record so nobody retypes opening hours and nobody sends last
+season's. Every line of it is conditional, and the whole block is gated on there being something
+useful to say. It is deliberately *not* gated on the postal address, which is never empty: the
+country defaults in, so a venue that has filled in nothing at all still has an address of "United
+States of America" and would get a heading above nothing.
+
+**Do not put a Google font in the stack.** MJML recognises Google font names and helpfully adds a
+`<link>` to `fonts.googleapis.com`, which makes every email fetch a resource from Google when it
+is opened. That is a tracking vector, it contradicts what the privacy page promises, and most
+clients strip it anyway. A test asserts no `<link>` survives into a rendered campaign.
 
 Pick the template, pick the show, and everything else is derived. `CAMPAIGN_TEMPLATES` in
 `gallery/campaigns.py` gives each one a readable label for the dropdown and declares what it

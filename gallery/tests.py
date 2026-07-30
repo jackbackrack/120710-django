@@ -1312,6 +1312,69 @@ class CampaignStaffPagesTests(TestCase):
         self.assertContains(page, reverse('gallery:campaign_template_preview'))
         self.assertContains(page, 'it does not fill in the body field')
 
+    def test_every_campaign_carries_the_venue_information(self):
+        """Woven into the shell, not retyped per campaign — the difference from hand-writing them.
+
+        Modelled on the Mailchimp announcements these replaced, which carried a "Come Visit the
+        Gallery" block with hours, a phone number and a mapped address in every send.
+        """
+        from gallery.models import Site
+        site = Site.objects.get(pk=self.site.pk)
+        site.hours = 'Sundays 1–4pm, and by appointment.'
+        site.phone = '341-205-1331'
+        site.email = 'info@120710.art'
+        site.instagram = '120710art'
+        site.save()
+        campaign = self._draft(site=site)
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Come visit the gallery', html)
+        self.assertIn('Sundays 1–4pm', html)
+        self.assertIn('tel:341-205-1331', html)
+        self.assertIn('mailto:info@120710.art', html)
+        self.assertIn('google.com/maps', html)
+        self.assertIn('instagram.com/120710art', html)
+
+    def test_a_venue_that_has_filled_in_nothing_gets_no_empty_heading(self):
+        """Every line is conditional; a bare "Come visit" with nothing under it is worse than none."""
+        from gallery.models import Site
+        bare = Site.objects.create(name='Bare', slug='bare', status=Site.STATUS_PUBLISHED)
+        html = campaigns.render_preview(self._draft(site=bare))
+        self.assertNotIn('Come visit the gallery', html)
+
+    def test_the_full_address_is_not_printed_twice(self):
+        """CAN-SPAM needs it in the footer; repeating it in the visit block reads as a mistake."""
+        campaign = self._draft()
+        html = campaigns.render_preview(campaign)
+        self.assertEqual(html.count('United States of America'), 1)
+
+    def test_the_opening_reads_as_an_invitation_with_the_facts_on_their_own_lines(self):
+        """The shape the Mailchimp announcements used, and the part people screenshot."""
+        from gallery.models import Show
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30))
+        show.sites.add(self.site)
+        curator = Artist.objects.create(first_name='Jules', last_name='Bachrach',
+                                        email='j@example.com', instagram='juleszebra')
+        show.curators.add(curator)
+        Event.objects.create(name='Opening Reception', show=show,
+                             date=datetime.date(2026, 7, 25),
+                             start=datetime.time(16, 0), end=datetime.time(20, 0))
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Opening: Full-Feel',
+            template_name='show_opening.mjml')
+
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Opening: Full-Feel', html)
+        self.assertIn('Join us for the opening of Full-Feel, a new exhibition curated by '
+                      'Jules Bachrach', html)
+        self.assertIn('instagram.com/juleszebra', html)
+        for fact in ('📅', '🕓', '📍'):
+            self.assertIn(fact, html)
+        self.assertIn('Saturday, 25 July', html)
+        self.assertIn('4:00 PM', html)
+
     def test_a_show_at_another_venue_is_refused(self):
         """Mailing one venue's subscribers about another venue's show."""
         from gallery.forms import CampaignForm
@@ -7984,6 +8047,18 @@ class CampaignTests(TestCase):
         self.assertIn('<strong>Saturday</strong>', html)
         self.assertIn('href="https://x.test/"', html)
 
+    def test_no_email_reaches_out_to_a_third_party_for_a_font(self):
+        """MJML adds a <link> to fonts.googleapis.com if it recognises a Google font name.
+
+        Caught by accident: adding Roboto to the font stack made an unrelated list assertion
+        fail, because "<li" also matches "<link". A Google Fonts tag would make every email
+        fetch a resource from Google on open, which is a tracking vector and contradicts what
+        the privacy page promises.
+        """
+        html = campaigns.render_preview(self.campaign)
+        self.assertNotIn('fonts.googleapis.com', html)
+        self.assertNotIn('<link', html)
+
     def test_lists_become_real_lists(self):
         """The construct a newsletter author reaches for most, and the one that used to fail.
 
@@ -7999,7 +8074,7 @@ class CampaignTests(TestCase):
                 self.campaign.save()
                 html = campaigns.render_preview(self.campaign)
                 self.assertIn(f'<{tag}', html)
-                self.assertEqual(html.count('<li'), 2)
+                self.assertEqual(html.count('<li '), 2)
                 self.assertNotIn('<em>', html)
                 # And the marker itself is gone rather than printed alongside the bullet.
                 self.assertNotIn('- one', html)
@@ -8066,8 +8141,10 @@ class CampaignTests(TestCase):
             template_name='show_opening.mjml')
 
         html = campaigns.render_preview(campaign)
-        self.assertIn('Opening Reception', html)
+        # The time comes from the event, which is the whole point — the heading already says
+        # "Opening", so the template does not repeat the event's name under it.
         self.assertIn('6:00 PM', html)
+        self.assertIn('Friday, 4 September', html)
         # And the later event is listed rather than presented as the opening.
         self.assertIn('Artist Talk', html)
 
@@ -8089,12 +8166,12 @@ class CampaignTests(TestCase):
 
         html = campaigns.render_preview(campaign)
         self.assertIn('LAST CHANCE', html)
-        self.assertIn('On until Saturday 3 October 2026', html)
+        self.assertIn('comes down on Saturday, 3 October', html)
         self.assertIn('Closing Party', html)
         # The closing mailing is not an invitation to the opening.
         self.assertNotIn('Opening Reception', html)
         self.assertEqual(html.count('3 October'), 2,
-                         'the closing date belongs in the lead and the event block, not thrice')
+                         'the closing date belongs in the lead and the date block, not thrice')
 
     def test_a_show_with_one_event_has_an_opening_but_no_closing(self):
         """A single reception is an opening, not a finale, and must not be shown as one."""
@@ -8156,7 +8233,7 @@ class CampaignTests(TestCase):
         # ...and the author's prose inside it, as a real list.
         self.assertIn('A note from the curator', html)
         self.assertIn('<ul', html)
-        self.assertEqual(html.count('<li'), 2)
+        self.assertEqual(html.count('<li '), 2)
 
     def test_a_template_without_a_body_renders_unchanged(self):
         """The hybrid must be opt-in per campaign, not a blank block on every one."""

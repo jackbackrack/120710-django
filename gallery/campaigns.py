@@ -301,7 +301,10 @@ def render_campaign(campaign, subscription, request=None, extra_context=None):
         'preheader': campaign.preheader,
         'site': site,
         'site_name': site.name if site else 'reset.art',
-        'site_icon_url': (site.icon_sm.url if site and site.icon else ''),
+        # icon_md, not icon_sm: this is a masthead at ~150px, not a 32px favicon.
+        'site_icon_url': (site.icon_md.url if site and site.icon else ''),
+        'site_url': _absolute(site.get_absolute_url(), request) if site else '',
+        'maps_url': site.maps_url if site else '',
         'postal_address': (site.formatted_address.replace('\n', ', ') if site else ''),
         'subscriber': subscription.subscriber,
         'subscription': subscription,

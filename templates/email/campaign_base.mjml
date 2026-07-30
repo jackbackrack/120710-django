@@ -16,30 +16,100 @@ Two constraints this is built around:
     <mj-title>{{ subject }}</mj-title>
     <mj-preview>{{ preheader }}</mj-preview>
     <mj-attributes>
-      <mj-all font-family="Helvetica, Arial, sans-serif" />
-      <mj-text font-size="16px" line-height="1.5" color="#222222" />
+      {% comment %}
+        The system stack the previous Mailchimp campaigns used, so mail from us keeps looking
+        like mail from us. Helvetica/Arial is the fallback for clients with no system font.
+
+        Roboto is deliberately NOT in this list even though Mailchimp's stack had it: MJML
+        recognises Google font names and helpfully adds a <link> to fonts.googleapis.com, which
+        would make every email fetch a resource from Google on open. That is a tracking vector,
+        it contradicts what the privacy page promises, and most clients strip it anyway.
+      {% endcomment %}
+      <mj-all font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="1.6" color="#222222" />
       <mj-section background-color="#ffffff" />
     </mj-attributes>
   </mj-head>
-  <mj-body background-color="#f4f4f4" width="600px">
+  {% comment %}640px, the width the Mailchimp campaigns used.{% endcomment %}
+  <mj-body background-color="#f4f4f4" width="640px">
 
+    {% comment %}
+      A masthead rather than a favicon: the logo carried the identity in the old campaigns and
+      it is the first thing a reader recognises. Linked, because people click logos. The name in
+      letterspaced caps only appears when there is no logo to carry it.
+    {% endcomment %}
     {% if site.icon %}
     <mj-section padding="24px 0 8px">
       <mj-column>
-        <mj-image src="{{ site_icon_url }}" width="48px" alt="{{ site_name }}" />
+        <mj-image src="{{ site_icon_url }}" width="147px" alt="{{ site_name }}"
+                  href="{{ site_url }}" />
+      </mj-column>
+    </mj-section>
+    {% else %}
+    <mj-section padding="24px 0 0">
+      <mj-column>
+        <mj-text align="center" font-size="13px" color="#888888" letter-spacing="1px">
+          <a href="{{ site_url }}" style="color:#888888;text-decoration:none">{{ site_name|upper }}</a>
+        </mj-text>
       </mj-column>
     </mj-section>
     {% endif %}
 
-    <mj-section padding="8px 0 0">
+    {{ body_mjml }}
+
+    {% comment %}
+      "Come Visit" — hours, how to reach a human, and a link that opens the address in a map.
+      Part of the shell rather than each campaign, which is the whole difference from writing
+      these by hand: nobody retypes opening hours, and nobody sends the old ones.
+
+      Every line is conditional. A venue that has not filled in its hours gets a shorter block,
+      not an empty heading.
+    {% endcomment %}
+    {% comment %}
+      Gated on the fields that carry something a visitor can use. Deliberately NOT on
+      postal_address, which is never empty — the country defaults in, so a venue that has filled
+      in nothing at all still has an address of "United States of America", and the heading
+      rendered above nothing.
+    {% endcomment %}
+    {% if site.hours or site.visit_notes or site.phone or site.email or site.street %}
+    <mj-section padding="16px 24px 0" background-color="#f7f7f7">
       <mj-column>
-        <mj-text align="center" font-size="13px" color="#888888" letter-spacing="1px">
-          {{ site_name|upper }}
+        <mj-text font-size="18px" font-weight="bold" padding="12px 0 6px">Come visit the gallery</mj-text>
+        {% if site.hours %}<mj-text padding="0 0 6px">{{ site.hours }}</mj-text>{% endif %}
+        {% if site.visit_notes %}<mj-text padding="0 0 6px">{{ site.visit_notes|striptags|truncatewords:40 }}</mj-text>{% endif %}
+        {% if site.phone or site.email %}
+        <mj-text padding="0 0 6px">
+          To arrange a time:
+          {% if site.phone %}<a href="tel:{{ site.phone }}" style="color:#198754">{{ site.phone }}</a>{% endif %}
+          {% if site.phone and site.email %} or {% endif %}
+          {% if site.email %}<a href="mailto:{{ site.email }}?subject=Gallery%20visit" style="color:#198754">{{ site.email }}</a>{% endif %}
+        </mj-text>
+        {% endif %}
+        {% comment %}
+          Street and city only, not the full postal address: the footer below carries that in
+          full because CAN-SPAM requires it, and printing it twice reads like a mistake. What is
+          useful here is the link, not the country line.
+        {% endcomment %}
+        {% if site.street %}
+        <mj-text padding="0 0 14px">
+          {% if maps_url %}<a href="{{ maps_url }}" style="color:#198754">{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %} — directions</a>{% else %}{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}{% endif %}
+        </mj-text>
+        {% endif %}
+      </mj-column>
+    </mj-section>
+    {% endif %}
+
+    {% if site.instagram or site.website %}
+    <mj-section padding="12px 24px 0">
+      <mj-column>
+        <mj-text align="center" font-size="14px">
+          {% if site.instagram %}<a href="https://www.instagram.com/{{ site.instagram|cut:"@" }}/" style="color:#198754">Instagram</a>{% endif %}
+          {% if site.instagram and site.website %}&nbsp;&middot;&nbsp;{% endif %}
+          {% if site.website %}<a href="{{ site.website }}" style="color:#198754">{{ site_name }}</a>{% endif %}
         </mj-text>
       </mj-column>
     </mj-section>
-
-    {{ body_mjml }}
+    {% endif %}
 
     <mj-section padding="8px 0 32px">
       <mj-column>
@@ -53,7 +123,7 @@ Two constraints this is built around:
           {{ site_name }}{% if postal_address %}<br />{{ postal_address }}{% endif %}
         </mj-text>
         <mj-text align="center" font-size="12px" color="#888888">
-          You are receiving this because you subscribed at {{ site_name }}.<br />
+          You are receiving this because you opted in at {{ site_name }}.<br />
           <a href="{{ unsubscribe_url }}" style="color:#888888">Unsubscribe</a>
           &nbsp;&middot;&nbsp;
           <a href="{{ privacy_url }}" style="color:#888888">Privacy</a>
