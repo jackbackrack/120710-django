@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Privacy{% endblock %}
+{% block block_title %}Privacy{% endblock %}
+
+{% block content %}
+{% comment %}
+  Written from what the code actually does, and it needs to stay that way — a privacy
+  page that overstates is worse than none. Every claim here is checkable:
+
+    subscriber fields          gallery/models/subscribers.py
+    unsubscribe handling       gallery/campaigns.py, eatart/views/unsubscribe.py
+    bounces and complaints     gallery/webhooks.py
+    no open/click tracking     templates/email/campaign_base.mjml has no pixel and no
+                               wrapped links; gallery/webhooks.py discards those events
+    what is public on a page   gallery/templates/gallery/artist_detail.html
+    what is not in schema.org  eatart/schemaorg/mappers.py::artist_to_schema
+
+  If any of those change, change this. The page is network-wide because the practices
+  are — one codebase, one database, one set of providers — but it names the venue you
+  are dealing with from info_site, the same way the other info pages do.
+{% endcomment %}
+<div class="col-11 col-md-8 mx-auto mt-4 privacy">
+
+<p class="text-muted">
+  How {{ info_site.name|default:"this gallery" }} handles your information. Last updated
+  July 2026.
+</p>
+
+<h2>The short version</h2>
+<p>
+  We keep what we need to show art, run open calls, and send a mailing list you asked
+  for. We do not sell it, we do not share it for advertising, and we do not track
+  whether you open our emails. You can ask us to correct or delete anything we hold.
+</p>
+
+<h2>If you join the mailing list</h2>
+<p>
+  We store your email address, your name if you gave one, and where the signup came
+  from — our own database, not a third-party marketing platform.
+</p>
+<p>
+  Every mailing carries an unsubscribe link, and one click is enough; it removes you
+  from that list and leaves any other list alone, with an option to come off everything.
+  If a message bounces or you mark one as spam, we stop mailing you on every list
+  automatically, without anyone having to notice.
+</p>
+<p>
+  Our emails contain no tracking pixel and no rewritten links, so we do not know whether
+  you opened one or what you clicked. Where our sending provider reports that anyway, we
+  discard it.
+</p>
+
+<h2>If you make an account</h2>
+<p>
+  An account stores your email address and name, and a password we never see in plain
+  text. We ask you to confirm your address so that we are not mailing someone who did
+  not sign up.
+</p>
+<p>
+  You may sign in with Google instead. Google then tells us your name, email address and
+  profile picture, and we use the picture as your artist photo so you do not have to
+  upload one. We receive nothing else, and we do not post anything.
+</p>
+
+<h2>If you are an artist here</h2>
+<p>
+  An artist profile is public: your name, photo, biography, statement, website, Instagram
+  handle, and the works you have in shows. That is the point of it — it is how visitors
+  and curators find your work.
+</p>
+<p>
+  <strong>Your email address, phone number, postal address and Venmo handle are not
+  public.</strong> They are visible only to you, to curators, and to gallery staff, and
+  they are deliberately left out of the machine-readable listings that search engines
+  read.
+</p>
+<p>
+  We ask for a postal address so we can return work and handle sales, and a photo because
+  it is printed in the show catalogue alongside your entry.
+</p>
+
+<h2>Who else is involved</h2>
+<ul>
+  <li><strong>Our email providers.</strong> One sends mailings, another sends the
+    transactional mail an account needs — confirmations, acceptance letters. They handle
+    your address in order to deliver the message.</li>
+  <li><strong>Google reCAPTCHA</strong> protects the signup and subscribe forms from
+    automated abuse. Google receives what it needs to judge whether you are a person.</li>
+  <li><strong>Our hosting and file storage,</strong> which hold the site and the images.</li>
+</ul>
+<p>
+  Nobody in that list is given your information for their own marketing, and we have no
+  advertising or analytics trackers on this site.
+</p>
+
+<h2>Cookies</h2>
+<p>
+  Only the ones the site needs to work: one to keep you signed in, and one that protects
+  forms against cross-site abuse. No advertising or tracking cookies.
+</p>
+
+<h2>How long we keep it</h2>
+<p>
+  Artwork and show records are a permanent exhibition history, which is part of what a
+  gallery is for. If you unsubscribe we keep a record that you did, because that is what
+  stops us mailing you again by accident. Anything else, we delete when you ask.
+</p>
+
+<h2>Asking us to change or delete something</h2>
+<p>
+  You can edit your own profile at any time. For anything else — a copy of what we hold,
+  a correction, or deletion — write to
+  {% if info_site.email %}<a href="mailto:{{ info_site.email }}">{{ info_site.email }}</a>{% else %}the gallery{% endif %}
+  and we will sort it out. If you only want the mail to stop, the unsubscribe link in any
+  mailing is faster.
+</p>
+
+{% if info_site.street or info_site.city %}
+<h2>Who we are</h2>
+<p>
+  {{ info_site.name }}<br>
+  {% if info_site.street %}{{ info_site.street }}<br>{% endif %}
+  {% if info_site.city %}{{ info_site.city }}{% if info_site.state %}, {{ info_site.state }}{% endif %} {{ info_site.postal_code }}{% endif %}
+</p>
+{% endif %}
+</div>
+
+<style>
+  .privacy h2 { font-size: 1.15rem; margin-top: 1.6rem; }
+  .privacy p, .privacy li { line-height: 1.5; }
+</style>
+{% endblock %}

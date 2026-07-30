@@ -131,6 +131,7 @@
               {% endcomment %}
               <li><a class="dropdown-item{% if u == 'subscribe' %} active{% endif %}" href="{% url 'subscribe' %}">Subscribe</a></li>
               <li><a class="dropdown-item{% if u == 'linktree' %} active{% endif %}" href="{% if current_site %}{% url 'site_linktree' current_site.slug %}{% else %}{% url 'linktree' %}{% endif %}">Links</a></li>
+              <li><a class="dropdown-item{% if u == 'privacy' %} active{% endif %}" href="{% if current_site %}{% url 'site_privacy' current_site.slug %}{% else %}{% url 'privacy' %}{% endif %}">Privacy</a></li>
             </ul>
           </li>
 

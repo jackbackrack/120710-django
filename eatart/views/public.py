@@ -76,6 +76,15 @@ def about(request, site_slug=None):
     return render(request, 'public/about.html')
 
 
+def privacy(request, site_slug=None):
+    """One policy for the whole network — same code, same database, same providers, so
+    per-venue variation would imply differences that do not exist. The venue's own name
+    and contact details come from `info_site`, as on the other info pages."""
+    if site_slug:
+        visible_site_or_404(request, site_slug)
+    return render(request, 'public/privacy.html')
+
+
 def linktree(request, site_slug=None):
     today = dt.date.today()
     if site_slug:

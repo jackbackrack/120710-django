@@ -55,6 +55,8 @@ Two constraints this is built around:
         <mj-text align="center" font-size="12px" color="#888888">
           You are receiving this because you subscribed at {{ site_name }}.<br />
           <a href="{{ unsubscribe_url }}" style="color:#888888">Unsubscribe</a>
+          &nbsp;&middot;&nbsp;
+          <a href="{{ privacy_url }}" style="color:#888888">Privacy</a>
         </mj-text>
       </mj-column>
     </mj-section>

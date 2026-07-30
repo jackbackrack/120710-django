@@ -23,6 +23,10 @@
   {{ form|crispy }}
   <button class="btn btn-success" type="submit">Sign up</button>
 </form>
+<p class="text-muted small mt-3">
+  Shows and events only. Every email has a one-click unsubscribe link, and we do not
+  track whether you open them — see our <a href="{% if current_site %}{% url 'site_privacy' current_site.slug %}{% else %}{% url 'privacy' %}{% endif %}">privacy page</a>.
+</p>
 </div>
 
 <style>

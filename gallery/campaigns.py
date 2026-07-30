@@ -66,12 +66,28 @@ def subscription_from_token(token):
     return None
 
 
-def unsubscribe_url(subscription, request=None):
-    path = reverse('unsubscribe', kwargs={'token': unsubscribe_token(subscription)})
+def _absolute(path, request=None):
+    """An absolute URL for a link in an email, with or without a request.
+
+    Campaigns are usually sent from a request, but send_campaign can be called from a
+    shell or a management command, where build_absolute_uri is not available.
+    """
     if request is not None:
         return request.build_absolute_uri(path)
     base = getattr(settings, 'SITE_BASE_URL', 'https://www.120710.art').rstrip('/')
     return f'{base}{path}'
+
+
+def unsubscribe_url(subscription, request=None):
+    return _absolute(
+        reverse('unsubscribe', kwargs={'token': unsubscribe_token(subscription)}), request)
+
+
+def privacy_url(site=None, request=None):
+    """The policy, scoped to the venue whose mail this is when there is one."""
+    if site is not None:
+        return _absolute(reverse('site_privacy', kwargs={'site_slug': site.slug}), request)
+    return _absolute(reverse('privacy'), request)
 
 
 # ── Rendering ────────────────────────────────────────────────────────────────
@@ -148,6 +164,7 @@ def render_campaign(campaign, subscription, request=None, extra_context=None):
         'subscriber': subscription.subscriber,
         'subscription': subscription,
         'unsubscribe_url': unsubscribe_url(subscription, request),
+        'privacy_url': privacy_url(site, request),
     }
     context.update(extra_context or {})
 

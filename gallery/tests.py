@@ -1595,6 +1595,103 @@ class ImportSubscribersTests(TestCase):
 
 
 
+
+class PrivacyPageTests(TestCase):
+    """The policy has to be reachable, venue-aware, and true. The last one is what the
+    tests can actually help with: each claim below is paired with the behaviour that
+    makes it honest, so changing the behaviour breaks the claim."""
+
+    def setUp(self):
+        from gallery.models import Site
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA',
+            postal_code='94710', email='info@120710.art')
+
+    def test_reachable_scoped_and_unscoped(self):
+        for url in (reverse('privacy'),
+                    reverse('site_privacy', kwargs={'site_slug': self.site.slug})):
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 200)
+                self.assertContains(r, '120710')
+                self.assertContains(r, 'info@120710.art')
+
+    def test_an_unpublished_venue_has_no_public_policy_page(self):
+        from gallery.models import Site
+        hidden = Site.objects.create(name='Hidden', slug='hidden',
+                                     status=Site.STATUS_DRAFT)
+        r = self.client.get(reverse('site_privacy', kwargs={'site_slug': hidden.slug}))
+        self.assertEqual(r.status_code, 404)
+
+    def test_linked_from_the_nav_and_the_subscribe_form(self):
+        self.assertContains(self.client.get('/', follow=True), '>Privacy</a>')
+        self.assertContains(self.client.get(reverse('subscribe')), 'privacy page')
+
+    def test_every_campaign_links_it(self):
+        """A mailing list's policy has to be reachable from the mail itself, not only
+        from a site someone would have to go looking for."""
+        from gallery import campaigns as engine
+        from gallery.models import Campaign, Subscriber, Subscription
+        subscriber, _ = Subscriber.opt_in(
+            email='s@example.com', sites=[self.site],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        campaign = Campaign.objects.create(site=self.site, subject='S',
+                                           body_markdown='Hi')
+        html = engine.render_campaign(campaign, subscriber.subscriptions.get())
+        self.assertIn(reverse('site_privacy', kwargs={'site_slug': self.site.slug}), html)
+
+    def test_the_no_tracking_claim_is_true(self):
+        """It says our mail carries no tracking pixel and no rewritten links, and that
+        we discard open/click events. Both halves are checked here."""
+        from anymail.signals import AnymailTrackingEvent, EventType, tracking
+        from gallery import campaigns as engine
+        from gallery.models import Campaign, Subscriber, Subscription
+        subscriber, _ = Subscriber.opt_in(
+            email='t@example.com', sites=[self.site],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        campaign = Campaign.objects.create(site=self.site, subject='S',
+                                           body_markdown='Read [this](https://example.com/a).')
+        html = engine.render_campaign(campaign, subscriber.subscriptions.get())
+
+        # The link the author wrote survives verbatim — not rewritten through a tracker.
+        self.assertIn('https://example.com/a', html)
+        # No 1x1 beacon.
+        self.assertNotIn('width="1"', html)
+
+        # And an open reported anyway changes nothing.
+        before = list(subscriber.subscriptions.values_list('is_subscribed', flat=True))
+        tracking.send(sender=None, esp_name='Resend',
+                      event=AnymailTrackingEvent(event_type=EventType.OPENED,
+                                                 recipient='t@example.com'))
+        self.assertEqual(list(subscriber.subscriptions.values_list('is_subscribed', flat=True)),
+                         before)
+
+    def test_the_contact_details_are_not_public_claim_is_true(self):
+        """It says an artist's email, phone, postal address and Venmo are not public and
+        are kept out of the machine-readable listings."""
+        from django.test import RequestFactory
+        from eatart.schemaorg.mappers import artist_to_schema, schema_to_dict
+        artist = Artist.objects.create(
+            first_name='Pia', last_name='Private', email='pia@example.com',
+            phone='555-0100', venmo='@pia', street='1 Test Lane', bio='A bio.')
+        art = Artwork.objects.create(name='W', end_year=2025)
+        art.artists.add(artist)
+        show = Show.objects.create(name='Pub', status=Show.STATUS_PUBLISHED,
+                                   start=datetime.date.today(), end=datetime.date.today())
+        art.shows.add(show)
+
+        body = self.client.get(artist.get_absolute_url(), follow=True).content.decode()
+        for secret in ('pia@example.com', '555-0100', '@pia', '1 Test Lane'):
+            self.assertNotIn(secret, body)
+        self.assertIn('A bio.', body)      # the public half still is public
+
+        blob = str(schema_to_dict(artist_to_schema(artist, RequestFactory().get('/'))))
+        for secret in ('pia@example.com', '555-0100', '@pia'):
+            self.assertNotIn(secret, blob)
+
+
+
 class HowToAnchorTests(TestCase):
     """Every link into the help system must land on a guide that exists.
 
