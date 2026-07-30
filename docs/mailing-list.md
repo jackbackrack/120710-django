@@ -467,6 +467,35 @@ export contains unsubscribed and cleaned members alongside subscribed ones, and 
 lot as subscribed would mail people who have already said no — which is both unlawful and the
 fastest way to earn spam complaints on a new sending domain.
 
+## What a campaign reports afterwards
+
+`CampaignDelivery` carries two separate facts about each person, and keeping them apart matters:
+
+- **`status`** — what happened when we handed the message over: `sent` or `rejected`. Never
+  changes.
+- **`outcome`** — what the provider told us afterwards: `bounced`, `complained`, or nothing yet.
+
+Folding a later bounce into `status` would make `sent_so_far` fall and a progress bar run
+backwards. What we did and what became of it are different facts.
+
+The campaign page and the campaigns list both show sent / bounced / marked-as-spam with rates.
+**Anything over 0.3% complaints** (`Campaign.COMPLAINT_RATE_LIMIT`) is where Gmail and Yahoo start
+filtering a domain's mail into spam folders without telling anyone, so it is called out in red
+rather than left as a figure to interpret. Bounce rate is the other one to watch: it is how a
+stale imported list announces itself.
+
+Events are attributed to the **most recent** delivery for that person, within
+`ATTRIBUTION_WINDOW` (30 days). A bounce follows its send within minutes, so the latest delivery
+is the cause. A complaint does not — people press the spam button on months-old mail, and blaming
+that on whatever went out last week would inflate an unrelated campaign's rate. Past the window
+the person is still unsubscribed; the event is simply not counted against a campaign.
+
+Only the first event for a delivery counts, because providers retry webhooks and a double count
+would double a campaign's rate.
+
+Open and click tracking is deliberately absent, and should stay absent: it is the obvious next
+"dashboard" feature and it would make the privacy page false.
+
 ## Bounces and complaints
 
 Resend posts delivery events to `/anymail/resend/tracking/`, signed with Svix; anymail

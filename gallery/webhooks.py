@@ -17,12 +17,14 @@ how a sending domain gets blocked.
 Anymail verifies the Svix signature before this runs (ANYMAIL['RESEND_SIGNING_SECRET']),
 so an unsigned or tampered POST never reaches here.
 """
+import datetime
 import logging
 
 from anymail.signals import EventType, tracking
 from django.dispatch import receiver
+from django.utils import timezone
 
-from gallery.models import Subscriber, Subscription
+from gallery.models import CampaignDelivery, Subscriber, Subscription
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,19 @@ _STOP_SENDING = {
     EventType.BOUNCED: Subscription.UNSUB_BOUNCED,
     EventType.COMPLAINED: Subscription.UNSUB_COMPLAINED,
 }
+
+# The same two events, as outcomes recorded against the campaign that caused them.
+_OUTCOME = {
+    EventType.BOUNCED: CampaignDelivery.OUTCOME_BOUNCED,
+    EventType.COMPLAINED: CampaignDelivery.OUTCOME_COMPLAINED,
+}
+
+# How far back to look for the campaign an event belongs to. A bounce follows its send within
+# minutes, so the most recent delivery is the cause. A complaint does not: people press the spam
+# button on months-old mail, and attributing that to whatever went out last week would blame a
+# campaign that had nothing to do with it and inflate its complaint rate. Past this, the person is
+# still unsubscribed — the event is simply not counted against any campaign.
+ATTRIBUTION_WINDOW = datetime.timedelta(days=30)
 
 
 @receiver(tracking)
@@ -56,5 +71,32 @@ def handle_tracking_event(sender, event, esp_name, **kwargs):
         return
 
     stopped = subscriber.unsubscribe_all(reason=reason)
-    logger.info('%s %s for %s — stopped %d subscription(s)',
-                esp_name, event.event_type, address, stopped)
+    recorded = _attribute(subscriber, event.event_type)
+    logger.info('%s %s for %s — stopped %d subscription(s)%s',
+                esp_name, event.event_type, address, stopped,
+                f', recorded against campaign {recorded}' if recorded else '')
+
+
+def _attribute(subscriber, event_type):
+    """Record the event against the campaign that caused it. Returns the campaign id, or None.
+
+    Without this the pages can only report what we did — how many a campaign went to — and never
+    what happened next, which is the half that matters: bounce rate is how a stale imported list
+    announces itself, and complaint rate is the number Gmail and Yahoo actually judge a sender on.
+
+    The most recent delivery is the cause, because a bounce arrives within minutes of its send.
+    Only the first event counts: a provider that retries a webhook must not be able to count one
+    complaint twice and double a campaign's rate.
+    """
+    delivery = (CampaignDelivery.objects
+                .filter(subscription__subscriber=subscriber,
+                        status=CampaignDelivery.STATUS_SENT,
+                        outcome='',
+                        sent_at__gte=timezone.now() - ATTRIBUTION_WINDOW)
+                .order_by('-sent_at').first())
+    if delivery is None:
+        return None
+    delivery.outcome = _OUTCOME[event_type]
+    delivery.outcome_at = timezone.now()
+    delivery.save(update_fields=['outcome', 'outcome_at'])
+    return delivery.campaign_id

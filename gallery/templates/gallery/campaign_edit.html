@@ -128,6 +128,39 @@
       {% endif %}
       {% endif %}
 
+      {% if campaign.sent_at %}
+      <hr>
+      <h5>After the send</h5>
+      {% comment %}
+        The half the page could not report before: a bounce or a complaint arriving after the
+        send is now recorded against the campaign that caused it. Both numbers matter for
+        different reasons — bounces say the list is stale, complaints are what a mailbox provider
+        actually judges you on.
+      {% endcomment %}
+      <table class="table table-sm w-auto">
+        <tr><td class="pe-4">Sent</td><td class="text-end">{{ campaign.sent_so_far }}</td><td></td></tr>
+        <tr>
+          <td class="pe-4">Bounced</td>
+          <td class="text-end">{{ campaign.bounced_count }}</td>
+          <td class="text-muted small ps-2">{{ campaign.bounce_rate }}%</td>
+        </tr>
+        <tr{% if campaign.complaint_rate_is_high %} class="table-danger"{% endif %}>
+          <td class="pe-4">Marked as spam</td>
+          <td class="text-end">{{ campaign.complained_count }}</td>
+          <td class="small ps-2">{{ campaign.complaint_rate }}%</td>
+        </tr>
+      </table>
+      {% if campaign.complaint_rate_is_high %}
+      <p class="text-danger small">
+        Above {{ complaint_limit }}%, which is where Gmail and Yahoo start putting a domain's mail in spam folders without telling you. Worth looking at who this went to before sending another.
+      </p>
+      {% else %}
+      <p class="text-muted small">
+        Anything over {{ complaint_limit }}% spam complaints is the level at which mailbox providers start filtering a domain.
+      </p>
+      {% endif %}
+      {% endif %}
+
       {% if rejected %}
       <hr>
       <h5>Addresses the provider refused</h5>

@@ -1624,6 +1624,133 @@ class NetworkListDisabledTests(TestCase):
         self.assertTrue(venue.can_send)
 
 
+class CampaignOutcomeTests(TestCase):
+    """What happened after the send, not just what we did.
+
+    Before this the pages could report that a campaign went to 412 people and nothing else — a
+    bounce arriving ten minutes later unsubscribed the person and left no mark on the campaign.
+    Bounce rate is how a stale imported list announces itself, and complaint rate is the number
+    Gmail and Yahoo actually judge a sender on, so neither being visible was the gap.
+    """
+
+    def setUp(self):
+        from gallery.models import Campaign, Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 10th St', city='Berkeley', state='CA', postal_code='94710')
+        for i in range(4):
+            Subscriber.opt_in(email='o%d@example.com' % i, sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.campaign = Campaign.objects.create(
+            site=self.site, subject='Opening night', body_markdown='Hello.')
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.staff = User.objects.create_user(
+            username='out@example.com', email='out@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+        mail.outbox.clear()
+
+    def _send(self):
+        from unittest import mock
+        with mock.patch('gallery.campaigns._connection',
+                        lambda: mail.get_connection(
+                            'django.core.mail.backends.locmem.EmailBackend')):
+            campaigns.send_campaign(self.campaign)
+        self.campaign.refresh_from_db()
+
+    def _event(self, kind, address):
+        from anymail.signals import AnymailTrackingEvent, EventType, tracking
+        tracking.send(sender=object(), esp_name='Resend',
+                      event=AnymailTrackingEvent(
+                          event_type=getattr(EventType, kind), recipient=address))
+
+    def test_a_bounce_is_counted_against_the_campaign_that_caused_it(self):
+        self._send()
+        self.assertEqual(self.campaign.sent_so_far, 4)
+
+        self._event('BOUNCED', 'o0@example.com')
+        self.assertEqual(self.campaign.bounced_count, 1)
+        self.assertEqual(self.campaign.bounce_rate, 25.0)
+        # And the send count is untouched: what we did does not change because of what followed.
+        self.assertEqual(self.campaign.sent_so_far, 4)
+
+    def test_a_complaint_is_counted_and_its_rate_reported(self):
+        self._send()
+        self._event('COMPLAINED', 'o0@example.com')
+        self.assertEqual(self.campaign.complained_count, 1)
+        self.assertEqual(self.campaign.complaint_rate, 25.0)
+        self.assertTrue(self.campaign.complaint_rate_is_high)
+
+    def test_a_healthy_campaign_is_not_flagged(self):
+        self._send()
+        self.assertEqual(self.campaign.complaint_rate, 0.0)
+        self.assertFalse(self.campaign.complaint_rate_is_high)
+
+    def test_the_person_is_still_unsubscribed_everywhere(self):
+        """Attribution is an addition; the thing that protects the domain must still happen."""
+        from gallery.models import Subscriber
+        self._send()
+        self._event('BOUNCED', 'o0@example.com')
+        subscription = Subscriber.objects.get(email='o0@example.com').subscriptions.get()
+        self.assertFalse(subscription.is_subscribed)
+        self.assertEqual(subscription.unsubscribed_reason, 'bounced')
+
+    def test_a_retried_webhook_cannot_count_one_complaint_twice(self):
+        """Providers retry. Double-counting would double a campaign's rate."""
+        self._send()
+        for _ in range(3):
+            self._event('COMPLAINED', 'o0@example.com')
+        self.assertEqual(self.campaign.complained_count, 1)
+
+    def test_an_event_for_a_long_past_send_is_not_blamed_on_a_recent_campaign(self):
+        """People press the spam button on months-old mail.
+
+        Attributing that to whatever went out last week would blame a campaign that had nothing
+        to do with it and inflate its complaint rate.
+        """
+        from gallery.models import CampaignDelivery
+        self._send()
+        CampaignDelivery.objects.update(
+            sent_at=timezone.now() - datetime.timedelta(days=60))
+
+        self._event('COMPLAINED', 'o0@example.com')
+        self.assertEqual(self.campaign.complained_count, 0)
+        # But they are still taken off the list, which is the part that matters.
+        from gallery.models import Subscriber
+        self.assertFalse(
+            Subscriber.objects.get(email='o0@example.com').subscriptions.get().is_subscribed)
+
+    def test_an_event_for_someone_who_was_never_mailed_records_nothing(self):
+        from gallery.models import Subscriber, Subscription
+        self._send()
+        Subscriber.opt_in(email='later@example.com', sites=[self.site],
+                          source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self._event('BOUNCED', 'later@example.com')
+        self.assertEqual(self.campaign.bounced_count, 0)
+
+    def test_the_campaign_page_reports_what_happened_after(self):
+        self._send()
+        self._event('BOUNCED', 'o0@example.com')
+        self._event('COMPLAINED', 'o1@example.com')
+
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'After the send')
+        self.assertContains(page, 'Marked as spam')
+        self.assertContains(page, '25.0%')
+        # Literal template text is not escaped — only variables are.
+        self.assertContains(page, "start putting a domain's mail in spam folders")
+
+    def test_the_list_shows_the_rates_without_a_query_per_row(self):
+        self._send()
+        self._event('BOUNCED', 'o0@example.com')
+        with self.assertNumQueries(6):
+            page = self.client.get(reverse('gallery:campaign_list'))
+        self.assertContains(page, 'Bounced')
+        self.assertContains(page, '25.0%')
+
+
 class CampaignResumeTests(TestCase):
     """A send that stops part-way must be finishable without mailing anyone twice.
 

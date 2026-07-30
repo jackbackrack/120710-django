@@ -12,6 +12,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -40,9 +41,28 @@ def _percent(campaign):
 @login_required
 def campaign_list(request):
     _staff_only(request)
+    # Counted in the query rather than per row: the list is every campaign ever sent, and three
+    # property lookups each would be a page of queries by the second year.
+    campaigns = (Campaign.objects
+                 .select_related('site', 'created_by')
+                 .annotate(
+                     n_sent=Count('deliveries', filter=Q(deliveries__status='sent')),
+                     n_bounced=Count('deliveries', filter=Q(deliveries__outcome='bounced')),
+                     n_complained=Count('deliveries',
+                                        filter=Q(deliveries__outcome='complained'))))
     return render(request, 'gallery/campaign_list.html', {
-        'campaigns': Campaign.objects.select_related('site', 'created_by'),
+        'campaigns': [_with_rates(c) for c in campaigns],
+        'complaint_limit': Campaign.COMPLAINT_RATE_LIMIT,
     })
+
+
+def _with_rates(campaign):
+    """Rates from the annotated counts, so the template does not query per row."""
+    sent = campaign.n_sent
+    campaign.complaint_pct = round(100 * campaign.n_complained / sent, 2) if sent else 0.0
+    campaign.bounce_pct = round(100 * campaign.n_bounced / sent, 2) if sent else 0.0
+    campaign.complaints_high = campaign.complaint_pct > Campaign.COMPLAINT_RATE_LIMIT
+    return campaign
 
 
 @login_required
@@ -91,6 +111,7 @@ def campaign_edit(request, pk):
         'in_flight': campaign.status == Campaign.STATUS_SENDING and not campaign.is_stalled,
         'send_percent': _percent(campaign),
         'rejected': campaign.rejected,
+        'complaint_limit': Campaign.COMPLAINT_RATE_LIMIT,
         'test_address': request.user.email,
     })
 

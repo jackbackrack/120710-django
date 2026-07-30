@@ -162,6 +162,34 @@ class Campaign(models.Model):
         return (self.deliveries.filter(status='rejected')
                 .select_related('subscription__subscriber'))
 
+    # What Gmail and Yahoo judge a bulk sender on. Above this, mail starts going to spam folders
+    # and there is no notification — which is why the number has to be on the page.
+    COMPLAINT_RATE_LIMIT = 0.3
+
+    @property
+    def bounced_count(self):
+        return self.deliveries.filter(outcome='bounced').count()
+
+    @property
+    def complained_count(self):
+        return self.deliveries.filter(outcome='complained').count()
+
+    @property
+    def complaint_rate(self):
+        """Complaints as a percentage of what went out. 0.0 when nothing has."""
+        sent = self.sent_so_far
+        return round(100 * self.complained_count / sent, 2) if sent else 0.0
+
+    @property
+    def bounce_rate(self):
+        sent = self.sent_so_far
+        return round(100 * self.bounced_count / sent, 2) if sent else 0.0
+
+    @property
+    def complaint_rate_is_high(self):
+        """Worth saying out loud, rather than leaving as a number to interpret."""
+        return self.complaint_rate > self.COMPLAINT_RATE_LIMIT
+
     @property
     def remaining_count(self):
         """How many are still owed this campaign. Import-local to avoid a cycle."""
@@ -238,6 +266,19 @@ class CampaignDelivery(models.Model):
     # not actionable and "mailbox does not exist" is.
     error = models.CharField(max_length=255, blank=True, default='')
     sent_at = models.DateTimeField(auto_now_add=True)
+
+    # What became of it afterwards, from the webhook. Kept separate from `status` on purpose:
+    # `status` is what happened when we handed the message over and never changes, while this
+    # arrives minutes later. Folding a later bounce into `status` would make sent_so_far fall
+    # and a progress bar run backwards.
+    OUTCOME_BOUNCED = 'bounced'
+    OUTCOME_COMPLAINED = 'complained'
+    OUTCOME_CHOICES = [
+        (OUTCOME_BOUNCED, 'Bounced'),
+        (OUTCOME_COMPLAINED, 'Marked as spam'),
+    ]
+    outcome = models.CharField(max_length=16, blank=True, default='', choices=OUTCOME_CHOICES)
+    outcome_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
