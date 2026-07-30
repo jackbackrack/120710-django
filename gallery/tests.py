@@ -8310,6 +8310,112 @@ class CampaignTests(TestCase):
         self.assertIn('<strong>Saturday</strong>', html)
         self.assertIn('href="https://x.test/"', html)
 
+    def _site_with_icon(self):
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        # A real image, however small: imagekit has to be able to open and resize it, so
+        # hand-written bytes are not good enough.
+        buffer = io.BytesIO()
+        Image.new('RGB', (8, 8), 'white').save(buffer, format='PNG')
+        self.site.icon = SimpleUploadedFile('icon.png', buffer.getvalue(),
+                                            content_type='image/png')
+        self.site.save()
+        return self.site
+
+    def test_the_masthead_is_generated_if_it_was_never_made(self):
+        """The cachefile strategy is Optimistic: derived images are made when the source is saved.
+
+        icon_md was added long after these icons were uploaded, so it had never been generated —
+        and because Optimistic deliberately skips existence checks on .url, every campaign went out
+        with a broken image and nothing noticed.
+        """
+        campaigns._LOGO_URL.clear()
+        site = self._site_with_icon()
+        spec = site.icon_md
+        spec.storage.delete(spec.name)
+        self.assertFalse(spec.storage.exists(spec.name))
+
+        url = campaigns.campaign_logo_url(site)
+        self.assertTrue(url)
+        self.assertTrue(spec.storage.exists(spec.name), 'the masthead should have been generated')
+
+    def test_each_venue_gets_its_own_masthead(self):
+        """Not a fix for one gallery: every venue's own logo, generated on demand for each."""
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        from gallery.models import Site
+
+        campaigns._LOGO_URL.clear()
+        urls = {}
+        for slug, colour in (('120710', 'white'), ('elsewhere', 'black')):
+            site = (self.site if slug == '120710'
+                    else Site.objects.create(name='Elsewhere', slug=slug,
+                                             status=Site.STATUS_PUBLISHED))
+            buffer = io.BytesIO()
+            Image.new('RGB', (8, 8), colour).save(buffer, format='PNG')
+            site.icon = SimpleUploadedFile(f'{slug}.png', buffer.getvalue(),
+                                           content_type='image/png')
+            site.save()
+
+            url = campaigns.campaign_logo_url(site)
+            self.assertTrue(url, f'{slug} got no masthead')
+            self.assertTrue(site.icon_md.storage.exists(site.icon_md.name))
+            urls[slug] = url
+
+        self.assertNotEqual(urls['120710'], urls['elsewhere'],
+                            'each venue must get its own image, not a shared one')
+
+    def test_a_venue_with_no_icon_shows_its_name_rather_than_a_stranger_logo(self):
+        from gallery.models import Site
+        campaigns._LOGO_URL.clear()
+        bare = Site.objects.create(name='Bare', slug='bare-logo',
+                                   status=Site.STATUS_PUBLISHED)
+        self.assertEqual(campaigns.campaign_logo_url(bare), '')
+
+    def test_the_masthead_url_is_absolute(self):
+        """A relative /media/... resolves against the mail client, not against us."""
+        campaigns._LOGO_URL.clear()
+        url = campaigns.campaign_logo_url(self._site_with_icon())
+        self.assertTrue(url.startswith('http://') or url.startswith('https://'), url)
+
+    def test_a_masthead_that_cannot_be_made_falls_back_to_the_wordmark(self):
+        """A broken image cannot be fixed once the mail is sent, so no image is the safer failure."""
+        from unittest import mock
+        campaigns._LOGO_URL.clear()
+        site = self._site_with_icon()
+        spec = site.icon_md
+        spec.storage.delete(spec.name)
+        campaign = Campaign.objects.create(
+            site=site, subject='Hello', body_markdown='Body.')
+
+        with mock.patch('imagekit.cachefiles.ImageCacheFile.generate',
+                        side_effect=RuntimeError('storage down')):
+            campaigns._LOGO_URL.clear()
+            self.assertEqual(campaigns.campaign_logo_url(site), '')
+            campaigns._LOGO_URL.clear()
+            html = campaigns.render_preview(campaign)
+
+        # No masthead image, and the venue's name carries the identity instead.
+        self.assertNotIn('site_icons', html)
+        self.assertIn('120710', html)
+
+    def test_the_masthead_is_resolved_once_rather_than_once_per_recipient(self):
+        """Optimistic exists to avoid an S3 request per image; a check per message would undo it.
+
+        Proven by seeding the cache and watching the next call honour it, rather than by counting
+        calls into imagekit — which storage backend does the existence check is an implementation
+        detail this should not be pinned to.
+        """
+        campaigns._LOGO_URL.clear()
+        site = self._site_with_icon()
+        first = campaigns.campaign_logo_url(site)
+        self.assertTrue(first)
+
+        campaigns._LOGO_URL[(site.pk, site.icon.name)] = 'https://example.test/cached.png'
+        self.assertEqual(campaigns.campaign_logo_url(site), 'https://example.test/cached.png')
+
     def test_no_email_reaches_out_to_a_third_party_for_a_font(self):
         """MJML adds a <link> to fonts.googleapis.com if it recognises a Google font name.
 

@@ -42,7 +42,12 @@ Two constraints this is built around:
       it is the first thing a reader recognises. Linked, because people click logos. The name in
       letterspaced caps only appears when there is no logo to carry it.
     {% endcomment %}
-    {% if site.icon %}
+    {% comment %}
+      Conditioned on the resolved URL, not on site.icon: an icon that exists but whose derived
+      email-sized copy could not be produced must fall back to the wordmark, because a broken
+      image cannot be fixed once the mail is sent.
+    {% endcomment %}
+    {% if site_icon_url %}
     <mj-section padding="24px 0 8px">
       <mj-column>
         <mj-image src="{{ site_icon_url }}" width="147px" alt="{{ site_name }}"

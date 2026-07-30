@@ -156,6 +156,47 @@ def template_needs(name):
 SUBJECT_MAX = 255
 
 
+# Whether a venue's masthead has been confirmed to exist, keyed by site and icon file. The
+# cachefile strategy is Optimistic — derived images are generated when the source is saved, and it
+# skips existence checks on .url so that a page of hundreds of thumbnails is not hundreds of S3
+# requests. That is right for pages and wrong here: `icon_md` was added long after these icons were
+# uploaded, so it had never been generated and every campaign carried a broken image. Checked once
+# per process per icon rather than once per recipient, which would be a HEAD request per message.
+_LOGO_URL = {}
+
+
+def campaign_logo_url(site, request=None):
+    """An absolute URL for a masthead that definitely exists, or '' — never a broken image.
+
+    A missing image in an email cannot be fixed after it is sent and looks like carelessness in
+    every inbox that opens it, so the failure mode here is deliberately "no logo": the shell falls
+    back to the venue's name in letterspaced caps, which looks intentional.
+
+    Absolute, always. On S3 the storage already returns a full URL, but with local media it returns
+    "/media/..." — which resolves against the mail client, not against us, and is a broken image
+    everywhere.
+    """
+    if not (site and site.icon):
+        return ''
+    key = (site.pk, site.icon.name)
+    if key in _LOGO_URL:
+        return _LOGO_URL[key]
+
+    url = ''
+    try:
+        spec = site.icon_md
+        if not spec.storage.exists(spec.name):
+            spec.generate()
+        url = spec.url
+        if not url.startswith(('http://', 'https://')):
+            url = _absolute(url, request)
+    except Exception:   # noqa: BLE001 — a logo is never worth failing a send over
+        logger.exception('Could not prepare a masthead for site %s', getattr(site, 'pk', None))
+        url = ''
+    _LOGO_URL[key] = url
+    return url
+
+
 def subject_context(campaign, request=None):
     """The names a subject line may use. The same objects the body gets."""
     site = campaign.site
@@ -361,8 +402,14 @@ def render_campaign(campaign, subscription, request=None, extra_context=None):
         'preheader': campaign.preheader,
         'site': site,
         'site_name': site.name if site else 'reset.art',
-        # icon_md, not icon_sm: this is a masthead at ~150px, not a 32px favicon.
-        'site_icon_url': (site.icon_md.url if site and site.icon else ''),
+        # icon_md, not icon_sm: this is a masthead at ~150px, not a 32px favicon. Via the helper,
+        # which makes sure the derived file actually exists before putting its URL in an email.
+        #
+        # Each venue's own logo, whichever venue this is. A network-wide campaign has no venue at
+        # all, so it borrows the deployment's default one rather than going out bare — a
+        # recognisable mark beats none. A venue that simply has no icon keeps its own wordmark:
+        # showing somebody else's logo on their mail would be worse than showing none.
+        'site_icon_url': campaign_logo_url(site or Subscriber.default_site(), request),
         'site_url': _absolute(site.get_absolute_url(), request) if site else '',
         'maps_url': site.maps_url if site else '',
         'postal_address': (site.formatted_address.replace('\n', ', ') if site else ''),

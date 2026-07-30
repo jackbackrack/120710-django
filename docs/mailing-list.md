@@ -226,6 +226,23 @@ The one exception is a bulleted list, which is centred *as a block* with its ite
 left-aligned inside (`display:inline-block; text-align:left`). Centring each item individually
 puts every bullet in a different place, which is unreadable.
 
+**The masthead is generated on demand.** `IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY` is `Optimistic`:
+derived images are made when the source is saved, and existence checks are skipped on `.url` so a
+page of hundreds of thumbnails is not hundreds of S3 requests. That is right for pages and wrong
+for a spec added later — `icon_md` was introduced long after these icons were uploaded, so it had
+never been generated and every campaign carried a broken image with nothing to notice it.
+
+`campaign_logo_url()` therefore checks and generates before handing the URL to an email, caches
+the answer per site per icon (not per recipient, which would undo the point of Optimistic), and
+returns an **absolute** URL — local media storage returns `/media/...`, which resolves against the
+mail client and is broken everywhere. If it cannot produce one it returns `''` and the shell falls
+back to the venue's name in letterspaced caps, because a broken image cannot be fixed once the
+mail has been sent.
+
+Each venue gets its own logo. A venue with no icon shows its wordmark rather than borrowing
+another gallery's mark; only a network-wide campaign, which has no venue at all, falls back to the
+deployment's default one.
+
 **Do not put a Google font in the stack.** MJML recognises Google font names and helpfully adds a
 `<link>` to `fonts.googleapis.com`, which makes every email fetch a resource from Google when it
 is opened. That is a tracking vector, it contradicts what the privacy page promises, and most
