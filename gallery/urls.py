@@ -1,8 +1,8 @@
 from django.urls import path, re_path
 
 from gallery.views.placards import placard_html, placard_json, placard_json_for_site, placard_sheet_pdf
-from gallery.views.campaigns import (campaign_edit, campaign_list, campaign_new,
-                                     campaign_preview, campaign_resume,
+from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign_list,
+                                     campaign_new, campaign_preview, campaign_resume,
                                      campaign_send, campaign_send_test)
 from gallery.views.subscribers import (subscriber_add, subscriber_delete,
                                        subscriber_list, subscriber_unsubscribe_all,
@@ -126,6 +126,7 @@ urlpatterns = [
     path('campaigns/<int:pk>/test/', campaign_send_test, name='campaign_send_test'),
     path('campaigns/<int:pk>/send/', campaign_send, name='campaign_send'),
     path('campaigns/<int:pk>/resume/', campaign_resume, name='campaign_resume'),
+    path('campaigns/<int:pk>/duplicate/', campaign_duplicate, name='campaign_duplicate'),
     # The mailing list itself: who is on it, and acting on one person.
     path('subscribers/', subscriber_list, name='subscriber_list'),
     path('subscribers/add/', subscriber_add, name='subscriber_add'),

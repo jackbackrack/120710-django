@@ -176,6 +176,29 @@ every time: whatever the curator typed into the Markdown field appears inside th
 `CAMPAIGN_TEMPLATES`, and it appears in the dropdown. Anything not in the registry still works —
 it just gets its filename as a label and is assumed to need nothing.
 
+### There is no "save as template", and why
+
+Templates are files, not rows. The campaign editor changes six things — site, subject, preheader,
+template, show, body — and every one of them belongs to that campaign. Editing a template is a code
+change and a deploy.
+
+That is deliberate. These templates contain loops and ORM access, so they are code; Django
+templates call what they render, and storing template source in the database would turn a
+compromised staff account into server-side code execution. Living in git also keeps review and
+rollback on the part of the system most likely to break silently across mail clients.
+
+What "save as template" is usually reaching for is **"start next month's from last month's"**, and
+that is a separate thing: **Start a new draft from this one**, on a campaign, or `copy` on the
+campaigns list. It carries the list, show, template, subject, preview text and body, and carries
+nothing about the send — no status, no sent date, no delivery records, and no test. A duplicate has
+never been tested whatever its original had done, so the guard re-arms.
+
+The subject is copied verbatim rather than prefixed. A `Copy of` is a scaffolding word one
+forgotten edit away from arriving in every inbox, and the list already tells drafts from sent ones.
+
+If you ever need one *specific* thing to vary per show that the Markdown body cannot express, the
+answer is a new field on the campaign feeding a fixed layout — not editable template source.
+
 ### Checking one in a real mail client
 
 Nothing here can tell you how Outlook will render it, so the workflow makes you look:

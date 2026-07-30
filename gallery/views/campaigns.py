@@ -135,6 +135,42 @@ def campaign_send_test(request, pk):
 
 @login_required
 @require_POST
+def campaign_duplicate(request, pk):
+    """Start a fresh draft from an existing campaign.
+
+    This is what "save as template" is usually reaching for: not a new format, but next month's
+    mailing started from last month's. The recurring *structure* is already a template file, so
+    what was missing was only the copy step.
+
+    Everything a reader would see is carried over, and everything about the send is not: no
+    status, no sent date, no delivery records, and — deliberately — no test. A duplicate has
+    never been tested, whatever its original had done, so the guard re-arms and the copy has to
+    be looked at before it can go anywhere.
+
+    The subject is copied verbatim rather than prefixed with "Copy of". A prefix would be a
+    scaffolding word one forgotten edit away from arriving in nine hundred inboxes, and the
+    campaign list already tells drafts from sent ones.
+    """
+    _staff_only(request)
+    original = get_object_or_404(Campaign, pk=pk)
+
+    copy = Campaign.objects.create(
+        site=original.site,
+        show=original.show,
+        subject=original.subject,
+        preheader=original.preheader,
+        template_name=original.template_name,
+        body_markdown=original.body_markdown,
+        created_by=request.user,
+    )
+    logger.info('Campaign %s duplicated from %s by %s', copy.pk, original.pk, request.user)
+    messages.success(request, 'Copied to a new draft. Nothing has been sent, and it counts as '
+                              'untested — send yourself a test once you have made your changes.')
+    return redirect('gallery:campaign_edit', pk=copy.pk)
+
+
+@login_required
+@require_POST
 def campaign_send(request, pk):
     _staff_only(request)
     campaign = get_object_or_404(Campaign, pk=pk)

@@ -1234,6 +1234,94 @@ class CampaignStaffPagesTests(TestCase):
         campaign.refresh_from_db()
         self.assertEqual(campaign.subject, subject)
 
+    def test_duplicating_carries_the_content_and_nothing_about_the_send(self):
+        """What "save as template" is usually reaching for: next month's, started from this one."""
+        from gallery.models import Campaign
+        campaign = self._draft(preheader='Three weeks only')
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+            self.client.post(reverse('gallery:campaign_send', kwargs={'pk': campaign.pk}),
+                             follow=True)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'sent')
+
+        r = self.client.post(reverse('gallery:campaign_duplicate',
+                                     kwargs={'pk': campaign.pk}), follow=True)
+        self.assertEqual(r.status_code, 200)
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+
+        # Everything a reader would see.
+        self.assertEqual(copy.subject, campaign.subject)
+        self.assertEqual(copy.preheader, 'Three weeks only')
+        self.assertEqual(copy.body_markdown, campaign.body_markdown)
+        self.assertEqual(copy.site, campaign.site)
+
+        # And nothing about the send.
+        self.assertEqual(copy.status, 'draft')
+        self.assertIsNone(copy.sent_at)
+        self.assertEqual(copy.recipient_count, 0)
+        self.assertEqual(copy.deliveries.count(), 0)
+        self.assertEqual(copy.created_by, self.staff)
+        # The original is untouched — this is a copy, not a reopening.
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, 'sent')
+
+    def test_a_duplicate_has_to_be_tested_again_before_it_can_go_out(self):
+        """The one thing that must not be inherited. The copy has never been looked at."""
+        from gallery.models import Campaign
+        campaign = self._draft()
+        with self._locmem():
+            self.client.post(reverse('gallery:campaign_send_test', kwargs={'pk': campaign.pk}),
+                             {'address': 'me@example.com'}, follow=True)
+        campaign.refresh_from_db()
+        self.assertTrue(campaign.can_send)
+
+        self.client.post(reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk}))
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+        self.assertIsNone(copy.test_sent_at)
+        self.assertFalse(copy.can_send)
+        self.assertIn('Send a test to yourself first', copy.blocked_reason)
+
+    def test_duplicating_keeps_the_template_and_the_show(self):
+        """A show mailing copied for the next show should need only the show changing."""
+        from gallery.models import Campaign, Show
+        show = Show.objects.create(
+            name='Autumn', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 1), end=datetime.date(2026, 9, 30))
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Autumn opens',
+            template_name='show_opening.mjml')
+
+        self.client.post(reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk}))
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+        self.assertEqual(copy.template_name, 'show_opening.mjml')
+        self.assertEqual(copy.show, show)
+
+    def test_the_subject_is_not_prefixed(self):
+        """A "Copy of" prefix is one forgotten edit away from arriving in every inbox."""
+        from gallery.models import Campaign
+        campaign = self._draft()
+        self.client.post(reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk}))
+        copy = Campaign.objects.exclude(pk=campaign.pk).get()
+        self.assertEqual(copy.subject, 'Spring show is open')
+        self.assertNotIn('Copy', copy.subject)
+
+    def test_duplicate_is_staff_only_and_needs_a_post(self):
+        from gallery.models import Campaign
+        campaign = self._draft()
+        url = reverse('gallery:campaign_duplicate', kwargs={'pk': campaign.pk})
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+        self.client.logout()
+        self.assertEqual(self.client.post(url).status_code, 302)
+        artist = User.objects.create_user(
+            username='nope2@example.com', email='nope2@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertEqual(Campaign.objects.count(), 1)
+
     def test_only_staff_get_in(self):
         campaign = self._draft()
         send = reverse('gallery:campaign_send', kwargs={'pk': campaign.pk})

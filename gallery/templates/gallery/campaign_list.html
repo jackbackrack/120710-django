@@ -16,6 +16,7 @@
         <th>Status</th>
         <th class="text-end">Sent to</th>
         <th>When</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -31,6 +32,12 @@
         </td>
         <td class="text-end">{% if c.sent_at %}{{ c.recipient_count }}{% else %}&mdash;{% endif %}</td>
         <td class="text-muted small">{{ c.sent_at|default:c.created_at|date:"M j, Y" }}</td>
+        <td class="text-end">
+          <form method="post" action="{% url 'gallery:campaign_duplicate' c.pk %}">{% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-link p-0"
+                    title="Start a new draft with the same list, show, template and wording">copy</button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>

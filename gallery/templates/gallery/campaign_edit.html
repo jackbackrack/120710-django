@@ -61,6 +61,14 @@
         {% endif %}
       </form>
       {% else %}
+      {% comment %}
+        Offered on a finished campaign because that is the moment somebody decides next
+        month's should look like this one. It is a POST — it creates a record.
+      {% endcomment %}
+      <form method="post" action="{% url 'gallery:campaign_duplicate' campaign.pk %}"
+            class="mb-3">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-secondary">Start a new draft from this one</button>
+      </form>
       <dl>
         <dt>List</dt><dd>{{ campaign.site.name|default:"Everyone" }}</dd>
         <dt>Subject</dt><dd>{{ campaign.subject }}</dd>
