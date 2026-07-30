@@ -18,7 +18,7 @@ Manages artists, artworks, exhibitions (shows), events, and juror reviews/rating
 - **Google OAuth** via django-allauth
 - **Admin** — ShowAdmin with artwork inline and filter_horizontal for artists/curators/tags; CSV/Excel import-export on all models
 - **Schema.org JSON-LD** — Pydantic-validated structured data on every public detail page
-- **Mailing list** — subscribers, campaigns and unsubscribes in our own database; campaigns render from MJML and send via Resend, while transactional mail stays on smtp2go
+- **Mailing list** — subscribers, campaigns and unsubscribes in our own database; campaigns render from MJML and send via Resend, while transactional mail stays on smtp2go. Sends run in the background and a send that stops part-way can be resumed without mailing anyone twice — see [docs/mailing-list.md](docs/mailing-list.md)
 
 ---
 
@@ -103,6 +103,15 @@ RECAPTCHA_ENABLED=
 # Optional: Resend, for mailing-list campaigns only
 RESEND_API_KEY=
 RESEND_SIGNING_SECRET=
+
+# Absolute base for links in campaign mail. Campaign sends run in a background thread with
+# no request to build URLs from, so this is where the unsubscribe link's host comes from.
+SITE_BASE_URL=https://www.120710.art
+# Set false to send campaigns inline rather than in a background thread (the tests do this)
+CAMPAIGN_SEND_IN_BACKGROUND=
+# Messages a second when sending a campaign. One API request per message, so this is the
+# provider's rate limit — Resend allows about two a second by default.
+CAMPAIGN_MESSAGES_PER_SECOND=2
 
 # Optional: AWS S3 (set USE_S3=True to enable)
 USE_S3=False

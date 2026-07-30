@@ -229,6 +229,27 @@ if 'test' in sys.argv:
 # fresh content. 0 disables the grid cache.
 ANON_GRID_CACHE_SECONDS = int(os.environ.get('ANON_GRID_CACHE_SECONDS', '120'))
 
+# Absolute base for links in mail sent without a request — which is every campaign, since
+# campaign sends run in a background thread with no request to build URLs from. Getting this
+# wrong breaks the unsubscribe link in a mailing that has already gone out, so it is set
+# here explicitly rather than left to a fallback buried in the mail code.
+SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'https://www.120710.art').rstrip('/')
+
+# Campaign sends run in a background thread so the request returns at once instead of
+# holding a worker for minutes and timing out. Set false to send inline — which is what the
+# tests do, since a thread has its own connection and could not see a test transaction.
+CAMPAIGN_SEND_IN_BACKGROUND = os.environ.get(
+    'CAMPAIGN_SEND_IN_BACKGROUND', 'true').strip().lower() not in ('false', '0', 'no', 'off')
+if 'test' in sys.argv:
+    # Belt and braces: settings_test sets this too, but a run without --settings must not
+    # spawn threads that cannot see the test transaction.
+    CAMPAIGN_SEND_IN_BACKGROUND = False
+
+# Messages a second when sending a campaign. The mail backend makes one API request per
+# message, so this is the provider's rate limit — Resend allows two a second by default, and
+# exceeding it fails the request. Raise it only after confirming a higher limit on the account.
+CAMPAIGN_MESSAGES_PER_SECOND = float(os.environ.get('CAMPAIGN_MESSAGES_PER_SECOND', '2'))
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

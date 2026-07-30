@@ -10,24 +10,47 @@ is `Subscriber` and unsubscribe is ours. See gallery/models/subscribers.py for w
 """
 import logging
 import re
+import threading
+import time
 
 from django.conf import settings
 from django.core import signing
 from django.core.mail import EmailMultiAlternatives, get_connection
+from django.db import connection as db_connection, models
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape, strip_tags
 from django.utils.safestring import mark_safe
 
-from gallery.models import Campaign, Subscriber, Subscription
+from gallery.models import (Campaign, CampaignDelivery, Subscriber,
+                            Subscription)
 
 logger = logging.getLogger(__name__)
 
-# Resend takes up to 100 messages per batch call. Each recipient's mail differs — the
-# unsubscribe link is per-person — so this is a real batch of distinct messages, not one
-# message with many recipients.
+# How many subscriptions are loaded from the database at a time. Not a batch API call: the
+# backend makes one request per message, since each recipient's mail differs — the unsubscribe
+# link is per-person. This only bounds how much is held in memory and how often the progress
+# clock is moved.
 BATCH_SIZE = 100
+
+# Per-message retries before giving up on an address, and the first backoff in seconds
+# (doubling each time). A rate limit or a provider blip should cost a pause, not the campaign.
+SEND_ATTEMPTS = 3
+RETRY_BACKOFF = 2
+
+# Stop rather than work through the remaining list against a provider that is refusing
+# everything. Enough that a couple of bad addresses in a row do not halt a send.
+ABORT_AFTER_CONSECUTIVE_FAILURES = 10
+
+# How often a running send says it is still alive. Comfortably inside Campaign.STALL_AFTER, so
+# a healthy send is never mistaken for an abandoned one however slowly it is being throttled.
+PROGRESS_EVERY_SECONDS = 30
+
+
+def messages_per_second():
+    """Read at send time so tests and an operator can change it without a restart."""
+    return getattr(settings, 'CAMPAIGN_MESSAGES_PER_SECOND', 2)
 
 UNSUBSCRIBE_SALT = 'gallery.campaigns.unsubscribe'
 
@@ -257,40 +280,248 @@ def send_test(campaign, address, request=None):
     return True
 
 
-def send_campaign(campaign, request=None):
-    """Send to the whole list, in batches. Returns how many were sent.
+def pending(campaign):
+    """Everyone who should get this campaign and has not been recorded as sent it.
 
-    Refuses unless a test has gone out since the last edit — the guard lives here rather
-    than only in the view, so no other caller can route around it.
+    This — not `recipients` — is what a send iterates, which is what makes a send safe to
+    run twice. A resume picks up exactly the people with no delivery record, so finishing an
+    interrupted send cannot re-mail anyone it already reached.
     """
-    if not campaign.can_send:
+    return recipients(campaign).exclude(deliveries__campaign=campaign)
+
+
+def _claim(campaign, resume=False):
+    """Take exclusive ownership of sending this campaign, or refuse.
+
+    A compare-and-set on the status column, because "check then act" is not enough here: two
+    workers behind one URL, a double-clicked Send button, or an operator hitting Resume on a
+    send that is actually still alive would otherwise each start their own pass over the list
+    and mail everyone twice. Whichever UPDATE matches a row first owns the send; the loser
+    gets False and sends nothing.
+
+    The unique constraint on CampaignDelivery would catch the duplicate afterwards, but only
+    after the mail had already gone out — too late to matter.
+    """
+    query = Campaign.objects.filter(pk=campaign.pk)
+    if resume:
+        # Either it failed, or it says sending and has stopped making progress. For the
+        # latter, the observed progress_at is part of the condition, so a send that is in
+        # fact still running (and has moved the timestamp since) will not be stolen.
+        query = query.filter(
+            models.Q(status=Campaign.STATUS_FAILED)
+            | models.Q(status=Campaign.STATUS_SENDING, progress_at=campaign.progress_at))
+    else:
+        query = query.filter(status=Campaign.STATUS_DRAFT)
+
+    claimed = query.update(status=Campaign.STATUS_SENDING, progress_at=timezone.now())
+    if claimed:
+        campaign.refresh_from_db()
+    return bool(claimed)
+
+
+def _transient(exc):
+    """Whether an error is worth trying the same message again for.
+
+    A rate limit or a bad five minutes at the provider is transient; a malformed address is
+    not, and retrying it only delays the rest of the list.
+    """
+    status = getattr(exc, 'status_code', None)
+    if status is not None:
+        return status == 429 or status >= 500
+    # Network-level failures arrive without a status code at all.
+    return isinstance(exc, (OSError, ConnectionError))
+
+
+def _send_one(connection, message, campaign_pk, email):
+    """One message, retrying a transient failure. True if it went, False if it did not.
+
+    Retried here rather than by resuming the whole campaign, because the overwhelmingly
+    common failure on a list of any size is a rate limit, and the right response to that is
+    to wait a moment — not to stop the send and make somebody come and press a button.
+    """
+    for attempt in range(1, SEND_ATTEMPTS + 1):
+        try:
+            return bool(connection.send_messages([message]))
+        except Exception as exc:   # noqa: BLE001 — classified immediately below
+            if attempt < SEND_ATTEMPTS and _transient(exc):
+                delay = RETRY_BACKOFF * (2 ** (attempt - 1))
+                logger.warning('Campaign %s: %s on attempt %s for %s, retrying in %ss',
+                               campaign_pk, type(exc).__name__, attempt, email, delay)
+                time.sleep(delay)
+                continue
+            logger.error('Campaign %s: giving up on %s (%s)', campaign_pk, email, exc)
+            return False
+    return False
+
+
+def send_campaign(campaign, request=None, resume=False):
+    """Send to everyone who has not had it yet. Returns how many went out on this pass.
+
+    Runs to completion — ten minutes for a thousand-person list, given the rate limit — so it
+    belongs off the request thread. See `start_send`. Called directly it is still correct,
+    just slow, which is what the management command and the tests do.
+
+    Refuses unless a test has gone out since the last edit. The guard lives here rather than
+    only in the view, so no other caller can route around it.
+    """
+    if resume:
+        if not campaign.can_resume:
+            raise ValueError('This campaign is not stopped part-way; there is nothing to '
+                             'resume.')
+    elif not campaign.can_send:
         raise ValueError(campaign.blocked_reason or 'This campaign cannot be sent.')
 
-    campaign.status = Campaign.STATUS_SENDING
-    campaign.save(update_fields=['status'])
+    if not _claim(campaign, resume=resume):
+        raise ValueError('This campaign is already being sent.')
+
+    # The recipient list is fixed here rather than iterated lazily, because the loop writes
+    # delivery rows that would otherwise change the very queryset being walked.
+    remaining = list(pending(campaign).values_list('pk', flat=True))
 
     sent = 0
+    failed = []
+    consecutive = 0
+    throttle = _Throttle(messages_per_second())
+    last_touch = time.monotonic()
+
     try:
         connection = _connection()
         connection.open()
-        batch = []
-        for subscription in recipients(campaign).iterator():
-            batch.append(build_message(campaign, subscription, request=request,
-                                       connection=connection))
-            if len(batch) >= BATCH_SIZE:
-                sent += connection.send_messages(batch) or 0
-                batch = []
-        if batch:
-            sent += connection.send_messages(batch) or 0
+        for start in range(0, len(remaining), BATCH_SIZE):
+            subscriptions = list(Subscription.objects
+                                 .select_related('subscriber', 'site')
+                                 .filter(pk__in=remaining[start:start + BATCH_SIZE]))
+            for subscription in subscriptions:
+                email = subscription.subscriber.email
+                message = build_message(campaign, subscription, request=request,
+                                        connection=connection)
+                throttle.wait()
+                if _send_one(connection, message, campaign.pk, email):
+                    # One at a time, and recorded immediately, because the backend makes one
+                    # API call per message anyway — so exact records cost nothing, and no
+                    # resume ever repeats a message.
+                    _record(campaign, [subscription])
+                    sent += 1
+                    consecutive = 0
+                else:
+                    failed.append(email)
+                    consecutive += 1
+                    if consecutive >= ABORT_AFTER_CONSECUTIVE_FAILURES:
+                        raise RuntimeError(
+                            f'{consecutive} messages in a row failed — stopping rather than '
+                            f'working through the rest of the list against a provider that '
+                            f'is not accepting mail. Last failures: '
+                            f'{", ".join(failed[-consecutive:])}')
+
+                # By elapsed time, not by message count. A slow rate limit could otherwise
+                # leave the clock untouched for longer than STALL_AFTER, at which point a
+                # perfectly healthy send looks abandoned and somebody is invited to resume it
+                # alongside itself — two threads working the same list.
+                if time.monotonic() - last_touch > PROGRESS_EVERY_SECONDS:
+                    _touch_progress(campaign)
+                    last_touch = time.monotonic()
+        _touch_progress(campaign)
         connection.close()
     except Exception:
-        campaign.status = Campaign.STATUS_FAILED
-        campaign.save(update_fields=['status'])
-        logger.exception('Campaign %s failed after %s messages', campaign.pk, sent)
+        _fail(campaign, sent)
         raise
+
+    if failed:
+        # Individually rejected addresses, with the rest of the list already delivered. Left
+        # failed rather than sent, because a campaign that quietly reports success while
+        # having skipped people is the one kind of failure nobody would notice. Resume retries
+        # exactly these, and the Subscribers page is where a permanently bad address goes.
+        _fail(campaign, sent)
+        logger.error('Campaign %s: %s of %s addresses were rejected: %s',
+                     campaign.pk, len(failed), len(remaining), ', '.join(failed[:20]))
+        return sent
 
     campaign.status = Campaign.STATUS_SENT
     campaign.sent_at = timezone.now()
-    campaign.recipient_count = sent
+    campaign.recipient_count = campaign.deliveries.count()
     campaign.save(update_fields=['status', 'sent_at', 'recipient_count'])
     return sent
+
+
+def _fail(campaign, sent):
+    campaign.status = Campaign.STATUS_FAILED
+    campaign.save(update_fields=['status'])
+    logger.error('Campaign %s stopped after %s message(s) on this pass', campaign.pk, sent)
+
+
+def _record(campaign, subscriptions):
+    """Mark people as delivered.
+
+    After the send, never before: a record written first would, on a crash between the two,
+    convince a later resume that somebody had been mailed when they had not, and silently drop
+    them from the list. Written after, the same crash costs one duplicate at most. Duplicates
+    are the tolerable failure here; omissions are not.
+    """
+    CampaignDelivery.objects.bulk_create(
+        [CampaignDelivery(campaign=campaign, subscription=s) for s in subscriptions],
+        ignore_conflicts=True)
+
+
+def _touch_progress(campaign):
+    """Move the clock that `is_stalled` reads. Per batch, not per message — it exists to show
+    that the send is alive, and a write per message would be a thousand pointless updates."""
+    Campaign.objects.filter(pk=campaign.pk).update(progress_at=timezone.now())
+
+
+class _Throttle:
+    """Keeps sends under the provider's rate limit.
+
+    Resend's default allowance is a couple of requests a second, and the backend makes one
+    request per message. Without this, a list of any size trips a 429 within the first few
+    seconds — which is precisely the failure that would look like the mailing list being
+    broken, on the one day it matters.
+    """
+
+    def __init__(self, per_second):
+        self.interval = 1.0 / per_second if per_second else 0.0
+        self.next_at = 0.0
+
+    def wait(self):
+        if not self.interval:
+            return
+        now = time.monotonic()
+        if now < self.next_at:
+            time.sleep(self.next_at - now)
+        self.next_at = max(now, self.next_at) + self.interval
+
+
+def start_send(campaign, resume=False):
+    """Begin a send in a background thread and return at once.
+
+    A campaign send is minutes of work — a thousand messages at a hundred per batch — and
+    doing it in the request would hold a worker for the duration and hand the operator a
+    gateway timeout long before it finished. Worse, the send would carry on invisibly behind
+    the error page, so the one person who needed to know how it went was the one person who
+    could not find out.
+
+    No queue is involved, so this thread dies with the process. That is survivable only
+    because of the delivery records: a killed send leaves a campaign marked sending with a
+    stale progress clock, `can_resume` notices, and Resume carries on from the right place.
+    Without them this would be reckless.
+
+    Deliberately no `request`: holding one past the response is a bug waiting to happen, and
+    the link builder already falls back to SITE_BASE_URL without one.
+    """
+    if not getattr(settings, 'CAMPAIGN_SEND_IN_BACKGROUND', True):
+        # Tests, and anyone who wants the exception rather than a log line. A thread would
+        # also be invisible to a TestCase's transaction, which it could not see anyway.
+        send_campaign(campaign, resume=resume)
+        return None
+
+    def run():
+        try:
+            send_campaign(campaign, resume=resume)
+        except Exception:   # noqa: BLE001 — already logged, and recorded as FAILED
+            logger.exception('Background send of campaign %s ended badly', campaign.pk)
+        finally:
+            # The thread got its own connection; leaving it open leaks one per send.
+            db_connection.close()
+
+    thread = threading.Thread(target=run, name=f'campaign-send-{campaign.pk}', daemon=True)
+    thread.start()
+    return thread

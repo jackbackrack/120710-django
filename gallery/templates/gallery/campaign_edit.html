@@ -14,11 +14,30 @@
 <div class="col-11 col-lg-10 mx-auto mt-4">
 
   {% if campaign and not editable %}
+  {% comment %}
+    Three different situations share "not editable", and calling them all a finished record
+    would be a lie in two of them. A stopped send is unfinished business, and the banner has
+    to say so — that is the moment somebody needs to be told what to do next.
+  {% endcomment %}
+  {% if campaign.can_resume %}
+  <div class="alert alert-warning">
+    <strong>This send stopped before it finished.</strong>
+    {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} subscriber{{ remaining_count|pluralize }} received it.
+    Resume it below to send the rest &mdash; nobody who already got it will get it twice.
+  </div>
+  {% elif in_flight %}
+  <div class="alert alert-info">
+    <strong>Sending now.</strong>
+    {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} sent so far. This carries on
+    whether or not you stay on the page.
+  </div>
+  {% else %}
   <div class="alert alert-secondary">
     {# Keep user-facing sentences unbroken so they stay greppable and testable. #}
     This campaign is <strong>{{ campaign.get_status_display|lower }}</strong> and can no longer be edited
     &mdash; it is the record of what went out{% if campaign.sent_at %} on {{ campaign.sent_at|date:"F j, Y" }} to {{ campaign.recipient_count }} subscriber{{ campaign.recipient_count|pluralize }}{% endif %}.
   </div>
+  {% endif %}
   {% endif %}
 
   <div class="row g-4">
@@ -92,6 +111,45 @@
       <button type="button" class="btn btn-danger" disabled>Send</button>
       <p class="text-muted small mt-1">{{ campaign.blocked_reason }}</p>
       {% endif %}
+      {% endif %}
+
+      {% if campaign.can_resume %}
+      <hr>
+      <h5>Finish the send</h5>
+      <p>
+        {{ remaining_count }} subscriber{{ remaining_count|pluralize }} still to go, of
+        {{ sent_so_far|add:remaining_count }} on
+        <strong>{{ campaign.site.name|default:"the network-wide list" }}</strong>.
+      </p>
+      <form method="post" action="{% url 'gallery:campaign_resume' campaign.pk %}">{% csrf_token %}
+        <button type="submit" class="btn btn-warning"
+                onclick="return confirm('Send the remaining {{ remaining_count }} copy/copies of &quot;{{ campaign.subject|escapejs }}&quot;? The {{ sent_so_far }} already sent will not be repeated.')">
+          Resume &mdash; send the remaining {{ remaining_count }}
+        </button>
+      </form>
+      <p class="text-muted small mt-1">
+        Only people with no record of having received this are mailed, so it is safe to press
+        even if you are not sure how far the last attempt got.
+      </p>
+      {% elif in_flight %}
+      <hr>
+      <h5>Sending</h5>
+      <div class="progress" role="progressbar" aria-label="Send progress"
+           aria-valuenow="{{ sent_so_far }}" aria-valuemin="0"
+           aria-valuemax="{{ sent_so_far|add:remaining_count }}" style="height:1.25rem">
+        <div class="progress-bar progress-bar-striped progress-bar-animated"
+             style="width:{{ send_percent }}%">{{ send_percent }}%</div>
+      </div>
+      <p class="text-muted small mt-1">
+        {{ sent_so_far }} of {{ sent_so_far|add:remaining_count }} sent. Refreshing every 15
+        seconds. Closing this page does not stop the send.
+      </p>
+      {% comment %}
+        A plain meta-refresh rather than polling JavaScript: the only thing that changes is a
+        count read straight from the delivery records, and this keeps working with the tab in
+        the background, which is where an operator will actually leave it.
+      {% endcomment %}
+      <meta http-equiv="refresh" content="15">
       {% endif %}
 
       {% else %}

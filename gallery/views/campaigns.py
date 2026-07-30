@@ -29,6 +29,13 @@ def _staff_only(request):
         raise Http404
 
 
+def _percent(campaign):
+    """How far a send has got, for the progress bar. Zero rather than a division error."""
+    done = campaign.sent_so_far
+    total = done + campaign.remaining_count
+    return round(100 * done / total) if total else 0
+
+
 @login_required
 def campaign_list(request):
     _staff_only(request)
@@ -76,6 +83,12 @@ def campaign_edit(request, pk):
         'campaign': campaign,
         'editable': editable,
         'recipient_count': engine.recipients(campaign).count(),
+        'sent_so_far': campaign.sent_so_far,
+        'remaining_count': campaign.remaining_count,
+        # A send in flight is not finished, and the page has to be able to say so without
+        # the operator reloading by hand and guessing.
+        'in_flight': campaign.status == Campaign.STATUS_SENDING and not campaign.is_stalled,
+        'send_percent': _percent(campaign),
         'test_address': request.user.email,
     })
 
@@ -131,11 +144,46 @@ def campaign_send(request, pk):
         messages.error(request, campaign.blocked_reason or 'This campaign cannot be sent.')
         return redirect('gallery:campaign_edit', pk=campaign.pk)
 
+    return _begin(request, campaign, resume=False)
+
+
+@login_required
+@require_POST
+def campaign_resume(request, pk):
+    """Finish a send that stopped part-way.
+
+    Separate from Send rather than a mode of it, so the button an operator reaches for after
+    something went wrong says what it will do. It sends only to people with no delivery
+    record, so pressing it when the send had in fact finished mails nobody.
+    """
+    _staff_only(request)
+    campaign = get_object_or_404(Campaign, pk=pk)
+
+    if not campaign.can_resume:
+        messages.error(request, 'That campaign is not stopped part-way, so there is nothing '
+                                'to resume.')
+        return redirect('gallery:campaign_edit', pk=campaign.pk)
+
+    return _begin(request, campaign, resume=True)
+
+
+def _begin(request, campaign, resume):
+    """Hand the send to a background thread and report back immediately.
+
+    The response cannot say how many were sent, because by design the send has barely
+    started — the alternative was holding the request open for minutes and timing out. The
+    page reports progress from the delivery records instead.
+    """
+    owed = campaign.remaining_count
     try:
-        sent = engine.send_campaign(campaign, request=request)
-    except Exception as exc:   # noqa: BLE001
-        logger.exception('Campaign %s send failed', campaign.pk)
-        messages.error(request, f'Send failed: {exc}')
+        engine.start_send(campaign, resume=resume)
+    except Exception as exc:   # noqa: BLE001 — a refused claim, or the thread not starting
+        logger.exception('Campaign %s could not be started', campaign.pk)
+        messages.error(request, f'Could not start the send: {exc}')
     else:
-        messages.success(request, f'Sent to {sent} subscriber{"s" if sent != 1 else ""}.')
+        verb = 'Resuming' if resume else 'Sending'
+        messages.success(
+            request,
+            f'{verb} to {owed} subscriber{"s" if owed != 1 else ""}. This page updates as it '
+            f'goes — you can leave it, the send does not need the page open.')
     return redirect('gallery:campaign_edit', pk=campaign.pk)

@@ -1250,6 +1250,439 @@ class CampaignStaffPagesTests(TestCase):
         self.assertEqual(mail.outbox, [])
 
 
+class CampaignResumeTests(TestCase):
+    """A send that stops part-way must be finishable without mailing anyone twice.
+
+    This is the failure that would actually hurt. Before delivery records, a send that died
+    at message 400 of 900 left no trace of how far it got: the campaign could not be sent
+    again, and re-creating it would have mailed the first 400 people a second time. These
+    tests pin the two properties that make it recoverable — every send skips people with a
+    delivery record, and a stopped send is visible as stopped.
+    """
+
+    def setUp(self):
+        from gallery.models import Campaign, Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        for i in range(5):
+            Subscriber.opt_in(email='r%d@example.com' % i, first_name='Reader',
+                              last_name=str(i), sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.campaign = Campaign.objects.create(
+            site=self.site, subject='Opening night', body_markdown='Come **along**.')
+        # After creation, not in it: edited_at is auto_now_add, so a test timestamp passed to
+        # create() predates it and the send guard would refuse every one of these tests.
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+        self.staff = User.objects.create_user(
+            username='res@example.com', email='res@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+        # The outbox is process-wide. Django empties it between tests, but signals firing
+        # during this setUp can put mail in it, and these tests assert on exactly who was
+        # mailed — so start from empty.
+        mail.outbox.clear()
+
+    def _batches_of_two(self):
+        """Two per batch, so a five-person list takes three batches and can fail between."""
+        from unittest import mock
+        return mock.patch('gallery.campaigns.BATCH_SIZE', 2)
+
+    def _dies_after(self, messages):
+        """A mail connection that delivers `messages` messages and then refuses.
+
+        Stands in for the provider going away mid-campaign — a rate limit, a network drop, a
+        five-hundred from the API. Per message rather than per batch because that is what the
+        backend really does: one API call each, which is exactly why every delivery can be
+        recorded individually and no resume ever repeats one.
+        """
+        from unittest import mock
+
+        outer = self
+
+        class Dying:
+            done = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                if Dying.done >= messages:
+                    raise RuntimeError('provider went away')
+                Dying.done += len(batch)
+                outer.delivered.extend(m.to[0] for m in batch)
+                return len(batch)
+
+        self.delivered = []
+        return mock.patch('gallery.campaigns._connection', lambda: Dying())
+
+    def _locmem(self):
+        from unittest import mock
+        return mock.patch('gallery.campaigns._connection',
+                          lambda: mail.get_connection(
+                              'django.core.mail.backends.locmem.EmailBackend'))
+
+    def _sent_to(self):
+        """The addresses this send reached.
+
+        A set of addresses rather than a count of the outbox: the outbox is process-wide, and
+        asserting on its length made these tests fail intermittently depending on which other
+        test ran before them in the same worker. What matters here is who got the campaign.
+        """
+        return {m.to[0] for m in mail.outbox}
+
+    # --- The engine ---
+
+    def test_a_send_that_dies_part_way_records_what_it_delivered(self):
+        with self._batches_of_two(), self._dies_after(4):
+            self.assertEqual(campaigns.send_campaign(self.campaign), 4)
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'failed')
+        # Four went out and are recorded individually; the fifth never did.
+        self.assertEqual(self.campaign.sent_so_far, 4)
+        self.assertEqual(self.campaign.remaining_count, 1)
+        self.assertTrue(self.campaign.can_resume)
+
+    def test_resuming_mails_only_the_people_who_missed_it(self):
+        with self._batches_of_two(), self._dies_after(4):
+            campaigns.send_campaign(self.campaign)
+        already = set(self.delivered)
+        self.assertEqual(len(already), 4)
+
+        self.campaign.refresh_from_db()
+        with self._locmem():
+            sent = campaigns.send_campaign(self.campaign, resume=True)
+
+        self.assertEqual(sent, 1, 'a resume must not re-send to the four already reached')
+        self.assertEqual([m.to[0] for m in mail.outbox],
+                         [e for e in ['r0@example.com', 'r1@example.com', 'r2@example.com',
+                                      'r3@example.com', 'r4@example.com']
+                          if e not in already])
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(self.campaign.recipient_count, 5)
+        self.assertEqual(self.campaign.remaining_count, 0)
+
+    def test_nobody_is_mailed_twice_even_if_resume_is_pressed_repeatedly(self):
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
+        for _ in range(3):
+            self.campaign.refresh_from_db()
+            if not self.campaign.remaining_count:
+                break
+            with self._locmem():
+                campaigns.send_campaign(self.campaign, resume=True)
+
+        addresses = [m.to[0] for m in mail.outbox] + self.delivered
+        self.assertEqual(len(addresses), 5)
+        self.assertEqual(len(set(addresses)), 5, 'somebody received it twice')
+
+    def test_someone_who_unsubscribes_after_the_failure_is_not_mailed_by_the_resume(self):
+        """The list is re-read on resume, not frozen at the moment the send started.
+
+        Sending to somebody who opted out in between is the one thing worse than not
+        finishing at all.
+        """
+        from gallery.models import Subscription
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
+        missed = campaigns.pending(self.campaign).first()
+        gone = missed.subscriber.email
+        missed.unsubscribe(reason=Subscription.UNSUB_REQUESTED)
+
+        self.campaign.refresh_from_db()
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, resume=True)
+
+        self.assertNotIn(gone, [m.to[0] for m in mail.outbox])
+
+    def test_a_send_abandoned_by_a_dead_process_becomes_resumable(self):
+        """Nothing can report from inside a process that has been killed.
+
+        A deploy mid-send leaves the row saying `sending` forever, which looks like work in
+        progress rather than a problem. Absence of progress is the only available signal.
+        """
+        from gallery.models import Campaign
+        Campaign.objects.filter(pk=self.campaign.pk).update(
+            status=Campaign.STATUS_SENDING,
+            progress_at=timezone.now() - datetime.timedelta(minutes=11))
+        self.campaign.refresh_from_db()
+
+        self.assertTrue(self.campaign.is_stalled)
+        self.assertTrue(self.campaign.can_resume)
+        self.assertIn('stopped after', self.campaign.blocked_reason)
+
+        with self._locmem():
+            campaigns.send_campaign(self.campaign, resume=True)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(self._sent_to(), {'r0@example.com', 'r1@example.com',
+                                           'r2@example.com', 'r3@example.com',
+                                           'r4@example.com'})
+
+    def test_a_running_send_keeps_saying_it_is_alive(self):
+        """Otherwise a slow send looks abandoned and can be resumed alongside itself.
+
+        The progress clock is what `is_stalled` reads, so it has to move on elapsed time rather
+        than message count — a throttled send can spend longer than STALL_AFTER inside a single
+        batch.
+        """
+        from unittest import mock
+        with self._locmem(), mock.patch('gallery.campaigns.PROGRESS_EVERY_SECONDS', 0):
+            campaigns.send_campaign(self.campaign)
+        self.campaign.refresh_from_db()
+        self.assertIsNotNone(self.campaign.progress_at)
+        self.assertFalse(self.campaign.is_stalled)
+
+    def test_a_send_still_making_progress_is_not_treated_as_stopped(self):
+        from gallery.models import Campaign
+        Campaign.objects.filter(pk=self.campaign.pk).update(
+            status=Campaign.STATUS_SENDING, progress_at=timezone.now())
+        self.campaign.refresh_from_db()
+        self.assertFalse(self.campaign.is_stalled)
+        self.assertFalse(self.campaign.can_resume)
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign, resume=True)
+
+    def test_two_sends_at_once_cannot_both_claim_the_campaign(self):
+        """A double-clicked button, or two workers behind one URL.
+
+        The unique constraint on the delivery records would catch the duplicate, but only
+        after the mail had gone out. The claim has to happen first.
+        """
+        from gallery.models import Campaign
+        stale = Campaign.objects.get(pk=self.campaign.pk)
+
+        with self._locmem():
+            campaigns.send_campaign(self.campaign)
+        self.assertEqual(len(mail.outbox), 5)
+
+        # The second caller is holding the row as it was before the first one claimed it.
+        mail.outbox.clear()
+        with self._locmem():
+            with self.assertRaises(ValueError):
+                campaigns.send_campaign(stale)
+        self.assertEqual(mail.outbox, [])
+
+    def test_resume_is_refused_on_a_campaign_that_never_stopped(self):
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign, resume=True)
+
+    def test_deleting_a_subscriber_takes_their_delivery_record_with_them(self):
+        """Erasure means erasure, including the record of having mailed them."""
+        from gallery.models import CampaignDelivery, Subscriber
+        with self._locmem():
+            campaigns.send_campaign(self.campaign)
+        self.assertEqual(CampaignDelivery.objects.count(), 5)
+
+        Subscriber.objects.get(email='r0@example.com').delete()
+        self.assertEqual(CampaignDelivery.objects.count(), 4)
+
+    # --- The page ---
+
+    def test_the_page_offers_resume_and_says_how_far_it_got(self):
+        with self._batches_of_two(), self._dies_after(4):
+            campaigns.send_campaign(self.campaign)
+
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'This send stopped before it finished')
+        self.assertContains(page, '4 of 5 subscriber')
+        self.assertContains(page, 'nobody who already got it will get it twice')
+        self.assertContains(page, reverse('gallery:campaign_resume',
+                                          kwargs={'pk': self.campaign.pk}))
+        # And not the banner that describes a finished send as a record.
+        self.assertNotContains(page, 'it is the record of what went out')
+
+    def test_resuming_from_the_page_finishes_the_send(self):
+        with self._batches_of_two(), self._dies_after(4):
+            campaigns.send_campaign(self.campaign)
+
+        with self._locmem():
+            r = self.client.post(reverse('gallery:campaign_resume',
+                                         kwargs={'pk': self.campaign.pk}), follow=True)
+        self.assertContains(r, 'Resuming to 1 subscriber')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_resume_from_the_page_is_refused_when_there_is_nothing_to_finish(self):
+        r = self.client.post(reverse('gallery:campaign_resume',
+                                     kwargs={'pk': self.campaign.pk}), follow=True)
+        self.assertContains(r, 'nothing to resume')
+        self.assertEqual(mail.outbox, [])
+
+    def test_only_staff_can_resume(self):
+        url = reverse('gallery:campaign_resume', kwargs={'pk': self.campaign.pk})
+        self.client.logout()
+        self.assertEqual(self.client.post(url).status_code, 302)
+        artist = User.objects.create_user(
+            username='no@example.com', email='no@example.com', password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertEqual(mail.outbox, [])
+
+    # --- Rate limits and a provider having a bad day ---
+
+    def test_a_rate_limit_is_retried_rather_than_failing_the_campaign(self):
+        """The most likely failure on a real list, and it must not need a human.
+
+        The backend makes one API request per message, so a thousand-person send is a thousand
+        requests against a two-a-second allowance. A 429 is ordinary weather; stopping the
+        campaign and waiting for somebody to press Resume would be the wrong response to it.
+        """
+        from unittest import mock
+
+        class RateLimited:
+            attempts = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                RateLimited.attempts += 1
+                if RateLimited.attempts == 2:
+                    error = Exception('Too many requests')
+                    error.status_code = 429
+                    raise error
+                return len(batch)
+
+        with mock.patch('gallery.campaigns._connection', lambda: RateLimited()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            sent = campaigns.send_campaign(self.campaign)
+
+        self.assertEqual(sent, 5, 'the rate-limited message should have been retried')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(self.campaign.sent_so_far, 5)
+
+    def test_a_permanently_bad_address_is_not_retried_forever(self):
+        """A malformed address is not going to start working. Retrying it only delays the rest.
+
+        The send finishes the list and is then left failed rather than sent, because a campaign
+        that reports success while having quietly skipped somebody is the one failure nobody
+        would ever notice.
+        """
+        from unittest import mock
+
+        class Picky:
+            calls = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                Picky.calls += 1
+                if batch[0].to[0] == 'r2@example.com':
+                    error = Exception('Invalid recipient')
+                    error.status_code = 422
+                    raise error
+                return len(batch)
+
+        with mock.patch('gallery.campaigns._connection', lambda: Picky()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            sent = campaigns.send_campaign(self.campaign)
+
+        self.assertEqual(sent, 4)
+        self.assertEqual(Picky.calls, 5, 'a 422 must not be retried')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'failed')
+        # And a resume retries exactly the one that was rejected, nobody else.
+        self.assertEqual([s.subscriber.email for s in campaigns.pending(self.campaign)],
+                         ['r2@example.com'])
+
+    def test_a_provider_refusing_everything_stops_before_working_through_the_list(self):
+        """Do not spend an hour hammering an API that is down. Stop and be resumable."""
+        from unittest import mock
+        from gallery.models import Subscriber, Subscription
+
+        for i in range(30):
+            Subscriber.opt_in(email='extra%d@example.com' % i, sites=[self.site],
+                              source=Subscription.SOURCE_SUBSCRIBE_FORM)
+
+        class Dead:
+            calls = 0
+
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                Dead.calls += 1
+                raise RuntimeError('everything is on fire')
+
+        with mock.patch('gallery.campaigns._connection', lambda: Dead()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            with self.assertRaises(RuntimeError):
+                campaigns.send_campaign(self.campaign)
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'failed')
+        self.assertEqual(self.campaign.sent_so_far, 0)
+        # Ten consecutive failures, each attempted three times — and then it gave up, rather
+        # than trying all thirty-five.
+        self.assertLess(Dead.calls, 35)
+        self.assertTrue(self.campaign.can_resume)
+
+    def test_the_throttle_paces_sends_and_does_not_sleep_when_disabled(self):
+        import time as time_module
+        throttle = campaigns._Throttle(50)
+        started = time_module.monotonic()
+        for _ in range(3):
+            throttle.wait()
+        # Two gaps of a fiftieth of a second; loose bound so a busy machine cannot fail it.
+        self.assertGreater(time_module.monotonic() - started, 0.02)
+
+        instant = campaigns._Throttle(0)
+        started = time_module.monotonic()
+        for _ in range(100):
+            instant.wait()
+        self.assertLess(time_module.monotonic() - started, 0.5)
+
+    # --- The command ---
+
+    def test_the_command_can_finish_what_the_web_send_started(self):
+        """The path that survives a deploy: same engine, no web process involved."""
+        from io import StringIO
+        from django.core.management import call_command
+
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
+        out = StringIO()
+        with self._locmem():
+            call_command('send_campaign', self.campaign.pk, '--resume', stdout=out)
+        self.assertIn('Sent 3 message(s)', out.getvalue())
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent')
+        self.assertEqual(len(mail.outbox), 3)
+
+    def test_the_command_dry_run_sends_nothing(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command('send_campaign', self.campaign.pk, '--dry-run', stdout=out)
+        self.assertIn('5 still to go', out.getvalue())
+        self.assertIn('r0@example.com', out.getvalue())
+        self.assertEqual(mail.outbox, [])
+        self.assertEqual(self.campaign.sent_so_far, 0)
 
 
 class ResendWebhookTests(TestCase):

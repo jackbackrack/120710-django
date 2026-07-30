@@ -515,6 +515,57 @@ HOW_TO_GUIDES = [
             'Full background, including how to add a capture script for a guide that does not have one yet, is in docs/visual-howto-documentation.md.',
         ],
     },
+    {
+        'title': 'How to send a mailing to the list (staff only)',
+        'summary': 'Write a campaign, preview it, send yourself a test, then send it to a list.',
+        # Stable anchor: the title says "mailing" but people call it the newsletter.
+        'anchor': 'send-a-mailing',
+        'roles': {'staff'},
+        'steps': [
+            'Open Campaigns in the navigation. The list shows every past mailing and its status. Click New campaign.',
+            'Choose which list it goes to. "Everyone (network-wide list)" is the reset.art list, not tied to a venue; the others are one venue\'s own subscribers. Getting this wrong sends a venue\'s news to everybody, so check it before anything else.',
+            'Write the subject, and the preview text — the grey line inboxes show after the subject. Leave the preview text blank and mail clients scrape the opening words of the body instead, which usually reads badly.',
+            'Write the body. For a one-off, type Markdown into the body field: # for a heading, **bold**, [text](url) for a link. For a recurring shape such as a show announcement, put a template name in the template field instead and the mailing fills itself in from the database, so nobody retypes a date. A template takes precedence over anything in the body field.',
+            'Click Create draft. The right-hand side of the page now shows a preview of the actual email. The unsubscribe link in the preview does not work, on purpose — it is a stand-in recipient rather than a real subscriber.',
+            'Send yourself a test. Your own address is filled in; change it if you want it somewhere else. Open it in the mail program your readers actually use and check the subject, the images, and that the links go where you meant. The test is subject-prefixed [TEST] so you cannot confuse it with the real thing.',
+            'You cannot send to the list until a test has gone out since your last edit, and the page tells you which of those is missing. If you change so much as the subject afterwards, the test no longer counts and you have to send another — this is the guard that stops a draft going out with a placeholder still in it.',
+            'When the test looks right, press the send button. It names the number of people it is about to mail; read that number before confirming, because there is no undo and no recall.',
+            'The page then shows a progress bar and refreshes itself every fifteen seconds. The send runs on the server, not in your browser, so you can close the page or lose your connection without stopping it. A thousand-person list takes a few minutes.',
+            'If the send stops part-way — the provider failing, or the site being deployed mid-send — the campaign page says so and offers a Resume button, with a count of how many people already received it. Press Resume; only the people with no record of having received it are mailed, so nobody gets it twice. It is safe to press even if you are not sure how far the previous attempt got. See "How to finish a mailing that stopped part-way".',
+            'Once a campaign has been sent it becomes read-only. It is the record of what people actually received, so editing it would only make that record wrong.',
+        ],
+    },
+    {
+        'title': 'How to finish a mailing that stopped part-way (staff only)',
+        'summary': 'Resume a send that failed or was interrupted, without mailing anyone twice.',
+        'anchor': 'resume-a-mailing',
+        'roles': {'staff'},
+        'steps': [
+            'A send can stop before it finishes for reasons that have nothing to do with you: the mail provider rate-limiting or erroring, or the site being redeployed while the send is in flight. The campaign is not lost and the list is not damaged — every person who has been sent it is recorded individually, which is what makes finishing it safe.',
+            'Open Campaigns. A campaign that stopped shows as failed, or as sending long after it should have finished. Open it.',
+            'The page says "This send stopped before it finished" and tells you how many of how many people received it. That count comes from the delivery records, not from a guess.',
+            'Press "Resume — send the remaining N". Only subscribers with no record of receiving this campaign are mailed. Anyone the earlier attempt reached is skipped, so pressing Resume when the send had in fact finished mails nobody at all.',
+            'The remaining list is re-read at the moment you resume, not frozen from when the send began — so somebody who unsubscribed in between does not get it.',
+            'If it stops again, press Resume again. Each attempt only ever narrows what is left.',
+            'For a send interrupted by a deploy, or a list big enough that you would rather not run it inside the website at all, there is a command-line equivalent that uses the same engine and the same protections: ./env/bin/python manage.py send_campaign <id> --resume . Add --dry-run first to see who it would mail without sending anything.',
+        ],
+    },
+    {
+        'title': 'How to manage subscribers (staff only)',
+        'summary': 'Look someone up, take them off a list at their request, add someone by hand, or delete them.',
+        'anchor': 'manage-subscribers',
+        'roles': {'staff'},
+        'steps': [
+            'Open Subscribers in the navigation. Across the top is one entry per list with the number of people a mailing to that list would reach; click one to filter to it.',
+            'Search by email address or name to find one person. The status menu narrows to people who are on at least one list, or people who are off every list. Somebody on two lists who has left one still counts as being on a list.',
+            'Each person\'s row lists every list they are on or off, and for the ones they are off, why — whether they asked, their address bounced, or they marked a mailing as spam.',
+            'To take somebody off one list at their request, click remove on that line. To take them off everything, click "remove from all" at the end of their row.',
+            'The "add back" link only appears for somebody who asked to be removed, and only do it if they have asked to be put back. There is deliberately no way to undo a bounce or a spam complaint from this page: overriding those is how a sender ruins its own reputation, and re-adding an address that reported you as spam is the single worst thing you can do to your deliverability.',
+            'To add somebody who asked in person or by email, open "Add someone by hand", enter their address and which list, and click Add. It is recorded as added by hand, so if anybody ever asks where the consent came from, the answer is still in the database.',
+            'Delete removes the person entirely, which is what to use when somebody asks to be erased. Prefer "remove from all" for an ordinary unsubscribe: the record that they opted out is exactly what stops a future import of an old spreadsheet from mailing them again, and deleting throws that protection away along with the person.',
+            'Bulk work does not happen here, on purpose — a button that could unsubscribe or delete hundreds of people at once would be one misclick from destroying a list. To load a spreadsheet of subscribers use the import command: ./env/bin/python manage.py import_subscribers export.csv --dry-run first, then without --dry-run. To mail everybody, make a campaign.',
+        ],
+    },
 ]
 
 GENERAL_GUIDE = {
@@ -847,6 +898,10 @@ ROLE_DOCUMENTATION = {
             'Write, preview, test and send mailings to subscribers from the Campaigns page. '
             'A campaign cannot be sent until a test has gone out since its last edit, and a '
             'sent campaign becomes a read-only record of what went out.',
+            'A send runs on the server, not in your browser: the page shows a progress bar '
+            'and you can close it without stopping the send. If a send stops part-way, the '
+            'campaign page offers Resume, which mails only the people who have no record of '
+            'receiving it — so nobody gets it twice.',
             'Edit and Delete links are shown only for records you can manage.',
         ],
         'forms': [
@@ -964,7 +1019,8 @@ ROLE_DOCUMENTATION = {
                     {'name': 'template_name', 'input_type': 'select', 'purpose': 'A recurring shape that fills itself from the database (e.g. a show announcement). Takes precedence over the Markdown body. Choose "None" to write the body yourself.'},
                     {'name': 'body_markdown', 'input_type': 'textarea (Markdown)', 'purpose': 'The body of a one-off mailing. Either this or a template is required.'},
                     {'name': 'Send test', 'input_type': 'email input + button', 'purpose': 'Sends one copy to the address given, subject prefixed with [TEST]. Defaults to your own address. Required before the real send is unlocked.'},
-                    {'name': 'Send to the list', 'input_type': 'button', 'purpose': 'Sends to every subscriber on the chosen list. Disabled until a test has gone out since the last edit; the reason it is disabled is shown beneath it. There is no undo.'},
+                    {'name': 'Send to the list', 'input_type': 'button', 'purpose': 'Sends to every subscriber on the chosen list. Disabled until a test has gone out since the last edit; the reason it is disabled is shown beneath it. There is no undo. The send runs on the server and the page then shows its progress, refreshing every 15 seconds.'},
+                    {'name': 'Resume', 'input_type': 'button', 'purpose': 'Only shown for a send that stopped before it finished, either because it failed or because the server restarted mid-send. Sends only to subscribers with no record of having received this campaign, so nobody is mailed twice. Safe to press without knowing how far the previous attempt got.'},
                 ],
             },
             {

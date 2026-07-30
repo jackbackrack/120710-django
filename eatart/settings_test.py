@@ -21,3 +21,12 @@ RECAPTCHA_ENABLED = False
 # base settings — 'test' in sys.argv → DummyCache — so cached fragments don't leak
 # between tests.)
 DEBUG = False
+
+# Send campaigns inline. A background thread gets its own database connection, which cannot
+# see the transaction a TestCase runs in, so a threaded send in tests would either find no
+# subscribers or race the assertions.
+CAMPAIGN_SEND_IN_BACKGROUND = False
+
+# No throttling in tests. The real setting sleeps between messages to stay under the
+# provider's rate limit, which would add half a second per message to the send tests.
+CAMPAIGN_MESSAGES_PER_SECOND = 0

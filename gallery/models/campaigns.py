@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import models
 from django.utils import timezone
 
@@ -56,6 +58,11 @@ class Campaign(models.Model):
 
     sent_at = models.DateTimeField(null=True, blank=True)
     recipient_count = models.PositiveIntegerField(default=0)
+    # Moved after every batch. A send runs in a background thread, so the web process can
+    # be restarted — a deploy, a crash, Railway moving the container — while a send is in
+    # flight, and nothing would otherwise mark the campaign as no longer progressing. A
+    # stale timestamp against status=sending is how an abandoned send becomes visible.
+    progress_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         'auth.User', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='campaigns')
@@ -76,9 +83,55 @@ class Campaign(models.Model):
     def can_send(self):
         return self.status == self.STATUS_DRAFT and self.is_tested and bool(self.subject)
 
+    # How long a send may go without recording a batch before it is presumed abandoned.
+    # Comfortably longer than a batch takes, so a slow provider is not mistaken for a dead
+    # worker; short enough that an operator is not left staring at a stuck page.
+    STALL_AFTER = timedelta(minutes=10)
+
+    @property
+    def is_stalled(self):
+        """Sending, but nothing has been recorded for a while.
+
+        The case this catches: the process running the send went away mid-flight. Nothing
+        can report that from the inside, so it is inferred from the absence of progress.
+        """
+        if self.status != self.STATUS_SENDING:
+            return False
+        since = self.progress_at or self.sent_at or self.edited_at
+        return timezone.now() - since > self.STALL_AFTER
+
+    @property
+    def can_resume(self):
+        """A send that stopped part-way can be picked up where it left off.
+
+        Covers both ways a send stops: it raised (FAILED), or the process vanished and left
+        the row saying SENDING forever. The second is the more dangerous one, because it
+        looks like work in progress rather than a problem.
+
+        No fresh test is required. The content has not changed since the send that started,
+        and demanding one would put a hurdle between a half-mailed list and finishing it.
+        """
+        return self.status == self.STATUS_FAILED or self.is_stalled
+
+    @property
+    def sent_so_far(self):
+        """How many people have actually been sent this, from the delivery records."""
+        return self.deliveries.count()
+
+    @property
+    def remaining_count(self):
+        """How many are still owed this campaign. Import-local to avoid a cycle."""
+        from gallery.campaigns import pending
+        return pending(self).count()
+
     @property
     def blocked_reason(self):
         """Why the send button is disabled, in words a person can act on."""
+        if self.can_resume:
+            what = 'failed' if self.status == self.STATUS_FAILED else 'stopped'
+            return (f'This send {what} after {self.sent_so_far} of '
+                    f'{self.sent_so_far + self.remaining_count} message(s). '
+                    f'Resume it to send the rest — nobody will get it twice.')
         if self.status != self.STATUS_DRAFT:
             return f'This campaign is already {self.get_status_display().lower()}.'
         if not self.subject:
@@ -101,3 +154,38 @@ class Campaign(models.Model):
             if previous and any(previous[f] != getattr(self, f) for f in previous):
                 self.edited_at = timezone.now()
         super().save(*args, **kwargs)
+
+
+class CampaignDelivery(models.Model):
+    """One person this campaign was actually sent to.
+
+    Exists so a send that dies part-way can be resumed. Without it a failure left no
+    record of how far it got, so the only options were to abandon the campaign or to
+    re-send it and mail the first several hundred people twice.
+
+    Written per batch rather than per message, because the mail backend accepts a batch as
+    a unit and does not report which members of a failed batch went out. So a resume can
+    repeat at most one batch — bounded and small, where the alternative was unbounded.
+
+    Also useful on its own: it makes "was Ana sent the March mailing?" answerable.
+    """
+
+    campaign = models.ForeignKey('gallery.Campaign', on_delete=models.CASCADE,
+                                 related_name='deliveries')
+    # CASCADE: erasing a subscriber erases the record of having mailed them, which is
+    # what an erasure request means.
+    subscription = models.ForeignKey('gallery.Subscription', on_delete=models.CASCADE,
+                                     related_name='deliveries')
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            # Belt and braces against a double-send: even if two sends race, the same
+            # person cannot be recorded twice for one campaign.
+            models.UniqueConstraint(fields=['campaign', 'subscription'],
+                                    name='unique_delivery_per_campaign'),
+        ]
+        indexes = [models.Index(fields=['campaign', 'subscription'])]
+
+    def __str__(self):
+        return f'{self.campaign} → {self.subscription.subscriber.email}'
