@@ -36,6 +36,7 @@
     {# Keep user-facing sentences unbroken so they stay greppable and testable. #}
     This campaign is <strong>{{ campaign.get_status_display|lower }}</strong> and can no longer be edited
     &mdash; it is the record of what went out{% if campaign.sent_at %} on {{ campaign.sent_at|date:"F j, Y" }} to {{ campaign.recipient_count }} subscriber{{ campaign.recipient_count|pluralize }}{% endif %}.
+    {% if rejected %}{{ rejected|length }} address{{ rejected|length|pluralize:"es" }} could not be delivered to and {% if rejected|length == 1 %}has{% else %}have{% endif %} been unsubscribed.{% endif %}
   </div>
   {% endif %}
   {% endif %}
@@ -111,6 +112,31 @@
       <button type="button" class="btn btn-danger" disabled>Send</button>
       <p class="text-muted small mt-1">{{ campaign.blocked_reason }}</p>
       {% endif %}
+      {% endif %}
+
+      {% if rejected %}
+      <hr>
+      <h5>Addresses the provider refused</h5>
+      {% comment %}
+        Named here rather than left in a server log, because "some addresses were rejected" is
+        not something anybody can act on and "mailbox does not exist" is. Nothing needs doing
+        about them — they are already off the list — so this is a report, not a task.
+      {% endcomment %}
+      {# One sentence per line: a wrapped sentence is neither greppable nor testable. #}
+      <p>
+        {% if rejected|length == 1 %}
+        1 address was rejected and is no longer on the list, the same as a bounce. Nothing else to do about it.
+        {% else %}
+        {{ rejected|length }} addresses were rejected and are no longer on the list, the same as a bounce. Nothing else to do about them.
+        {% endif %}
+      </p>
+      <ul class="small">
+        {% for delivery in rejected %}
+        <li>{{ delivery.subscription.subscriber.email }}
+          {% if delivery.error %}<span class="text-muted">— {{ delivery.error }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
       {% endif %}
 
       {% if campaign.can_resume %}

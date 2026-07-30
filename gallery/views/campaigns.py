@@ -89,6 +89,7 @@ def campaign_edit(request, pk):
         # the operator reloading by hand and guessing.
         'in_flight': campaign.status == Campaign.STATUS_SENDING and not campaign.is_stalled,
         'send_percent': _percent(campaign),
+        'rejected': campaign.rejected,
         'test_address': request.user.email,
     })
 

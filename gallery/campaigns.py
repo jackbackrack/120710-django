@@ -281,7 +281,7 @@ def send_test(campaign, address, request=None):
 
 
 def pending(campaign):
-    """Everyone who should get this campaign and has not been recorded as sent it.
+    """Everyone who should get this campaign and has no delivery record for it yet.
 
     This — not `recipients` — is what a send iterates, which is what makes a send safe to
     run twice. A resume picks up exactly the people with no delivery record, so finishing an
@@ -333,25 +333,36 @@ def _transient(exc):
 
 
 def _send_one(connection, message, campaign_pk, email):
-    """One message, retrying a transient failure. True if it went, False if it did not.
+    """One message, retrying a transient failure.
 
-    Retried here rather than by resuming the whole campaign, because the overwhelmingly
-    common failure on a list of any size is a rate limit, and the right response to that is
-    to wait a moment — not to stop the send and make somebody come and press a button.
+    Returns (sent, permanent, detail). `permanent` distinguishes the two failures that need
+    completely different handling: an address the provider will never accept, versus a provider
+    that is briefly unable to accept anything. Treating the second like the first would
+    unsubscribe people for the provider having a bad minute.
+
+    Retried here rather than by resuming the whole campaign, because the overwhelmingly common
+    failure on a list of any size is a rate limit, and the right response to that is to wait a
+    moment — not to stop the send and make somebody come and press a button.
     """
     for attempt in range(1, SEND_ATTEMPTS + 1):
         try:
-            return bool(connection.send_messages([message]))
+            return bool(connection.send_messages([message])), False, ''
         except Exception as exc:   # noqa: BLE001 — classified immediately below
-            if attempt < SEND_ATTEMPTS and _transient(exc):
-                delay = RETRY_BACKOFF * (2 ** (attempt - 1))
-                logger.warning('Campaign %s: %s on attempt %s for %s, retrying in %ss',
-                               campaign_pk, type(exc).__name__, attempt, email, delay)
-                time.sleep(delay)
-                continue
-            logger.error('Campaign %s: giving up on %s (%s)', campaign_pk, email, exc)
-            return False
-    return False
+            if _transient(exc):
+                if attempt < SEND_ATTEMPTS:
+                    delay = RETRY_BACKOFF * (2 ** (attempt - 1))
+                    logger.warning('Campaign %s: %s on attempt %s for %s, retrying in %ss',
+                                   campaign_pk, type(exc).__name__, attempt, email, delay)
+                    time.sleep(delay)
+                    continue
+                # Out of attempts on something that was never the recipient's fault. Left
+                # pending so a resume tries them again.
+                logger.error('Campaign %s: %s still failing after %s attempts (%s)',
+                             campaign_pk, email, SEND_ATTEMPTS, exc)
+                return False, False, str(exc)[:255]
+            logger.error('Campaign %s: %s rejected outright (%s)', campaign_pk, email, exc)
+            return False, True, str(exc)[:255]
+    return False, False, ''
 
 
 def send_campaign(campaign, request=None, resume=False):
@@ -379,7 +390,8 @@ def send_campaign(campaign, request=None, resume=False):
     remaining = list(pending(campaign).values_list('pk', flat=True))
 
     sent = 0
-    failed = []
+    rejected = 0
+    stalled_on = []
     consecutive = 0
     throttle = _Throttle(messages_per_second())
     last_touch = time.monotonic()
@@ -396,22 +408,32 @@ def send_campaign(campaign, request=None, resume=False):
                 message = build_message(campaign, subscription, request=request,
                                         connection=connection)
                 throttle.wait()
-                if _send_one(connection, message, campaign.pk, email):
-                    # One at a time, and recorded immediately, because the backend makes one
-                    # API call per message anyway — so exact records cost nothing, and no
-                    # resume ever repeats a message.
-                    _record(campaign, [subscription])
+                ok, permanent, detail = _send_one(connection, message, campaign.pk, email)
+
+                if ok:
+                    # Recorded one at a time, immediately, because the backend makes one API
+                    # call per message anyway — so exact records cost nothing, and no resume
+                    # ever repeats a message.
+                    _record(campaign, subscription)
                     sent += 1
                     consecutive = 0
-                else:
-                    failed.append(email)
+                elif permanent:
+                    # The provider will not accept this address, which is a hard bounce told to
+                    # us up front instead of by webhook ten minutes later. Handled the same
+                    # way: stop mailing them, and record it so a resume does not keep trying.
+                    _reject(campaign, subscription, detail)
+                    rejected += 1
                     consecutive += 1
-                    if consecutive >= ABORT_AFTER_CONSECUTIVE_FAILURES:
-                        raise RuntimeError(
-                            f'{consecutive} messages in a row failed — stopping rather than '
-                            f'working through the rest of the list against a provider that '
-                            f'is not accepting mail. Last failures: '
-                            f'{", ".join(failed[-consecutive:])}')
+                else:
+                    # Not their fault. Left with no record at all, so a resume tries again.
+                    stalled_on.append(email)
+                    consecutive += 1
+
+                if consecutive >= ABORT_AFTER_CONSECUTIVE_FAILURES:
+                    raise RuntimeError(
+                        f'{consecutive} messages in a row failed — stopping rather than '
+                        f'working through the rest of the list against a provider that is '
+                        f'not accepting mail.')
 
                 # By elapsed time, not by message count. A slow rate limit could otherwise
                 # leave the clock untouched for longer than STALL_AFTER, at which point a
@@ -426,19 +448,25 @@ def send_campaign(campaign, request=None, resume=False):
         _fail(campaign, sent)
         raise
 
-    if failed:
-        # Individually rejected addresses, with the rest of the list already delivered. Left
-        # failed rather than sent, because a campaign that quietly reports success while
-        # having skipped people is the one kind of failure nobody would notice. Resume retries
-        # exactly these, and the Subscribers page is where a permanently bad address goes.
+    if rejected:
+        logger.warning('Campaign %s: %s address(es) rejected and unsubscribed as bounces',
+                       campaign.pk, rejected)
+
+    if stalled_on:
+        # Addresses that could not be tried properly, as opposed to ones that were refused.
+        # Failed rather than sent, because these people are still owed the mailing and a
+        # campaign that reported success would bury that.
         _fail(campaign, sent)
-        logger.error('Campaign %s: %s of %s addresses were rejected: %s',
-                     campaign.pk, len(failed), len(remaining), ', '.join(failed[:20]))
+        logger.error('Campaign %s: %s address(es) could not be reached this pass: %s',
+                     campaign.pk, len(stalled_on), ', '.join(stalled_on[:20]))
         return sent
 
+    # Rejections do not hold a campaign open. Those addresses are settled — refused, recorded,
+    # and unsubscribed — so there is nothing left for a resume to do, and leaving the campaign
+    # failed would mean pressing Resume forever against addresses that will never accept mail.
     campaign.status = Campaign.STATUS_SENT
     campaign.sent_at = timezone.now()
-    campaign.recipient_count = campaign.deliveries.count()
+    campaign.recipient_count = campaign.sent_so_far
     campaign.save(update_fields=['status', 'sent_at', 'recipient_count'])
     return sent
 
@@ -449,17 +477,31 @@ def _fail(campaign, sent):
     logger.error('Campaign %s stopped after %s message(s) on this pass', campaign.pk, sent)
 
 
-def _record(campaign, subscriptions):
-    """Mark people as delivered.
+def _record(campaign, subscription):
+    """Mark one person as having received it.
 
     After the send, never before: a record written first would, on a crash between the two,
     convince a later resume that somebody had been mailed when they had not, and silently drop
     them from the list. Written after, the same crash costs one duplicate at most. Duplicates
     are the tolerable failure here; omissions are not.
     """
-    CampaignDelivery.objects.bulk_create(
-        [CampaignDelivery(campaign=campaign, subscription=s) for s in subscriptions],
-        ignore_conflicts=True)
+    CampaignDelivery.objects.get_or_create(
+        campaign=campaign, subscription=subscription,
+        defaults={'status': CampaignDelivery.STATUS_SENT})
+
+
+def _reject(campaign, subscription, detail):
+    """Record a refused address and stop mailing it.
+
+    Both halves matter. The record settles the address for this campaign, so a resume does not
+    retry something that will never work. The unsubscribe settles it for every future campaign,
+    which is the same thing the bounce webhook does — a provider refusing an address outright is
+    a hard bounce, whether it tells us synchronously or ten minutes later.
+    """
+    CampaignDelivery.objects.get_or_create(
+        campaign=campaign, subscription=subscription,
+        defaults={'status': CampaignDelivery.STATUS_REJECTED, 'error': detail})
+    subscription.subscriber.unsubscribe_all(reason=Subscription.UNSUB_BOUNCED)
 
 
 def _touch_progress(campaign):

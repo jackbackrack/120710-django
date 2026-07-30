@@ -532,6 +532,7 @@ HOW_TO_GUIDES = [
             'When the test looks right, press the send button. It names the number of people it is about to mail; read that number before confirming, because there is no undo and no recall.',
             'The page then shows a progress bar and refreshes itself every fifteen seconds. The send runs on the server, not in your browser, so you can close the page or lose your connection without stopping it. A thousand-person list takes a few minutes.',
             'If the send stops part-way — the provider failing, or the site being deployed mid-send — the campaign page says so and offers a Resume button, with a count of how many people already received it. Press Resume; only the people with no record of having received it are mailed, so nobody gets it twice. It is safe to press even if you are not sure how far the previous attempt got. See "How to finish a mailing that stopped part-way".',
+            'Some addresses on any real list are dead, and the mail provider will refuse them outright. Those are unsubscribed for you, the same as a bounce, and listed at the bottom of the campaign page with the reason the provider gave. There is nothing to do about them: the campaign still counts as sent, and they will not be tried again.',
             'Once a campaign has been sent it becomes read-only. It is the record of what people actually received, so editing it would only make that record wrong.',
         ],
     },
@@ -546,7 +547,8 @@ HOW_TO_GUIDES = [
             'The page says "This send stopped before it finished" and tells you how many of how many people received it. That count comes from the delivery records, not from a guess.',
             'Press "Resume — send the remaining N". Only subscribers with no record of receiving this campaign are mailed. Anyone the earlier attempt reached is skipped, so pressing Resume when the send had in fact finished mails nobody at all.',
             'The remaining list is re-read at the moment you resume, not frozen from when the send began — so somebody who unsubscribed in between does not get it.',
-            'If it stops again, press Resume again. Each attempt only ever narrows what is left.',
+            'If it stops again, press Resume again. Each attempt only ever narrows what is left — including addresses the provider refuses outright, which are recorded and unsubscribed rather than tried again, so Resume can never become a loop.',
+            'A campaign showing as sent with a list of rejected addresses at the bottom is not a failure and needs nothing from you. Those addresses are already off the list. Only a campaign offering a Resume button has anybody still waiting for it.',
             'For a send interrupted by a deploy, or a list big enough that you would rather not run it inside the website at all, there is a command-line equivalent that uses the same engine and the same protections: ./env/bin/python manage.py send_campaign <id> --resume . Add --dry-run first to see who it would mail without sending anything.',
         ],
     },
@@ -902,6 +904,9 @@ ROLE_DOCUMENTATION = {
             'and you can close it without stopping the send. If a send stops part-way, the '
             'campaign page offers Resume, which mails only the people who have no record of '
             'receiving it — so nobody gets it twice.',
+            'Addresses the mail provider refuses are unsubscribed automatically, the same as a '
+            'bounce, and listed on the campaign page with the reason. They do not need cleaning '
+            'up and they do not stop the campaign from finishing.',
             'Edit and Delete links are shown only for records you can manage.',
         ],
         'forms': [
@@ -1021,6 +1026,7 @@ ROLE_DOCUMENTATION = {
                     {'name': 'Send test', 'input_type': 'email input + button', 'purpose': 'Sends one copy to the address given, subject prefixed with [TEST]. Defaults to your own address. Required before the real send is unlocked.'},
                     {'name': 'Send to the list', 'input_type': 'button', 'purpose': 'Sends to every subscriber on the chosen list. Disabled until a test has gone out since the last edit; the reason it is disabled is shown beneath it. There is no undo. The send runs on the server and the page then shows its progress, refreshing every 15 seconds.'},
                     {'name': 'Resume', 'input_type': 'button', 'purpose': 'Only shown for a send that stopped before it finished, either because it failed or because the server restarted mid-send. Sends only to subscribers with no record of having received this campaign, so nobody is mailed twice. Safe to press without knowing how far the previous attempt got.'},
+                    {'name': 'Addresses the provider refused', 'input_type': 'read-only list', 'purpose': 'Shown after a send if any addresses were rejected outright. Each is named with the reason the mail provider gave. They have already been unsubscribed, the same as a bounce, and will not be tried again — this is a report, not something to act on.'},
                 ],
             },
             {

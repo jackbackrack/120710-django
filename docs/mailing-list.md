@@ -81,20 +81,37 @@ matters. So the send paces itself:
 At two a second, 1,200 messages takes about ten minutes. That is why it is a background
 thread and not a request.
 
-A 429 or a 5xx is retried per message — three attempts, doubling backoff — rather than
-failing the campaign, because a rate limit is ordinary weather and should cost a pause, not
-a stopped send needing somebody to come and press a button. A 4xx about the recipient is not
-retried, because a malformed address is not going to start working and retrying it only
-delays the rest of the list.
+### Two kinds of failure, handled differently
 
-Two backstops:
+The distinction the code turns on is **whose fault it is**, because the right response to each
+is the opposite of the other.
 
-- **Ten consecutive failures stops the send.** No point working through 1,200 addresses
-  against a provider that is refusing everything. It stops, and it is resumable.
-- **Individually rejected addresses leave the campaign `failed`, not `sent`,** even though the
-  rest of the list went out. A campaign that reported success while having quietly skipped
-  somebody is the one kind of failure nobody would notice. Resume retries exactly those, and
-  the Subscribers page is where a permanently bad address goes.
+**The provider is having a bad minute** — 429, 5xx, network drop. Retried per message, three
+attempts with doubling backoff, because a rate limit is ordinary weather and should cost a
+pause rather than a stopped send. If it still fails, those people are left with **no delivery
+record at all**, so they are still owed the mailing: the campaign is left `failed` and Resume
+tries them again. Writing them off for an outage they had nothing to do with would mean they
+never hear from us again.
+
+**The address is bad** — a 4xx naming the recipient. Not retried; a malformed mailbox is not
+going to start working. Instead it is treated as exactly what it is: a **hard bounce, told to
+us up front instead of by webhook ten minutes later.** So:
+
+- The rejection is recorded on the delivery row, with the provider's own words.
+- The person is unsubscribed from every list, reason `bounced` — the same thing the webhook
+  does.
+- **The campaign still completes as `sent`.** There is nothing a resume could usefully do about
+  an address that will never accept mail, and leaving the campaign `failed` would mean pressing
+  Resume forever against it.
+- The campaign page names the addresses and what the provider said about each. Nothing needs
+  doing about them; it is a report, not a task.
+
+This is the common case on any real list — a handful of dead addresses out of a thousand — so it
+is deliberately a non-event that needs no cleaning up by hand.
+
+**One backstop over both:** ten consecutive failures of either kind stops the send. No point
+working through 1,200 addresses against a provider that is refusing everything. It stops, and it
+is resumable.
 
 Because the send has no request to build URLs from, links in campaign mail come from
 `SITE_BASE_URL`. Getting that wrong breaks the unsubscribe link in mail that has already
@@ -121,7 +138,7 @@ So a stopped send is recoverable:
   of how many people received it, read from the delivery records rather than guessed.
 - **Resume** mails only subscribers with no delivery record. Pressing it when the send had in
   fact finished mails nobody. It is safe to press without knowing how far the last attempt
-  got.
+  got, and it cannot loop: a refused address has a delivery row too, so it is never retried.
 - The recipient list is re-read on resume, not frozen from when the send began, so somebody
   who unsubscribed in between does not get it.
 

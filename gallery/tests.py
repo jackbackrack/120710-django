@@ -1290,13 +1290,18 @@ class CampaignResumeTests(TestCase):
         return mock.patch('gallery.campaigns.BATCH_SIZE', 2)
 
     def _dies_after(self, messages):
-        """A mail connection that delivers `messages` messages and then refuses.
+        """A connection that delivers `messages` messages and then becomes unreachable.
 
-        Stands in for the provider going away mid-campaign — a rate limit, a network drop, a
-        five-hundred from the API. Per message rather than per batch because that is what the
-        backend really does: one API call each, which is exactly why every delivery can be
-        recorded individually and no resume ever repeats one.
+        Models the provider going away mid-campaign — an outage, a network drop, a rate limit
+        that never clears. Deliberately a *transient* failure, because that is what a resume
+        exists for: nobody is at fault, the addresses are still owed the mailing, and they must
+        be left pending rather than written off.
+
+        Per message rather than per batch, because that is what the backend really does: one
+        API call each, which is exactly why every delivery can be recorded individually and no
+        resume ever repeats one.
         """
+        import contextlib
         from unittest import mock
 
         outer = self
@@ -1312,13 +1317,22 @@ class CampaignResumeTests(TestCase):
 
             def send_messages(self, batch):
                 if Dying.done >= messages:
-                    raise RuntimeError('provider went away')
+                    error = Exception('provider went away')
+                    error.status_code = 503
+                    raise error
                 Dying.done += len(batch)
                 outer.delivered.extend(m.to[0] for m in batch)
                 return len(batch)
 
         self.delivered = []
-        return mock.patch('gallery.campaigns._connection', lambda: Dying())
+
+        @contextlib.contextmanager
+        def patched():
+            with mock.patch('gallery.campaigns._connection', lambda: Dying()), \
+                    mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+                yield
+
+        return patched()
 
     def _locmem(self):
         from unittest import mock
@@ -1567,14 +1581,17 @@ class CampaignResumeTests(TestCase):
         self.assertEqual(self.campaign.status, 'sent')
         self.assertEqual(self.campaign.sent_so_far, 5)
 
-    def test_a_permanently_bad_address_is_not_retried_forever(self):
-        """A malformed address is not going to start working. Retrying it only delays the rest.
+    def test_a_refused_address_is_unsubscribed_and_does_not_hold_the_campaign_open(self):
+        """The common case, and it must not need any cleaning up by hand.
 
-        The send finishes the list and is then left failed rather than sent, because a campaign
-        that reports success while having quietly skipped somebody is the one failure nobody
-        would ever notice.
+        A provider refusing an address outright is a hard bounce told to us up front rather than
+        by webhook ten minutes later, so it gets the same treatment: stop mailing them. The
+        campaign finishes, because there is nothing a resume could usefully do about an address
+        that will never accept mail — pressing Resume forever was the old behaviour and it was
+        no behaviour at all.
         """
         from unittest import mock
+        from gallery.models import CampaignDelivery, Subscriber
 
         class Picky:
             calls = 0
@@ -1588,7 +1605,7 @@ class CampaignResumeTests(TestCase):
             def send_messages(self, batch):
                 Picky.calls += 1
                 if batch[0].to[0] == 'r2@example.com':
-                    error = Exception('Invalid recipient')
+                    error = Exception('Invalid `to` field: mailbox does not exist')
                     error.status_code = 422
                     raise error
                 return len(batch)
@@ -1598,12 +1615,78 @@ class CampaignResumeTests(TestCase):
             sent = campaigns.send_campaign(self.campaign)
 
         self.assertEqual(sent, 4)
-        self.assertEqual(Picky.calls, 5, 'a 422 must not be retried')
+        self.assertEqual(Picky.calls, 5, 'a 422 about the address must not be retried')
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'sent',
+                         'four of five delivered and the fifth refused is a finished campaign')
+        self.assertEqual(self.campaign.sent_so_far, 4)
+        self.assertEqual(self.campaign.recipient_count, 4)
+
+        # The refusal is recorded, with the provider's own words.
+        rejected = list(self.campaign.rejected)
+        self.assertEqual(len(rejected), 1)
+        self.assertEqual(rejected[0].subscription.subscriber.email, 'r2@example.com')
+        self.assertIn('mailbox does not exist', rejected[0].error)
+
+        # And they are off the list, exactly as a webhook bounce would leave them.
+        subscription = Subscriber.objects.get(email='r2@example.com').subscriptions.get()
+        self.assertFalse(subscription.is_subscribed)
+        self.assertEqual(subscription.unsubscribed_reason, 'bounced')
+
+        # Nothing is owed, so there is nothing to resume and no way to loop on it.
+        self.assertEqual(self.campaign.remaining_count, 0)
+        self.assertFalse(self.campaign.can_resume)
+        self.assertEqual(CampaignDelivery.objects.count(), 5)
+
+    def test_a_refused_address_is_reported_on_the_page_not_buried_in_a_log(self):
+        from unittest import mock
+
+        class Picky:
+            def open(self):
+                pass
+
+            def close(self):
+                pass
+
+            def send_messages(self, batch):
+                if batch[0].to[0] == 'r2@example.com':
+                    error = Exception('Invalid `to` field: mailbox does not exist')
+                    error.status_code = 422
+                    raise error
+                return len(batch)
+
+        with mock.patch('gallery.campaigns._connection', lambda: Picky()), \
+                mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):
+            campaigns.send_campaign(self.campaign)
+
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, '1 address was rejected')
+        self.assertContains(page, 'r2@example.com')
+        self.assertContains(page, 'mailbox does not exist')
+        self.assertContains(page, 'no longer on the list')
+
+    def test_a_transient_failure_leaves_people_pending_rather_than_writing_them_off(self):
+        """The distinction that matters: an outage is not the recipient's fault.
+
+        Treating a provider having a bad minute like a bad address would unsubscribe people who
+        did nothing wrong, and they would never hear from us again.
+        """
+        from gallery.models import Subscriber
+        with self._batches_of_two(), self._dies_after(2):
+            campaigns.send_campaign(self.campaign)
+
         self.campaign.refresh_from_db()
         self.assertEqual(self.campaign.status, 'failed')
-        # And a resume retries exactly the one that was rejected, nobody else.
-        self.assertEqual([s.subscriber.email for s in campaigns.pending(self.campaign)],
-                         ['r2@example.com'])
+        self.assertEqual(self.campaign.sent_so_far, 2)
+        self.assertEqual(self.campaign.remaining_count, 3)
+        self.assertEqual(self.campaign.rejected.count(), 0)
+        # Still subscribed, still owed the mailing.
+        for subscription in campaigns.pending(self.campaign):
+            self.assertTrue(subscription.is_subscribed)
+        self.assertEqual(Subscriber.objects.filter(
+            subscriptions__unsubscribed_reason='bounced').count(), 0)
 
     def test_a_provider_refusing_everything_stops_before_working_through_the_list(self):
         """Do not spend an hour hammering an API that is down. Stop and be resumable."""
@@ -1625,7 +1708,9 @@ class CampaignResumeTests(TestCase):
 
             def send_messages(self, batch):
                 Dead.calls += 1
-                raise RuntimeError('everything is on fire')
+                error = Exception('everything is on fire')
+                error.status_code = 503
+                raise error
 
         with mock.patch('gallery.campaigns._connection', lambda: Dead()), \
                 mock.patch('gallery.campaigns.RETRY_BACKOFF', 0):

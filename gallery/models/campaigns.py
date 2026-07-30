@@ -115,8 +115,18 @@ class Campaign(models.Model):
 
     @property
     def sent_so_far(self):
-        """How many people have actually been sent this, from the delivery records."""
-        return self.deliveries.count()
+        """How many people have actually received this, from the delivery records."""
+        return self.deliveries.filter(status='sent').count()
+
+    @property
+    def rejected(self):
+        """Addresses the provider refused, which are now unsubscribed as hard bounces.
+
+        Surfaced on the campaign page rather than left in a log, because "three addresses were
+        rejected" is not something anybody can act on and "mailbox does not exist" is.
+        """
+        return (self.deliveries.filter(status='rejected')
+                .select_related('subscription__subscriber'))
 
     @property
     def remaining_count(self):
@@ -157,18 +167,26 @@ class Campaign(models.Model):
 
 
 class CampaignDelivery(models.Model):
-    """One person this campaign was actually sent to.
+    """What happened when this campaign was sent to one person.
 
-    Exists so a send that dies part-way can be resumed. Without it a failure left no
-    record of how far it got, so the only options were to abandon the campaign or to
-    re-send it and mail the first several hundred people twice.
+    Exists so a send that dies part-way can be resumed. Without it a failure left no record of
+    how far it got, so the only options were to abandon the campaign or to re-send it and mail
+    the first several hundred people twice.
 
-    Written per batch rather than per message, because the mail backend accepts a batch as
-    a unit and does not report which members of a failed batch went out. So a resume can
-    repeat at most one batch — bounded and small, where the alternative was unbounded.
+    It records rejections as well as successes, and that is the point of `status`: an address
+    the provider refuses is settled, not pending. Recording it means a resume skips it rather
+    than retrying it forever, and the operator can see which addresses they were without
+    reading a server log.
 
     Also useful on its own: it makes "was Ana sent the March mailing?" answerable.
     """
+
+    STATUS_SENT = 'sent'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_SENT, 'Sent'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
 
     campaign = models.ForeignKey('gallery.Campaign', on_delete=models.CASCADE,
                                  related_name='deliveries')
@@ -176,6 +194,10 @@ class CampaignDelivery(models.Model):
     # what an erasure request means.
     subscription = models.ForeignKey('gallery.Subscription', on_delete=models.CASCADE,
                                      related_name='deliveries')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_SENT)
+    # The provider's own words, for a rejection. Kept because "3 addresses were rejected" is
+    # not actionable and "mailbox does not exist" is.
+    error = models.CharField(max_length=255, blank=True, default='')
     sent_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -188,4 +210,4 @@ class CampaignDelivery(models.Model):
         indexes = [models.Index(fields=['campaign', 'subscription'])]
 
     def __str__(self):
-        return f'{self.campaign} → {self.subscription.subscriber.email}'
+        return f'{self.campaign} → {self.subscription.subscriber.email} ({self.status})'
