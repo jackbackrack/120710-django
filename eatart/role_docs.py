@@ -522,8 +522,8 @@ HOW_TO_GUIDES = [
         'anchor': 'send-a-mailing',
         'roles': {'staff'},
         'steps': [
-            'Open Campaigns in the navigation. The list shows every past mailing and its status. Click New campaign.',
-            'Choose which list it goes to. "Everyone (network-wide list)" is the reset.art list, not tied to a venue; the others are one venue\'s own subscribers. Getting this wrong sends a venue\'s news to everybody, so check it before anything else.',
+            'Open the Mailing List menu in the navigation and choose Campaigns. The list shows every past mailing and its status. Click New campaign.',
+            'Check which list it goes to. It defaults to this venue, which is almost always right, and getting it wrong sends one venue\'s news to somebody else\'s subscribers. The network-wide reset.art list is not offered at all until reset.art has email authentication of its own.',
             'Write the subject, and the preview text — the grey line inboxes show after the subject. Leave the preview text blank and mail clients scrape the opening words of the body instead, which usually reads badly.',
             'Write the body. For a one-off, type Markdown into the body field: "# " for a heading, "**bold**", "*italic*", "[text](url)" for a link, lines starting "- " for a bullet list or "1. " for a numbered one, "![alt](url)" for an image with any following text as its caption, and "[[Label|url]]" for a button.',
             'That is the whole vocabulary, and anything else — a table, a blockquote, backticks — comes out as the literal characters you typed rather than as an error. This is why the test send matters: read it properly, rather than just checking it arrived.',
@@ -545,7 +545,7 @@ HOW_TO_GUIDES = [
         'roles': {'staff'},
         'steps': [
             'A send can stop before it finishes for reasons that have nothing to do with you: the mail provider rate-limiting or erroring, or the site being redeployed while the send is in flight. The campaign is not lost and the list is not damaged — every person who has been sent it is recorded individually, which is what makes finishing it safe.',
-            'Open Campaigns. A campaign that stopped shows as failed, or as sending long after it should have finished. Open it.',
+            'Open Mailing List → Campaigns. A campaign that stopped shows as failed, or as sending long after it should have finished. Open it.',
             'The page says "This send stopped before it finished" and tells you how many of how many people received it. That count comes from the delivery records, not from a guess.',
             'Press "Resume — send the remaining N". Only subscribers with no record of receiving this campaign are mailed. Anyone the earlier attempt reached is skipped, so pressing Resume when the send had in fact finished mails nobody at all.',
             'The remaining list is re-read at the moment you resume, not frozen from when the send began — so somebody who unsubscribed in between does not get it.',
@@ -561,7 +561,7 @@ HOW_TO_GUIDES = [
         'anchor': 'manage-subscribers',
         'roles': {'staff'},
         'steps': [
-            'Open Subscribers in the navigation. Across the top is one entry per list with the number of people a mailing to that list would reach; click one to filter to it.',
+            'Open the Mailing List menu in the navigation and choose Subscribers. Across the top is one entry per list with the number of people a mailing to that list would reach, this venue first; click one to filter to it.',
             'Anyone who signs up through a form is subscribed straight away and sent a welcome email. There is no confirmation link to click, on purpose — that would cost signups — but the welcome email means a mistyped address bounces once and is removed before it ever receives a campaign, and anyone signed up by somebody else can leave immediately.',
             'Search by email address or name to find one person. The status menu narrows to people who are on at least one list, or people who are off every list. Somebody on two lists who has left one still counts as being on a list.',
             'Each person\'s row lists every list they are on or off, and for the ones they are off, why — whether they asked, their address bounced, or they marked a mailing as spam.',
@@ -901,7 +901,7 @@ ROLE_DOCUMENTATION = {
             'one list or all of them, add someone back when they ask, add one person by '
             'hand, or delete them entirely. Each list shows the number a campaign to it '
             'would reach.',
-            'Write, preview, test and send mailings to subscribers from the Campaigns page. '
+            'Write, preview, test and send mailings to subscribers from Mailing List → Campaigns. '
             'A campaign cannot be sent until a test has gone out since its last edit, and a '
             'sent campaign becomes a read-only record of what went out.',
             'A send runs on the server, not in your browser: the page shows a progress bar '
@@ -1004,8 +1004,8 @@ ROLE_DOCUMENTATION = {
             },
             {
                 'name': 'Subscribers Page',
-                'where_used': 'Subscribers (staff only)',
-                'breadcrumb': 'Subscribers',
+                'where_used': 'Mailing List → Subscribers (staff only)',
+                'breadcrumb': 'Mailing List > Subscribers',
                 'fields': [
                     {'name': 'list totals', 'input_type': 'read-only links', 'purpose': 'One per list, showing how many people a campaign to that list would reach. Click to filter to it.'},
                     {'name': 'search', 'input_type': 'text input', 'purpose': 'Matches on email address, first name or last name.'},
@@ -1019,10 +1019,10 @@ ROLE_DOCUMENTATION = {
             },
             {
                 'name': 'Campaign Form',
-                'where_used': 'Campaigns → New, or an existing draft',
-                'breadcrumb': 'Campaigns > New',
+                'where_used': 'Mailing List → Campaigns → New, or an existing draft',
+                'breadcrumb': 'Mailing List > Campaigns > New',
                 'fields': [
-                    {'name': 'site', 'input_type': 'select', 'purpose': 'Whose subscribers this goes to. "Everyone (network-wide list)" sends to the list that is not tied to a venue.'},
+                    {'name': 'site', 'input_type': 'select', 'purpose': 'Whose subscribers this goes to. Defaults to this venue. The network-wide (reset.art) list is offered only once reset.art has its own email authentication — until then it can be collected onto but not mailed.'},
                     {'name': 'subject', 'input_type': 'text input', 'purpose': 'What the inbox shows first. Required before the campaign can be sent.'},
                     {'name': 'preheader', 'input_type': 'text input', 'purpose': 'The line inboxes show after the subject, around 90 characters. Left blank, mail clients scrape the first words of the body instead.'},
                     {'name': 'template_name', 'input_type': 'select', 'purpose': 'A recurring shape that fills itself from the database (e.g. a show announcement). It supplies the layout; whether the Markdown body appears inside it depends on the template. Choose "None" to write the body yourself.'},

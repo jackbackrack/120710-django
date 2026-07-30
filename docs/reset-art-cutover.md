@@ -57,6 +57,33 @@ None of this alters what a visitor sees. It can ship days or weeks ahead of the 
 - [ ] **Serve both, unredirected.** `GALLERY_DEFAULT_SITE_SLUG` is still `120710` at this
       point, so both domains show identical 120710-branded content. Nothing has changed for
       visitors; you are only proving the host and certificate work.
+- [ ] **Move reset.art's nameservers to Cloudflare, at the registrar.** As of 2026-07-30 it is
+      still delegated to Gandi (`ns-21-a.gandi.net` and friends) while 120710.art is on
+      Cloudflare. Until the registrar is changed, **anything added to a Cloudflare zone for
+      reset.art is inert** — the records exist and nothing resolves them. Confirm with
+      `dig +short NS reset.art` before adding a single record.
+- [ ] **Set up email authentication for reset.art from scratch.** Until this is done,
+      `CAMPAIGN_NETWORK_LIST_ENABLED` stays false and the network-wide (reset.art) list
+      cannot be mailed — subscribers still accumulate on it, they just cannot be sent to.
+      That guard is deliberate; lift it by setting the variable once the records below
+      resolve. See `docs/mailing-list.md`. None of 120710.art's records
+      carry over: DKIM keys are per-domain and per-provider, and copying them across does not
+      work. Verified absent on 2026-07-30 — no DMARC, no Resend DKIM, no `send.reset.art`.
+      Get the values from Resend's own domain wizard rather than transcribing 120710.art's:
+
+      * Resend: add reset.art as a sending domain and enter the records it generates — a DKIM
+        `TXT` on `resend._domainkey`, an SPF `TXT` and a bounce-feedback `MX` on the
+        `send.` subdomain. The apex SPF does **not** need to mention Resend; the envelope
+        sender lives on `send.reset.art` and DMARC passes on alignment.
+      * smtp2go: add reset.art as a sender domain there too, for transactional mail, and add
+        the CNAMEs it asks for.
+      * DMARC: a `_dmarc.reset.art` TXT of at least `v=DMARC1; p=none; rua=mailto:…`. Include
+        `rua` — without it, monitor mode reports nothing and an authentication problem stays
+        invisible until mail is already going to spam.
+- [ ] **Point `SITE_BASE_URL` at reset.art** in Railway, in the same change as the identity
+      flip. Campaign sends run in a background thread with no request to build URLs from, so
+      this is where the unsubscribe link's host comes from — leave it and mail sent after the
+      cutover carries 120710.art links. See `docs/mailing-list.md`.
 
 Verify:
 
@@ -140,5 +167,13 @@ Rollback: disable the rules. 120710.art serves directly again.
 - **Cloudflare sits in front of the app.** It already prepends its Content Signals Policy to
   `/robots.txt`; expect the same kind of interposition elsewhere, and remember that a
   redirect rule there is invisible from the Django side when debugging.
+- **Email authentication does not follow the domain.** A verified sending domain is not a
+  transferable thing: reset.art needs its own DKIM keys from each provider, and the day the
+  identity flips is the day mail starts going out as a domain with no sending reputation at
+  all. Warm up with `send_campaign <id> --limit N` across several days rather than putting the
+  whole list out at once — see `docs/mailing-list.md`.
+- **Delete the leftover Mailchimp DKIM when the account closes.** `k2._domainkey.120710.art`
+  and `k3._domainkey.120710.art` still CNAME to `dkim2/dkim3.mcsv.net`. Harmless while the
+  account is kept read-only, but there is no reason to keep authorizing a provider you left.
 - **`shows.120710.art` is in `ALLOWED_HOSTS` today.** It resolves and serves, so it needs a
   redirect rule of its own or it becomes the one door left open.

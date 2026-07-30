@@ -71,16 +71,23 @@ def subscriber_list(request):
     people = people.distinct().order_by('email')
     page = Paginator(people, PER_PAGE).get_page(request.GET.get('page'))
 
-    # Per-list totals, so the numbers a campaign will send to are visible here too.
-    counts = [{
-        'label': 'reset.art (network-wide)', 'value': 'network',
-        'total': Subscription.objects.filter(site__isnull=True, is_subscribed=True).count(),
-    }]
-    for site in Site.objects.order_by('name'):
+    # Per-list totals, so the numbers a campaign will send to are visible here too. The
+    # deployment's own venue comes first and the network-wide list last: this venue's list is
+    # the one being worked with day to day, and the network-wide one is not even sendable yet.
+    default = Subscriber.default_site()
+    counts = []
+    ordered = list(Site.objects.order_by('name'))
+    if default is not None:
+        ordered = [default] + [s for s in ordered if s.pk != default.pk]
+    for site in ordered:
         counts.append({
             'label': site.name, 'value': site.slug,
             'total': Subscription.objects.filter(site=site, is_subscribed=True).count(),
         })
+    counts.append({
+        'label': 'reset.art (network-wide)', 'value': 'network',
+        'total': Subscription.objects.filter(site__isnull=True, is_subscribed=True).count(),
+    })
 
     return render(request, 'gallery/subscriber_list.html', {
         'page_obj': page,
@@ -88,7 +95,8 @@ def subscriber_list(request):
         'search': search,
         'list_filter': list_filter,
         'status': status,
-        'sites': Site.objects.order_by('name'),
+        'sites': ordered,
+        'default_site': default,
         'query_string': request.GET.urlencode(),
     })
 

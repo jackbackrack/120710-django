@@ -50,7 +50,7 @@ a mailing-list problem can never take down account mail.
 
 ## Sending
 
-Compose, preview, test and send are one page: **Campaigns** in the nav (staff only).
+Compose, preview, test and send are one page: **Mailing List → Campaigns** in the nav (staff only).
 
 The send guard is the important part. `edited_at` moves whenever the content changes;
 `test_sent_at` moves when a test goes out; sending is refused unless the test is the later of
@@ -262,9 +262,28 @@ subscription because our own mail server was briefly unhappy is the worse outcom
 The artist profile form has a subscribe checkbox and deliberately sends no welcome email: that
 person is signed in, and their address was already proved deliverable by the account verification.
 
+## The network-wide (reset.art) list is not sendable yet
+
+`CAMPAIGN_NETWORK_LIST_ENABLED` is **off**. A campaign with no venue targets the network-wide
+list, which is reset.art's — and reset.art has no email authentication of its own. DKIM keys are
+per-domain and none of 120710.art's carry over, so such a mailing would still leave the building,
+which is exactly the danger: it would arrive branded as a domain nobody can verify as the sender.
+
+While it is off:
+
+- The campaign form does not offer the network-wide option, and a new campaign defaults to the
+  deployment's own venue.
+- `can_send` and `can_resume` both refuse it, so the resume path is not a way round the guard.
+- People can still be **collected** onto the list — imports, the staff Subscribers page — so it
+  is ready when reset.art is.
+
+To lift it: set up reset.art in Resend (see `docs/reset-art-cutover.md`), confirm
+`resend._domainkey.reset.art` and `send.reset.art` resolve, then set
+`CAMPAIGN_NETWORK_LIST_ENABLED=true`.
+
 ## Subscribers
 
-**Subscribers** in the nav (staff only). Per-person only: look somebody up, take them off one
+**Mailing List → Subscribers** in the nav (staff only). Per-person only: look somebody up, take them off one
 list or all of them, add somebody who asked, delete somebody who wants to be erased. There is
 no bulk action, deliberately — a button that could unsubscribe hundreds of people would be one
 misclick from destroying a list.

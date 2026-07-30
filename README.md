@@ -112,6 +112,9 @@ CAMPAIGN_SEND_IN_BACKGROUND=
 # Messages a second when sending a campaign. One API request per message, so this is the
 # provider's rate limit — Resend allows about two a second by default.
 CAMPAIGN_MESSAGES_PER_SECOND=2
+# Allow sending to the network-wide (reset.art) list. Off until reset.art has its own DKIM
+# and SPF; subscribers can be collected onto it meanwhile, just not mailed.
+CAMPAIGN_NETWORK_LIST_ENABLED=false
 
 # Optional: AWS S3 (set USE_S3=True to enable)
 USE_S3=False

@@ -55,8 +55,15 @@
              class="form-control form-control-sm" style="max-width:9rem" aria-label="Last name">
       <select name="site" class="form-select form-select-sm" style="max-width:12rem"
               aria-label="List">
+        {% comment %}
+          This venue's list first and selected. Which list somebody is added to is not
+          something they can be taken back out of without noticing, so the usual answer is the
+          default rather than the network-wide one that happens to sort first.
+        {% endcomment %}
+        {% for s in sites %}
+        <option value="{{ s.slug }}"{% if s.pk == default_site.pk %} selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
         <option value="network">reset.art (network-wide)</option>
-        {% for s in sites %}<option value="{{ s.slug }}">{{ s.name }}</option>{% endfor %}
       </select>
       <button type="submit" class="btn btn-sm btn-primary">Add</button>
     </form>

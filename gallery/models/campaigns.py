@@ -85,8 +85,25 @@ class Campaign(models.Model):
         return bool(self.test_sent_at and self.test_sent_at >= self.edited_at)
 
     @property
+    def list_is_sendable(self):
+        """Whether the list this campaign targets may be mailed at all yet.
+
+        The network-wide list is reset.art's, and reset.art has no email authentication of its
+        own — DKIM keys are per-domain and none of 120710.art's carry over. Sending would work
+        in the sense that the messages would leave, which is exactly the problem: they would go
+        out branded as a domain that cannot be verified as the sender, on a first impression
+        that is hard to take back.
+        """
+        from django.conf import settings
+
+        if self.site_id:
+            return True
+        return bool(getattr(settings, 'CAMPAIGN_NETWORK_LIST_ENABLED', False))
+
+    @property
     def can_send(self):
-        return self.status == self.STATUS_DRAFT and self.is_tested and bool(self.subject)
+        return (self.status == self.STATUS_DRAFT and self.is_tested
+                and bool(self.subject) and self.list_is_sendable)
 
     # How long a send may go without recording a batch before it is presumed abandoned.
     # Comfortably longer than a batch takes, so a slow provider is not mistaken for a dead
@@ -116,6 +133,8 @@ class Campaign(models.Model):
         No fresh test is required. The content has not changed since the send that started,
         and demanding one would put a hurdle between a half-mailed list and finishing it.
         """
+        if not self.list_is_sendable:
+            return False
         return (self.status in (self.STATUS_FAILED, self.STATUS_PAUSED)
                 or self.is_stalled)
 
@@ -143,6 +162,10 @@ class Campaign(models.Model):
     @property
     def blocked_reason(self):
         """Why the send button is disabled, in words a person can act on."""
+        if not self.list_is_sendable:
+            return ('The network-wide (reset.art) list cannot be mailed yet, because reset.art '
+                    'does not have its own email authentication set up. Send to a venue\'s own '
+                    'list instead, or see docs/reset-art-cutover.md.')
         if self.can_resume:
             what = {self.STATUS_FAILED: 'failed', self.STATUS_PAUSED: 'was paused'}.get(
                 self.status, 'stopped')

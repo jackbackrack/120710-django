@@ -789,8 +789,29 @@ class CampaignForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['site'].empty_label = 'Everyone (network-wide list)'
-        self.fields['site'].help_text = self.instance._meta.get_field('site').help_text
+        # Offered only when it can actually be sent to, so nobody writes a campaign they will
+        # then be told they cannot send. The guard on Campaign.can_send is the real one; this
+        # just keeps the form from inviting the mistake.
+        from django.conf import settings
+
+        # Default to the deployment's own venue rather than to the top of an alphabetical list
+        # or to the network-wide option. Whose list a mailing goes to is the one field where the
+        # wrong answer cannot be taken back, so the safe, usual answer is preselected.
+        from gallery.models import Subscriber
+        if not self.instance.pk and not self.initial.get('site'):
+            default = Subscriber.default_site()
+            if default is not None:
+                self.initial['site'] = default.pk
+
+        if getattr(settings, 'CAMPAIGN_NETWORK_LIST_ENABLED', False):
+            self.fields['site'].empty_label = 'Everyone (network-wide list)'
+            self.fields['site'].help_text = self.instance._meta.get_field('site').help_text
+        else:
+            self.fields['site'].empty_label = None
+            self.fields['site'].required = True
+            self.fields['site'].help_text = (
+                'Whose subscribers this goes to. The network-wide (reset.art) list is '
+                'unavailable until reset.art has its own email authentication.')
 
         # A dropdown of the MJML templates that actually exist, rather than a text box
         # where a typo becomes a TemplateDoesNotExist at send time.

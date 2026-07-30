@@ -250,6 +250,15 @@ if 'test' in sys.argv:
 # exceeding it fails the request. Raise it only after confirming a higher limit on the account.
 CAMPAIGN_MESSAGES_PER_SECOND = float(os.environ.get('CAMPAIGN_MESSAGES_PER_SECOND', '2'))
 
+# Whether the network-wide list — reset.art's own, the campaigns with no venue — can be sent
+# to. Off until reset.art has its own email authentication: DKIM keys are per-domain and do not
+# carry over from 120710.art, so a mailing branded reset.art today would go out signed as a
+# domain it does not claim to be. Set true once `resend._domainkey.reset.art` and
+# `send.reset.art` exist and Resend reports the domain verified.
+# See docs/reset-art-cutover.md.
+CAMPAIGN_NETWORK_LIST_ENABLED = os.environ.get(
+    'CAMPAIGN_NETWORK_LIST_ENABLED', '').strip().lower() in ('true', '1', 'yes', 'on')
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

@@ -1250,6 +1250,92 @@ class CampaignStaffPagesTests(TestCase):
         self.assertEqual(mail.outbox, [])
 
 
+class NetworkListDisabledTests(TestCase):
+    """The reset.art list is collectable but not mailable yet.
+
+    reset.art has no email authentication of its own — DKIM keys are per-domain and none of
+    120710.art's carry over. A network-wide mailing would still leave the building, which is
+    exactly the danger: it would arrive branded as a domain nobody can verify as the sender, on
+    a first impression that is hard to take back.
+    """
+
+    def setUp(self):
+        from gallery.models import Campaign, Site, Subscriber, Subscription
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+        Subscriber.opt_in(email='n@example.com', sites=[None],
+                          source=Subscription.SOURCE_IMPORT)
+        # site=None is the network-wide list.
+        self.campaign = Campaign.objects.create(
+            site=None, subject='Across the network', body_markdown='Hello **all**.')
+        self.campaign.test_sent_at = timezone.now()
+        self.campaign.save(update_fields=['test_sent_at'])
+
+        self.staff = User.objects.create_user(
+            username='net@example.com', email='net@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+
+    def test_a_network_wide_campaign_cannot_be_sent(self):
+        self.assertFalse(self.campaign.list_is_sendable)
+        self.assertFalse(self.campaign.can_send)
+        self.assertIn('reset.art', self.campaign.blocked_reason)
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign)
+        self.assertEqual(mail.outbox, [])
+
+    def test_it_cannot_be_resumed_into_sending_either(self):
+        """The obvious way round a send guard is the resume path; it is closed too."""
+        from gallery.models import Campaign
+        Campaign.objects.filter(pk=self.campaign.pk).update(status=Campaign.STATUS_FAILED)
+        self.campaign.refresh_from_db()
+        self.assertFalse(self.campaign.can_resume)
+        with self.assertRaises(ValueError):
+            campaigns.send_campaign(self.campaign, resume=True)
+        self.assertEqual(mail.outbox, [])
+
+    def test_the_page_says_why_rather_than_just_disabling_the_button(self):
+        page = self.client.get(reverse('gallery:campaign_edit',
+                                       kwargs={'pk': self.campaign.pk}))
+        self.assertContains(page, 'cannot be mailed yet')
+        self.assertContains(page, 'reset.art')
+
+    def test_posting_send_from_a_stale_tab_is_refused(self):
+        r = self.client.post(reverse('gallery:campaign_send',
+                                     kwargs={'pk': self.campaign.pk}), follow=True)
+        self.assertContains(r, 'cannot be mailed yet')
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'draft')
+        self.assertEqual(mail.outbox, [])
+
+    def test_the_form_does_not_offer_a_list_that_cannot_be_mailed(self):
+        page = self.client.get(reverse('gallery:campaign_new'))
+        self.assertNotContains(page, 'Everyone (network-wide list)')
+        self.assertContains(page, 'unavailable until reset.art has its own email')
+
+    def test_people_can_still_be_collected_onto_the_list(self):
+        """Only sending is blocked. The list keeps growing so it is ready when reset.art is."""
+        from gallery.models import Subscription
+        self.assertEqual(
+            Subscription.objects.filter(site__isnull=True, is_subscribed=True).count(), 1)
+
+    def test_one_setting_lifts_it(self):
+        with self.settings(CAMPAIGN_NETWORK_LIST_ENABLED=True):
+            self.campaign.refresh_from_db()
+            self.assertTrue(self.campaign.list_is_sendable)
+            self.assertTrue(self.campaign.can_send)
+            self.assertEqual(self.campaign.blocked_reason, '')
+
+    def test_a_venue_list_is_unaffected(self):
+        from gallery.models import Campaign
+        venue = Campaign.objects.create(
+            site=self.site, subject='Just us', body_markdown='Hello.')
+        venue.test_sent_at = timezone.now()
+        venue.save(update_fields=['test_sent_at'])
+        self.assertTrue(venue.can_send)
+
+
 class CampaignResumeTests(TestCase):
     """A send that stops part-way must be finishable without mailing anyone twice.
 
