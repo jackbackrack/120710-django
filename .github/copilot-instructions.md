@@ -13,7 +13,7 @@
 - **django-import-export** for CSV/Excel admin import/export
 - **Whitenoise** for static files locally; **AWS S3** (`django-storages`) in production
 - **Pydantic** for Schema.org type validation in `eatart/schemaorg/`
-- **Mailchimp** API for mailing list sync
+- **Resend** (via django-anymail) for mailing-list campaigns; **smtp2go** for transactional mail
 - **crispy-forms** + Bootstrap 5 for forms
 - **docker compose** for local development (services: `db`, `web`, `pgadmin`)
 
@@ -25,7 +25,7 @@ eatart/             # Django project package
   urls.py           # Root URL configuration
   schemaorg/        # Schema.org JSON-LD layer (types.py, mappers.py, profile.py)
   views/            # Public views (index, about, contact, howto, subscribe)
-  services/         # External integrations (mailchimp.py)
+  services/         # External integrations
   context_processors.py  # navigation_roles injected into every template
 
 gallery/            # Main app
@@ -109,7 +109,7 @@ Every public detail page (artist, artwork, show, event) injects `<script type="a
 | `USE_S3` | `True` to use AWS S3 for media/static |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_STORAGE_BUCKET_NAME` | S3 credentials |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
-| `MAILCHIMP_API_KEY` / `MAILCHIMP_DATA_CENTER` / `MAILCHIMP_AUDIENCE_ID` | Mailchimp |
+| `RESEND_API_KEY` / `RESEND_SIGNING_SECRET` | Resend, for campaigns and its bounce webhook |
 
 ## Common Commands
 

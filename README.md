@@ -2,7 +2,7 @@
 
 Open-source Django gallery management application for [120710.art](https://www.120710.art), an experimental art gallery at 1207 Tenth Street, Berkeley, CA.
 
-Manages artists, artworks, exhibitions (shows), events, and juror reviews/ratings with public-facing pages, a role-based admin workflow, Mailchimp mailing list integration, and Schema.org JSON-LD structured data on every content page.
+Manages artists, artworks, exhibitions (shows), events, and juror reviews/ratings with public-facing pages, a role-based admin workflow, a mailing list of its own, and Schema.org JSON-LD structured data on every content page.
 
 ---
 
@@ -18,7 +18,7 @@ Manages artists, artworks, exhibitions (shows), events, and juror reviews/rating
 - **Google OAuth** via django-allauth
 - **Admin** — ShowAdmin with artwork inline and filter_horizontal for artists/curators/tags; CSV/Excel import-export on all models
 - **Schema.org JSON-LD** — Pydantic-validated structured data on every public detail page
-- **Mailchimp sync** — mailing list management via Mailchimp API
+- **Mailing list** — subscribers, campaigns and unsubscribes in our own database; campaigns render from MJML and send via Resend, while transactional mail stays on smtp2go
 
 ---
 
@@ -100,10 +100,9 @@ RECAPTCHA_PRIVATE_KEY=
 # Optional explicit override (True/False)
 RECAPTCHA_ENABLED=
 
-# Optional: Mailchimp
-MAILCHIMP_API_KEY=
-MAILCHIMP_DATA_CENTER=
-MAILCHIMP_AUDIENCE_ID=
+# Optional: Resend, for mailing-list campaigns only
+RESEND_API_KEY=
+RESEND_SIGNING_SECRET=
 
 # Optional: AWS S3 (set USE_S3=True to enable)
 USE_S3=False
@@ -125,8 +124,6 @@ eatart/             # Django project package
     mappers.py      # Model → Schema.org converters
     profile.py      # GALLERY_PROFILE — address, hours, social links
   views/            # Public views: index, about, contact, howto, subscribe
-  services/
-    mailchimp.py    # Mailchimp API integration
 
 gallery/            # Main gallery app
   models/

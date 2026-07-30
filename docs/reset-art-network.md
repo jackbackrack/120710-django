@@ -301,9 +301,11 @@ Decisions taken while building it:
   page; a venue's own links carry its site, so joining the network does not mean inheriting
   another gallery's link list. `LinkTreeEntry` had zero rows, so there was nothing to
   migrate.
-- **Subscribing was left alone**, per the decision to move mailing lists onto the site
-  itself later. Contact only advertises a list when `MAILCHIMP_AUDIENCE_ID` is set, rather
-  than pointing every venue at one shared audience.
+- **Subscribing now belongs to the site.** Mailing lists moved off Mailchimp into
+  `Subscriber` / `Subscription`, where a null site is the network-wide list — so the
+  question this bullet used to defer, of how a network shares one audience, is answered by
+  the model rather than by configuration. Contact advertises the list unconditionally;
+  there is no provider to configure and no state in which subscribing fails.
 - **The map is generated from the venue's own coordinates** instead of the committed
   `120710-map.png`. `120710-street-view.png` becomes the optional `visit_image` upload.
 

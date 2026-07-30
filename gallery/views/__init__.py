@@ -3,7 +3,6 @@ from gallery.views.artists import (
     ArtistDeleteView,
     ArtistDetailView,
     ArtistListView,
-    ArtistMailChimpView,
     ArtistUpdateView,
     artist_email_list,
 )
@@ -82,7 +81,6 @@ __all__ = [
     'CollectorsListView',
     'detail',
     'ArtistListView',
-    'ArtistMailChimpView',
     'ArtistDetailView',
     'ArtistUpdateView',
     'ArtistDeleteView',

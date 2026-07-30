@@ -163,9 +163,6 @@ ANYMAIL = {
     # Webhook signature verification. Resend signs with Svix; anymail checks it for us.
     'RESEND_SIGNING_SECRET': os.environ.get('RESEND_SIGNING_SECRET'),
 }
-# The audience subscribers are pushed to. Without it the site still records subscribers
-# locally and simply does not sync — see gallery.models.Subscriber.
-RESEND_AUDIENCE_ID = os.environ.get('RESEND_AUDIENCE_ID', '')
 
 
 SITE_ID = 1
