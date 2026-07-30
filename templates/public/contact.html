@@ -27,14 +27,12 @@ Please contact us if you would like more information.
 {% endif %}
 
 {% comment %}
-  The mailing list section is conditional on the list actually being configured. Per the
-  decision to leave subscribing alone for now: rather than link every venue at one shared
-  Mailchimp audience, a venue with no list simply does not advertise one.
+  Always offered. The list is our own table now, so there is nothing to configure and no
+  state in which subscribing would fail — the section used to be gated on a Mailchimp
+  audience id being set, which after the migration was simply never set.
 {% endcomment %}
-{% if mailing_list_enabled %}
 <h2>Mailing List</h2>
 <a href="{% url 'subscribe' %}">Upcoming shows mailing list signup</a>
-{% endif %}
 
 {% if info_site.instagram %}
 <h2>Instagram</h2>

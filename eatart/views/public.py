@@ -61,11 +61,7 @@ def index(request):
 def contact(request, site_slug=None):
     if site_slug:
         visible_site_or_404(request, site_slug)
-    return render(request, 'public/contact.html', {
-        # Only advertise a mailing list when one is actually wired up. Subscribing is
-        # still a single shared Mailchimp audience, deliberately left alone for now.
-        'mailing_list_enabled': bool(settings.MAILCHIMP_AUDIENCE_ID),
-    })
+    return render(request, 'public/contact.html')
 
 
 def visit(request, site_slug=None):

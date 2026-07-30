@@ -123,9 +123,13 @@
               <li><a class="dropdown-item{% if u == 'visit' %} active{% endif %}" href="{% url 'visit' %}">Visit</a></li>
               <li><a class="dropdown-item{% if u == 'contact' %} active{% endif %}" href="{% url 'contact' %}">Contact</a></li>
               {% endif %}
-              {% if mailing_list_enabled or not current_site %}
+              {% comment %}
+                Always shown. This was gated on mailing_list_enabled, which only the
+                contact view ever set — so everywhere else it fell back to
+                "not current_site", and with a default venue configured that is never
+                true. The Subscribe link was therefore missing from the whole site.
+              {% endcomment %}
               <li><a class="dropdown-item{% if u == 'subscribe' %} active{% endif %}" href="{% url 'subscribe' %}">Subscribe</a></li>
-              {% endif %}
               <li><a class="dropdown-item{% if u == 'linktree' %} active{% endif %}" href="{% if current_site %}{% url 'site_linktree' current_site.slug %}{% else %}{% url 'linktree' %}{% endif %}">Links</a></li>
             </ul>
           </li>

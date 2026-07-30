@@ -167,9 +167,6 @@ ANYMAIL = {
 # locally and simply does not sync — see gallery.models.Subscriber.
 RESEND_AUDIENCE_ID = os.environ.get('RESEND_AUDIENCE_ID', '')
 
-MAILCHIMP_API_KEY = os.environ.get("MAILCHIMP_API_KEY")
-MAILCHIMP_DATA_CENTER = os.environ.get("MAILCHIMP_DATA_CENTER")
-MAILCHIMP_AUDIENCE_ID = os.environ.get("MAILCHIMP_AUDIENCE_ID")
 
 SITE_ID = 1
 

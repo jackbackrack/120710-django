@@ -1355,6 +1355,78 @@ class ResendWebhookTests(TestCase):
 
 
 
+
+class SubscribePagesTests(TestCase):
+    """The public subscribe form, the kiosk form, and being able to find them."""
+
+    def setUp(self):
+        from gallery.models import Site
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA', postal_code='94710')
+
+    # `address` is the honeypot field (settings.HONEYPOT_FIELD_NAME); it must be present
+    # and empty or django-honeypot rejects the post.
+    def _post(self, url, email, **extra):
+        data = {'first_name': 'New', 'last_name': 'Person', 'email': email, 'address': ''}
+        data.update(extra)
+        return self.client.post(url, data, follow=True)
+
+    def test_the_form_writes_to_our_own_table(self):
+        from gallery.models import Subscriber, Subscription
+        r = self._post(reverse('subscribe'), 'new@example.com')
+        self.assertEqual(r.status_code, 200)
+        subscriber = Subscriber.objects.get(email='new@example.com')
+        self.assertEqual(subscriber.full_name, 'New Person')
+        subscription = subscriber.subscriptions.get()
+        self.assertTrue(subscription.is_subscribed)
+        self.assertEqual(subscription.source, Subscription.SOURCE_SUBSCRIBE_FORM)
+
+    def test_the_kiosk_form_records_where_it_came_from(self):
+        from gallery.models import Subscriber, Subscription
+        with self.settings(KIOSK_TOKEN='tok'):
+            self._post(reverse('subscribe_kiosk', kwargs={'token': 'tok'}), 'k@example.com')
+        subscriber = Subscriber.objects.get(email='k@example.com')
+        self.assertEqual(subscriber.subscriptions.get().source, Subscription.SOURCE_KIOSK)
+
+    def test_the_kiosk_needs_its_token(self):
+        from gallery.models import Subscriber
+        with self.settings(KIOSK_TOKEN='tok'):
+            r = self.client.get(reverse('subscribe_kiosk', kwargs={'token': 'wrong'}))
+        self.assertEqual(r.status_code, 404)
+        self.assertFalse(Subscriber.objects.exists())
+
+    def test_subscribing_twice_does_not_duplicate_the_person(self):
+        from gallery.models import Subscriber
+        self._post(reverse('subscribe'), 'twice@example.com')
+        self._post(reverse('subscribe'), 'TWICE@Example.com')
+        self.assertEqual(Subscriber.objects.filter(email='twice@example.com').count(), 1)
+
+    def test_subscribe_is_reachable_from_the_nav_with_a_default_venue(self):
+        """It used to be gated on mailing_list_enabled, which only the contact view set —
+        so everywhere else it fell back to "not current_site", and with a default venue
+        configured that is never true. The link was missing site-wide."""
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            import importlib
+            from eatart import context_processors
+            importlib.reload(context_processors)
+            try:
+                for path in ('/', reverse('contact'), self.site.get_absolute_url()):
+                    with self.subTest(path=path):
+                        body = self.client.get(path, follow=True).content.decode()
+                        self.assertIn('>Subscribe</a>', body)
+            finally:
+                importlib.reload(context_processors)
+
+    def test_the_contact_page_always_offers_the_list(self):
+        """No provider to configure any more, so there is no state in which the list
+        should be hidden."""
+        body = self.client.get(reverse('contact')).content.decode()
+        self.assertIn('Mailing List', body)
+        self.assertIn(reverse('subscribe'), body)
+
+
+
 class HowToAnchorTests(TestCase):
     """Every link into the help system must land on a guide that exists.
 
