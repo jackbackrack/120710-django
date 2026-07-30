@@ -4,6 +4,10 @@ from gallery.views.placards import placard_html, placard_json, placard_json_for_
 from gallery.views.campaigns import (campaign_edit, campaign_list, campaign_new,
                                      campaign_preview, campaign_send,
                                      campaign_send_test)
+from gallery.views.subscribers import (subscriber_add, subscriber_delete,
+                                       subscriber_list, subscriber_unsubscribe_all,
+                                       subscription_resubscribe,
+                                       subscription_unsubscribe)
 from gallery.views.checklist import show_checklist_html, show_checklist_pdf
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer, room_camera_save, room_2d, save_support_to_catalog, layout_snapshots, restore_layout_snapshot, delete_layout_snapshot
@@ -121,6 +125,16 @@ urlpatterns = [
     path('campaigns/<int:pk>/preview/', campaign_preview, name='campaign_preview'),
     path('campaigns/<int:pk>/test/', campaign_send_test, name='campaign_send_test'),
     path('campaigns/<int:pk>/send/', campaign_send, name='campaign_send'),
+    # The mailing list itself: who is on it, and acting on one person.
+    path('subscribers/', subscriber_list, name='subscriber_list'),
+    path('subscribers/add/', subscriber_add, name='subscriber_add'),
+    path('subscribers/<int:pk>/remove-all/', subscriber_unsubscribe_all,
+         name='subscriber_unsubscribe_all'),
+    path('subscribers/<int:pk>/delete/', subscriber_delete, name='subscriber_delete'),
+    path('subscription/<int:pk>/remove/', subscription_unsubscribe,
+         name='subscription_unsubscribe'),
+    path('subscription/<int:pk>/add-back/', subscription_resubscribe,
+         name='subscription_resubscribe'),
     path('artists/', ArtistListView.as_view(), name='artist_list'),
     path('collectors/', CollectorsListView.as_view(), name='collectors_list'),
     path('artists/emails', artist_email_list, name='artist_email_list'),

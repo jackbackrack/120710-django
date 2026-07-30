@@ -1692,6 +1692,155 @@ class PrivacyPageTests(TestCase):
 
 
 
+
+class SubscriberManagementTests(TestCase):
+    """Staff pages for the list. The reason this exists is that somebody emails asking to
+    be taken off and there has to be somewhere to do it — so that path is tested first."""
+
+    def setUp(self):
+        from gallery.models import Site, Subscriber, Subscription
+        self.a = Site.objects.create(name='120710', slug='120710',
+                                     status=Site.STATUS_PUBLISHED)
+        self.b = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                     status=Site.STATUS_PUBLISHED)
+        self.both, _ = Subscriber.opt_in(
+            email='both@example.com', first_name='Both', last_name='Lists',
+            sites=[self.a, self.b], source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.bounced, _ = Subscriber.opt_in(
+            email='gone@example.com', sites=[self.a],
+            source=Subscription.SOURCE_SUBSCRIBE_FORM)
+        self.bounced.unsubscribe_all(reason=Subscription.UNSUB_BOUNCED)
+        self.staff = User.objects.create_user(
+            username='subs@example.com', email='subs@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+
+    def _lists(self, subscriber):
+        subscriber.refresh_from_db()
+        return sorted((s.list_name, s.is_subscribed) for s in subscriber.subscriptions.all())
+
+    def test_removing_someone_from_one_list_leaves_the_others(self):
+        subscription = self.both.subscriptions.get(site=self.a)
+        r = self.client.post(reverse('gallery:subscription_unsubscribe',
+                                     kwargs={'pk': subscription.pk}), follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self._lists(self.both), [('120710', False), ('Elsewhere', True)])
+
+    def test_removing_someone_from_everything(self):
+        self.client.post(reverse('gallery:subscriber_unsubscribe_all',
+                                 kwargs={'pk': self.both.pk}), follow=True)
+        self.assertEqual(self._lists(self.both), [('120710', False), ('Elsewhere', False)])
+
+    def test_a_removal_is_recorded_as_requested_not_as_a_bounce(self):
+        """The reason has to stay honest: it decides whether an address is ever tried
+        again."""
+        from gallery.models import Subscription
+        subscription = self.both.subscriptions.get(site=self.a)
+        self.client.post(reverse('gallery:subscription_unsubscribe',
+                                 kwargs={'pk': subscription.pk}))
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.unsubscribed_reason, Subscription.UNSUB_REQUESTED)
+
+    def test_someone_can_be_added_back_when_they_ask(self):
+        subscription = self.both.subscriptions.get(site=self.a)
+        self.client.post(reverse('gallery:subscription_unsubscribe',
+                                 kwargs={'pk': subscription.pk}))
+        self.client.post(reverse('gallery:subscription_resubscribe',
+                                 kwargs={'pk': subscription.pk}))
+        self.assertEqual(self._lists(self.both), [('120710', True), ('Elsewhere', True)])
+
+    def test_a_bounced_address_offers_no_add_back_button(self):
+        """Undoing a bounce or complaint from here would make the suppression record
+        meaningless, so the button is only offered for a plain request."""
+        body = self.client.get(reverse('gallery:subscriber_list')).content.decode()
+        self.assertIn('hard bounce', body.lower())
+        subscription = self.bounced.subscriptions.get()
+        self.assertNotIn(reverse('gallery:subscription_resubscribe',
+                                 kwargs={'pk': subscription.pk}), body)
+
+    def test_adding_one_person_by_hand(self):
+        from gallery.models import Subscriber, Subscription
+        self.client.post(reverse('gallery:subscriber_add'),
+                         {'email': 'HAND@Example.com', 'first_name': 'By',
+                          'last_name': 'Hand', 'site': 'elsewhere'})
+        person = Subscriber.objects.get(email='hand@example.com')   # lower-cased
+        self.assertEqual(person.full_name, 'By Hand')
+        subscription = person.subscriptions.get()
+        self.assertEqual(subscription.site, self.b)
+        self.assertEqual(subscription.source, Subscription.SOURCE_MANUAL)
+
+    def test_adding_a_bad_address_is_refused(self):
+        from gallery.models import Subscriber
+        before = Subscriber.objects.count()
+        self.client.post(reverse('gallery:subscriber_add'), {'email': 'not-an-address'})
+        self.assertEqual(Subscriber.objects.count(), before)
+
+    def test_deleting_someone_entirely(self):
+        from gallery.models import Subscriber, Subscription
+        self.client.post(reverse('gallery:subscriber_delete'.replace('x', 'x'),
+                                 kwargs={'pk': self.bounced.pk}))
+        self.assertFalse(Subscriber.objects.filter(email='gone@example.com').exists())
+        # And their subscriptions went with them.
+        self.assertFalse(Subscription.objects.filter(
+            subscriber__email='gone@example.com').exists())
+
+    def test_search_and_filters(self):
+        url = reverse('gallery:subscriber_list')
+        cases = [
+            ({'q': 'both'}, True, False),
+            ({'q': 'gone'}, False, True),
+            ({'status': 'unsubscribed'}, False, True),
+            ({'status': 'subscribed'}, True, False),
+            ({'list': 'elsewhere'}, True, False),
+        ]
+        for params, wants_both, wants_gone in cases:
+            with self.subTest(**params):
+                body = self.client.get(url, params).content.decode()
+                self.assertEqual('both@example.com' in body, wants_both)
+                self.assertEqual('gone@example.com' in body, wants_gone)
+
+    def test_someone_on_two_lists_who_left_one_is_not_listed_as_unsubscribed(self):
+        subscription = self.both.subscriptions.get(site=self.a)
+        # follow=True so the "removed from…" flash message is consumed by the redirect.
+        # Left queued it renders on the next page and names the address, which would look
+        # like the filter had matched them.
+        self.client.post(reverse('gallery:subscription_unsubscribe',
+                                 kwargs={'pk': subscription.pk}), follow=True)
+        body = self.client.get(reverse('gallery:subscriber_list'),
+                               {'status': 'unsubscribed'}).content.decode()
+        self.assertNotIn('both@example.com', body)
+
+    def test_the_counts_match_what_a_campaign_would_send_to(self):
+        from gallery import campaigns as engine
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(site=self.a, subject='S', body_markdown='Hi')
+        expected = engine.recipients(campaign).count()
+        body = self.client.get(reverse('gallery:subscriber_list')).content.decode()
+        self.assertIn('120710 <strong>%d</strong>' % expected,
+                      ' '.join(body.split()))
+
+    def test_only_staff_get_in(self):
+        from gallery.models import Subscriber
+        actions = [
+            reverse('gallery:subscriber_list'),
+            reverse('gallery:subscriber_delete', kwargs={'pk': self.both.pk}),
+            reverse('gallery:subscriber_unsubscribe_all', kwargs={'pk': self.both.pk}),
+        ]
+        self.client.logout()
+        for url in actions:
+            with self.subTest(url=url, who='anonymous'):
+                self.assertEqual(self.client.post(url).status_code, 302)
+
+        artist = User.objects.create_user(
+            username='nope2@example.com', email='nope2@example.com', password='pw')
+        self.client.force_login(artist)
+        for url in actions:
+            with self.subTest(url=url, who='non-staff'):
+                self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertTrue(Subscriber.objects.filter(email='both@example.com').exists())
+
+
+
 class HowToAnchorTests(TestCase):
     """Every link into the help system must land on a guide that exists.
 

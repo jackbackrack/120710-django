@@ -839,6 +839,11 @@ ROLE_DOCUMENTATION = {
             'Remove a collection claim on any artwork using the Remove link next to the claim on the artwork detail page.',
             'Create and edit sites, including room dimensions, per-wall texture images, and wall obstacles (doors, windows).',
             'Place artwork in the virtual room layout and view it in the 3D viewer.',
+            'See who is on the mailing list from the Subscribers page: search by name or '
+            'address, filter by list or by whether they are subscribed, take someone off '
+            'one list or all of them, add someone back when they ask, add one person by '
+            'hand, or delete them entirely. Each list shows the number a campaign to it '
+            'would reach.',
             'Write, preview, test and send mailings to subscribers from the Campaigns page. '
             'A campaign cannot be sent until a test has gone out since its last edit, and a '
             'sent campaign becomes a read-only record of what went out.',
@@ -931,6 +936,21 @@ ROLE_DOCUMENTATION = {
                     {'name': 'y_in', 'input_type': 'numeric input', 'purpose': 'Vertical position of the obstacle\'s bottom edge, measured in inches from the floor.'},
                     {'name': 'w_in', 'input_type': 'numeric input', 'purpose': 'Width of the obstacle in inches.'},
                     {'name': 'h_in', 'input_type': 'numeric input', 'purpose': 'Height of the obstacle in inches.'},
+                ],
+            },
+            {
+                'name': 'Subscribers Page',
+                'where_used': 'Subscribers (staff only)',
+                'breadcrumb': 'Subscribers',
+                'fields': [
+                    {'name': 'list totals', 'input_type': 'read-only links', 'purpose': 'One per list, showing how many people a campaign to that list would reach. Click to filter to it.'},
+                    {'name': 'search', 'input_type': 'text input', 'purpose': 'Matches on email address, first name or last name.'},
+                    {'name': 'status', 'input_type': 'select', 'purpose': '"On a list" or "Off every list". Someone on two lists who left one still counts as on a list.'},
+                    {'name': 'Add someone by hand', 'input_type': 'collapsible form', 'purpose': 'For a person who asked in person or by email. Recorded as added by hand, so where the consent came from is answerable later.'},
+                    {'name': 'remove', 'input_type': 'button per list', 'purpose': 'Takes them off that one list, recorded as a request rather than a bounce.'},
+                    {'name': 'add back', 'input_type': 'button per list', 'purpose': 'Only offered for someone who asked to be removed. Not shown for a bounce or a spam complaint, because undoing those would make the suppression record meaningless.'},
+                    {'name': 'remove from all', 'input_type': 'button per person', 'purpose': 'Every list at once — what "stop emailing me" means.'},
+                    {'name': 'delete', 'input_type': 'button per person', 'purpose': 'Erases the person, which the privacy page offers on request. Also erases the record that they opted out, so a later import of an old export could add them again — prefer "remove from all" to stop mail.'},
                 ],
             },
             {

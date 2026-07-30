@@ -68,6 +68,9 @@
           <li class="nav-item">
             <a class="nav-link{% if 'campaigns' in u %} active{% endif %}" href="{% url 'gallery:campaign_list' %}">Campaigns</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link{% if 'subscribers' in u %} active{% endif %}" href="{% url 'gallery:subscriber_list' %}">Subscribers</a>
+          </li>
           {% endif %}
 
           <li class="nav-item">
