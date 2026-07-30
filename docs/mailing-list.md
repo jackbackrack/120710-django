@@ -48,6 +48,36 @@ reader marking a newsletter as spam suppresses that address account-wide, and th
 that address silently fails to receive is their acceptance letter for a show. The split means
 a mailing-list problem can never take down account mail.
 
+## Where the settings go
+
+Nothing here belongs in `settings.py` or in git. Three places, depending on how you are running:
+
+| Running | Where |
+| --- | --- |
+| **Railway (production)** | the service's **Variables** tab |
+| **Locally, via Docker** | `.env.local`, which `docker compose --env-file .env.local` reads |
+| **Locally, via `manage.py runserver`** | your shell — nothing loads `.env.local` for a bare `manage.py` |
+
+That last row catches people out: there is no `python-dotenv` in this project, so `settings.py`
+reads `os.environ` and nothing else. A `.env.local` sitting next to `manage.py` is read by Docker
+Compose and by nothing else. For a plain `runserver`, export the variables first or prefix the
+command:
+
+    RESEND_API_KEY=re_xxx ./env/bin/python manage.py runserver
+
+The full list, with what each one does, is in `.env.local.example`. The two that matter:
+
+- **`RESEND_API_KEY`** — required to send anything, including a test. Use a key with *sending*
+  access, not full access.
+- **`RESEND_SIGNING_SECRET`** — from Resend's webhook page. Without it the bounce/complaint
+  webhook rejects everything it receives, so nobody is ever suppressed and you will not know.
+
+And one that is easy to miss: **`SITE_BASE_URL`**. Campaign sends run in a background thread with
+no request to build URLs from, so this is where the unsubscribe link's host comes from. It
+defaults to `https://www.120710.art`, which is right in production and wrong locally — set it to
+`http://localhost:8000` in `.env.local` so a local test send's unsubscribe link points at your own
+machine rather than the live site.
+
 ## Sending
 
 Compose, preview, test and send are one page: **Mailing List → Campaigns** in the nav (staff only).
