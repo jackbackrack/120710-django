@@ -24,7 +24,7 @@ Before committing, check whether the change touches anything described in:
 `/howto/` is an index of links and one-line descriptions, grouped by audience. Each
 guide lives at **`/howto/<anchor>/`** (`howto_guide`), and the form-and-field reference
 is at `/howto/reference/` (`howto_reference`). They were split up because illustrating
-all 31 guides would have put a few hundred screenshots on one URL.
+every guide would have put a few hundred screenshots on one URL.
 
 Consequences when you add or change a guide:
 
@@ -77,8 +77,10 @@ git add eatart/howto_manifest.json                                       # or no
 Then **look at the images**, not just the exit code — every framing problem so far has
 been invisible in the step list and obvious in the picture. A `DocumentationMismatch`
 means the prose is wrong too. Renumbering a guide's steps also means updating that
-script's `prose_only` set and its `rec.shot(N)` numbers. Working end to end for
-`submit-artwork`; the other guides need a capture script each. Images live on S3,
+script's `prose_only` set and its `rec.shot(N)` numbers. 28 of the 32 guides have a
+capture script; the four without one are deliberate — the layout editor's canvas
+drag-and-drop, the WebGL 3D view, the site map's live OpenStreetMap tiles, and the
+command-line guide for this system itself. Images live on S3,
 with only `eatart/howto_manifest.json` committed. **Read
 `docs/visual-howto-documentation.md` before working on it** — including for what a
 `DocumentationMismatch` from a capture run means, which is that the prose is wrong.
