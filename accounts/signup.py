@@ -1,3 +1,4 @@
+import io
 import logging
 import re
 
@@ -56,6 +57,16 @@ def import_google_avatar(artist, extra_data):
             return False
         if len(resp.content) > 8 * 1024 * 1024:
             return False
+
+        # A Google account with no picture of its own still has a `picture` claim, and it is a
+        # monogram: one initial on a flat colour. Importing it fills the field, passes the form,
+        # and leaves the gallery chasing a real photo after acceptance — the exact thing the
+        # requirement exists to prevent, minus any warning that it is coming.
+        from gallery.photos import looks_like_placeholder
+        if looks_like_placeholder(io.BytesIO(resp.content)):
+            logger.info('Google avatar for artist %s is a monogram; not importing', artist.pk)
+            return False
+
         artist.image.save(f'google-{artist.pk}.jpg', ContentFile(resp.content), save=True)
         return True
     except Exception:   # noqa: BLE001 — a missing photo is recoverable; a failed signup is not

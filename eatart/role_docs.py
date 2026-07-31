@@ -654,7 +654,7 @@ ROLE_DOCUMENTATION = {
                     {'name': 'venmo', 'input_type': 'text input', 'purpose': 'Venmo username starting with @.'},
                     {'name': 'bio', 'input_type': 'multi-line text area', 'purpose': 'Artist biography shown publicly.'},
                     {'name': 'statement', 'input_type': 'multi-line text area', 'purpose': 'Artist statement shown publicly.'},
-                    {'name': 'image', 'input_type': 'file upload', 'purpose': 'Profile photo shown on artist pages.'},
+                    {'name': 'image', 'input_type': 'file upload', 'purpose': 'A photograph of you — required before you can submit, and printed beside your work in the show catalogue. A plain colour or a letter-on-a-circle placeholder is refused: it would satisfy the requirement without solving the problem the requirement exists for, which is nobody being chased for a photo after acceptance. On a phone the button opens the camera.'},
                 ],
             },
             {

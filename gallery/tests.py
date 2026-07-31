@@ -36,10 +36,27 @@ def _make_test_image_dir():
 
 
 def _test_jpg(name='photo.jpg'):
-    """A tiny real JPEG upload, for the places a profile photo is now required."""
+    """A small JPEG with the variation of a photograph, for the places a photo is required.
+
+    Deliberately not a solid colour any more. A flat square is what Google hands out for an
+    account with no picture, and profile photos are now checked for exactly that — so a fixture
+    that was a plain rectangle would be rejected here for the same reason it is rejected in
+    production, which is the fixture being wrong rather than the check.
+    """
     import io
+    import random
     from PIL import Image as _P
-    b = io.BytesIO(); _P.new('RGB', (240, 240), (120, 140, 110)).save(b, 'JPEG')
+
+    rng = random.Random(7)
+    image = _P.new('RGB', (240, 240))
+    pixels = image.load()
+    for y in range(240):
+        for x in range(240):
+            # Smooth gradients plus grain: enough distinct shades to read as a photograph.
+            pixels[x, y] = ((x + rng.randint(0, 40)) % 256,
+                            (y * 2 + rng.randint(0, 40)) % 256,
+                            ((x + y) + rng.randint(0, 40)) % 256)
+    b = io.BytesIO(); image.save(b, 'JPEG')
     return SimpleUploadedFile(name, b.getvalue(), content_type='image/jpeg')
 
 
@@ -1053,19 +1070,14 @@ class ArtistCreationPermissionTests(TestCase):
         self.client.force_login(curator)
         # email and image are both required by ArtistForm — a caregiver's address is
         # what the guide suggests for an artist who has none of their own.
-        import io
-
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        from PIL import Image as PILImage
-
-        buf = io.BytesIO()
-        PILImage.new('RGB', (40, 40), (120, 140, 130)).save(buf, 'JPEG')
+        # _test_jpg, not a solid rectangle: profile photos are checked for being a flat
+        # placeholder now, and a plain square is rejected here exactly as it is in production.
         self.client.post(reverse('gallery:artist_new'), {
             'first_name': 'Wren', 'last_name': 'Halloway',
             'email': 'caregiver@example.com', 'country': 'US', 'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
             'bio': '', 'statement': '', 'phone': '', 'website': '',
             'instagram': '', 'venmo': '',
-            'image': SimpleUploadedFile('w.jpg', buf.getvalue(), 'image/jpeg'),
+            'image': _test_jpg('w.jpg'),
         })
         created = Artist.objects.filter(first_name='Wren').first()
         self.assertIsNotNone(created, 'the curator could not create the artist at all')
@@ -2048,6 +2060,173 @@ class OpeningHoursTests(TestCase):
         from eatart.schemaorg.mappers import _opening_hours
         with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
             self.assertEqual(_opening_hours(), ['Su 13:00-16:00'])
+
+
+class PlaceholderPhotoTests(TestCase):
+    """A monogram is not a profile photo.
+
+    The requirement exists so nobody is chased for a photo after acceptance. One satisfied by a
+    coloured square with a letter on it costs exactly the same chasing, except the form said it
+    was fine and the problem surfaces when the catalogue prints.
+    """
+
+    def _jpeg(self, image, quality=85):
+        import io
+        buffer = io.BytesIO()
+        image.save(buffer, 'JPEG', quality=quality)
+        buffer.seek(0)
+        return buffer
+
+    def _monogram(self, colour='#1a73e8', letter='A'):
+        """What Google serves for an account that has never set a picture."""
+        from PIL import Image, ImageDraw, ImageFont
+        image = Image.new('RGB', (600, 600), colour)
+        draw = ImageDraw.Draw(image)
+        try:
+            font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 320)
+        except Exception:   # noqa: BLE001 — any font will do; the shape is what matters
+            font = ImageFont.load_default()
+        draw.text((300, 300), letter, fill='white', anchor='mm', font=font)
+        return image
+
+    def _portrait(self, background='#f2f0ec', noise=60000):
+        """A head against a plain wall — the case a flatness test must not reject."""
+        import random
+        from PIL import Image, ImageDraw
+        random.seed(4)
+        image = Image.new('RGB', (600, 600), background)
+        draw = ImageDraw.Draw(image)
+        draw.ellipse((190, 140, 410, 420), fill='#9a7050')
+        draw.ellipse((140, 390, 460, 700), fill='#39506e')
+        pixels = image.load()
+        for _ in range(noise):
+            x, y = random.randrange(600), random.randrange(600)
+            r, g, b = pixels[x, y]
+            pixels[x, y] = tuple(max(0, min(255, v + random.randint(-28, 28)))
+                                 for v in (r, g, b))
+        return image
+
+    def test_a_monogram_is_recognised(self):
+        from gallery.photos import looks_like_placeholder
+        for colour, letter in (('#1a73e8', 'A'), ('#d93025', 'S'), ('#188038', 'M')):
+            with self.subTest(colour=colour):
+                self.assertTrue(
+                    looks_like_placeholder(self._jpeg(self._monogram(colour, letter))))
+
+    def test_a_flat_colour_is_recognised(self):
+        from PIL import Image
+        from gallery.photos import looks_like_placeholder
+        self.assertTrue(looks_like_placeholder(
+            self._jpeg(Image.new('RGB', (600, 600), 'white'))))
+
+    def test_a_portrait_against_a_plain_wall_is_not_rejected(self):
+        """The one that matters: a false positive tells somebody their real photo is fake."""
+        from gallery.photos import looks_like_placeholder
+        for background in ('#f2f0ec', '#c8c4bd', '#7d6a55'):
+            with self.subTest(background=background):
+                self.assertFalse(
+                    looks_like_placeholder(self._jpeg(self._portrait(background))))
+
+    def test_an_unreadable_file_is_given_the_benefit_of_the_doubt(self):
+        """Refusing a photo because it could not be measured is the worse mistake; the field's
+        own validation will catch a broken file."""
+        import io
+        from gallery.photos import looks_like_placeholder
+        self.assertFalse(looks_like_placeholder(io.BytesIO(b'not an image')))
+
+    # --- Where it is applied ---
+
+    def test_uploading_a_placeholder_is_refused_with_a_reason(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from gallery.forms import ArtistForm
+
+        upload = SimpleUploadedFile('me.jpg', self._jpeg(self._monogram()).read(),
+                                    content_type='image/jpeg')
+        user = User.objects.create_user(username='ph@example.com', email='ph@example.com',
+                                        password='pw')
+        form = ArtistForm(data={'first_name': 'Ana', 'last_name': 'Vidal',
+                                'email': 'ana@example.com', 'country': 'US',
+                                'zipcode': '94710'},
+                          files={'image': upload}, user=user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('looks like a placeholder', str(form.errors['image']))
+
+    def test_uploading_a_real_photo_is_accepted(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from gallery.forms import ArtistForm
+
+        upload = SimpleUploadedFile('me.jpg', self._jpeg(self._portrait()).read(),
+                                    content_type='image/jpeg')
+        user = User.objects.create_user(username='ph2@example.com', email='ph2@example.com',
+                                        password='pw')
+        form = ArtistForm(data={'first_name': 'Ana', 'last_name': 'Vidal',
+                                'email': 'ana@example.com', 'country': 'US',
+                                'zipcode': '94710'},
+                          files={'image': upload}, user=user)
+        self.assertNotIn('image', form.errors)
+
+    def test_a_google_monogram_is_not_imported(self):
+        """It would fill the field, pass the form, and leave the gallery chasing a photo after
+        acceptance anyway — with no warning that it was coming."""
+        from unittest import mock
+        from accounts.signup import import_google_avatar
+
+        artist = Artist.objects.create(first_name='Ana', last_name='Vidal',
+                                       email='ana@example.com')
+        response = mock.Mock(status_code=200, content=self._jpeg(self._monogram()).read(),
+                             headers={'Content-Type': 'image/jpeg'})
+        response.raise_for_status = mock.Mock()
+        with mock.patch('requests.get', return_value=response):
+            imported = import_google_avatar(artist, {'picture': 'https://example.test/a=s96-c'})
+
+        self.assertFalse(imported)
+        artist.refresh_from_db()
+        self.assertFalse(artist.image)
+
+    def test_a_real_google_photo_is_still_imported(self):
+        """Somebody who has set a picture of themselves should not be asked for it twice."""
+        from unittest import mock
+        from accounts.signup import import_google_avatar
+
+        artist = Artist.objects.create(first_name='Sam', last_name='Ready',
+                                       email='sam@example.com')
+        response = mock.Mock(status_code=200, content=self._jpeg(self._portrait()).read(),
+                             headers={'Content-Type': 'image/jpeg'})
+        response.raise_for_status = mock.Mock()
+        with mock.patch('requests.get', return_value=response):
+            imported = import_google_avatar(artist, {'picture': 'https://example.test/a=s96-c'})
+
+        self.assertTrue(imported)
+        artist.refresh_from_db()
+        self.assertTrue(artist.image)
+
+    def test_the_command_finds_and_can_clear_them(self):
+        from io import StringIO
+        from django.core.files.base import ContentFile
+        from django.core.management import call_command
+
+        bad = Artist.objects.create(first_name='Mona', last_name='Gram',
+                                    email='m@example.com')
+        bad.image.save('a.jpg', ContentFile(self._jpeg(self._monogram()).read()), save=True)
+        good = Artist.objects.create(first_name='Real', last_name='Person',
+                                     email='r@example.com')
+        good.image.save('b.jpg', ContentFile(self._jpeg(self._portrait()).read()), save=True)
+
+        out = StringIO()
+        call_command('find_placeholder_photos', stdout=out)
+        report = out.getvalue()
+        self.assertIn('Mona Gram', report)
+        self.assertNotIn('Real Person', report)
+        self.assertIn('Re-run with --clear', report)
+        bad.refresh_from_db()
+        self.assertTrue(bad.image, 'a report must not change anything')
+
+        out = StringIO()
+        call_command('find_placeholder_photos', '--clear', stdout=out)
+        bad.refresh_from_db()
+        good.refresh_from_db()
+        self.assertFalse(bad.image)
+        self.assertTrue(good.image, 'a real photo must survive --clear')
 
 
 class VisitBookingTests(TestCase):

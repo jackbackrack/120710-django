@@ -128,7 +128,8 @@ class ArtistForm(UserAwareModelForm):
         self.fields['image'].help_text = (
             'A photo of you, not your artwork — it appears on your profile and in the '
             'printed show catalogue. A phone snapshot is fine; on a phone the button '
-            'opens your camera.'
+            'opens your camera. A plain colour or a letter-on-a-circle placeholder will '
+            'not be accepted.'
         )
         self.fields['email'].required = True
         self.fields['email'].help_text = 'Used to contact you and to link your account.'
@@ -209,6 +210,28 @@ class ArtistForm(UserAwareModelForm):
                 if existing:
                     existing.unsubscribe()
         return artist
+
+    def clean_image(self):
+        """A photograph, not a coloured square with a letter on it.
+
+        The requirement exists so nobody is chased for a photo after acceptance. A placeholder
+        costs exactly the same chasing, except the form said it was fine.
+
+        Flatness is all this measures — it cannot tell whether the photograph is of the right
+        person, and nothing short of asking can.
+        """
+        image = self.cleaned_data.get('image')
+        # Only a freshly chosen file: an existing image comes back as a FieldFile and re-checking
+        # it would make an unrelated edit fail on a photo that is already accepted.
+        if image and hasattr(image, 'file') and not hasattr(image, 'instance'):
+            from gallery.photos import looks_like_placeholder
+            if looks_like_placeholder(image):
+                raise ValidationError(
+                    'That looks like a placeholder rather than a photograph — a plain colour, or '
+                    'the letter-on-a-circle picture Google uses when an account has no photo. '
+                    'Please upload a photo of yourself; it is printed beside your work in the '
+                    'show catalogue.')
+        return image
 
     def clean_zipcode(self):
         value = (self.cleaned_data.get('zipcode') or '').strip()
