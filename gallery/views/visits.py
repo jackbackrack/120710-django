@@ -4,6 +4,7 @@ The list is read-only on purpose. A visit is the visitor's to change — they ha
 link — and a gallery that silently cancels somebody's booking without telling them is worse than
 one that emails to say sorry.
 """
+import csv
 import datetime as dt
 
 from django.contrib import messages
@@ -11,16 +12,33 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone as dj_timezone
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST, require_safe
 
 from gallery import calendars
 from gallery.calendars import site_timezone
-from gallery.models import Site, Visit
+from gallery.models import Event, EventRsvp, Site, Visit
 from gallery.permissions import is_staff_user
+
+# Enough to see a pattern across a season without turning the page into an archive.
+PAST_EVENT_LIMIT = 25
 
 
 def _may_see(user):
     return is_staff_user(user) or user.groups.filter(name='curator').exists()
+
+
+def _events_with_replies(date_filter, order, limit=None):
+    """Events somebody has replied to, replies prefetched.
+
+    A join and a `distinct()` rather than a per-event `exists()`: the page renders every reply
+    anyway, so this is one query and a prefetch instead of one round trip per event.
+    """
+    events = (Event.objects.filter(**date_filter)
+              .filter(rsvps__isnull=False).distinct()
+              .select_related('show').prefetch_related('rsvps')
+              .order_by(order))
+    return list(events[:limit] if limit else events)
 
 
 @login_required
@@ -42,18 +60,75 @@ def visit_list(request):
             feeds.append((site, request.build_absolute_uri(
                 f'/visits/{site.visit_feed_token}.ics')))
 
-    # Upcoming events with replies, so the gallery knows what to cater for.
-    from gallery.models import Event
-    rsvp_events = [
-        e for e in Event.objects.filter(date__gte=now.date()).select_related('show')
-        .order_by('date') if e.rsvps.exists()]
+    # Upcoming events with replies, so the gallery knows what to cater for — and past ones, so
+    # what was catered for can be compared against what happened. A reply that vanishes the
+    # morning after is a season's worth of turnout thrown away every year.
+    rsvp_events = _events_with_replies({'date__gte': now.date()}, 'date')
+    past_rsvp_events = _events_with_replies(
+        {'date__lt': now.date()}, '-date', limit=PAST_EVENT_LIMIT)
 
     return render(request, 'gallery/visit_list.html', {
         'rsvp_events': rsvp_events,
+        'past_rsvp_events': past_rsvp_events,
         'upcoming': [(v, v.when.astimezone(site_timezone(v.site))) for v in upcoming],
         'recent': [(v, v.when.astimezone(site_timezone(v.site))) for v in recent],
         'feeds': feeds,
     })
+
+
+def _csv_safe(value):
+    """Stop a spreadsheet treating somebody's reply as a formula.
+
+    Name and note come from a public form, and Excel and Numbers execute a cell beginning `=`,
+    `+`, `-` or `@` when the file is opened. Prefixing an apostrophe is the standard defusing;
+    it is invisible in the cell.
+    """
+    text = '' if value is None else str(value)
+    return f"'{text}" if text[:1] in ('=', '+', '-', '@', '\t', '\r') else text
+
+
+@login_required
+@require_safe
+def rsvp_csv(request):
+    """The door list on the night, and the record of it afterwards.
+
+    One event with `?event=<pk>`, otherwise every reply there is. Both are the same columns, so
+    a season's worth opens in the same spreadsheet as one night's.
+    """
+    if not _may_see(request.user):
+        raise Http404
+
+    replies = EventRsvp.objects.select_related('event', 'event__show')
+    event = None
+    if request.GET.get('event'):
+        event = get_object_or_404(Event.objects.select_related('show'),
+                                  pk=request.GET['event'])
+        replies = replies.filter(event=event)
+    # By name within an event: on the night this is read by looking somebody up, not by
+    # scanning it, and alphabetical is the only order that makes that quick.
+    replies = replies.order_by('event__date', 'name')
+
+    stem = f'rsvps-{slugify(event.name)}' if event else 'rsvps'
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{stem}.csv"'
+    # Names and addresses: never let a shared cache or a crawler hold this.
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Robots-Tag'] = 'noindex, nofollow'
+
+    writer = csv.writer(response)
+    writer.writerow(['Event', 'Show', 'Date', 'Time', 'Response', 'Name', 'Email',
+                     'Party size', 'Note', 'Replied', 'Last changed'])
+    for r in replies:
+        writer.writerow([
+            _csv_safe(r.event.name), _csv_safe(r.event.show.name),
+            r.event.date.isoformat(), r.event.time_range,
+            r.get_response_display(), _csv_safe(r.name), _csv_safe(r.email),
+            # A decline is forced back to one head, the same arithmetic the page shows.
+            r.party_size if r.response != EventRsvp.NO else '',
+            _csv_safe(r.note),
+            r.created_at.date().isoformat(), r.updated_at.date().isoformat(),
+        ])
+    return response
 
 
 @login_required

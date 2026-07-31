@@ -62,8 +62,32 @@ number would otherwise sit in the arithmetic waiting for somebody to widen what 
 | Reply form and count | the event page, `gallery/templates/gallery/_rsvp_form.html` |
 | "Let us know you are coming" | the opening mailing, above add-to-calendar |
 | Change your answer | `/rsvp/<token>/`, linked from every email |
-| Who replied | Mailing List → Visits, staff only |
+| Who replied | Mailing List → Visits, staff and curators |
+| What past nights drew | the same page, under **Past events** |
+| A door list or a spreadsheet | `/visits/rsvps.csv`, whole season or `?event=<pk>` |
 | The reminder | `manage.py send_event_reminders`, daily |
+
+## The staff page
+
+`/visits/` — staff and curators, an artist gets a 404. Read-only, like the visits beside it: a
+reply belongs to the person who made it, and they have their own link to change it.
+
+**Past events are kept, collapsed.** They were dropped at first and that was wrong — a count
+that disappears the morning after leaves nothing to compare a turnout against, neither who
+actually walked in nor what the same opening drew last year. Capped at
+`PAST_EVENT_LIMIT` (25), most recent first, names behind a disclosure triangle because the
+number is the point and the names are the occasional follow-up.
+
+Upcoming and past render from **one partial**, `_rsvp_event.html`, so a column added for
+tonight's opening is there for last year's too.
+
+**The CSV carries names, emails and notes**, so it is `private, no-store`, `noindex`, gated
+identically to the page, and served as an attachment rather than inline.
+
+Every free-text field is passed through `_csv_safe()` first. Name and note arrive from a public
+form, and a cell beginning `=`, `+`, `-` or `@` is executed as a formula when the file is opened
+in Excel or Numbers — the export exists to be opened, which is exactly what makes it worth
+defusing. A leading apostrophe does it, invisibly.
 
 One reply per address per event, enforced by a constraint: a second reply is somebody changing
 their mind, not a second guest, and two rows would inflate what the gallery caters for.

@@ -2520,6 +2520,115 @@ class EventRsvpTests(TestCase):
         self.assertIsNone(EventRsvp.objects.get().reminded_at)
 
 
+class RsvpDashboardTests(TestCase):
+    """What curators and admins see: who replied, what past nights drew, and a CSV of it.
+
+    Past events are half the point. A count that vanishes the morning after leaves nothing to
+    compare a turnout against — not who actually came, and not what the same opening drew a
+    year ago.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from django.utils import timezone as tz
+        from gallery.models import EventRsvp
+        self.rsvp_model = EventRsvp
+        self.site = Site.objects.create(name='120710', slug='120710',
+                                        status=Site.STATUS_PUBLISHED)
+        today = tz.now().date()
+        self.show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=today - datetime.timedelta(days=400), end=today + datetime.timedelta(days=30))
+        self.show.sites.add(self.site)
+        self.soon = Event.objects.create(
+            name='Opening Reception', show=self.show, date=today + datetime.timedelta(days=5),
+            start=datetime.time(18, 0), end=datetime.time(21, 0))
+        self.past = Event.objects.create(
+            name='Last Month Opening', show=self.show, date=today - datetime.timedelta(days=20),
+            start=datetime.time(18, 0), end=datetime.time(21, 0))
+        for event in (self.soon, self.past):
+            for i, (response, party) in enumerate(
+                    [('yes', 2), ('yes', 3), ('maybe', 1), ('no', 1)]):
+                self.rsvp_model.objects.create(
+                    event=event, email=f'p{i}@{event.pk}.example.com', name=f'Person {i}',
+                    response=response, party_size=party)
+        self.curator = User.objects.create_user(username='cur@example.com',
+                                                email='cur@example.com', password='pw')
+        self.curator.groups.add(Group.objects.get_or_create(name='curator')[0])
+
+    def _as_curator(self):
+        self.client.force_login(self.curator)
+
+    def test_past_events_keep_their_replies(self):
+        self._as_curator()
+        page = self.client.get(reverse('gallery:visit_list')).content.decode()
+        self.assertIn('Past events', page)
+        self.assertIn(self.past.name, page)
+        # And the heads, which is the number worth comparing against the door.
+        self.assertIn('Last Month Opening', page.split('Past events')[1])
+
+    def test_the_upcoming_and_past_lists_are_the_same_markup(self):
+        """One partial, so a column added for tonight's opening is there for last year's too."""
+        self._as_curator()
+        page = self.client.get(reverse('gallery:visit_list')).content.decode()
+        upcoming, past = page.split('Past events')
+        for marker in ('Person 0', 'p0@', 'rsvps.csv?event='):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, upcoming)
+                self.assertIn(marker, past)
+
+    def test_the_csv_is_gated_like_the_page(self):
+        from django.contrib.auth.models import Group
+        url = reverse('gallery:rsvp_csv')
+        self.assertEqual(self.client.get(url).status_code, 302)  # signed out
+        artist = User.objects.create_user(username='a@example.com', email='a@example.com',
+                                          password='pw')
+        artist.groups.add(Group.objects.get_or_create(name='artist')[0])
+        self.client.force_login(artist)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self._as_curator()
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_the_csv_covers_every_event_and_one_on_request(self):
+        self._as_curator()
+        every = self.client.get(reverse('gallery:rsvp_csv')).content.decode()
+        self.assertEqual(len(every.strip().splitlines()), 9)  # header + 4 + 4
+        self.assertIn(self.past.name, every)
+
+        one = self.client.get(reverse('gallery:rsvp_csv'), {'event': self.soon.pk})
+        body = one.content.decode()
+        self.assertEqual(len(body.strip().splitlines()), 5)
+        self.assertNotIn(self.past.name, body)
+        self.assertIn('rsvps-opening-reception.csv', one['Content-Disposition'])
+
+    def test_a_reply_cannot_smuggle_a_formula_into_a_spreadsheet(self):
+        """Name and note come from a public form, and Excel runs a cell starting = or + when
+        the file is opened. The whole reason this export is dangerous is that it is opened."""
+        self._as_curator()
+        self.rsvp_model.objects.create(event=self.soon, email='x@example.com',
+                                 name='=HYPERLINK("http://evil","click")',
+                                 response='yes', party_size=1, note='+1+1')
+        body = self.client.get(reverse('gallery:rsvp_csv')).content.decode()
+        self.assertIn('\'=HYPERLINK', body)
+        self.assertIn("'+1+1", body)
+        self.assertNotIn(',=HYPERLINK', body)
+
+    def test_the_csv_is_never_cached_or_indexed(self):
+        self._as_curator()
+        response = self.client.get(reverse('gallery:rsvp_csv'))
+        self.assertEqual(response['Cache-Control'], 'private, no-store')
+        self.assertIn('noindex', response['X-Robots-Tag'])
+        self.assertIn('attachment', response['Content-Disposition'])
+
+    def test_a_decline_exports_no_party_size(self):
+        """Same arithmetic as the page: a decline with four guests is a contradiction."""
+        self._as_curator()
+        body = self.client.get(reverse('gallery:rsvp_csv'),
+                               {'event': self.soon.pk}).content.decode()
+        declined = [ln for ln in body.splitlines() if "Can't make it" in ln][0]
+        self.assertRegex(declined, r"Can't make it,Person 3,[^,]+,,")
+
+
 class ShortDateTests(TestCase):
     """Dates drop the year when it is this one.
 

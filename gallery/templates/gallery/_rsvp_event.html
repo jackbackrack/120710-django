@@ -1,0 +1,32 @@
+{% comment %}
+One event's replies on the staff page, used for both the upcoming list and the past one.
+
+Expects `e`. Pass `collapsed` for past events, where the headline is the number and the names
+are only occasionally wanted — a season of openings expanded in full would bury the upcoming
+one this page exists to show.
+{% endcomment %}
+{% load site_tags %}
+<div class="mb-3">
+  <div class="fw-semibold">
+    <a href="{{ e.get_absolute_url }}">{{ e.name }}</a>
+    <span class="text-muted small">{{ e.date|date:"D" }} {{ e.date|short_date }} &middot; {{ e.time_range }}</span>
+    <a class="small ms-2" href="{% url 'gallery:rsvp_csv' %}?event={{ e.pk }}">CSV</a>
+  </div>
+  <div class="small">
+    <strong>{{ e.rsvp_count }}</strong> {% if collapsed %}said yes{% else %}coming{% endif %}{% if e.rsvp_maybe_count %}, {{ e.rsvp_maybe_count }} maybe{% endif %}
+  </div>
+  {% if collapsed %}<details><summary class="card__link small">Who replied</summary>{% endif %}
+  <table class="table table-sm mb-0">
+    <tbody>
+      {% for r in e.rsvps.all %}
+      <tr class="{% if r.response == 'no' %}text-muted{% endif %}">
+        <td style="width:6rem">{{ r.get_response_display }}</td>
+        <td>{{ r.name }} <a class="small" href="mailto:{{ r.email }}">{{ r.email }}</a></td>
+        <td class="text-end">{% if r.response != 'no' %}{{ r.party_size }}{% endif %}</td>
+        <td class="small text-muted">{{ r.note|default:"" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if collapsed %}</details>{% endif %}
+</div>

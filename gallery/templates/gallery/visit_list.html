@@ -57,30 +57,25 @@
     Replies to upcoming events, so the gallery knows what to cater for. Read-only like the rest
     of this page: the reply belongs to the person who made it, and they have a link of their own.
   {% endcomment %}
-  <h5>Event replies</h5>
+  <h5>
+    Event replies
+    <a class="small fw-normal ms-2" href="{% url 'gallery:rsvp_csv' %}">CSV, all events</a>
+  </h5>
   {% for e in rsvp_events %}
-  <div class="mb-3">
-    <div class="fw-semibold">
-      <a href="{{ e.get_absolute_url }}">{{ e.name }}</a>
-      <span class="text-muted small">{{ e.date|date:"D j M" }} · {{ e.time_range }}</span>
-    </div>
-    <div class="small">
-      <strong>{{ e.rsvp_count }}</strong> coming{% if e.rsvp_maybe_count %},
-      {{ e.rsvp_maybe_count }} maybe{% endif %}
-    </div>
-    <table class="table table-sm mb-0">
-      <tbody>
-        {% for r in e.rsvps.all %}
-        <tr class="{% if r.response == 'no' %}text-muted{% endif %}">
-          <td style="width:6rem">{{ r.get_response_display }}</td>
-          <td>{{ r.name }} <a class="small" href="mailto:{{ r.email }}">{{ r.email }}</a></td>
-          <td class="text-end">{% if r.response != 'no' %}{{ r.party_size }}{% endif %}</td>
-          <td class="small text-muted">{{ r.note|default:"" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    {% include 'gallery/_rsvp_event.html' with e=e %}
+  {% endfor %}
+  {% endif %}
+
+  {% if past_rsvp_events %}
+  {% comment %}
+    What was said beforehand, kept afterwards. Without this the count vanishes the morning after
+    and there is nothing to compare a night's turnout against — neither who actually came, nor
+    what the same opening drew last year. Collapsed, because the number is the point and the
+    names are the occasional follow-up.
+  {% endcomment %}
+  <h5 class="mt-4">Past events</h5>
+  {% for e in past_rsvp_events %}
+    {% include 'gallery/_rsvp_event.html' with e=e collapsed=True %}
   {% endfor %}
   {% endif %}
 
