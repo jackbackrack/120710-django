@@ -133,7 +133,7 @@ CAMPAIGN_TEMPLATES = {
         # hour is not one. Falls back to the day alone when the show has no event to take it from.
         'subject': 'Opening: {{ show.name }} — '
                    '{% if opening %}{{ opening.date|date:"l j F" }}, '
-                   '{{ opening.start|time:"g:i A" }}'
+                   '{{ opening.time_range }}'
                    '{% else %}{{ show.start|date:"l j F" }}{% endif %}',
     },
     'show_closing.mjml': {
@@ -142,7 +142,7 @@ CAMPAIGN_TEMPLATES = {
         # The last day is the point of the mailing, and the closing event's time is what somebody
         # would act on today — so both, with the event named so its hour is not left dangling.
         'subject': 'Last chance: {{ show.name }} — last day {{ show.end|date:"j F" }}'
-                   '{% if closing %} · {{ closing.name }} {{ closing.start|time:"g:i A" }}'
+                   '{% if closing %} · {{ closing.name }} {{ closing.time_range }}'
                    '{% endif %}',
     },
 }

@@ -49,7 +49,7 @@ other.
   <mj-column>
     <mj-text font-size="18px" line-height="1.7" padding="8px 0">
       📅 Last day: {{ show.end|date:"l, j F" }}<br />
-      {% if closing %}🕓 {{ closing.name }}{% if closing.date != show.end %}, {{ closing.date|date:"l, j F" }}{% endif %}, {{ closing.start|time:"g:i A" }}–{{ closing.end|time:"g:i A" }}<br />{% endif %}
+      {% if closing %}🕓 {{ closing.name }}{% if closing.date != show.end %}, {{ closing.date|date:"l, j F" }}{% endif %}, {{ closing.time_range }}<br />{% endif %}
       📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
     </mj-text>
   </mj-column>

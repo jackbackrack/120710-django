@@ -1404,7 +1404,7 @@ class CampaignStaffPagesTests(TestCase):
         for fact in ('📅', '🕓', '📍'):
             self.assertIn(fact, html)
         self.assertIn('Saturday, 25 July', html)
-        self.assertIn('4:00 PM', html)
+        self.assertIn('4:00–8:00 PM', html)
 
     # --- Subject lines ---
 
@@ -1491,6 +1491,34 @@ class CampaignStaffPagesTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('will not render', str(form.errors['subject']))
 
+    def test_an_event_always_shows_both_ends_of_its_hours(self):
+        """A start time alone does not tell anybody whether they can still come at seven."""
+        import datetime as dt
+        from gallery.models import Event as E
+        cases = {
+            ((16, 0), (20, 0)): '4:00–8:00 PM',
+            ((18, 30), (21, 0)): '6:30–9:00 PM',
+            ((9, 0), (11, 30)): '9:00–11:30 AM',
+            # Across noon the start needs its own meridiem or it reads as the wrong half of
+            # the day.
+            ((11, 0), (14, 0)): '11:00 AM–2:00 PM',
+            ((12, 0), (13, 0)): '12:00–1:00 PM',
+        }
+        for (a, b), expected in cases.items():
+            with self.subTest(hours=(a, b)):
+                event = E(start=dt.time(*a), end=dt.time(*b))
+                self.assertEqual(event.time_range, expected)
+
+    def test_no_campaign_surface_shows_a_bare_start_time(self):
+        """Subjects, bodies and the events list all take their hours from one place."""
+        import re
+        for path in ('templates/email/campaigns/show_opening.mjml',
+                     'templates/email/campaigns/show_closing.mjml'):
+            with self.subTest(path=path):
+                source = open(path).read()
+                self.assertNotIn('start|time', source,
+                                 'use {{ event.time_range }} so both ends are shown')
+
     def test_the_default_subjects_carry_the_event_times(self):
         """An opening is an invitation, and "Saturday" without an hour is not one."""
         from gallery.models import Campaign
@@ -1504,13 +1532,13 @@ class CampaignStaffPagesTests(TestCase):
             site=self.site, show=show, template_name='show_opening.mjml',
             subject=template_subject('show_opening.mjml'))
         self.assertEqual(opening.rendered_subject,
-                         'Opening: Full-Feel — Saturday 25 July, 4:00 PM')
+                         'Opening: Full-Feel — Saturday 25 July, 4:00–8:00 PM')
 
         closing = Campaign.objects.create(
             site=self.site, show=show, template_name='show_closing.mjml',
             subject=template_subject('show_closing.mjml'))
         self.assertEqual(closing.rendered_subject,
-                         'Last chance: Full-Feel — last day 30 August · Closing Party 5:00 PM')
+                         'Last chance: Full-Feel — last day 30 August · Closing Party 5:00–8:00 PM')
 
     def test_a_subject_falls_back_to_the_day_when_a_show_has_no_events(self):
         from gallery.models import Campaign, Show
@@ -8545,7 +8573,7 @@ class CampaignTests(TestCase):
         html = campaigns.render_preview(campaign)
         # The time comes from the event, which is the whole point — the heading already says
         # "Opening", so the template does not repeat the event's name under it.
-        self.assertIn('6:00 PM', html)
+        self.assertIn('6:00–9:00 PM', html)
         self.assertIn('Friday, 4 September', html)
         # And the later event is listed rather than presented as the opening.
         self.assertIn('Artist Talk', html)

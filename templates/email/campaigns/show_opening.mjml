@@ -52,7 +52,7 @@ rendering a hole where the invitation should be.
   <mj-column>
     <mj-text font-size="18px" line-height="1.7" padding="8px 0">
       📅 {% if opening %}{{ opening.date|date:"l, j F" }}{% else %}{{ show.start|date:"l, j F" }}{% endif %}<br />
-      {% if opening %}🕓 {{ opening.start|time:"g:i A" }}–{{ opening.end|time:"g:i A" }}<br />{% endif %}
+      {% if opening %}🕓 {{ opening.time_range }}<br />{% endif %}
       📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
     </mj-text>
     {% comment %}
@@ -122,7 +122,7 @@ sentence about one piece. This is what stops a reusable format meaning identical
     <mj-text font-weight="bold" font-size="14px" padding="8px 0 4px">Also on</mj-text>
     {% for event in events %}{% if not forloop.first %}
     <mj-text font-size="14px" padding="2px 0">
-      {{ event.date|date:"j F" }} · {{ event.start|time:"g:i A" }} — {{ event.name }}
+      {{ event.date|date:"j F" }} · {{ event.time_range }} — {{ event.name }}
     </mj-text>
     {% endif %}{% endfor %}
   </mj-column>

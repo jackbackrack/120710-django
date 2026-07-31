@@ -311,8 +311,14 @@ answer is a new field on the campaign feeding a fixed layout — not editable te
       → Last chance: Full-Feel closes 30 August
 
 That closes the last place a mailing could contradict itself — one date in the subject and a
-different one three lines down. The defaults carry the **event time** as well as the day: an
-opening is an invitation, and "Saturday" without an hour is not one.
+different one three lines down. The defaults carry the **event hours** as well as the
+day: an opening is an invitation, and "Saturday" without an hour is not one — nor is a start time
+without an end, which does not tell anybody whether they can still come at seven.
+
+Hours come from `Event.time_range` everywhere — subject, body and events list — so there is one
+implementation. It is a model property rather than a template filter because a *subject* needs it
+too, and subjects allow `{{ }}` only. It reads `4:00–8:00 PM`, dropping the meridiem from the
+start when both ends share it and keeping it when they do not (`11:00 AM–2:00 PM`).
 
 The most important words come first, because inboxes truncate the tail: `Last chance: Full-Feel`
 survives a 40-character preview even though the whole line is longer. Each template in `CAMPAIGN_TEMPLATES` carries a default subject,
