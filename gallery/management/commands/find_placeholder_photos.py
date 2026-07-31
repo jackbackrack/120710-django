@@ -26,8 +26,14 @@ class Command(BaseCommand):
         parser.add_argument('--show', help='Only artists in this show (slug).')
         parser.add_argument('--clear', action='store_true',
                             help='Blank the offending photos, so the requirement applies again.')
+        parser.add_argument('--recent', type=int, metavar='DAYS',
+                            help='Also report artists created in the last DAYS, with what photo '
+                                 'they have — the check for whether new signups are being asked '
+                                 'for one.')
 
     def handle(self, *args, **options):
+        if options['recent']:
+            self._recent(options['recent'])
         artists = Artist.objects.exclude(image='').exclude(image__isnull=True)
         if options['show']:
             artists = artists.filter(artworks__shows__slug=options['show']).distinct()
@@ -77,3 +83,31 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'Cleared {len(found)} photo(s). Those artists will be asked for one when they next '
             f'edit their profile or submit.'))
+
+    def _recent(self, days):
+        """Who has signed up lately and what photo they arrived with.
+
+        The check that the policy is doing what it should: since Google pictures stopped being
+        imported, a new artist should have either a photo they uploaded or none at all. A file
+        named google-* among recent signups would mean the import is still happening somewhere.
+        """
+        import datetime
+
+        from django.utils import timezone
+
+        since = timezone.now() - datetime.timedelta(days=days)
+        recent = Artist.objects.filter(created_at__gte=since).order_by('created_at')
+        self.stdout.write(f'Artists created in the last {days} day(s): {recent.count()}')
+        for artist in recent:
+            name = artist.image.name if artist.image else ''
+            if not name:
+                state = 'no photo yet — will be asked for one'
+            elif 'google-' in name:
+                state = self.style.ERROR('GOOGLE-IMPORTED — the import is still running')
+            else:
+                state = 'uploaded'
+            self.stdout.write(f'  {artist.created_at:%Y-%m-%d}  {artist.name[:28]:<30} {state}')
+        if not recent:
+            self.stdout.write('  (none — nothing to conclude either way)')
+        self.stdout.write('')
+

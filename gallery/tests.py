@@ -822,21 +822,40 @@ class SubmissionOnboardingTests(TestCase):
         self.assertTrue(any(self.submit_url in u for u in visited), visited)
 
     def test_a_google_signup_is_still_asked_for_a_photo(self):
-        """The picture Google offers is not taken, deliberately.
+        """Drives the real adapter, not a stand-in for it.
 
-        An account with no picture of its own still has one — a monogram — and importing it met
-        the requirement without producing a photograph, so the gallery ended up chasing a real
-        one after acceptance anyway. Even a genuine Google photo is one the artist never chose
-        for this; it is printed beside their work.
+        Asserting that a function has been deleted proves the deletion, not the behaviour — a
+        second copy of the import elsewhere, or a signal doing the same thing, would pass that
+        and still hand the artist a monogram. This goes through the adapter allauth actually
+        calls, with a sociallogin carrying a picture, and looks at what the artist ends up with.
         """
-        import inspect
-        from eatart import account_adapter
+        from unittest import mock
 
-        source = inspect.getsource(account_adapter)
-        self.assertNotIn('import_google_avatar', source)
+        from allauth.socialaccount.models import SocialAccount, SocialLogin
 
-        from accounts import signup
-        self.assertFalse(hasattr(signup, 'import_google_avatar'))
+        from eatart.account_adapter import SocialAccountAdapter
+
+        picture = 'https://lh3.googleusercontent.com/a/monogram=s96-c'
+        user = User(username='gg@example.com', email='gg@example.com')
+        account = SocialAccount(provider='google', uid='123', extra_data={
+            'email': 'gg@example.com', 'given_name': 'Gina', 'family_name': 'Google',
+            'picture': picture,
+        })
+        sociallogin = SocialLogin(user=user, account=account)
+
+        request = self.client.request().wsgi_request
+        request.session = self.client.session
+
+        # If anything still reached for the picture this would fire.
+        with mock.patch('requests.get', side_effect=AssertionError(
+                'the signup fetched the Google picture')) as fetched:
+            SocialAccountAdapter().save_user(request, sociallogin)
+
+        self.assertFalse(fetched.called, 'nothing should fetch the Google picture')
+        artist = Artist.objects.get(email='gg@example.com')
+        self.assertFalse(artist.image, 'a Google signup must still be asked for a photo')
+        # And the rest of the profile still arrives, so this did not simply break signup.
+        self.assertEqual((artist.first_name, artist.last_name), ('Gina', 'Google'))
 
     def test_missing_catalogue_assets_reported_to_the_curator(self):
         staff = User.objects.create_user(
