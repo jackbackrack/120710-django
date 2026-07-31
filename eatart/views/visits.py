@@ -58,17 +58,22 @@ def book_visit(request, site_slug=None):
             engine.confirm_to_visitor(visit, request=request)
             engine.notify_gallery(visit, request=request)
             logger.info('Visit %s booked at %s for %s', visit.pk, site.slug, visit.when)
-            return render(request, 'visits/booked.html', {
-                'site': site, 'visit': visit, 'when': visit.when.astimezone(tz)})
+            with dj_timezone.override(tz):
+                return render(request, 'visits/booked.html', {
+                    'site': site, 'visit': visit, 'when': visit.when.astimezone(tz)})
     else:
         form = VisitForm()
 
-    return render(request, 'visits/book.html', {
-        'site': site,
-        'form': form,
-        'days': engine.available(site),
-        'timezone': tz.key,
-    })
+    # Rendered in the venue's zone. TIME_ZONE is UTC and USE_TZ is on, so Django converts every
+    # aware datetime to UTC for display — which turned a noon opening in Berkeley into a 7pm slot
+    # on the page. The datetimes were right all along; only the rendering was wrong.
+    with dj_timezone.override(tz):
+        return render(request, 'visits/book.html', {
+            'site': site,
+            'form': form,
+            'days': engine.available(site),
+            'timezone': tz.key,
+        })
 
 
 def cancel_visit(request, token):
@@ -92,7 +97,8 @@ def cancel_visit(request, token):
         engine.notify_gallery(visit, method='CANCEL', request=request)
         logger.info('Visit %s cancelled by the visitor', visit.pk)
 
-    return render(request, 'visits/cancelled.html', {
-        'visit': visit, 'site': visit.site, 'when': visit.when.astimezone(tz),
-        'done': visit.is_cancelled,
-    })
+    with dj_timezone.override(tz):
+        return render(request, 'visits/cancelled.html', {
+            'visit': visit, 'site': visit.site, 'when': visit.when.astimezone(tz),
+            'done': visit.is_cancelled,
+        })

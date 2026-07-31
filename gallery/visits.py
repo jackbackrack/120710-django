@@ -198,8 +198,14 @@ def invitation(visit, method='REQUEST', domain='120710.art', request=None):
     return '\r\n'.join(folded) + '\r\n'
 
 
-def _send(subject, to, template, context, ics=None, method='REQUEST'):
-    html = render_to_string(template, context)
+def _send(subject, to, template, context, ics=None, method='REQUEST', tz=None):
+    # Rendered in the venue's zone. TIME_ZONE is UTC, so without this Django converts every time
+    # in the message to UTC and the visitor is told to arrive seven hours late.
+    if tz is not None:
+        with dj_timezone.override(tz):
+            html = render_to_string(template, context)
+    else:
+        html = render_to_string(template, context)
     message = EmailMultiAlternatives(
         subject=subject, body=strip_tags(html),
         from_email=settings.DEFAULT_FROM_EMAIL, to=[to])
@@ -228,7 +234,8 @@ def notify_gallery(visit, method='REQUEST', request=None):
             to=to, template='email/visit_gallery.html',
             context={'visit': visit, 'site': site, 'cancelled': method == 'CANCEL',
                      'when': visit.when.astimezone(site_timezone(site))},
-            ics=invitation(visit, method=method, request=request), method=method)
+            ics=invitation(visit, method=method, request=request), method=method,
+            tz=site_timezone(site))
     except Exception:   # noqa: BLE001 — the visitor has already been told this worked
         logger.exception('Could not send the gallery a %s for visit %s', method, visit.pk)
 
@@ -247,6 +254,7 @@ def confirm_to_visitor(visit, request=None):
                     reverse('visit_cancel', kwargs={'token': cancel_token(visit)}), request),
                 'maps_url': site.maps_url,
             },
-            ics=invitation(visit, method='PUBLISH', request=request), method='PUBLISH')
+            ics=invitation(visit, method='PUBLISH', request=request), method='PUBLISH',
+            tz=site_timezone(site))
     except Exception:   # noqa: BLE001
         logger.exception('Could not confirm visit %s to %s', visit.pk, visit.email)

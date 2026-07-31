@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
+{% load tz %}
 {% block title %}Visits{% endblock %}
 {% block block_title %}Visits{% endblock %}
 {% block content %}
+{% localtime off %}
 {% comment %}
   Read-only. A visit belongs to the visitor, who has a cancellation link; a gallery quietly
   deleting somebody's booking with no word to them would be worse than emailing to say sorry.
@@ -43,4 +45,5 @@
   </table>
   {% endif %}
 </div>
+{% endlocaltime %}
 {% endblock %}

@@ -2160,6 +2160,72 @@ class VisitBookingTests(TestCase):
         self.assertContains(r, 'that time has just gone')
         self.assertEqual(Visit.objects.count(), 0)
 
+    # --- Timezones ---
+
+    def test_slots_are_shown_in_the_venues_own_time(self):
+        """TIME_ZONE is UTC and USE_TZ is on, so Django converts every aware datetime to UTC for
+        display unless told otherwise — which turned a noon opening in Berkeley into a 7pm slot
+        on the page. The datetimes were right; only the rendering was wrong.
+        """
+        from gallery.models import OpeningHours
+        OpeningHours.objects.all().delete()
+        for weekday in range(7):
+            OpeningHours.objects.create(site=self.site, weekday=weekday,
+                                        start=datetime.time(12, 0), end=datetime.time(17, 0))
+
+        page = self.client.get(reverse('book_visit')).content.decode()
+        self.assertIn('12:00 PM', page)
+        # 12:00 in Berkeley is 19:00 UTC. Seeing that on the page is the bug.
+        self.assertNotIn('7:00 PM', page)
+        self.assertNotIn('11:30 PM', page)
+        self.assertIn('America/Los_Angeles', page)
+
+    def test_the_confirmation_page_and_emails_agree_with_the_slot(self):
+        """A visitor told one time on the page and another by email arrives at neither."""
+        from gallery.models import OpeningHours
+        OpeningHours.objects.all().delete()
+        for weekday in range(7):
+            OpeningHours.objects.create(site=self.site, weekday=weekday,
+                                        start=datetime.time(12, 0), end=datetime.time(17, 0))
+        slot = self._first_slot()
+        shown = slot.strftime('%-I:%M %p')
+
+        response = self._book(slot)
+        self.assertContains(response, shown)
+        visitor = next(m for m in mail.outbox if m.to == ['ana@example.com'])
+        html = next(b for b, kind in visitor.alternatives if kind == 'text/html')
+        self.assertIn(shown, html)
+        gallery = next(m for m in mail.outbox if m.to == ['info@120710.art'])
+        gallery_html = next(b for b, kind in gallery.alternatives if kind == 'text/html')
+        self.assertIn(shown, gallery_html)
+
+    def test_the_calendar_invitation_carries_the_right_instant(self):
+        """The .ics is in UTC by design — that part was never wrong, and must stay right."""
+        from gallery import visits as engine
+        from gallery.models import Visit
+        self._book()
+        visit = Visit.objects.get()
+        ics = engine.invitation(visit)
+        expected = visit.when.astimezone(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+        self.assertIn(f'DTSTART:{expected}', ics)
+
+    def test_the_staff_list_shows_each_venues_own_time(self):
+        """It spans venues, so activating one zone would not do — each row is pre-converted."""
+        from gallery.models import OpeningHours
+        OpeningHours.objects.all().delete()
+        for weekday in range(7):
+            OpeningHours.objects.create(site=self.site, weekday=weekday,
+                                        start=datetime.time(12, 0), end=datetime.time(17, 0))
+        slot = self._first_slot()
+        self._book(slot)
+
+        staff = User.objects.create_user(username='tz@example.com', email='tz@example.com',
+                                         password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:visit_list')).content.decode()
+        self.assertIn(slot.strftime('%-I:%M %p'), page)
+
     # --- Emails ---
 
     def test_booking_emails_the_visitor_and_the_gallery(self):

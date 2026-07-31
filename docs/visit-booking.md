@@ -88,6 +88,29 @@ routes is Google's per-calendar **"Secret address in iCal format"** fetched serv
 at all — and staleness is tolerable precisely because a missed busy block costs one declined visit
 rather than a collision.
 
+## Timezones
+
+`TIME_ZONE` is `UTC` and `USE_TZ` is on, so **Django converts every aware datetime to UTC when a
+template renders it** unless something says otherwise. Slots are built correctly in the venue's
+zone and were then displayed in UTC — a noon opening in Berkeley appeared as a 7pm slot. The
+datetimes were never wrong; only the rendering was.
+
+Two fixes, because there are two situations:
+
+- **Single-venue pages and emails** — the booking page, the confirmation, the cancel page and both
+  messages render inside `timezone.override(site_timezone(site))`. Every `{{ }}` in them is then
+  in the venue's zone without per-template ceremony.
+- **The staff visits list** — it spans venues, so no single zone is right. Each row is converted
+  before it reaches the template and the page uses `{% localtime off %}` so Django leaves the
+  already-correct values alone.
+
+The `.ics` is a separate matter and was always correct: `DTSTART`/`DTEND` are absolute UTC
+instants, which is what a calendar wants. A test pins that too, so fixing the display cannot
+quietly break the invitation.
+
+Anything added here that shows a time needs one of those two treatments. The booking page also
+names the zone it is showing, so a visitor in another one is not guessing.
+
 ## Settings, per venue
 
 | Field | Default | |
