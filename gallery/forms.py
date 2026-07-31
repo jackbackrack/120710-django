@@ -536,6 +536,63 @@ class WallObstacleForm(forms.ModelForm):
         }
 
 
+class OpeningHoursForm(forms.ModelForm):
+    class Meta:
+        from gallery.models import OpeningHours
+        model = OpeningHours
+        fields = ('weekday', 'start', 'end', 'by_appointment')
+        widgets = {
+            'start': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'end': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get('start'), cleaned.get('end')
+        # Rejected rather than silently swapped: "6pm to 11am" is far more likely to be a typo
+        # for 6pm–11pm than a genuine overnight opening, and a gallery does not run past
+        # midnight. Caught here, or the slot generator would produce an empty or absurd day.
+        if start and end and end <= start:
+            raise forms.ValidationError('The closing time has to be after the opening time.')
+        return cleaned
+
+
+class SiteClosureForm(forms.ModelForm):
+    class Meta:
+        from gallery.models import SiteClosure
+        model = SiteClosure
+        fields = ('start_date', 'end_date', 'note')
+        widgets = {
+            'start_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'end_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get('start_date'), cleaned.get('end_date')
+        if start and end and end < start:
+            raise forms.ValidationError('The last day closed cannot be before the first.')
+        return cleaned
+
+
+def _make_hours_formset(**kwargs):
+    from django.forms import inlineformset_factory
+    from gallery.models import OpeningHours, Site
+    return inlineformset_factory(
+        Site, OpeningHours, form=OpeningHoursForm,
+        extra=kwargs.pop('extra', 3), can_delete=True,
+    )
+
+
+def _make_closure_formset(**kwargs):
+    from django.forms import inlineformset_factory
+    from gallery.models import Site, SiteClosure
+    return inlineformset_factory(
+        Site, SiteClosure, form=SiteClosureForm,
+        extra=kwargs.pop('extra', 1), can_delete=True,
+    )
+
+
 def _make_obstacle_formset(**kwargs):
     from django.forms import inlineformset_factory
     from gallery.models.room import RoomConfig, WallObstacle

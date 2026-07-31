@@ -20,9 +20,9 @@ Please contact us if you would like more information.
 {% if info_site.email %}<b>email:</b> <a href="mailto:{{ info_site.email }}">{{ info_site.email }}</a><br>{% endif %}
 {% if info_site.phone %}<b>phone:</b> <a href="tel:{{ info_site.phone }}">{{ info_site.phone }}</a><br>{% endif %}
 
-{% if info_site.hours %}
+{% if info_site.hours_display %}
 <h2>Gallery Hours</h2>
-{{ info_site.hours }}
+{{ info_site.hours_display }}
 <br>
 {% endif %}
 

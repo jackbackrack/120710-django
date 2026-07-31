@@ -7,6 +7,7 @@ from django.urls import reverse
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit, Transpose
 
+from gallery import timeranges
 from gallery.models.slugs import build_unique_slug
 
 
@@ -166,6 +167,76 @@ class Site(models.Model):
         lines = [l for l in [self.street, city_line, country] if l]
         return '\n'.join(lines)
 
+    # ── Opening hours ────────────────────────────────────────────────────────
+
+    def open_periods_on(self, day, include_appointment=True):
+        """The blocks this venue is open on one date, closures already removed.
+
+        The primitive everything else is built on — the display text, the schema.org output and,
+        eventually, the visit scheduler's list of candidate slots. Returns [] for a closed day,
+        which is the same answer as "no hours recorded"; a venue that has entered nothing is
+        indistinguishable from one that is never open, and neither should be offered a slot.
+        """
+        if any(closure.covers(day) for closure in self.closures.all()):
+            return []
+        blocks = [b for b in self.opening_hours.all() if b.weekday == day.weekday()]
+        if not include_appointment:
+            blocks = [b for b in blocks if not b.by_appointment]
+        return sorted(blocks, key=lambda b: b.start)
+
+    def is_open_on(self, day):
+        """Open to the public, walk-in — appointment-only does not count as open."""
+        return bool(self.open_periods_on(day, include_appointment=False))
+
+    def closure_on(self, day):
+        return next((c for c in self.closures.all() if c.covers(day)), None)
+
+    @property
+    def has_structured_hours(self):
+        return self.opening_hours.exists()
+
+    @property
+    def hours_display(self):
+        """Opening hours as a line a visitor can read, from the structured blocks.
+
+        Falls back to the free-text `hours` field when nothing structured has been entered, so a
+        venue that has not been touched reads exactly as it did before. Structured wins once it
+        exists, because two sources that can disagree will.
+        """
+        blocks = list(self.opening_hours.all())
+        if not blocks:
+            return self.hours
+
+        # Grouped by identical hours so a week of the same times is one line rather than seven.
+        grouped = {}
+        for block in blocks:
+            grouped.setdefault((block.start, block.end, block.by_appointment), []).append(
+                block.weekday)
+
+        # Drop-in hours before appointment-only ones: the first is what anybody can act on
+        # today, and leading with "by appointment" reads like the gallery is shut.
+        parts = []
+        for (start, end, by_appointment), days in sorted(
+                grouped.items(), key=lambda item: (item[0][2], min(item[1]), item[0][0])):
+            line = f'{timeranges.weekday_ranges(days)} {timeranges.time_range(start, end)}'
+            parts.append(f'{line} by appointment' if by_appointment else line)
+        return ' · '.join(parts)
+
+    @property
+    def schema_opening_hours(self):
+        """schema.org `openingHours`, e.g. ["Su 13:00-16:00"].
+
+        Drop-in hours only. Telling a search engine a venue is open when the door is locked
+        unless you rang ahead is worse than telling it nothing.
+        """
+        out = []
+        for block in self.opening_hours.all():
+            if block.by_appointment:
+                continue
+            day = timeranges.WEEKDAY_SCHEMA[block.weekday]
+            out.append(f'{day} {block.start.strftime("%H:%M")}-{block.end.strftime("%H:%M")}')
+        return out
+
     @property
     def maps_url(self):
         """A link that opens this address in a map, or '' if there is no address.
@@ -196,3 +267,77 @@ class Site(models.Model):
 
     def get_absolute_url(self):
         return reverse('gallery:site_detail', kwargs={'slug': self.slug})
+
+
+class OpeningHours(models.Model):
+    """One recurring block of time a venue is open, on one weekday.
+
+    Replaces reading opening hours out of a sentence. `Site.hours` is prose — "Sun 1-4p or by
+    Appt MWF 12-6p" — which is fine for a human and useless to anything that has to decide
+    whether a Tuesday at 3pm is bookable. Parsing it was never an option: the first venue to
+    write "closed in August" breaks any regex that ever worked.
+
+    `by_appointment` matters because those two kinds of time are genuinely different. A drop-in
+    hour is what schema.org means by `openingHours`; an appointment hour is not open to the
+    public but *is* a slot somebody can ask for, so the visit scheduler wants both and search
+    engines should only see the first.
+    """
+
+    site = models.ForeignKey('gallery.Site', on_delete=models.CASCADE,
+                             related_name='opening_hours')
+    # 0 is Monday, matching datetime.date.weekday(), so "is the gallery open on this date" is an
+    # integer comparison rather than a name lookup.
+    weekday = models.IntegerField(
+        choices=[(i, name) for i, name in enumerate(timeranges.WEEKDAYS)])
+    start = models.TimeField()
+    end = models.TimeField()
+    by_appointment = models.BooleanField(
+        default=False, verbose_name='By appointment only',
+        help_text='Not open to the public at this time, but visits can be arranged. Left out of '
+                  'what search engines are told, and offered by the visit scheduler.')
+
+    class Meta:
+        ordering = ['weekday', 'start']
+        verbose_name_plural = 'opening hours'
+        constraints = [
+            models.UniqueConstraint(fields=['site', 'weekday', 'start', 'end'],
+                                    name='unique_opening_block'),
+        ]
+
+    def __str__(self):
+        suffix = ' by appointment' if self.by_appointment else ''
+        return (f'{self.site.name} {timeranges.WEEKDAY_ABBR[self.weekday]} '
+                f'{self.time_range}{suffix}')
+
+    @property
+    def time_range(self):
+        return timeranges.time_range(self.start, self.end)
+
+
+class SiteClosure(models.Model):
+    """A date range a venue is shut regardless of its usual hours.
+
+    Without this the scheduler cheerfully offers Christmas Day, and the only way to prevent it is
+    to delete the opening hours and remember to put them back.
+    """
+
+    site = models.ForeignKey('gallery.Site', on_delete=models.CASCADE,
+                             related_name='closures')
+    start_date = models.DateField()
+    # Inclusive, because "closed 24–26 December" is how anybody says it, and an exclusive end
+    # date is the kind of off-by-one nobody notices until the door is locked.
+    end_date = models.DateField(help_text='Inclusive — the last day closed.')
+    note = models.CharField(max_length=255, blank=True, default='',
+                            help_text='Shown to visitors, e.g. "Between shows".')
+
+    class Meta:
+        ordering = ['start_date']
+        verbose_name_plural = 'closures'
+
+    def __str__(self):
+        span = (f'{self.start_date}' if self.start_date == self.end_date
+                else f'{self.start_date}–{self.end_date}')
+        return f'{self.site.name} closed {span}'
+
+    def covers(self, day):
+        return self.start_date <= day <= self.end_date

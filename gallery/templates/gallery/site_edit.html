@@ -9,6 +9,7 @@
   {{ form|crispy }}
   <button type="button" class="btn btn-outline-secondary btn-sm" id="geocode-btn">Look up coordinates from address</button>
   <span id="geocode-status" class="ms-2 text-muted small"></span>
+  {% include 'gallery/_opening_hours_form.html' %}
   {% include 'gallery/_room_config_form.html' %}
   {% comment %}
     A block with its own top margin, not a <br>. Both this and "+ Add support row" above

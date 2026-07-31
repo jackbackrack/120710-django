@@ -9,9 +9,9 @@ from gallery.models.logistics import ArtistSchedule, ScheduleWindow
 from gallery.models.people import Artist
 from gallery.models.room import RoomConfig, ShowLayoutSnapshot, SiteSupport, Support, WallObstacle, WallPlacement
 from gallery.models.show_artwork_numbers import ShowArtworkNumber
-from gallery.models.sites import Site
+from gallery.models.sites import OpeningHours, Site, SiteClosure
 from gallery.models.submissions import ArtworkSubmission
 from gallery.models.tags import Tag
 
-__all__ = ['Artist', 'Campaign', 'CampaignDelivery', 'ArtistSchedule', 'Artwork', 'ArtworkImage', 'ArtworkSubmission', 'CollectionPiece', 'LinkTreeEntry',
+__all__ = ['Artist', 'Campaign', 'CampaignDelivery', 'ArtistSchedule', 'Artwork', 'ArtworkImage', 'ArtworkSubmission', 'CollectionPiece', 'LinkTreeEntry', 'OpeningHours', 'SiteClosure',
     'Subscriber', 'Subscription', 'RoomConfig', 'SavedArtwork', 'ScheduleWindow', 'Show', 'ShowInvitation', 'ShowArtworkNumber', 'ShowLayoutSnapshot', 'Site', 'SiteSupport', 'Event', 'Support', 'Tag', 'WallObstacle', 'WallPlacement']

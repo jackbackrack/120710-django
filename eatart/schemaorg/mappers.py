@@ -61,6 +61,26 @@ def gallery_place() -> PlaceReference:
     )
 
 
+def _opening_hours():
+    """The venue's own hours when it has entered them, the static profile otherwise.
+
+    These used to be a hard-coded list that could — and did — drift from the hours shown on the
+    Visit page, since the two were separate strings maintained by hand. Structured hours make one
+    of them derived.
+    """
+    from django.conf import settings
+
+    from gallery.models import Site
+
+    slug = getattr(settings, 'GALLERY_DEFAULT_SITE_SLUG', None)
+    site = Site.objects.filter(slug=slug).first() if slug else None
+    if site is not None:
+        hours = site.schema_opening_hours
+        if hours:
+            return hours
+    return GALLERY_PROFILE['opening_hours']
+
+
 def gallery_to_schema(request) -> ArtGallery:
     return ArtGallery(
         id=GALLERY_PROFILE['url'],
@@ -71,7 +91,7 @@ def gallery_to_schema(request) -> ArtGallery:
         email=GALLERY_PROFILE['email'],
         telephone=GALLERY_PROFILE['telephone'],
         address=gallery_address(),
-        openingHours=GALLERY_PROFILE['opening_hours'],
+        openingHours=_opening_hours(),
         sameAs=GALLERY_PROFILE['same_as'],
         publicAccess=GALLERY_PROFILE['public_access'],
         isAccessibleForFree=GALLERY_PROFILE['is_accessible_for_free'],

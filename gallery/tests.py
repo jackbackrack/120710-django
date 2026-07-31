@@ -1790,6 +1790,194 @@ class NetworkListDisabledTests(TestCase):
         self.assertTrue(venue.can_send)
 
 
+class OpeningHoursTests(TestCase):
+    """Opening hours as data rather than a sentence.
+
+    `Site.hours` is prose — "Sun 1-4p or by Appt MWF 12-6p" — which is fine for a human and
+    useless to anything deciding whether a Tuesday at three is bookable. These rows are what the
+    Visit page, the campaign footer, the schema.org output and eventually the visit scheduler all
+    read, so that there is one answer rather than three that can drift.
+    """
+
+    def setUp(self):
+        from gallery.models import Site
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            hours='Sun 1-4p or by Appt MWF 12-6p')
+        self.staff = User.objects.create_user(
+            username='hrs@example.com', email='hrs@example.com', password='pw')
+        add_staff_role(self.staff)
+
+    def _hours(self, weekday, start, end, by_appointment=False):
+        from gallery.models import OpeningHours
+        return OpeningHours.objects.create(
+            site=self.site, weekday=weekday, start=datetime.time(*start),
+            end=datetime.time(*end), by_appointment=by_appointment)
+
+    def _reload(self):
+        from gallery.models import Site
+        return Site.objects.get(pk=self.site.pk)
+
+    def test_prose_is_kept_until_something_structured_replaces_it(self):
+        """A venue nobody has touched must read exactly as it did before."""
+        self.assertEqual(self._reload().hours_display, 'Sun 1-4p or by Appt MWF 12-6p')
+        self.assertFalse(self._reload().has_structured_hours)
+
+    def test_structured_hours_win_once_they_exist(self):
+        """Two descriptions of the same hours will eventually disagree, so only one can count."""
+        self._hours(6, (13, 0), (16, 0))
+        display = self._reload().hours_display
+        self.assertEqual(display, 'Sun 1:00–4:00 PM')
+        self.assertNotIn('1-4p', display)
+
+    def test_identical_days_collapse_into_a_range(self):
+        """Seven lines of the same hours is not something anybody reads."""
+        for weekday in range(7):
+            self._hours(weekday, (10, 0), (17, 0))
+        self.assertEqual(self._reload().hours_display, 'Mon–Sun 10:00 AM–5:00 PM')
+
+    def test_days_that_are_not_consecutive_are_listed(self):
+        for weekday in (0, 2, 4):
+            self._hours(weekday, (11, 0), (18, 0))
+        self.assertEqual(self._reload().hours_display, 'Mon, Wed, Fri 11:00 AM–6:00 PM')
+
+    def test_drop_in_hours_are_listed_before_appointment_ones(self):
+        """Leading with "by appointment" reads like the gallery is shut."""
+        for weekday in (0, 2, 4):
+            self._hours(weekday, (11, 0), (18, 0), by_appointment=True)
+        self._hours(6, (13, 0), (16, 0))
+        display = self._reload().hours_display
+        self.assertTrue(display.startswith('Sun 1:00–4:00 PM'), display)
+        self.assertIn('Mon, Wed, Fri 11:00 AM–6:00 PM by appointment', display)
+
+    def test_appointment_hours_are_not_open_to_the_public(self):
+        """Telling a search engine the door is unlocked when it is not is worse than saying
+        nothing."""
+        self._hours(0, (11, 0), (18, 0), by_appointment=True)
+        self._hours(6, (13, 0), (16, 0))
+        site = self._reload()
+        self.assertEqual(site.schema_opening_hours, ['Su 13:00-16:00'])
+        # Monday: arrangeable, not open.
+        self.assertFalse(site.is_open_on(datetime.date(2026, 8, 3)))
+        self.assertTrue(site.open_periods_on(datetime.date(2026, 8, 3)))
+        self.assertFalse(
+            site.open_periods_on(datetime.date(2026, 8, 3), include_appointment=False))
+
+    def test_a_closure_beats_the_usual_hours(self):
+        """Otherwise the only way to shut for a week is to delete the hours and remember to
+        put them back."""
+        from gallery.models import SiteClosure
+        self._hours(6, (13, 0), (16, 0))
+        sunday = datetime.date(2026, 8, 2)
+        self.assertTrue(self._reload().is_open_on(sunday))
+
+        SiteClosure.objects.create(site=self.site, start_date=datetime.date(2026, 8, 1),
+                                   end_date=datetime.date(2026, 8, 9), note='Between shows')
+        site = self._reload()
+        self.assertFalse(site.is_open_on(sunday))
+        self.assertEqual(site.open_periods_on(sunday), [])
+        self.assertEqual(site.closure_on(sunday).note, 'Between shows')
+
+    def test_a_closure_includes_its_last_day(self):
+        """"Closed 24–26 December" includes the 26th, or the door is locked on a day the site
+        said it was open."""
+        from gallery.models import SiteClosure
+        closure = SiteClosure.objects.create(
+            site=self.site, start_date=datetime.date(2026, 12, 24),
+            end_date=datetime.date(2026, 12, 26))
+        self.assertTrue(closure.covers(datetime.date(2026, 12, 26)))
+        self.assertFalse(closure.covers(datetime.date(2026, 12, 27)))
+
+    def test_a_day_with_two_openings_keeps_both(self):
+        self._hours(5, (10, 0), (12, 0))
+        self._hours(5, (14, 0), (17, 0))
+        periods = self._reload().open_periods_on(datetime.date(2026, 8, 1))
+        self.assertEqual([p.time_range for p in periods],
+                         ['10:00 AM–12:00 PM', '2:00–5:00 PM'])
+
+    def test_hours_read_the_same_as_event_times(self):
+        """One implementation, so the Visit page and a campaign cannot format a time
+        differently."""
+        from gallery.models import Event
+        block = self._hours(6, (16, 0), (20, 0))
+        event = Event(start=datetime.time(16, 0), end=datetime.time(20, 0))
+        self.assertEqual(block.time_range, event.time_range)
+
+    # --- Editing them ---
+
+    def test_staff_can_enter_hours_through_the_site_form(self):
+        from gallery.models import OpeningHours
+        self.client.force_login(self.staff)
+        data = {
+            'name': '120710', 'street': '1207 10th St', 'city': 'Berkeley', 'state': 'CA',
+            'postal_code': '94710', 'country': 'US', 'status': 'published',
+            'hours': 'Sun 1-4p or by Appt MWF 12-6p',
+            'hours-TOTAL_FORMS': '1', 'hours-INITIAL_FORMS': '0',
+            'hours-MIN_NUM_FORMS': '0', 'hours-MAX_NUM_FORMS': '1000',
+            'hours-0-weekday': '6', 'hours-0-start': '13:00', 'hours-0-end': '16:00',
+            'closures-TOTAL_FORMS': '0', 'closures-INITIAL_FORMS': '0',
+            'closures-MIN_NUM_FORMS': '0', 'closures-MAX_NUM_FORMS': '1000',
+        }
+        response = self.client.post(
+            reverse('gallery:site_edit', kwargs={'slug': self.site.slug}), data)
+        self.assertIn(response.status_code, (200, 302))
+        block = OpeningHours.objects.get(site=self.site)
+        self.assertEqual((block.weekday, block.start.hour), (6, 13))
+
+    def test_closing_before_opening_is_refused(self):
+        """Far more likely a typo for 6pm–11pm than a genuine overnight opening."""
+        from gallery.forms import OpeningHoursForm
+        form = OpeningHoursForm(data={'weekday': 6, 'start': '18:00', 'end': '11:00'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('after the opening time', str(form.errors))
+
+    def test_a_closure_ending_before_it_starts_is_refused(self):
+        from gallery.forms import SiteClosureForm
+        form = SiteClosureForm(data={'start_date': '2026-12-26', 'end_date': '2026-12-24'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('cannot be before', str(form.errors))
+
+    def test_the_site_form_still_works_without_the_hours_editor(self):
+        """The formsets are an addition — their absence must not block creating a site."""
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse('gallery:site_new'), {
+            'name': 'Second', 'street': '1 High St', 'city': 'Berkeley', 'state': 'CA',
+            'postal_code': '94710', 'country': 'US', 'status': 'draft'})
+        self.assertIn(response.status_code, (200, 302))
+        from gallery.models import Site
+        self.assertTrue(Site.objects.filter(name='Second').exists())
+
+    # --- Where they show up ---
+
+    def test_the_visit_page_shows_the_structured_hours(self):
+        self._hours(6, (13, 0), (16, 0))
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            body = self.client.get(reverse('visit')).content.decode()
+        self.assertIn('Sun 1:00–4:00 PM', body)
+
+    def test_a_campaign_footer_shows_them_too(self):
+        from gallery.models import Campaign
+        self._hours(6, (13, 0), (16, 0))
+        campaign = Campaign.objects.create(
+            site=self._reload(), subject='Hello', body_markdown='Body.')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Sun 1:00–4:00 PM', html)
+
+    def test_the_search_engine_listing_stops_being_hand_maintained(self):
+        """It was a hard-coded constant that could drift from the hours on the Visit page —
+        and the two were separate strings kept in step by hand."""
+        from eatart.schemaorg.mappers import _opening_hours
+        self._hours(6, (13, 0), (16, 0))
+        self._hours(0, (11, 0), (18, 0), by_appointment=True)
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            self.assertEqual(_opening_hours(), ['Su 13:00-16:00'])
+
+    def test_the_listing_falls_back_when_no_hours_are_entered(self):
+        from eatart.schemaorg.mappers import _opening_hours
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            self.assertEqual(_opening_hours(), ['Su 13:00-16:00'])
+
+
 class CampaignOutcomeTests(TestCase):
     """What happened after the send, not just what we did.
 

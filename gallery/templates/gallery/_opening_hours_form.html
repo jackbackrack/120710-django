@@ -1,0 +1,85 @@
+{% comment %}
+Structured opening hours, and the days the venue is shut regardless of them.
+
+Included by both the site create and edit pages. Kept as its own partial because it is the piece
+a visitor's experience depends on — the Visit page, the "come visit" block in every campaign, what
+search engines are told, and the slots a visit scheduler can offer all read from these rows.
+
+The free-text "Opening hours" field on the form above still exists and still works: it is what is
+shown when nothing is entered here. Once there is a row here, this wins, because two descriptions
+of the same hours will eventually disagree.
+{% endcomment %}
+<fieldset class="mt-4">
+  <legend class="h5">Opening hours</legend>
+  <p class="text-muted small">
+    One row per block of time. A day the gallery opens twice gets two rows. Tick
+    <em>by appointment</em> for hours that are not open to the public but can be arranged &mdash;
+    those are left out of what search engines are told.
+  </p>
+
+  {{ hours_formset.management_form }}
+  {% if hours_formset.non_form_errors %}
+  <div class="alert alert-danger">{{ hours_formset.non_form_errors }}</div>
+  {% endif %}
+
+  <table class="table table-sm align-middle" id="hours-table">
+    <thead>
+      <tr>
+        <th style="min-width:9rem">Day</th>
+        <th>Opens</th>
+        <th>Closes</th>
+        <th>By appointment</th>
+        <th class="text-end">Remove</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in hours_formset %}
+      <tr>
+        {{ row.id }}
+        <td>{{ row.weekday }}</td>
+        <td>{{ row.start }}</td>
+        <td>{{ row.end }}</td>
+        <td class="text-center">{{ row.by_appointment }}</td>
+        <td class="text-end">{{ row.DELETE }}</td>
+      </tr>
+      {% if row.errors %}
+      <tr><td colspan="5" class="text-danger small">{{ row.errors }}</td></tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</fieldset>
+
+<fieldset class="mt-3">
+  <legend class="h6">Closed on</legend>
+  <p class="text-muted small">
+    Dates the gallery is shut whatever the hours above say &mdash; holidays, or the week between
+    shows. The last day is included.
+  </p>
+
+  {{ closure_formset.management_form }}
+  <table class="table table-sm align-middle" id="closures-table">
+    <thead>
+      <tr>
+        <th>From</th>
+        <th>Until (inclusive)</th>
+        <th style="min-width:14rem">Reason (shown to visitors)</th>
+        <th class="text-end">Remove</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in closure_formset %}
+      <tr>
+        {{ row.id }}
+        <td>{{ row.start_date }}</td>
+        <td>{{ row.end_date }}</td>
+        <td>{{ row.note }}</td>
+        <td class="text-end">{{ row.DELETE }}</td>
+      </tr>
+      {% if row.errors %}
+      <tr><td colspan="4" class="text-danger small">{{ row.errors }}</td></tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</fieldset>
