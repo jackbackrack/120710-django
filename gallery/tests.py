@@ -821,38 +821,22 @@ class SubmissionOnboardingTests(TestCase):
         visited = [u for u, _code in r.redirect_chain]
         self.assertTrue(any(self.submit_url in u for u in visited), visited)
 
-    def test_google_signup_arrives_with_its_avatar(self):
-        """Google hands us a picture at signup, so a Google artist satisfies the
-        photo requirement without ever seeing the field."""
-        from unittest import mock
-        from accounts.signup import import_google_avatar
-        artist = Artist.objects.create(first_name='Gina', last_name='Google',
-                                       email='gg@example.com', zipcode='94710')
-        jpg = _test_jpg('g.jpg').read()
+    def test_a_google_signup_is_still_asked_for_a_photo(self):
+        """The picture Google offers is not taken, deliberately.
 
-        class _Resp:
-            content = jpg
-            headers = {'Content-Type': 'image/jpeg'}
-            def raise_for_status(self):
-                pass
+        An account with no picture of its own still has one — a monogram — and importing it met
+        the requirement without producing a photograph, so the gallery ended up chasing a real
+        one after acceptance anyway. Even a genuine Google photo is one the artist never chose
+        for this; it is printed beside their work.
+        """
+        import inspect
+        from eatart import account_adapter
 
-        with mock.patch('requests.get', return_value=_Resp()) as get:
-            self.assertTrue(import_google_avatar(
-                artist, {'picture': 'https://lh3.googleusercontent.com/a/x=s96-c'}))
-        # Asks Google for something big enough to print, not the 96px default.
-        self.assertIn('=s600-c', get.call_args[0][0])
-        artist.refresh_from_db()
-        self.assertTrue(artist.image)
+        source = inspect.getsource(account_adapter)
+        self.assertNotIn('import_google_avatar', source)
 
-    def test_google_avatar_failure_never_breaks_signup(self):
-        from unittest import mock
-        from accounts.signup import import_google_avatar
-        artist = Artist.objects.create(first_name='Gus', last_name='Glitch',
-                                       email='gl@example.com')
-        with mock.patch('requests.get', side_effect=OSError('network down')):
-            self.assertFalse(import_google_avatar(artist, {'picture': 'https://x/y=s96-c'}))
-        artist.refresh_from_db()
-        self.assertFalse(artist.image)
+        from accounts import signup
+        self.assertFalse(hasattr(signup, 'import_google_avatar'))
 
     def test_missing_catalogue_assets_reported_to_the_curator(self):
         staff = User.objects.create_user(
@@ -2164,41 +2148,6 @@ class PlaceholderPhotoTests(TestCase):
                                 'zipcode': '94710'},
                           files={'image': upload}, user=user)
         self.assertNotIn('image', form.errors)
-
-    def test_a_google_monogram_is_not_imported(self):
-        """It would fill the field, pass the form, and leave the gallery chasing a photo after
-        acceptance anyway — with no warning that it was coming."""
-        from unittest import mock
-        from accounts.signup import import_google_avatar
-
-        artist = Artist.objects.create(first_name='Ana', last_name='Vidal',
-                                       email='ana@example.com')
-        response = mock.Mock(status_code=200, content=self._jpeg(self._monogram()).read(),
-                             headers={'Content-Type': 'image/jpeg'})
-        response.raise_for_status = mock.Mock()
-        with mock.patch('requests.get', return_value=response):
-            imported = import_google_avatar(artist, {'picture': 'https://example.test/a=s96-c'})
-
-        self.assertFalse(imported)
-        artist.refresh_from_db()
-        self.assertFalse(artist.image)
-
-    def test_a_real_google_photo_is_still_imported(self):
-        """Somebody who has set a picture of themselves should not be asked for it twice."""
-        from unittest import mock
-        from accounts.signup import import_google_avatar
-
-        artist = Artist.objects.create(first_name='Sam', last_name='Ready',
-                                       email='sam@example.com')
-        response = mock.Mock(status_code=200, content=self._jpeg(self._portrait()).read(),
-                             headers={'Content-Type': 'image/jpeg'})
-        response.raise_for_status = mock.Mock()
-        with mock.patch('requests.get', return_value=response):
-            imported = import_google_avatar(artist, {'picture': 'https://example.test/a=s96-c'})
-
-        self.assertTrue(imported)
-        artist.refresh_from_db()
-        self.assertTrue(artist.image)
 
     def test_the_command_finds_and_can_clear_them(self):
         from io import StringIO

@@ -5,12 +5,12 @@ photos after acceptance is miserable, so the cost is paid up front. A requiremen
 coloured square with a letter on it costs the same chasing later, except nobody knows it is coming
 — the field is filled in, the form passes, and the problem surfaces when the catalogue prints.
 
-Two ways one gets in:
+Google pictures are no longer imported at all, which removed the main source of these and is the
+better fix — an account with no photo of its own still has a monogram, and even a genuine Google
+photo is one the artist never chose for a printed catalogue.
 
-  * **Google.** An account with no picture of its own still has a `picture` claim, and it is a
-    monogram: one initial, white, on a strong flat colour. Imported as-is it silently meets the
-    requirement.
-  * **Uploads.** A solid square gets past a field that only checks something was chosen.
+What remains is uploads: a solid square gets past a field that only checks something was chosen.
+That is what this is for now.
 
 What this measures is flatness, not faces. A monogram is a background colour, a glyph, and the
 antialiasing between them; a photograph — even a head against a white studio wall — carries
@@ -23,6 +23,18 @@ separates them with a wide margin:
     portrait, grey wall       9
 
 It cannot tell whether the photograph is of the right person. Nothing can, short of asking.
+
+Measured, rather than assumed:
+
+    Google monogram          0.93 dominant, 3 colours   rejected
+    solid white square       1.00 dominant, 1 colour    rejected
+    silhouette, black/white  0.70 dominant, 2 colours   accepted
+    high-key pale portrait   0.70 dominant, 3 colours   accepted
+    portrait, plain wall     0.68 dominant, 6 colours   accepted
+
+The dominance test does the work, not the colour count: a monogram's letter is small so its
+background holds ninety per cent of the frame, while a real subject fills it. That is what lets a
+two-colour silhouette through. About 6ms per check, once, on upload.
 """
 import logging
 

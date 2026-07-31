@@ -107,12 +107,15 @@ class ArtistForm(UserAwareModelForm):
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
-        # The photo IS required before submitting. Chasing photos after acceptance
-        # costs the gallery far more than it costs an artist to supply one now, so
-        # the cost is paid up front — but the flow works hard to make it cheap:
-        # Google signups arrive with their avatar already imported, the field takes
-        # a phone camera shot directly, and the show page names the requirement
-        # before anyone starts rather than bouncing them mid-submission.
+        # The photo IS required before submitting. Chasing photos after acceptance costs the
+        # gallery far more than it costs an artist to supply one now, so the cost is paid up
+        # front — and the flow works to make it cheap: the field takes a phone camera shot
+        # directly, and the show page names the requirement before anyone starts rather than
+        # bouncing them mid-submission.
+        #
+        # Google pictures are deliberately not imported to fill this. An account with no photo
+        # of its own still has one — a monogram — which met the requirement without producing a
+        # photograph.
         for f in ('first_name', 'last_name', 'zipcode', 'image'):
             self.fields[f].required = True
         self.fields['first_name'].label = 'First name'
