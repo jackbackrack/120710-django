@@ -80,6 +80,14 @@ as its date, in both places.
 
 Both come from one partial, `_event_actions.html`, because the whole reason they exist is that
 people do not click through; they have to look and behave the same wherever an event is listed.
+
+**And there is one show card, `_show_card.html`, used by every listing including the home page's
+featured one** — `big=True all_events=True banner="Current Show"`. It was a hand-written copy
+until it was found to be a release behind: still printing the year, still offering no way to
+reply, and still carrying an `{% if show.location %}` line for a field the model does not have.
+The featured card is the only one that lists *every* event rather than just the next, so it is
+also the only place a dead RSVP could appear beside a past one; `_event_actions.html` guards
+itself, and a test pins it.
 They are deliberately sized down in CSS: they sit inside `h3` and `h4`, and would otherwise
 inherit the heading size and dwarf the date they belong to.
 

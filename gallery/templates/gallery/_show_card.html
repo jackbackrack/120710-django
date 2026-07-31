@@ -1,6 +1,24 @@
+{% comment %}
+The show card, everywhere a show is listed: the home page hero, the grids under it, a site
+page, a search result, an artist's page.
+
+One template rather than a hero written by hand, because that is what went wrong before —
+the home page had its own copy and quietly fell a release behind, still printing the year and
+offering no way to RSVP while every other card had both. Anything that belongs on a show card
+belongs here, and then it is on all of them.
+
+Expects `show`. Optional:
+
+  big         the featured card — larger image, CTA below the content rather than in the info bar
+  banner      overrides the open-call strip along the top ("Current Show")
+  all_events  every event rather than only the next one
+  hide_site   drop the venue line, for a page that is already about one venue
+{% endcomment %}
 {% load site_tags %}{% surl show as show_url %}
-<div class="card" data-sl-title="{{ show.name }}" data-sl-sub="{{ show.date_range_short }}" data-sl-url="{{ show_url }}">
-  {% if show.status == show.STATUS_OPEN_CALL and show.submission_type != 'invited' %}
+<div class="card{% if big %} big-card{% endif %}"{% if not big %} data-sl-title="{{ show.name }}" data-sl-sub="{{ show.date_range_short }}" data-sl-url="{{ show_url }}"{% endif %}>
+  {% if banner %}
+  <div class="text-center" style="padding:2px 0"><h2 style="margin:0">{{ banner }}</h2></div>
+  {% elif show.status == show.STATUS_OPEN_CALL and show.submission_type != 'invited' %}
   <div class="text-center" style="background:#fff176;padding:2px 0"><h2 style="margin:0">{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}Open Call</h2></div>
   {% elif show.status == show.STATUS_IN_REVIEW and show.submission_type != 'invited' %}
   <div class="text-center" style="background:#fff176;padding:2px 0"><h2 style="margin:0">{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}Open Call</h2></div>
@@ -8,7 +26,11 @@
   <div class="text-center"><h2>Public Art</h2></div>
   {% endif %}
   {% if show.image %}
+  {% if big %}
+  <a style="display: contents" href="{{ show_url }}"><img loading="lazy" class="card__image" src="{{ show.card_md.url }}"></a>
+  {% else %}
   <a style="display: contents" href="{{ show_url }}"><img loading="lazy" src="{{ show.card_sm.url }}" data-sl-img="{{ show.slideshow.url }}" class="card__image"></a>
+  {% endif %}
   {% endif %}
   <div class="card__content">
     <h2 class="text-2xl"><a class="card__link" href="{{ show_url }}">{{ show.name }}</a></h2>
@@ -19,13 +41,16 @@
       {% if show.ordered_curators %}<br>{% endif %}
       {% if not hide_site %}{% with sc=show.sites.all %}{% if sc %}<small>{% for s in sc %}<a class="card__link" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</small><br>{% endif %}{% endwith %}{% endif %}
       {{ show.date_range_short }}
+      {% comment %} With a banner of its own the card loses the open-call strip, so say it here instead. {% endcomment %}
+      {% if banner and show.submission_type == 'open' %}{% if show.status == show.STATUS_OPEN_CALL or show.status == show.STATUS_IN_REVIEW %}<br>Open Call{% endif %}{% endif %}
       {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline and show.submission_type == 'open' %}
       <br><strong>Deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ show.submission_deadline }}</span>
       {% endif %}
       {% with next_ev=show.get_next_event %}
-      {% if next_ev %}
-      <br><span style="background:#fff176;padding:0 2px"><a class="card__link" href="{{ next_ev.get_absolute_url }}">{{ next_ev.name }}</a>: {{ next_ev.date|short_date }}, {{ next_ev.time_range }}</span>
-      {% include 'gallery/_event_actions.html' with event=next_ev %}
+      {% if all_events %}
+        {% for event in show.events.all %}{% include 'gallery/_show_card_event.html' with event=event next_pk=next_ev.pk %}{% endfor %}
+      {% elif next_ev %}
+        {% include 'gallery/_show_card_event.html' with event=next_ev next_pk=next_ev.pk %}
       {% endif %}
       {% endwith %}
     </h4>
@@ -35,9 +60,19 @@
   so a card offers exactly the right next step — sign up, finish your profile, or
   submit — instead of a bare "Submit" that dead-ends for anyone not ready. Pages that
   do not supply it simply show no submit action.
+
+  The featured card puts it under the content at full width, where there is room for the
+  long label and the hint; the rest tuck it into the info bar. Same action either way, so
+  the `not big` guards below stop it being offered twice on the one card that does both.
 {% endcomment %}
 {% with cta=submit_ctas|get_item:show.id %}
-  {% if show.id in can_manage_show or show.id in can_delete_show or show.id in submittable_show_ids or cta %}
+  {% if big and cta %}
+  <div class="text-center" style="padding:.4rem 0 .6rem">
+    <a class="card__link new-button" href="{{ cta.url }}">{{ cta.label }}</a>
+    {% if cta.hint %}<p class="text-muted small mt-1 mb-0">{{ cta.hint }}</p>{% endif %}
+  </div>
+  {% endif %}
+  {% if show.id in can_manage_show or show.id in can_delete_show or not big and show.id in submittable_show_ids or not big and cta %}
   <div class="card__info">
     {% if show.id in can_manage_show %}
     <a class="card__link" href="{% url 'gallery:show_edit' show.pk %}">Edit</a>
@@ -45,10 +80,12 @@
     {% if show.id in can_delete_show %}
     <a class="card__link" href="{% url 'gallery:show_delete' show.pk %}">Delete</a>
     {% endif %}
+    {% if not big %}
     {% if cta %}
     <a class="card__link new-button" href="{{ cta.short_url|default:cta.url }}" title="{{ cta.hint }}">{{ cta.short_label|default:cta.label }}</a>
     {% elif show.id in submittable_show_ids %}
     <a class="card__link" href="{% url 'gallery:artwork_submit' show.slug %}">Submit</a>
+    {% endif %}
     {% endif %}
   </div>
   {% endif %}

@@ -1,0 +1,11 @@
+{% comment %}
+One event line inside a show card: what it is, when, and the reply/calendar controls.
+
+Its own partial because a card lists either just the next event or every one of them, and that
+fork is exactly the seam the home page drifted through — the hero card had its own copy of this
+markup, so it kept printing the full date and never gained the RSVP button the grid cards grew.
+Two call sites, one line of markup, nothing left to drift.
+
+Expects `event`, and `next_pk` to decide which one gets the highlight.
+{% endcomment %}
+{% load site_tags %}<br>{% if event.pk == next_pk %}<span style="background:#fff176;padding:0 2px">{% else %}<span>{% endif %}<a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date|short_date }}, {{ event.time_range }}</span>{% include 'gallery/_event_actions.html' with event=event %}

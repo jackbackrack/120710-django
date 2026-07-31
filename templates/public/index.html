@@ -6,53 +6,14 @@
 {% load static %}
 {% block content %}
 
+{% comment %}
+The featured show is the same card as the ones below it, asked to be big — not a second copy
+of the markup. It was a copy until the grid cards grew short dates and an RSVP button and the
+hero silently kept neither.
+{% endcomment %}
 {% if hero_show %}
 <div class="cards">
-  <div class="card big-card">
-    <div class="text-center" style="padding:2px 0">
-      <h2 style="margin:0">{% if hero_is_current %}Current Show{% else %}Upcoming Show{% endif %}</h2>
-    </div>
-    {% if hero_show.image %}
-    <a style="display: contents" href="{{ hero_show.get_absolute_url }}"><img loading="lazy" class="card__image" src="{{ hero_show.card_md.url }}"></a>
-    {% endif %}
-    <div class="card__content">
-      <h2 class="text-2xl"><a class="card__link" href="{{ hero_show.get_absolute_url }}">{{ hero_show.name }}</a></h2>
-      <h4 class="mb-6">
-        {% for curator in hero_show.ordered_curators %}
-          <a class="card__link" href="{{ curator.get_absolute_url }}">{{ curator.name }}</a>{% if not forloop.last %} and {% endif %}
-        {% endfor %}
-        {% if hero_show.ordered_curators %}<br>{% endif %}
-        {% if hero_show.location %}<small>{{ hero_show.location }}</small><br>{% endif %}
-        {{ hero_show.date_range }}
-        {% if hero_show.status == hero_show.STATUS_OPEN_CALL and hero_show.submission_type == 'open' %}<br>Open Call{% if hero_show.submission_deadline %} &middot; <strong>Deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ hero_show.submission_deadline }}</span>{% endif %}{% endif %}
-        {% if hero_show.status == hero_show.STATUS_IN_REVIEW and hero_show.submission_type == 'open' %}<br>Open Call{% endif %}
-        {% with next_ev=hero_show.get_next_event %}
-        {% for event in hero_show.events.all %}
-          <br>
-          {% if next_ev and event.pk == next_ev.pk %}
-          <span style="background:#fff176;padding:0 2px"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.time_range }}</span>
-          {% else %}
-          <a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>: {{ event.date }}, {{ event.time_range }}
-          {% endif %}
-        {% endfor %}
-        {% endwith %}
-      </h4>
-    </div>
-    {% if hero_cta %}
-    <div class="text-center" style="padding:.4rem 0 .6rem">
-      <a class="card__link new-button" href="{{ hero_cta.url }}">{{ hero_cta.label }}</a>
-      {% if hero_cta.hint %}<p class="text-muted small mt-1 mb-0">{{ hero_cta.hint }}</p>{% endif %}
-    </div>
-    {% endif %}
-    <div class="card__info">
-      {% if hero_show.id in can_manage_show %}
-        <a class="card__link" href="{% url 'gallery:show_edit' hero_show.pk %}">Edit</a>
-      {% endif %}
-      {% if hero_show.id in can_delete_show %}
-        <a class="card__link" href="{% url 'gallery:show_delete' hero_show.pk %}">Delete</a>
-      {% endif %}
-    </div>
-  </div>
+  {% include 'gallery/_show_card.html' with show=hero_show big=True all_events=True banner=hero_is_current|yesno:"Current Show,Upcoming Show" %}
 </div>
 {% endif %}
 

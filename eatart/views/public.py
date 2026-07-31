@@ -10,7 +10,7 @@ from eatart.howto_images import steps_with_images
 from eatart.role_docs import GENERAL_GUIDE, HOW_TO_GUIDES, ROLE_DOCUMENTATION
 from eatart.schemaorg.mappers import dump_json_ld, gallery_to_schema, schema_to_dict
 from gallery.models import LinkTreeEntry, Show
-from gallery.submission_cta import submit_cta, submit_ctas
+from gallery.submission_cta import submit_ctas
 from gallery.views.mixins import visible_site_or_404
 from gallery.permissions import can_delete_show, can_manage_show, is_curator_user, is_juror_user, is_staff_user, visible_show_queryset
 
@@ -36,8 +36,10 @@ def index(request):
         # Same call to action the show page uses, so the home page is a real entry
         # point into the submission flow rather than a dead end that makes a visitor
         # hunt for the show first.
+        # hero_show is always in all_shows, so its call to action is already in here under its
+        # own id — the hero card reads it from the same place every other card does, and only
+        # positions it differently.
         'submit_ctas': submit_ctas(request, all_shows),
-        'hero_cta': submit_cta(request, hero_show) if hero_show else None,
         'hero_is_current': hero_is_current,
         'current_shows': current_shows,
         'future_shows': display_future_shows,

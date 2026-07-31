@@ -2218,6 +2218,34 @@ class EventRsvpTests(TestCase):
                 self.assertIn(marker, show_page)
                 self.assertIn(marker, card_page)
 
+    def test_every_public_listing_offers_them(self):
+        """Enumerated rather than checked one page at a time, because the failure was a page
+        nobody thought to check: the home page's featured card was hand-written, so it never
+        gained the reply button the shared card grew. A listing added later fails here too."""
+        rsvp_url = reverse('event_rsvp', kwargs={'pk': self.event.pk})
+        for name, url in (('home', '/'),
+                          ('show list', reverse('gallery:show_list')),
+                          ('site page', self.site.get_absolute_url())):
+            with self.subTest(page=name):
+                page = self.client.get(url, follow=True).content.decode()
+                self.assertIn(self.event.name, page)
+                self.assertIn(rsvp_url, page)
+                self.assertIn('add-to-cal', page)
+
+    def test_the_featured_card_offers_nothing_on_an_event_that_has_passed(self):
+        """Unlike the others the featured card lists every event, past ones included, so it is
+        the one place a dead RSVP button could appear next to last month's opening."""
+        from django.utils import timezone as tz
+        past = Event.objects.create(
+            name='Past Talk', show=self.show,
+            date=tz.now().date() - datetime.timedelta(days=2),
+            start=datetime.time(19, 0), end=datetime.time(20, 0))
+        page = self.client.get('/').content.decode()
+        self.assertIn(past.name, page)
+        self.assertNotIn(reverse('event_rsvp', kwargs={'pk': past.pk}), page)
+        # The one that has not happened still does.
+        self.assertIn(reverse('event_rsvp', kwargs={'pk': self.event.pk}), page)
+
     def test_a_past_event_on_the_show_page_offers_neither(self):
         from django.utils import timezone as tz
         self.event.date = tz.now().date() - datetime.timedelta(days=1)
@@ -2557,10 +2585,15 @@ class ShortDateTests(TestCase):
             start=datetime.time(18, 0), end=datetime.time(21, 0))
 
         year = str(tz.now().year)
+        # Every public surface, not just the two that were fixed first. The home page kept
+        # printing the year for a release because its featured card was a copy of the shared
+        # one rather than the shared one.
         for name, url in (('show page', show.get_absolute_url()),
-                          ('show list', reverse('gallery:show_list'))):
+                          ('show list', reverse('gallery:show_list')),
+                          ('home', '/'),
+                          ('site page', site.get_absolute_url())):
             with self.subTest(page=name):
-                body = self.client.get(url).content.decode()
+                body = self.client.get(url, follow=True).content.decode()
                 body = body.split('id="page-title"')[1].split('<footer')[0]
                 # Only the prose. A calendar URL carries 20260806 in its dates parameter, which
                 # is correct and has nothing to do with what a reader sees.
