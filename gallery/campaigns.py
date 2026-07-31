@@ -264,6 +264,9 @@ def show_context(show, request=None):
         return {
             'google': event_google_url(event),
             'ics': _absolute(reverse('gallery:event_ics', kwargs={'pk': event.pk}), request),
+            # The reply page is the event page — an RSVP is a decision made while looking at
+            # what you are deciding about, not on a form of its own.
+            'rsvp': _absolute(event.get_absolute_url(), request),
         }
 
     return {

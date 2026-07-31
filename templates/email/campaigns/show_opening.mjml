@@ -69,6 +69,9 @@ rendering a hole where the invitation should be.
       JavaScript is possible in an email, so links are the whole mechanism.
     {% endcomment %}
     {% if opening_calendar %}
+    <mj-text font-size="14px" padding="0 0 4px">
+      <a href="{{ opening_calendar.rsvp }}" style="color:#198754"><strong>Let us know you are coming</strong></a>
+    </mj-text>
     <mj-text font-size="14px" padding="0 0 10px">
       📅 Add to calendar:
       <a href="{{ opening_calendar.google }}" style="color:#198754">Google</a>

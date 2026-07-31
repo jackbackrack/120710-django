@@ -31,6 +31,36 @@ class Event(models.Model):
     def get_absolute_url(self):
         return reverse('gallery:event_detail', kwargs={'slug': self.slug})
 
+    # Below this a count discourages rather than encourages: "3 coming" reads as an empty room,
+    # and early in a cycle it is always 3. Shown only once it argues for itself.
+    RSVP_COUNT_THRESHOLD = 8
+
+    def _rsvp_total(self, response):
+        from django.db.models import Sum
+        return self.rsvps.filter(response=response).aggregate(n=Sum('party_size'))['n'] or 0
+
+    @property
+    def rsvp_count(self):
+        """People expected, counting guests — not the number of replies."""
+        from gallery.models.rsvps import EventRsvp
+        return self._rsvp_total(EventRsvp.YES)
+
+    @property
+    def rsvp_maybe_count(self):
+        from gallery.models.rsvps import EventRsvp
+        return self._rsvp_total(EventRsvp.MAYBE)
+
+    @property
+    def rsvp_count_public(self):
+        """The count only when it flatters, otherwise None. See RSVP_COUNT_THRESHOLD."""
+        count = self.rsvp_count
+        return count if count >= self.RSVP_COUNT_THRESHOLD else None
+
+    @property
+    def is_past(self):
+        from django.utils import timezone
+        return self.date < timezone.now().date()
+
     def google_calendar_url(self):
         """One-click "add this to my calendar". Absolute instants — see gallery/calendars.py."""
         from gallery.calendars import event_google_url

@@ -18,6 +18,7 @@ Manages artists, artworks, exhibitions (shows), events, and juror reviews/rating
 - **Google OAuth** via django-allauth
 - **Admin** — ShowAdmin with artwork inline and filter_horizontal for artists/curators/tags; CSV/Excel import-export on all models
 - **Schema.org JSON-LD** — Pydantic-validated structured data on every public detail page
+- **Event RSVPs** — yes/maybe/no on an event page, with a reminder the day before that is the reason for asking; see [docs/event-rsvps.md](docs/event-rsvps.md)
 - **Visit booking** — visitors pick a slot from the venue's structured opening hours and the gallery gets a calendar invitation by email; no Google integration to configure — see [docs/visit-booking.md](docs/visit-booking.md)
 - **Mailing list** — subscribers, campaigns and unsubscribes in our own database; campaigns render from MJML and send via Resend, while transactional mail stays on smtp2go. Sends run in the background and a send that stops part-way can be resumed without mailing anyone twice — see [docs/mailing-list.md](docs/mailing-list.md)
 

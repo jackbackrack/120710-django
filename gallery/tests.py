@@ -2144,6 +2144,246 @@ class RichTextInEmailTests(TestCase):
         self.assertNotIn('word100', out)
 
 
+class EventRsvpTests(TestCase):
+    """Yes, maybe or no — and the reminder that is the whole point of asking.
+
+    One announcement three weeks out is a single shot at a date nobody has planned around yet,
+    and what goes wrong between it and the night is almost always forgetting. A reminder to the
+    whole list would be a second campaign; a reminder to somebody who replied is a service they
+    asked for. That permission is what the RSVP buys.
+    """
+
+    def setUp(self):
+        from django.utils import timezone as tz
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 10th St', city='Berkeley', state='CA', postal_code='94710',
+            timezone='America/Los_Angeles', arrival_note='Ring the bell.')
+        self.show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=tz.now().date(), end=tz.now().date() + datetime.timedelta(days=30))
+        self.show.sites.add(self.site)
+        self.event = Event.objects.create(
+            name='Opening Reception', show=self.show,
+            date=tz.now().date() + datetime.timedelta(days=7),
+            start=datetime.time(18, 0), end=datetime.time(21, 0))
+        mail.outbox.clear()
+
+    def _reply(self, response='yes', email='ana@example.com', party='2', **extra):
+        data = {'response': response, 'name': 'Ana Vidal', 'email': email,
+                'party_size': party, 'note': '', 'address': ''}
+        data.update(extra)
+        return self.client.post(reverse('event_rsvp', kwargs={'pk': self.event.pk}),
+                                data, follow=True)
+
+    # --- Replying ---
+
+    def test_all_three_answers_are_recorded(self):
+        from gallery.models import EventRsvp
+        for response, email in (('yes', 'a@example.com'), ('maybe', 'b@example.com'),
+                                ('no', 'c@example.com')):
+            with self.subTest(response=response):
+                self._reply(response, email=email)
+                self.assertEqual(EventRsvp.objects.get(email=email).response, response)
+
+    def test_a_second_reply_changes_the_first_rather_than_adding_one(self):
+        """A second reply is somebody changing their mind, not a second guest — two rows would
+        inflate what the gallery caters for."""
+        from gallery.models import EventRsvp
+        self._reply('yes', party='2')
+        self._reply('no')
+        self.assertEqual(EventRsvp.objects.count(), 1)
+        self.assertEqual(EventRsvp.objects.get().response, 'no')
+
+    def test_a_no_does_not_bring_guests(self):
+        from gallery.models import EventRsvp
+        self._reply('no', party='4')
+        self.assertEqual(EventRsvp.objects.get().party_size, 1)
+
+    def test_the_count_is_heads_not_replies(self):
+        self._reply('yes', email='a@example.com', party='3')
+        self._reply('yes', email='b@example.com', party='2')
+        self._reply('maybe', email='c@example.com', party='4')
+        self._reply('no', email='d@example.com')
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.rsvp_count, 5)
+        self.assertEqual(self.event.rsvp_maybe_count, 4)
+
+    def test_a_small_count_is_not_shown(self):
+        """"3 coming" reads as an empty room, and early in a cycle it is always 3."""
+        self._reply('yes', party='3')
+        self.event.refresh_from_db()
+        self.assertIsNone(self.event.rsvp_count_public)
+        page = self.client.get(self.event.get_absolute_url()).content.decode()
+        self.assertNotIn('3 coming', page)
+
+    def test_a_count_worth_showing_is_shown(self):
+        for i in range(4):
+            self._reply('yes', email=f'p{i}@example.com', party='3')
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.rsvp_count_public, 12)
+        page = self.client.get(self.event.get_absolute_url()).content.decode()
+        self.assertIn('12 coming', page)
+
+    def test_replying_confirms_by_email_whatever_the_answer(self):
+        """A reply that vanishes without acknowledgement feels like it did not register."""
+        for response, email in (('yes', 'a@example.com'), ('no', 'b@example.com')):
+            with self.subTest(response=response):
+                mail.outbox.clear()
+                self._reply(response, email=email)
+                self.assertEqual(len(mail.outbox), 1)
+                self.assertEqual(mail.outbox[0].to, [email])
+
+    def test_a_past_event_cannot_be_replied_to(self):
+        from gallery.models import EventRsvp
+        from django.utils import timezone as tz
+        self.event.date = tz.now().date() - datetime.timedelta(days=1)
+        self.event.save(update_fields=['date'])
+        self._reply()
+        self.assertEqual(EventRsvp.objects.count(), 0)
+
+    def test_an_event_of_a_non_public_show_is_not_open_to_replies(self):
+        from gallery.models import EventRsvp
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        self.assertEqual(
+            self.client.post(reverse('event_rsvp', kwargs={'pk': self.event.pk}),
+                             {'response': 'yes', 'name': 'A', 'email': 'a@example.com',
+                              'party_size': '1', 'note': '', 'address': ''}).status_code, 404)
+        self.assertEqual(EventRsvp.objects.count(), 0)
+
+    def test_a_signed_in_visitor_is_not_asked_who_they_are(self):
+        from gallery.models import EventRsvp
+        user = User.objects.create_user(username='ana@example.com', email='ana@example.com',
+                                        password='pw', first_name='Ana', last_name='Vidal')
+        self.client.force_login(user)
+        self.client.post(reverse('event_rsvp', kwargs={'pk': self.event.pk}),
+                         {'response': 'yes', 'party_size': '2', 'note': '',
+                          'name': 'Someone Else', 'email': 'other@example.com',
+                          'address': ''}, follow=True)
+        rsvp = EventRsvp.objects.get()
+        self.assertEqual((rsvp.name, rsvp.email), ('Ana Vidal', 'ana@example.com'))
+
+    # --- Changing your mind ---
+
+    def test_the_link_in_the_email_changes_the_answer(self):
+        from gallery import rsvps as engine
+        from gallery.models import EventRsvp
+        self._reply('yes')
+        rsvp = EventRsvp.objects.get()
+        url = reverse('event_rsvp_change', kwargs={'token': engine.change_token(rsvp)})
+
+        # A GET only asks — mail clients prefetch links.
+        self.client.get(url)
+        self.assertEqual(EventRsvp.objects.get().response, 'yes')
+
+        self.client.post(url, {'response': 'no'})
+        self.assertEqual(EventRsvp.objects.get().response, 'no')
+
+    def test_a_tampered_link_changes_nothing(self):
+        from gallery.models import EventRsvp
+        self._reply('yes')
+        r = self.client.post(reverse('event_rsvp_change', kwargs={'token': 'nope'}),
+                             {'response': 'no'})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(EventRsvp.objects.get().response, 'yes')
+
+    # --- The reminder, which is the point ---
+
+    def _tomorrow(self):
+        from django.utils import timezone as tz
+        self.event.date = tz.now().date() + datetime.timedelta(days=1)
+        self.event.save(update_fields=['date'])
+
+    def test_yes_and_maybe_are_reminded_and_no_is_not(self):
+        """A maybe has not decided, and the night before is when they will."""
+        self._reply('yes', email='y@example.com')
+        self._reply('maybe', email='m@example.com')
+        self._reply('no', email='n@example.com')
+        self._tomorrow()
+
+        from gallery import rsvps as engine
+        due = {r.email for r in engine.due_for_reminder()}
+        self.assertEqual(due, {'y@example.com', 'm@example.com'})
+
+    def test_only_events_tomorrow_are_reminded_about(self):
+        from gallery import rsvps as engine
+        self._reply('yes')
+        self.assertEqual(list(engine.due_for_reminder()), [], 'a week away is not tomorrow')
+
+    def test_the_command_sends_them(self):
+        from io import StringIO
+        from django.core.management import call_command
+        self._reply('yes', email='y@example.com', party='3')
+        self._tomorrow()
+        mail.outbox.clear()
+
+        out = StringIO()
+        call_command('send_event_reminders', stdout=out)
+        self.assertIn('Sent 1 reminder', out.getvalue())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Tomorrow', mail.outbox[0].subject)
+        body = next(b for b, kind in mail.outbox[0].alternatives if kind == 'text/html')
+        self.assertIn('Ring the bell.', body)
+        self.assertIn('/rsvp/', body)
+
+    def test_running_twice_does_not_remind_twice(self):
+        """A cron that fires twice, or a re-run after a deploy, must not mail the same person."""
+        from django.core.management import call_command
+        self._reply('yes')
+        self._tomorrow()
+        mail.outbox.clear()
+
+        call_command('send_event_reminders', verbosity=0)
+        call_command('send_event_reminders', verbosity=0)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_failed_reminder_is_retried_rather_than_lost(self):
+        """Marked after sending, not before: a reminder that never arrives is the whole failure
+        this exists to prevent."""
+        from unittest import mock
+        from django.core.management import call_command
+        from gallery.models import EventRsvp
+        self._reply('yes')
+        self._tomorrow()
+
+        with mock.patch('gallery.rsvps.EmailMultiAlternatives.send',
+                        side_effect=RuntimeError('mail down')):
+            call_command('send_event_reminders', verbosity=0)
+        self.assertIsNone(EventRsvp.objects.get().reminded_at)
+
+        mail.outbox.clear()
+        call_command('send_event_reminders', verbosity=0)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIsNotNone(EventRsvp.objects.get().reminded_at)
+
+    def test_changing_your_answer_earns_a_fresh_reminder(self):
+        """Somebody who switches from no to yes the week before should still be reminded."""
+        from gallery import rsvps as engine
+        from gallery.models import EventRsvp
+        self._reply('yes')
+        self._tomorrow()
+        engine.send_reminder(EventRsvp.objects.get())
+        self.assertIsNotNone(EventRsvp.objects.get().reminded_at)
+
+        self._reply('maybe')
+        self.assertIsNone(EventRsvp.objects.get().reminded_at)
+
+    def test_a_dry_run_sends_nothing(self):
+        from io import StringIO
+        from django.core.management import call_command
+        from gallery.models import EventRsvp
+        self._reply('yes')
+        self._tomorrow()
+        mail.outbox.clear()
+
+        out = StringIO()
+        call_command('send_event_reminders', '--dry-run', stdout=out)
+        self.assertIn('Nothing was sent', out.getvalue())
+        self.assertEqual(mail.outbox, [])
+        self.assertIsNone(EventRsvp.objects.get().reminded_at)
+
+
 class AddToCalendarTests(TestCase):
     """One click to put an event in somebody's own calendar.
 

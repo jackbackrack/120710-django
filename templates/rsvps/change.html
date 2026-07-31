@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Change your answer{% endblock %}
+{% block block_title %}{{ event.name }}{% endblock %}
+{% block content %}
+{% comment %}
+  Reached from the link in their confirmation or reminder. A POST to change it, not a GET: mail
+  clients prefetch links, and a scanner must not be able to answer on somebody's behalf.
+{% endcomment %}
+<div class="col-11 col-md-7 mx-auto mt-4">
+  <p>{{ event.date|date:"l j F" }}, {{ event.time_range }}</p>
+  <p>You are currently down as <strong>{{ rsvp.get_response_display|lower }}</strong>.</p>
+  <form method="post">{% csrf_token %}
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-success" name="response" value="yes">Coming</button>
+      <button class="btn btn-outline-secondary" name="response" value="maybe">Maybe</button>
+      <button class="btn btn-outline-danger" name="response" value="no">Can't make it</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

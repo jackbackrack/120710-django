@@ -42,7 +42,14 @@ def visit_list(request):
             feeds.append((site, request.build_absolute_uri(
                 f'/visits/{site.visit_feed_token}.ics')))
 
+    # Upcoming events with replies, so the gallery knows what to cater for.
+    from gallery.models import Event
+    rsvp_events = [
+        e for e in Event.objects.filter(date__gte=now.date()).select_related('show')
+        .order_by('date') if e.rsvps.exists()]
+
     return render(request, 'gallery/visit_list.html', {
+        'rsvp_events': rsvp_events,
         'upcoming': [(v, v.when.astimezone(site_timezone(v.site))) for v in upcoming],
         'recent': [(v, v.when.astimezone(site_timezone(v.site))) for v in recent],
         'feeds': feeds,

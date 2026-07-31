@@ -1,0 +1,70 @@
+{% load crispy_forms_tags %}
+{% comment %}
+  Three answers rather than one button. "Maybe" is the honest reply weeks out, and offering it is
+  what stops somebody closing the page having said nothing; "no" looks useless but takes them off
+  the reminder, which is the difference between a service and a nuisance.
+
+  The count appears only once it flatters — see Event.RSVP_COUNT_THRESHOLD. Early in a cycle it
+  is always three, and "3 coming" reads as an empty room.
+
+  Signed in, name and email are not asked for: the account already knows both, and reading them
+  server-side means a hidden field cannot answer in somebody else's name.
+{% endcomment %}
+<div class="rsvp mt-3">
+  {% if event.rsvp_count_public %}
+  <p class="mb-2"><strong>{{ event.rsvp_count_public }} coming</strong>{% if event.rsvp_maybe_count %},
+    {{ event.rsvp_maybe_count }} maybe{% endif %}.</p>
+  {% endif %}
+
+  <form method="post" action="{% url 'event_rsvp' event.pk %}">{% csrf_token %}
+    {% with form=rsvp_form|default_if_none:None %}{% endwith %}
+    {% if rsvp_form %}
+      {{ rsvp_form.response|as_crispy_field }}
+      {% if not user.is_authenticated %}
+        {{ rsvp_form.name|as_crispy_field }}
+        {{ rsvp_form.email|as_crispy_field }}
+      {% endif %}
+      {{ rsvp_form.party_size|as_crispy_field }}
+      {{ rsvp_form.note|as_crispy_field }}
+      {{ rsvp_form.captcha }}
+    {% else %}
+      <div class="d-flex gap-2 flex-wrap align-items-end">
+        <div>
+          <label class="form-label mb-1">Are you coming?</label><br>
+          <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="response" value="yes" id="rsvp-yes" checked>
+            <label class="btn btn-outline-success btn-sm" for="rsvp-yes">Coming</label>
+            <input type="radio" class="btn-check" name="response" value="maybe" id="rsvp-maybe">
+            <label class="btn btn-outline-secondary btn-sm" for="rsvp-maybe">Maybe</label>
+            <input type="radio" class="btn-check" name="response" value="no" id="rsvp-no">
+            <label class="btn btn-outline-secondary btn-sm" for="rsvp-no">Can't make it</label>
+          </div>
+        </div>
+        <div style="max-width:7rem">
+          <label class="form-label mb-1" for="rsvp-party">How many</label>
+          <input class="form-control form-control-sm" type="number" name="party_size"
+                 id="rsvp-party" value="1" min="1" max="20">
+        </div>
+      </div>
+      {% if user.is_authenticated %}
+      <p class="text-muted small mt-2 mb-1">Replying as
+        {{ user.get_full_name|default:user.email }}.</p>
+      {% else %}
+      <div class="row g-2 mt-1" style="max-width:34rem">
+        <div class="col-sm-6">
+          <input class="form-control form-control-sm" type="text" name="name"
+                 placeholder="Your name" required aria-label="Your name">
+        </div>
+        <div class="col-sm-6">
+          <input class="form-control form-control-sm" type="email" name="email"
+                 placeholder="Your email" required aria-label="Your email">
+        </div>
+      </div>
+      <p class="text-muted small mt-1">For the confirmation and a reminder the day before.</p>
+      {% endif %}
+      <input type="hidden" name="note" value="">
+    {% endif %}
+    {% include 'honeypot/honeypot_field.html' %}
+    <button type="submit" class="btn btn-primary btn-sm mt-2">Send</button>
+  </form>
+</div>

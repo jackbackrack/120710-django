@@ -6,6 +6,7 @@ from accounts.views import ArtistUserCreateView, CustomPasswordResetView, Custom
 from eatart.views.public import (index, visit, contact, about, howto, howto_guide,
                                  howto_reference, linktree, privacy)
 from eatart.views.subscribe import subscribe, subscribe_kiosk
+from eatart.views.rsvps import event_rsvp, event_rsvp_change
 from eatart.views.visits import book_visit, cancel_visit
 from eatart.views.unsubscribe import unsubscribe
 
@@ -45,6 +46,9 @@ urlpatterns = [
     # Its own top-level path, not under a site: the link lives in an email that has to
     # keep working whatever happens to the venue's slug.
     path('visit/cancel/<str:token>/', cancel_visit, name='visit_cancel'),
+    path('event/<int:pk>/rsvp/', event_rsvp, name='event_rsvp'),
+    # Its own top-level path: the link lives in an email and has to keep working.
+    path('rsvp/<str:token>/', event_rsvp_change, name='event_rsvp_change'),
     # One URL, two behaviours: a confirmation page on GET, one-click on POST for the
     # Unsubscribe button Gmail and Yahoo render. See the view.
     path('unsubscribe/<str:token>/', unsubscribe, name='unsubscribe'),

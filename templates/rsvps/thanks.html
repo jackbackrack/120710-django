@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Thanks{% endblock %}
+{% block block_title %}{% if invalid %}Link not recognised{% else %}Thanks{% endif %}{% endblock %}
+{% block content %}
+<div class="col-11 col-md-7 mx-auto mt-4">
+  {% if invalid %}
+  <p>That link is not one we recognise. It may have been mistyped, or replaced by a newer one.</p>
+  {% else %}
+    {% if rsvp.response == 'yes' %}
+    <p class="fs-5">See you at {{ event.name }}.</p>
+    {% elif rsvp.response == 'maybe' %}
+    <p class="fs-5">You are down as a maybe — we will remind you the day before.</p>
+    {% else %}
+    <p class="fs-5">Noted, thanks for saying.</p>
+    {% endif %}
+    <p>{{ event.date|date:"l j F" }}, {{ event.time_range }}</p>
+    {% if not changed %}<p class="text-muted">We have emailed you a copy, with a link to change
+      your answer.</p>{% endif %}
+    <a class="card__link" href="{{ event.get_absolute_url }}">Back to {{ event.name }}</a>
+  {% endif %}
+</div>
+{% endblock %}

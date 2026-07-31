@@ -1,0 +1,35 @@
+{% load site_tags %}<!DOCTYPE html>
+<html>
+<body>
+{% comment %}
+What they said, and how to change it. Sent for "no" as well as "yes" — a reply that vanishes
+without acknowledgement feels like it did not register, and the link to change their mind is the
+same link either way.
+{% endcomment %}
+{% if rsvp.response == 'yes' %}
+<p>Thanks {{ rsvp.name }} — see you at <strong>{{ event.name }}</strong>.</p>
+{% elif rsvp.response == 'maybe' %}
+<p>Thanks {{ rsvp.name }} — you are down as a maybe for <strong>{{ event.name }}</strong>. We
+  will send a reminder the day before, in case it helps you decide.</p>
+{% else %}
+<p>Thanks for letting us know, {{ rsvp.name }} — you are down as not coming to
+  <strong>{{ event.name }}</strong>. No reminders, and no hard feelings.</p>
+{% endif %}
+
+<p>
+  <strong>{{ event.date|date:"l j F" }}, {{ event.time_range }}</strong><br>
+  {% if site %}{{ site.name }}{% if site.street %}, {{ site.street }}{% endif %}{% endif %}
+</p>
+
+{% if rsvp.response != 'no' %}
+{% if rsvp.party_size > 1 %}<p>{{ rsvp.party_size }} of you — noted.</p>{% endif %}
+<p><a href="{{ ics_url }}">Add it to your calendar</a> so it is not relying on memory.</p>
+{% endif %}
+
+{% if site.arrival_note %}<p>{{ site.arrival_note }}</p>{% endif %}
+
+<p><a href="{{ change_url }}">Change your answer</a> any time — that link keeps working.</p>
+
+<p><a href="{{ event_url }}">{{ event.show.name }}</a></p>
+</body>
+</html>

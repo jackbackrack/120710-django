@@ -1,0 +1,33 @@
+{% load site_tags %}<!DOCTYPE html>
+<html>
+<body>
+{% comment %}
+The day before, to people who said yes or maybe. Short on purpose: this is read on a phone by
+somebody deciding what to do tomorrow evening, and everything they need to act is the time, the
+address and how to get in.
+
+The "can't make it" link is not a courtesy — it is what keeps a reminder from being a nuisance,
+and a no here saves the gallery catering for somebody who is not coming.
+{% endcomment %}
+{% if rsvp.response == 'maybe' %}
+<p>{{ rsvp.name }} — <strong>{{ event.name }}</strong> is tomorrow, and you were a maybe.</p>
+{% else %}
+<p>{{ rsvp.name }} — <strong>{{ event.name }}</strong> is tomorrow.</p>
+{% endif %}
+
+<p>
+  <strong>{{ event.date|date:"l j F" }}, {{ event.time_range }}</strong><br>
+  {% if maps_url %}<a href="{{ maps_url }}">{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}</a>
+  {% elif site %}{{ site.name }}{% endif %}
+</p>
+
+{% if site.arrival_note %}<p><strong>{{ site.arrival_note }}</strong></p>{% endif %}
+
+{% if event.description %}<p>{{ event.description|text_blocks|linebreaksbr|truncatewords_html:40 }}</p>{% endif %}
+
+<p><a href="{{ event_url }}">{{ event.show.name }}</a></p>
+
+<p class="muted"><a href="{{ change_url }}">Can't make it after all?</a> Let us know — it takes
+  one click and saves us catering for you.</p>
+</body>
+</html>
