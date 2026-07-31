@@ -99,6 +99,11 @@ name. That is a real cost and the reason it is not the default.
 There is deliberately **no "which calendar?" page**. The two links *are* that choice, and a page
 between them would be a click that adds nothing.
 
+**Nothing is offered for an event that has already happened** — no RSVP, no calendar links, on any
+surface including a mailing, which can be read long after it was sent. The partial guards itself
+so a surface added later cannot forget, and each call site guards too so no empty wrapper is left
+behind. An event *today* is not past: the closing mailing goes out on the morning of the closing.
+
 ## What was deliberately left out
 
 - **A live count from zero.** See the threshold above.

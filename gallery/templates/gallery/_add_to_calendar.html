@@ -23,6 +23,12 @@ second request; the same shape is used for the calendar glyph elsewhere.
   The glyph alone is a guess for the reader, so icon_only leans on the title and the accessible
   name to say what it is. That is a real cost, and the reason it is not the default.
 {% endcomment %}
+{% comment %}
+  Nothing at all for something that has already happened: adding last March's opening to your
+  calendar is not an offer, it is clutter. Guarded here as well as at the call sites, so a
+  surface added later cannot forget.
+{% endcomment %}
+{% if not event.is_past %}
 <span class="add-to-cal{% if compact or icon_only %} add-to-cal--compact{% endif %}">
   <a href="{{ event.google_calendar_url }}" target="_blank" rel="noopener"
      title="Add “{{ event.name }}” to Google Calendar"
@@ -39,3 +45,4 @@ second request; the same shape is used for the calendar glyph elsewhere.
          title="Download for Apple Calendar, Outlook or another app"
          aria-label="Download {{ event.name }} for Apple Calendar, Outlook or another app">{% if compact or icon_only %}.ics{% else %}Apple, Outlook or other (.ics){% endif %}</a>
 </span>
+{% endif %}

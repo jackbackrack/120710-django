@@ -2570,6 +2570,60 @@ class AddToCalendarTests(TestCase):
         self.assertIn('Apple, Outlook or other (.ics)', page)
         self.assertIn(reverse('gallery:event_ics', kwargs={'pk': self.event.pk}), page)
 
+    def test_nothing_is_offered_for_an_event_that_has_happened(self):
+        """Adding last March's opening to your calendar is clutter, not an offer.
+
+        Checked on every surface rather than one: the partial guards itself so a surface added
+        later cannot forget, and the call sites guard too so no empty wrapper is left behind.
+        """
+        from django.utils import timezone as tz
+        self.event.date = tz.now().date() - datetime.timedelta(days=2)
+        self.event.save(update_fields=['date'])
+        ics = reverse('gallery:event_ics', kwargs={'pk': self.event.pk})
+
+        for name, url in (('event page', self.event.get_absolute_url()),
+                          ('show page', self.show.get_absolute_url()),
+                          ('agenda', reverse('gallery:calendar'))):
+            with self.subTest(page=name):
+                page = self.client.get(url).content.decode()
+                self.assertNotIn('add-to-cal', page)
+                self.assertNotIn(f'href="{ics}"', page)
+
+    def test_a_mailing_offers_nothing_for_an_event_that_has_happened(self):
+        """A mailing can be read long after it was sent."""
+        from django.utils import timezone as tz
+        from gallery.models import Campaign
+        self.event.date = tz.now().date() - datetime.timedelta(days=2)
+        self.event.save(update_fields=['date'])
+        campaign = Campaign.objects.create(
+            site=self.site, show=self.show, subject='Opening',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertNotIn('Add to calendar', html)
+        self.assertNotIn('Let us know you are coming', html)
+
+    def test_a_mailing_about_an_event_today_still_offers_them(self):
+        """The closing mailing goes out the morning of the closing — today is not past."""
+        from django.utils import timezone as tz
+        from gallery.models import Campaign
+        self.event.date = tz.now().date()
+        self.event.save(update_fields=['date'])
+        campaign = Campaign.objects.create(
+            site=self.site, show=self.show, subject='Tonight',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Add to calendar', html)
+        self.assertIn('Let us know you are coming', html)
+
+    def test_the_mailing_links_to_the_page_that_is_only_the_reply(self):
+        """The mailing already described the event, so an event page adds context they just read."""
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(
+            site=self.site, show=self.show, subject='Opening',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertIn(reverse('event_rsvp', kwargs={'pk': self.event.pk}), html)
+
     def test_the_agenda_uses_the_short_form(self):
         """It repeats on every future row, where a sentence would swamp the event."""
         from django.utils import timezone as tz

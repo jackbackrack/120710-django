@@ -257,16 +257,21 @@ def show_context(show, request=None):
     events = list(show.events.order_by('date', 'start'))
 
     def add_links(event):
-        """Absolute, because these are read in a mail client with no page to resolve against."""
-        if event is None:
+        """Absolute, because these are read in a mail client with no page to resolve against.
+
+        None for an event that has already happened — a mailing can be read long after it was
+        sent, and offering to put last month's opening in somebody's calendar is clutter at
+        best. The templates render nothing when this is None.
+        """
+        if event is None or event.is_past:
             return None
         from gallery.calendars import event_google_url
         return {
             'google': event_google_url(event),
             'ics': _absolute(reverse('gallery:event_ics', kwargs={'pk': event.pk}), request),
-            # The reply page is the event page — an RSVP is a decision made while looking at
-            # what you are deciding about, not on a form of its own.
-            'rsvp': _absolute(event.get_absolute_url(), request),
+            # The page that is only the reply, not the event page: the mailing has already
+            # described the event, so the context an event page adds is context they just read.
+            'rsvp': _absolute(reverse('event_rsvp', kwargs={'pk': event.pk}), request),
         }
 
     return {
