@@ -43,9 +43,11 @@
       </form>
     </div>
     {% endfor %}
-    <p class="text-danger small mb-0">
-      Anyone with this address can read every booking, including names and email addresses. Do
-      not post it anywhere.
+    <p class="text-muted small mb-0">
+      {# One sentence per line: a wrapped sentence is neither greppable nor testable. #}
+      Entries read &ldquo;Visit &mdash; 2 people&rdquo; and link here for the name.
+      <br>
+      A leaked address therefore shows when you have visitors rather than who they are, but it is still worth keeping to yourself.
     </p>
   </details>
   {% endif %}
@@ -58,7 +60,8 @@
       {% for visit, when in upcoming %}
       <tr>
         <td class="text-nowrap">{{ when|date:"D j M" }}, {{ when|time:"g:i A" }}</td>
-        <td>{{ visit.name }}<br><a class="small" href="mailto:{{ visit.email }}">{{ visit.email }}</a></td>
+        <td><a href="{% url 'gallery:visit_detail' visit.pk %}">{{ visit.name }}</a><br>
+          <a class="small" href="mailto:{{ visit.email }}">{{ visit.email }}</a></td>
         <td class="text-end">{{ visit.party_size }}</td>
         <td class="small text-muted">{{ visit.note|default:"" }}</td>
       </tr>

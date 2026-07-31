@@ -5,7 +5,8 @@ from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign
                                      campaign_new, campaign_preview, campaign_resume,
                                      campaign_send, campaign_send_test,
                                      campaign_template_preview)
-from gallery.views.visits import regenerate_visit_feed, visit_list, visits_ics
+from gallery.views.visits import (regenerate_visit_feed, visit_detail, visit_list,
+                                  visits_ics)
 from gallery.views.subscribers import (subscriber_add, subscriber_delete,
                                        subscriber_list, subscriber_unsubscribe_all,
                                        subscription_resubscribe,
@@ -139,6 +140,7 @@ urlpatterns = [
     path('visits/<str:token>.ics', visits_ics, name='visits_ics'),
     path('visits/<int:pk>/new-feed-address/', regenerate_visit_feed,
          name='regenerate_visit_feed'),
+    path('visits/<int:pk>/', visit_detail, name='visit_detail'),
     path('subscribers/add/', subscriber_add, name='subscriber_add'),
     path('subscribers/<int:pk>/remove-all/', subscriber_unsubscribe_all,
          name='subscriber_unsubscribe_all'),

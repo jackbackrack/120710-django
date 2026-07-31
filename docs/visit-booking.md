@@ -83,6 +83,25 @@ just take it rather than asking them to RSVP to themselves.
 One thing to check once, in Google Calendar settings: **"Add invitations to my calendar"** defaults
 to *"From senders I know"*. Mail from the gallery's own address qualifies.
 
+### What a calendar entry says
+
+**No names and no email addresses, anywhere in a calendar.** Both the invitation and the feed
+carry only:
+
+    SUMMARY:      Visit — 2 people
+    DESCRIPTION:  <the visitor's note, the arrival note, and a link>
+
+A calendar entry travels much further than an inbox does — a subscribed feed, a phone left on a
+table, a screen shared in a meeting — and knowing a visit is booked does not require knowing whose
+it is. Who they are sits behind a login at `/visits/<pk>/`, one authenticated click from the event.
+
+The email *around* the invitation still names them: that is a private message to the gallery, and
+seeing at a glance who is coming is the useful part of it.
+
+The **gallery** is the `ATTENDEE` on the invitation, not the visitor. A client adds an invitation
+when the recipient is among its attendees, and the message is addressed to the gallery — naming
+the visitor there both failed that test and put their address on every copy of the event.
+
 ### A subscribable feed, as well
 
 `/visits/<token>.ics` is every booked visit as a calendar. In Google Calendar: *Other calendars →
@@ -94,12 +113,15 @@ external calendar on its own schedule — commonly hours — and ignores any ref
 So the invitation is what tells you about a booking made this morning; the feed is the standing
 overview.
 
-**The URL is the credential**, and it carries visitors' names and email addresses. A subscribed
-calendar cannot sign in — Google fetches it with no cookies of ours — so there is nowhere else to
-put the secret. Hence a random per-site token rather than a slug, `private` caching, a
-`noindex` header, a 404 (never a 403) for a wrong token, and a **new address** button, since
-changing the URL is the only way to deal with one that has got out. It is shown on the staff
-Visits page with that warning next to it, and is never linked from a public page.
+**The URL is still a credential**, even though the feed names nobody: it is the gallery's
+schedule. A subscribed calendar cannot sign in — Google fetches it with no cookies of ours — so
+there is nowhere else to put a secret. Hence a random per-site token rather than a slug, `private`
+caching, a `noindex` header, a 404 (never a 403) for a wrong token, and a **new address** button,
+since changing the URL is the only way to deal with one that has got out.
+
+Because the entries are anonymous, a leaked address exposes when the gallery has visitors — not
+who they are. That is the difference between an embarrassment and a data breach, and it is why the
+anonymising was worth doing rather than relying on the token alone.
 
 The shows feed at `/shows.ics` is public because shows are; this one is the opposite, and the two
 should not be confused.

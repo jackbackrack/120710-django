@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load tz %}
+
+{% block title %}Visit — {{ when|date:"j M" }}{% endblock %}
+{% block block_title %}Visit{% endblock %}
+
+{% block content %}
+{% localtime off %}
+{% comment %}
+  The other half of an anonymous calendar entry. The event says "Visit — 2 people" and links
+  here; this is where the name and the address live, behind a login, so they are not carried
+  into every place a calendar entry ends up.
+{% endcomment %}
+<div class="col-11 col-md-7 mx-auto mt-4">
+  <p class="fs-5">{{ when|date:"l j F" }} at {{ when|time:"g:i A" }}{% if site %} · {{ site.name }}{% endif %}</p>
+
+  {% if visit.is_cancelled %}
+  <div class="alert alert-secondary">Cancelled by the visitor.</div>
+  {% endif %}
+
+  <dl>
+    <dt>Who</dt><dd>{{ visit.name }}</dd>
+    <dt>Email</dt><dd><a href="mailto:{{ visit.email }}">{{ visit.email }}</a></dd>
+    <dt>How many</dt><dd>{{ visit.party_size }}</dd>
+    {% if visit.note %}<dt>They said</dt><dd>{{ visit.note }}</dd>{% endif %}
+    <dt>Booked</dt><dd>{{ visit.created_at|date:"j M Y, g:i A" }}</dd>
+  </dl>
+
+  {% comment %}
+    No cancel button. A visit belongs to the visitor, who has a link of their own; a gallery
+    quietly deleting somebody's booking with no word to them would be worse than emailing to
+    say sorry.
+  {% endcomment %}
+  <a class="card__link" href="{% url 'gallery:visit_list' %}">All visits</a>
+</div>
+{% endlocaltime %}
+{% endblock %}

@@ -204,9 +204,10 @@ def invitation(visit, method='REQUEST', domain='120710.art', request=None):
     download, which is the whole trick — Google Calendar adds it by itself. `METHOD:CANCEL` with
     the same UID and a higher SEQUENCE removes it again.
 
-    The gallery is the ATTENDEE and the venue address is the ORGANIZER, which is back to front
-    from a person's point of view but right from the calendar's: the invitation is *to* the
-    gallery owner, and it has to come from an address they trust or Google will not add it.
+    The **gallery** is the ATTENDEE, not the visitor. That is what makes Google add it: a client
+    adds an invitation when the recipient is among its attendees, and this message is addressed
+    to the gallery. Naming the visitor there both failed that test and put their address on every
+    copy of the event.
     """
     site = visit.site
     tz = site_timezone(site)
@@ -214,16 +215,15 @@ def invitation(visit, method='REQUEST', domain='120710.art', request=None):
     organiser = site.email or settings.DEFAULT_FROM_EMAIL
     location = ', '.join(filter(None, [site.name,
                                        site.formatted_address.replace('\n', ', ')]))
-    summary = f'Gallery visit — {visit.name}'
-    details = [f'{visit.party_size} '
-               f'{"person" if visit.party_size == 1 else "people"}',
-               f'Booked by {visit.name} <{visit.email}>']
-    if visit.note:
-        details.append(visit.note)
-    if site.arrival_note:
-        details.append(site.arrival_note)
-    details.append(_absolute(
-        reverse('visit_cancel', kwargs={'token': cancel_token(visit)}), request))
+    # No name and no address on the event itself. A calendar entry travels further than an
+    # inbox does — a phone on a table, a screen shared in a meeting, the subscribed feed — and
+    # knowing a visit is booked does not require knowing whose it is. Who they are sits behind a
+    # login, one click away.
+    from gallery.calendars import visit_description, visit_summary
+
+    summary = visit_summary(visit)
+    base = _absolute('/', request).rstrip('/')
+    details = [d for d in [visit_description(visit, base)] if d]
 
     lines = [
         'BEGIN:VCALENDAR',
@@ -240,8 +240,8 @@ def invitation(visit, method='REQUEST', domain='120710.art', request=None):
         f'SUMMARY:{_esc(summary)}',
         f'DESCRIPTION:{_esc(chr(10).join(details))}',
         f'LOCATION:{_esc(location)}',
-        f'ORGANIZER;CN={_esc(site.name)}:mailto:{organiser}',
-        f'ATTENDEE;CN={_esc(visit.name)};RSVP=FALSE:mailto:{visit.email}',
+        f'ORGANIZER;CN={_esc(site.name)}:mailto:{settings.DEFAULT_FROM_EMAIL}',
+        f'ATTENDEE;CN={_esc(site.name)};RSVP=FALSE;PARTSTAT=ACCEPTED:mailto:{organiser}',
         'STATUS:CANCELLED' if method == 'CANCEL' else 'STATUS:CONFIRMED',
         'END:VEVENT',
         'END:VCALENDAR',

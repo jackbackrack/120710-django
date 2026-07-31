@@ -49,6 +49,23 @@ def visit_list(request):
     })
 
 
+@login_required
+def visit_detail(request, pk):
+    """Who a calendar entry actually is. Behind a login, which is the point of it.
+
+    The calendar carries "Visit — 2 people" and a link here. That keeps names and email
+    addresses out of every place a calendar entry ends up — a subscribed feed, a phone, a
+    screen shared in a meeting — and puts them one authenticated click away instead.
+    """
+    if not _may_see(request.user):
+        raise Http404
+    visit = get_object_or_404(Visit.objects.select_related('site'), pk=pk)
+    tz = site_timezone(visit.site)
+    with dj_timezone.override(tz):
+        return render(request, 'gallery/visit_detail.html', {
+            'visit': visit, 'site': visit.site, 'when': visit.when.astimezone(tz)})
+
+
 @require_safe
 def visits_ics(request, token):
     """The visits feed, found only by its secret.
@@ -72,7 +89,8 @@ def visits_ics(request, token):
               .order_by('when'))
     body = calendars.visits_feed(
         site, visits, domain=request.get_host().split(':')[0],
-        url=request.build_absolute_uri())
+        url=request.build_absolute_uri(),
+        base_url=request.build_absolute_uri('/'))
     response = HttpResponse(body, content_type='text/calendar; charset=utf-8')
     # Inline, not an attachment: a Content-Disposition here makes most clients save a dead
     # snapshot instead of subscribing.

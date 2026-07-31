@@ -2530,13 +2530,45 @@ class VisitBookingTests(TestCase):
             self.site.refresh_from_db()
         return f'/visits/{self.site.visit_feed_token}.ics'
 
-    def test_the_feed_lists_booked_visits(self):
+    def test_the_feed_says_there_is_a_visit_without_saying_who(self):
+        """A calendar entry travels further than an inbox does — a phone on a table, a screen
+        shared in a meeting, the feed itself. Knowing a visit is booked does not require knowing
+        whose it is, so the name and address sit one authenticated click away instead."""
         self._book()
         body = self.client.get(self._feed_url()).content.decode()
-        self.assertIn('BEGIN:VCALENDAR', body)
         self.assertIn('BEGIN:VEVENT', body)
-        self.assertIn('Ana Vidal', body)
         self.assertIn('120710 — visits', body)
+        self.assertIn('Visit — 2 people', body)
+
+        self.assertNotIn('Ana Vidal', body)
+        self.assertNotIn('ana@example.com', body)
+
+        from gallery.models import Visit
+        self.assertIn(reverse('gallery:visit_detail',
+                              kwargs={'pk': Visit.objects.get().pk}), body)
+
+    def test_the_reveal_page_needs_a_login(self):
+        from gallery.models import Visit
+        self._book()
+        url = reverse('gallery:visit_detail', kwargs={'pk': Visit.objects.get().pk})
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+        artist = User.objects.create_user(username='nv@example.com', email='nv@example.com',
+                                          password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_the_reveal_page_shows_who_it_is(self):
+        from gallery.models import Visit
+        self._book()
+        staff = User.objects.create_user(username='rv@example.com', email='rv@example.com',
+                                         password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:visit_detail',
+                                       kwargs={'pk': Visit.objects.get().pk}))
+        self.assertContains(page, 'Ana Vidal')
+        self.assertContains(page, 'ana@example.com')
 
     def test_a_cancelled_visit_simply_leaves_the_feed(self):
         """The whole behaviour a subscribed feed offers, and why no SEQUENCE dance is needed."""
@@ -2592,8 +2624,7 @@ class VisitBookingTests(TestCase):
         self.client.force_login(staff)
         page = self.client.get(reverse('gallery:visit_list'))
         self.assertContains(page, '.ics')
-        self.assertContains(page, 'Do')
-        self.assertContains(page, 'not post it anywhere')
+        self.assertContains(page, 'worth keeping to yourself')
 
     # --- Timezones ---
 
@@ -2679,7 +2710,16 @@ class VisitBookingTests(TestCase):
         body = next(b for b, kind in gallery.alternatives if kind.startswith('text/calendar'))
         self.assertIn('METHOD:REQUEST', body)
         self.assertIn('BEGIN:VEVENT', body)
-        self.assertIn('Ana Vidal', body)
+        # The event itself names nobody; the email around it does.
+        self.assertNotIn('Ana Vidal', body)
+        self.assertIn('Visit — 2 people', body)
+        self.assertNotIn('ana@example.com', body)
+        # The gallery is the attendee, which is what makes a client add it — the message is
+        # addressed to them. The email around the invitation is where the name is.
+        self.assertIn('ATTENDEE', body)
+        self.assertIn('info@120710.art', body)
+        html = next(b for b, kind in gallery.alternatives if kind == 'text/html')
+        self.assertIn('Ana Vidal', html)
 
     def test_the_visitor_gets_their_copy_and_a_way_out(self):
         self._book()

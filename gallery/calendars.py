@@ -260,7 +260,33 @@ def last_modified(entries):
     return max(stamps) if stamps else None
 
 
-def visits_feed(site, visits, domain, url=None):
+def visit_summary(visit):
+    """What a calendar entry says: that there is one, and how many people.
+
+    Deliberately no name. A calendar entry ends up in more places than an inbox does — a
+    subscribed feed, a phone on a table, a screen shared in a meeting — and the gallery does not
+    need to know who is coming in order to know it is booked. Who they are is one authenticated
+    click away instead.
+    """
+    people = f'{visit.party_size} {"person" if visit.party_size == 1 else "people"}'
+    return f'Visit — {people}'
+
+
+def visit_description(visit, base_url=''):
+    from django.urls import reverse
+
+    lines = []
+    if visit.note:
+        lines.append(visit.note)
+    if visit.site.arrival_note:
+        lines.append(visit.site.arrival_note)
+    if base_url:
+        lines.append(f'Who this is: {base_url.rstrip("/")}'
+                     f'{reverse("gallery:visit_detail", kwargs={"pk": visit.pk})}')
+    return '\n'.join(lines)
+
+
+def visits_feed(site, visits, domain, url=None, base_url=''):
     """A VCALENDAR of booked visits, for the gallery to subscribe to.
 
     Complements the invitation emails rather than replacing them. Google refreshes a subscribed
@@ -286,20 +312,14 @@ def visits_feed(site, visits, domain, url=None):
         lines.append(f'X-ORIGINAL-URL:{_esc(url)}')
 
     for visit in visits:
-        people = f'{visit.party_size} {"person" if visit.party_size == 1 else "people"}'
-        details = [people, visit.email]
-        if visit.note:
-            details.append(visit.note)
-        if site.arrival_note:
-            details.append(site.arrival_note)
         lines.extend([
             'BEGIN:VEVENT',
             f'UID:{visit.uid(domain)}',
             f'DTSTAMP:{_utc(now)}',
             f'DTSTART:{_utc(visit.when.astimezone(tz))}',
             f'DTEND:{_utc(visit.ends.astimezone(tz))}',
-            f'SUMMARY:{_esc(f"Visit — {visit.name}")}',
-            f'DESCRIPTION:{_esc(chr(10).join(details))}',
+            f'SUMMARY:{_esc(visit_summary(visit))}',
+            f'DESCRIPTION:{_esc(visit_description(visit, base_url))}',
             f'LOCATION:{_esc(", ".join(filter(None, [site.name, site.formatted_address.replace(chr(10), ", ")])))}',
             'END:VEVENT',
         ])
