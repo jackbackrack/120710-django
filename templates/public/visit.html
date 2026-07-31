@@ -9,6 +9,9 @@
 
 {% if info_site %}
   {% if info_site.hours_display %}<p>{{ info_site.hours_display }}</p>{% endif %}
+  {% if info_site.visits_enabled %}
+  <p><a class="btn btn-primary" href="{% url 'book_visit' %}">Book a time to visit</a></p>
+  {% endif %}
 
   {% comment %}
     Phone and email only when they exist. This page used to state both unconditionally

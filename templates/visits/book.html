@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Book a visit{% endblock %}
+{% block block_title %}Book a visit to {{ site.name }}{% endblock %}
+
+{% block content %}
+{% comment %}
+  Slots are shared on purpose — several visitors at the same time is fewer appointments for the
+  gallery to keep, not a clash — so this page never says "taken". It only stops offering a time
+  when a capacity has been set and reached.
+
+  Picking a slot fills the hidden field and reveals the details, rather than being a separate
+  page: the whole booking is one decision and one submit.
+{% endcomment %}
+<div class="col-11 col-md-8 mx-auto mt-4">
+
+  {% if site.hours_display %}
+  <p class="text-muted">Usual hours: {{ site.hours_display }}.</p>
+  {% endif %}
+
+  {% if not days %}
+  <p class="mt-4">
+    There are no times to book just now. Do get in touch
+    {% if site.email %}at <a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
+    and we will find one.
+  </p>
+  {% else %}
+
+  <form method="post" id="bookForm">{% csrf_token %}
+    {{ form.when }}
+    {% for field in form %}{% if field.name == 'when' %}{% else %}{% endif %}{% endfor %}
+
+    <h5 class="mt-3">Pick a time</h5>
+    <p class="text-muted small">Times are {{ timezone }}.</p>
+
+    <div class="slot-days">
+      {% for day, starts in days %}
+      <div class="slot-day">
+        <div class="slot-date">{{ day|date:"l j F" }}</div>
+        <div class="slot-row">
+          {% for start, left in starts %}
+          <button type="button" class="slot" data-when="{{ start.isoformat }}"
+                  aria-pressed="false">
+            {{ start|time:"g:i A" }}
+            {% if left %}<span class="slot-left">{{ left }} left</span>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="details" class="mt-4" hidden>
+      <h5>Your details</h5>
+      <p class="text-muted small" id="chosen"></p>
+      {{ form.name|as_crispy_field }}
+      {{ form.email|as_crispy_field }}
+      {{ form.party_size|as_crispy_field }}
+      {{ form.note|as_crispy_field }}
+      {{ form.captcha }}
+      {% include 'honeypot/honeypot_field.html' %}
+      <button type="submit" class="btn btn-primary mt-2">Book this visit</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+<style>
+  .slot-day { margin-bottom: 1.1rem; }
+  .slot-date { font-weight: 600; margin-bottom: .35rem; }
+  .slot-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .slot { border: 1px solid rgba(0,0,0,.25); background: #fff; border-radius: .3rem;
+          padding: .4rem .7rem; cursor: pointer; line-height: 1.2; }
+  .slot[aria-pressed="true"] { background: #198754; border-color: #198754; color: #fff; }
+  .slot-left { display: block; font-size: .72rem; opacity: .7; }
+</style>
+
+<script>
+  (function () {
+    var field = document.querySelector('[name="when"]');
+    var details = document.getElementById('details');
+    var chosen = document.getElementById('chosen');
+    if (!field) return;
+    document.querySelectorAll('.slot').forEach(function (button) {
+      button.addEventListener('click', function () {
+        document.querySelectorAll('.slot').forEach(function (other) {
+          other.setAttribute('aria-pressed', 'false');
+        });
+        button.setAttribute('aria-pressed', 'true');
+        field.value = button.dataset.when;
+        chosen.textContent = 'Visiting on ' +
+          button.closest('.slot-day').querySelector('.slot-date').textContent +
+          ' at ' + button.textContent.trim().split('\n')[0] + '.';
+        details.hidden = false;
+        details.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+      });
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Cancel a visit{% endblock %}
+{% block block_title %}{% if done %}Visit cancelled{% else %}Cancel your visit{% endif %}{% endblock %}
+{% block content %}
+<div class="col-11 col-md-7 mx-auto mt-4">
+  {% if invalid %}
+  <p>That cancellation link is not one we recognise. It may have already been used.</p>
+  {% elif done %}
+  <p>Your visit on {{ when|date:"l j F" }} at {{ when|time:"g:i A" }} has been cancelled.
+    Nothing else to do.</p>
+  <p class="text-muted">You are very welcome to book another time whenever suits.</p>
+  {% else %}
+  {% comment %}
+    A POST to cancel, not a GET: mail clients prefetch links, and a scanner must not be able to
+    cancel somebody's visit on their behalf.
+  {% endcomment %}
+  <p>Cancel your visit to {{ site.name }} on
+    <strong>{{ when|date:"l j F" }} at {{ when|time:"g:i A" }}</strong>?</p>
+  <form method="post">{% csrf_token %}
+    <button type="submit" class="btn btn-danger">Yes, cancel it</button>
+    <a class="btn btn-secondary ms-2" href="{% url 'index' %}">Keep it</a>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

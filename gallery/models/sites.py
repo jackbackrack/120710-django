@@ -120,6 +120,26 @@ class Site(models.Model):
     # columns, so adding one needs no migration.
     icon_md = ImageSpecField(source='icon', processors=[Transpose(), ResizeToFit(width=300)], format='PNG', options={'quality': 90})
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+
+    # ── Booking a visit ──────────────────────────────────────────────────────
+    # Off until a venue has entered structured opening hours, because slots are computed from
+    # them and a venue with none would offer nothing and look broken.
+    visits_enabled = models.BooleanField(
+        default=False, verbose_name='Let visitors book a time',
+        help_text='Needs opening hours entered below. Visitors pick a slot and you get a '
+                  'calendar invitation by email.')
+    visit_slot_minutes = models.PositiveSmallIntegerField(
+        default=30, verbose_name='Slot length (minutes)')
+    # Zero means no limit. Slots are deliberately shared — several visitors at the same time is
+    # fewer appointments to keep, not a clash — but a school group of twelve is worth a ceiling.
+    visit_capacity = models.PositiveSmallIntegerField(
+        default=0, verbose_name='People per slot',
+        help_text='0 for no limit. Visits share a slot on purpose; this is only a ceiling.')
+    visit_lead_hours = models.PositiveSmallIntegerField(
+        default=2, verbose_name='Notice required (hours)',
+        help_text='Slots sooner than this are not offered.')
+    visit_horizon_days = models.PositiveSmallIntegerField(
+        default=30, verbose_name='Book up to (days ahead)')
     # Which postal codes count as "in this venue's area", for shows whose scope is local.
     # Stored as a list rather than as a rule (a radius, a set of counties) so the boundary
     # stays editable: if one postal code is wrong you fix that postal code, without a

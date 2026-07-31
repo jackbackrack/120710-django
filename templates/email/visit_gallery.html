@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<body>
+{% comment %}
+The gallery's copy. The calendar part alongside this is what actually reaches Google Calendar;
+this is the human-readable half of the same message, for reading on a phone.
+{% endcomment %}
+{% if cancelled %}
+<p><strong>{{ visit.name }} has cancelled.</strong></p>
+<p>They were coming on {{ when|date:"l j F" }} at {{ when|time:"g:i A" }}.</p>
+<p>Your calendar should remove it by itself.</p>
+{% else %}
+<p><strong>{{ visit.name }} has booked a visit.</strong></p>
+<p>
+  {{ when|date:"l j F" }} at {{ when|time:"g:i A" }}<br>
+  {{ visit.party_size }} {% if visit.party_size == 1 %}person{% else %}people{% endif %}<br>
+  <a href="mailto:{{ visit.email }}">{{ visit.email }}</a>
+</p>
+{% if visit.note %}<p><em>{{ visit.note }}</em></p>{% endif %}
+<p>This should appear in your calendar automatically.</p>
+{% endif %}
+<p>— {{ site.name }}</p>
+</body>
+</html>

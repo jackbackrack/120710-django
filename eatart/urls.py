@@ -6,6 +6,7 @@ from accounts.views import ArtistUserCreateView, CustomPasswordResetView, Custom
 from eatart.views.public import (index, visit, contact, about, howto, howto_guide,
                                  howto_reference, linktree, privacy)
 from eatart.views.subscribe import subscribe, subscribe_kiosk
+from eatart.views.visits import book_visit, cancel_visit
 from eatart.views.unsubscribe import unsubscribe
 
 #temporary hack as well as + static(...) below
@@ -39,6 +40,11 @@ urlpatterns = [
     path('howto/<slug:anchor>/', howto_guide, name='howto_guide'),
     path('links/', linktree, name='linktree'),
     path('subscribe/', subscribe, name='subscribe'),
+    path('visit/book/', book_visit, name='book_visit'),
+    path('site/<slug:site_slug>/visit/book/', book_visit, name='site_book_visit'),
+    # Its own top-level path, not under a site: the link lives in an email that has to
+    # keep working whatever happens to the venue's slug.
+    path('visit/cancel/<str:token>/', cancel_visit, name='visit_cancel'),
     # One URL, two behaviours: a confirmation page on GET, one-click on POST for the
     # Unsubscribe button Gmail and Yahoo render. See the view.
     path('unsubscribe/<str:token>/', unsubscribe, name='unsubscribe'),

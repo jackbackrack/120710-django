@@ -569,6 +569,8 @@ HOW_TO_GUIDES = [
         'anchor': 'manage-subscribers',
         'roles': {'staff'},
         'steps': [
+            'Visits, under the Mailing List menu, lists who has booked a time to come and see the gallery, and who has been. It is read-only: every booking also arrives in your calendar as an invitation, and a visitor who wants to change theirs has a cancellation link in their confirmation email. If you need a booking gone, email them rather than deleting it out from under them.',
+            'To offer visits at all, edit the site, enter its opening hours as rows, and tick "Let visitors book a time". Slots come from those hours, so a venue with none offers nothing. Several visitors can book the same slot on purpose — that is fewer appointments for you to keep, not a clash — with "People per slot" as a ceiling if you want one.',
             'Open the Mailing List menu in the navigation and choose Subscribers. Across the top is one entry per list with the number of people a mailing to that list would reach, this venue first; click one to filter to it.',
             'Anyone who signs up through a form is subscribed straight away and sent a welcome email. There is no confirmation link to click, on purpose — that would cost signups — but the welcome email means a mistyped address bounces once and is removed before it ever receives a campaign, and anyone signed up by somebody else can leave immediately.',
             'Search by email address or name to find one person. The status menu narrows to people who are on at least one list, or people who are off every list. Somebody on two lists who has left one still counts as being on a list.',

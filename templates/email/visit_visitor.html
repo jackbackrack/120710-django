@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<body>
+{% comment %}
+The visitor's copy. Attached as PUBLISH rather than REQUEST — they are not being invited to
+something they must respond to, they made the booking; their calendar should just take it.
+{% endcomment %}
+<p>Thanks {{ visit.name }} — you are booked in to visit {{ site.name }}.</p>
+
+<p>
+  <strong>{{ when|date:"l j F" }} at {{ when|time:"g:i A" }}</strong><br>
+  {% if maps_url %}<a href="{{ maps_url }}">{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}</a>
+  {% else %}{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}{% endif %}
+</p>
+
+{% if site.visit_notes %}<p>{{ site.visit_notes|striptags }}</p>{% endif %}
+
+<p>Others may be visiting at the same time — the gallery is open, not booked out.</p>
+
+<p>If your plans change, <a href="{{ cancel_url }}">cancel your visit here</a>. No need to
+  explain.</p>
+
+{% if site.phone or site.email %}
+<p>Anything else:
+  {% if site.phone %}<a href="tel:{{ site.phone }}">{{ site.phone }}</a>{% endif %}
+  {% if site.phone and site.email %} or {% endif %}
+  {% if site.email %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
+</p>
+{% endif %}
+
+<p>— {{ site.name }}</p>
+</body>
+</html>

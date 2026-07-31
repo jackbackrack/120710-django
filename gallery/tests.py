@@ -1978,6 +1978,243 @@ class OpeningHoursTests(TestCase):
             self.assertEqual(_opening_hours(), ['Su 13:00-16:00'])
 
 
+class VisitBookingTests(TestCase):
+    """Booking a time to come and see the gallery.
+
+    Slots are shared on purpose: several visitors at the same half hour is fewer appointments for
+    the gallery to keep, not a clash. That is what removes locking, held slots and double-booking
+    races, and it is worth a test of its own because it looks like a bug otherwise.
+    """
+
+    def setUp(self):
+        from gallery.models import OpeningHours, Site
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 10th St', city='Berkeley', state='CA', postal_code='94710',
+            email='info@120710.art', timezone='America/Los_Angeles',
+            visits_enabled=True, visit_slot_minutes=30, visit_lead_hours=2,
+            visit_horizon_days=14)
+        # Open every day, so a test does not depend on which weekday it runs.
+        for weekday in range(7):
+            OpeningHours.objects.create(site=self.site, weekday=weekday,
+                                        start=datetime.time(13, 0), end=datetime.time(16, 0))
+        mail.outbox.clear()
+
+    def _first_slot(self):
+        from gallery import visits as engine
+        days = engine.available(self.site)
+        self.assertTrue(days, 'no slots were offered')
+        return days[0][1][0][0]
+
+    def _book(self, when=None, **extra):
+        data = {'when': (when or self._first_slot()).isoformat(),
+                'name': 'Ana Vidal', 'email': 'ana@example.com', 'party_size': '2',
+                'note': '', 'address': ''}
+        data.update(extra)
+        return self.client.post(reverse('book_visit'), data, follow=True)
+
+    # --- Slots ---
+
+    def test_slots_come_from_the_structured_hours(self):
+        from gallery import visits as engine
+        day, starts = engine.available(self.site)[0]
+        times = [start.strftime('%H:%M') for start, _ in starts]
+        self.assertTrue(set(times) <= {'13:00', '13:30', '14:00', '14:30', '15:00', '15:30'},
+                        times)
+
+    def test_a_slot_that_would_run_past_closing_is_not_offered(self):
+        """Offering 3:45 for a half-hour visit at a gallery that shuts at four is how somebody
+        arrives to a locked door."""
+        from gallery import visits as engine
+        for _, starts in engine.available(self.site):
+            for start, _ in starts:
+                self.assertLessEqual((start + datetime.timedelta(minutes=30)).time(),
+                                     datetime.time(16, 0))
+
+    def test_nothing_inside_the_notice_period_is_offered(self):
+        from gallery import visits as engine
+        now = timezone.now()
+        for _, starts in engine.available(self.site, now=now):
+            for start, _ in starts:
+                self.assertGreaterEqual(start, now + datetime.timedelta(hours=2))
+
+    def test_a_closure_removes_its_days(self):
+        from gallery import visits as engine
+        from gallery.models import SiteClosure
+        tz = __import__('zoneinfo').ZoneInfo('America/Los_Angeles')
+        today = timezone.now().astimezone(tz).date()
+        SiteClosure.objects.create(site=self.site, start_date=today,
+                                   end_date=today + datetime.timedelta(days=30),
+                                   note='Between shows')
+        self.assertEqual(engine.available(self.site), [])
+
+    def test_a_venue_with_booking_switched_off_offers_nothing(self):
+        from gallery import visits as engine
+        self.site.visits_enabled = False
+        self.site.save(update_fields=['visits_enabled'])
+        self.assertEqual(engine.available(self.site), [])
+        self.assertEqual(self.client.get(reverse('book_visit')).status_code, 404)
+
+    # --- The point of the design ---
+
+    def test_several_visitors_may_book_the_same_slot(self):
+        """Not a bug. Fewer appointments to keep, and no locking anywhere in the system."""
+        from gallery.models import Visit
+        slot = self._first_slot()
+        self._book(slot)
+        self._book(slot, name='Sam Ready', email='sam@example.com')
+        self.assertEqual(Visit.objects.filter(when=slot).count(), 2)
+
+    def test_a_capacity_closes_a_slot_once_it_is_reached(self):
+        """Shared, but not unlimited — a school group of twelve is worth a ceiling."""
+        from gallery import visits as engine
+        self.site.visit_capacity = 3
+        self.site.save(update_fields=['visit_capacity'])
+        slot = self._first_slot()
+
+        self._book(slot)                       # party of 2, one place left
+        self.assertTrue(engine.is_bookable(self.site, slot, party_size=1))
+        self.assertFalse(engine.is_bookable(self.site, slot, party_size=2))
+
+        self._book(slot, name='Sam', email='s@example.com', party_size='1')
+        self.assertFalse(engine.is_bookable(self.site, slot, party_size=1))
+        remaining = [s for _, starts in engine.available(self.site) for s, _ in starts]
+        self.assertNotIn(slot, remaining)
+
+    def test_a_stale_page_cannot_book_a_slot_that_has_gone(self):
+        """The page may have been open an hour; the notice period alone will have moved."""
+        from gallery.models import Visit
+        gone = timezone.now() + datetime.timedelta(minutes=10)
+        r = self._book(gone)
+        self.assertContains(r, 'that time has just gone')
+        self.assertEqual(Visit.objects.count(), 0)
+
+    # --- Emails ---
+
+    def test_booking_emails_the_visitor_and_the_gallery(self):
+        self._book()
+        self.assertEqual(len(mail.outbox), 2)
+        to = sorted(m.to[0] for m in mail.outbox)
+        self.assertEqual(to, ['ana@example.com', 'info@120710.art'])
+
+    def test_the_gallery_gets_a_calendar_invitation_not_an_attachment(self):
+        """METHOD:REQUEST is what makes Google Calendar add it by itself, with no integration."""
+        self._book()
+        gallery = next(m for m in mail.outbox if m.to == ['info@120710.art'])
+        kinds = [kind for _, kind in gallery.alternatives]
+        calendar = next(c for c in kinds if c.startswith('text/calendar'))
+        self.assertIn('method=REQUEST', calendar)
+        body = next(b for b, kind in gallery.alternatives if kind.startswith('text/calendar'))
+        self.assertIn('METHOD:REQUEST', body)
+        self.assertIn('BEGIN:VEVENT', body)
+        self.assertIn('Ana Vidal', body)
+
+    def test_the_visitor_gets_their_copy_and_a_way_out(self):
+        self._book()
+        visitor = next(m for m in mail.outbox if m.to == ['ana@example.com'])
+        html = next(b for b, kind in visitor.alternatives if kind == 'text/html')
+        self.assertIn('/visit/cancel/', html)
+        # Not an invitation to respond to — they made the booking.
+        calendar = next(kind for _, kind in visitor.alternatives
+                        if kind.startswith('text/calendar'))
+        self.assertIn('method=PUBLISH', calendar)
+
+    def test_a_mail_failure_does_not_lose_the_booking(self):
+        """The visitor has been told it worked, so it has to have worked."""
+        from unittest import mock
+        from gallery.models import Visit
+        with mock.patch('gallery.visits.EmailMultiAlternatives.send',
+                        side_effect=RuntimeError('mail down')):
+            self._book()
+        self.assertEqual(Visit.objects.count(), 1)
+
+    # --- Cancelling ---
+
+    def test_a_visitor_can_cancel_from_their_email(self):
+        from gallery import visits as engine
+        from gallery.models import Visit
+        self._book()
+        visit = Visit.objects.get()
+        url = reverse('visit_cancel', kwargs={'token': engine.cancel_token(visit)})
+
+        # A GET only asks — mail clients prefetch links, and a scanner must not cancel a visit.
+        self.client.get(url)
+        self.assertFalse(Visit.objects.get().is_cancelled)
+
+        mail.outbox.clear()
+        self.client.post(url)
+        visit = Visit.objects.get()
+        self.assertTrue(visit.is_cancelled)
+        self.assertEqual(len(mail.outbox), 1)
+        body = next(b for b, kind in mail.outbox[0].alternatives
+                    if kind.startswith('text/calendar'))
+        self.assertIn('METHOD:CANCEL', body)
+
+    def test_a_cancellation_advances_the_sequence(self):
+        """A calendar client ignores an update whose SEQUENCE has not moved, so a cancellation
+        at the same sequence is dropped and the appointment stays for good."""
+        from gallery import visits as engine
+        from gallery.models import Visit
+        self._book()
+        visit = Visit.objects.get()
+        self.assertEqual(visit.sequence, 0)
+        self.client.post(reverse('visit_cancel',
+                                 kwargs={'token': engine.cancel_token(visit)}))
+        self.assertEqual(Visit.objects.get().sequence, 1)
+
+    def test_the_invitation_and_its_cancellation_share_a_uid(self):
+        """Different UIDs would leave the original sitting in the calendar."""
+        from gallery import visits as engine
+        from gallery.models import Visit
+        self._book()
+        visit = Visit.objects.get()
+        request = engine.invitation(visit, method='REQUEST')
+        cancel = engine.invitation(visit, method='CANCEL')
+        self.assertIn(visit.uid(), request)
+        self.assertIn(visit.uid(), cancel)
+
+    def test_a_tampered_cancellation_link_does_nothing(self):
+        from gallery.models import Visit
+        self._book()
+        r = self.client.post(reverse('visit_cancel', kwargs={'token': 'not-a-real-token'}))
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(Visit.objects.get().is_cancelled)
+
+    def test_a_cancelled_slot_frees_its_place_again(self):
+        from gallery import visits as engine
+        from gallery.models import Visit
+        self.site.visit_capacity = 2
+        self.site.save(update_fields=['visit_capacity'])
+        slot = self._first_slot()
+        self._book(slot)                       # party of 2 fills it
+        self.assertFalse(engine.is_bookable(self.site, slot, party_size=1))
+
+        visit = Visit.objects.get()
+        self.client.post(reverse('visit_cancel',
+                                 kwargs={'token': engine.cancel_token(visit)}))
+        self.assertTrue(engine.is_bookable(self.site, slot, party_size=1))
+
+    # --- Staff ---
+
+    def test_staff_can_see_who_is_coming(self):
+        self._book()
+        staff = User.objects.create_user(username='v@example.com', email='v@example.com',
+                                         password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:visit_list'))
+        self.assertContains(page, 'Ana Vidal')
+        self.assertContains(page, 'ana@example.com')
+
+    def test_the_visit_list_is_not_public(self):
+        self._book()
+        self.assertEqual(self.client.get(reverse('gallery:visit_list')).status_code, 302)
+        artist = User.objects.create_user(username='a2@example.com', email='a2@example.com',
+                                          password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.get(reverse('gallery:visit_list')).status_code, 404)
+
+
 class CampaignOutcomeTests(TestCase):
     """What happened after the send, not just what we did.
 

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Visit booked{% endblock %}
+{% block block_title %}You are booked in{% endblock %}
+{% block content %}
+<div class="col-11 col-md-7 mx-auto mt-4">
+  <p class="fs-5">{{ when|date:"l j F" }} at {{ when|time:"g:i A" }}, at {{ site.name }}.</p>
+  <p>We have emailed {{ visit.email }} with the details and a link to cancel if your plans
+    change.</p>
+  {% if site.street %}
+  <p class="text-muted">{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}</p>
+  {% endif %}
+  <a class="card__link" href="{% url 'index' %}">Back to the gallery</a>
+</div>
+{% endblock %}

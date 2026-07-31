@@ -76,6 +76,7 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item{% if 'campaigns' in u %} active{% endif %}" href="{% url 'gallery:campaign_list' %}">Campaigns</a></li>
               <li><a class="dropdown-item{% if 'subscribers' in u %} active{% endif %}" href="{% url 'gallery:subscriber_list' %}">Subscribers</a></li>
+              <li><a class="dropdown-item{% if 'visits' in u %} active{% endif %}" href="{% url 'gallery:visit_list' %}">Visits</a></li>
             </ul>
           </li>
           {% endif %}
