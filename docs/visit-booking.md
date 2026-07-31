@@ -41,6 +41,25 @@ time somebody can ask for.
 The slot is re-checked on submission, not trusted from the form — the page may have been open for
 an hour, and the notice period alone will have moved on.
 
+### Drop-in hours are pushed, arranged ones are offered
+
+Slots carry which kind of block they came from all the way to the page, because they are not the
+same offer: one is "the gallery is open, come in", the other is "somebody will make a point of
+being here". Public hours cost nobody a special trip, so the page names them before the grid —
+*"open to everyone Sun 1:00–4:00 PM … you are welcome to just turn up"* — and lists them first, in
+green, above a quieter *by arrangement* group.
+
+Encouraged is not required: an arranged slot can still be booked, and there is a test saying so.
+
+### What is on that day
+
+Each day carries the show that is up, linked, or says **Between shows** plainly. Somebody choosing
+between two afternoons is usually choosing between two shows, and days with nothing hanging are
+still offered rather than hidden — a visitor may well want to come and see the space.
+
+Only `published` shows are named. A draft is not something to announce, and an open call is not yet
+on the walls.
+
 ## Telling the gallery
 
 A message carrying a `text/calendar` **alternative part** with `METHOD:REQUEST` *is* a calendar
@@ -133,6 +152,10 @@ names the zone it is showing, so a visitor in another one is not guessing.
 Cancellation links are signed tokens carrying the booking id *and* the email address, so a
 recycled primary key cannot cancel somebody else's visit. Cancelling is a **POST** — mail clients
 prefetch links, and a scanner must not be able to cancel a visit on the visitor's behalf.
+
+A **signed-in** visitor is not asked their name or address — they have told us both already, so
+the fields are dropped rather than pre-filled, and the values are read from the account on the
+server. Pre-filling would let a hidden field book a visit in somebody else's name.
 
 There is no confirm-your-email step before a booking counts. A booking is not a mailing-list
 signup: since slots are shared, a spammed booking wastes nobody's place, and making every genuine

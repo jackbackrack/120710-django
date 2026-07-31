@@ -20,6 +20,7 @@ invitation. Worth revisiting only if declining becomes the annoying part.
 """
 import datetime as dt
 import logging
+from typing import NamedTuple
 
 from django.conf import settings
 from django.core import signing
@@ -40,7 +41,12 @@ CANCEL_SALT = 'gallery.visits.cancel'
 # ── Slots ────────────────────────────────────────────────────────────────────
 
 def slots_for_day(site, day, now=None):
-    """Bookable start times on one date, as aware datetimes in the venue's zone."""
+    """Bookable starts on one date, as (aware datetime, by_appointment) in the venue's zone.
+
+    Whether a slot came from a drop-in block or an arrangeable one is carried all the way to the
+    page, because they are not the same offer: one is "the gallery is open, come in", the other
+    is "somebody will make a point of being here".
+    """
     now = now or dj_timezone.now()
     tz = site_timezone(site)
     length = dt.timedelta(minutes=site.visit_slot_minutes or 30)
@@ -54,7 +60,7 @@ def slots_for_day(site, day, now=None):
         # gallery that shuts at six is how somebody arrives to a locked door.
         while cursor + length <= closes:
             if cursor >= earliest:
-                out.append(cursor)
+                out.append((cursor, block.by_appointment))
             cursor += length
     return out
 
@@ -70,11 +76,53 @@ def taken(site, starts):
     return {row['when']: row['total'] or 0 for row in rows}
 
 
-def available(site, now=None):
-    """Every bookable slot in the horizon, grouped by date.
+class Slot(NamedTuple):
+    start: dt.datetime
+    places_left: object       # None when the venue has set no capacity
+    by_appointment: bool
 
-    Returns [(date, [(start, places_left_or_None), ...]), ...] with empty days dropped, which is
-    what a booking page wants to render directly.
+
+class Day(NamedTuple):
+    """One bookable date, with what a visitor would actually see if they came."""
+    date: dt.date
+    show: object              # the Show that is up, or None between shows
+    open_slots: list          # drop-in: the gallery is open anyway
+    appointment_slots: list   # arrangeable: somebody comes in for you
+
+    @property
+    def slots(self):
+        return self.open_slots + self.appointment_slots
+
+
+def shows_by_day(site, days):
+    """Which show is up on each of `days`. One query, not one per day.
+
+    Only `published` shows count. A draft is not something to name publicly, and an open call is
+    not yet on the walls — telling somebody a show is up when the room is empty is worse than
+    telling them nothing.
+    """
+    from gallery.models import Show
+
+    if not days:
+        return {}
+    running = (Show.objects.filter(sites=site, status=Show.STATUS_PUBLISHED,
+                                   start__lte=max(days), end__gte=min(days))
+               .order_by('start'))
+    out = {}
+    for show in running:
+        for day in days:
+            if show.start <= day <= show.end:
+                # First by start date wins if two overlap, which is the one that has been up
+                # longest and so the one a visitor is more likely to mean.
+                out.setdefault(day, show)
+    return out
+
+
+def available(site, now=None):
+    """Every bookable slot in the horizon, as `Day` rows with empty days dropped.
+
+    Carries the show that is up as well as the times, because "which of these afternoons has
+    something on the walls" is the question somebody is really asking when they pick one.
     """
     if not site.visits_enabled:
         return []
@@ -85,21 +133,25 @@ def available(site, now=None):
 
     days = [today + dt.timedelta(days=offset) for offset in range(horizon + 1)]
     every = {day: slots_for_day(site, day, now=now) for day in days}
-    counts = taken(site, [start for starts in every.values() for start in starts])
+    counts = taken(site, [start for starts in every.values() for start, _ in starts])
+    bookable = [day for day in days if every[day]]
+    shows = shows_by_day(site, bookable)
 
     cap = site.visit_capacity or 0
     out = []
     for day in days:
-        row = []
-        for start in every[day]:
-            if not cap:
-                row.append((start, None))
-                continue
-            left = cap - counts.get(start, 0)
-            if left > 0:
-                row.append((start, left))
-        if row:
-            out.append((day, row))
+        drop_in, arranged = [], []
+        for start, by_appointment in every[day]:
+            left = None
+            if cap:
+                left = cap - counts.get(start, 0)
+                if left <= 0:
+                    continue
+            (arranged if by_appointment else drop_in).append(
+                Slot(start=start, places_left=left, by_appointment=by_appointment))
+        if drop_in or arranged:
+            out.append(Day(date=day, show=shows.get(day),
+                           open_slots=drop_in, appointment_slots=arranged))
     return out
 
 
@@ -111,7 +163,7 @@ def is_bookable(site, when, party_size=1, now=None):
     """
     tz = site_timezone(site)
     day = when.astimezone(tz).date()
-    if when not in slots_for_day(site, day, now=now):
+    if when not in [start for start, _ in slots_for_day(site, day, now=now)]:
         return False
     cap = site.visit_capacity or 0
     if not cap:

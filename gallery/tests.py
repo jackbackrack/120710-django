@@ -2075,7 +2075,7 @@ class VisitBookingTests(TestCase):
         from gallery import visits as engine
         days = engine.available(self.site)
         self.assertTrue(days, 'no slots were offered')
-        return days[0][1][0][0]
+        return days[0].slots[0].start
 
     def _book(self, when=None, **extra):
         data = {'when': (when or self._first_slot()).isoformat(),
@@ -2088,8 +2088,8 @@ class VisitBookingTests(TestCase):
 
     def test_slots_come_from_the_structured_hours(self):
         from gallery import visits as engine
-        day, starts = engine.available(self.site)[0]
-        times = [start.strftime('%H:%M') for start, _ in starts]
+        times = [slot.start.strftime('%H:%M')
+                 for slot in engine.available(self.site)[0].slots]
         self.assertTrue(set(times) <= {'13:00', '13:30', '14:00', '14:30', '15:00', '15:30'},
                         times)
 
@@ -2097,17 +2097,17 @@ class VisitBookingTests(TestCase):
         """Offering 3:45 for a half-hour visit at a gallery that shuts at four is how somebody
         arrives to a locked door."""
         from gallery import visits as engine
-        for _, starts in engine.available(self.site):
-            for start, _ in starts:
-                self.assertLessEqual((start + datetime.timedelta(minutes=30)).time(),
+        for day in engine.available(self.site):
+            for slot in day.slots:
+                self.assertLessEqual((slot.start + datetime.timedelta(minutes=30)).time(),
                                      datetime.time(16, 0))
 
     def test_nothing_inside_the_notice_period_is_offered(self):
         from gallery import visits as engine
         now = timezone.now()
-        for _, starts in engine.available(self.site, now=now):
-            for start, _ in starts:
-                self.assertGreaterEqual(start, now + datetime.timedelta(hours=2))
+        for day in engine.available(self.site, now=now):
+            for slot in day.slots:
+                self.assertGreaterEqual(slot.start, now + datetime.timedelta(hours=2))
 
     def test_a_closure_removes_its_days(self):
         from gallery import visits as engine
@@ -2149,7 +2149,8 @@ class VisitBookingTests(TestCase):
 
         self._book(slot, name='Sam', email='s@example.com', party_size='1')
         self.assertFalse(engine.is_bookable(self.site, slot, party_size=1))
-        remaining = [s for _, starts in engine.available(self.site) for s, _ in starts]
+        remaining = [slot.start for day in engine.available(self.site)
+                     for slot in day.slots]
         self.assertNotIn(slot, remaining)
 
     def test_a_stale_page_cannot_book_a_slot_that_has_gone(self):
@@ -2159,6 +2160,110 @@ class VisitBookingTests(TestCase):
         r = self._book(gone)
         self.assertContains(r, 'that time has just gone')
         self.assertEqual(Visit.objects.count(), 0)
+
+    # --- What is on, and which hours to prefer ---
+
+    def test_the_page_says_which_show_is_up(self):
+        """Choosing between two afternoons is usually choosing between two shows."""
+        show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=timezone.now().date() - datetime.timedelta(days=1),
+            end=timezone.now().date() + datetime.timedelta(days=20))
+        show.sites.add(self.site)
+        page = self.client.get(reverse('book_visit')).content.decode()
+        self.assertIn('Repetition and Repair', page)
+
+    def test_days_between_shows_are_still_offered_and_say_so(self):
+        """They may still want to come — that is why those days are shown, not hidden."""
+        page = self.client.get(reverse('book_visit')).content.decode()
+        self.assertIn('Between shows', page)
+        self.assertIn('slot', page)
+
+    def test_a_draft_show_is_not_named_to_visitors(self):
+        show = Show.objects.create(
+            name='Secret Plans', status=Show.STATUS_DRAFT,
+            start=timezone.now().date() - datetime.timedelta(days=1),
+            end=timezone.now().date() + datetime.timedelta(days=20))
+        show.sites.add(self.site)
+        self.assertNotIn('Secret Plans',
+                         self.client.get(reverse('book_visit')).content.decode())
+
+    def test_drop_in_hours_are_encouraged_over_arranged_ones(self):
+        """Public hours cost the gallery no special trip, so they are the ones to steer towards."""
+        from gallery.models import OpeningHours
+        OpeningHours.objects.all().delete()
+        for weekday in range(7):
+            OpeningHours.objects.create(site=self.site, weekday=weekday,
+                                        start=datetime.time(13, 0), end=datetime.time(16, 0))
+            OpeningHours.objects.create(site=self.site, weekday=weekday,
+                                        start=datetime.time(18, 0), end=datetime.time(20, 0),
+                                        by_appointment=True)
+
+        from gallery import visits as engine
+        day = engine.available(self.site)[0]
+        self.assertTrue(day.open_slots)
+        self.assertTrue(day.appointment_slots)
+        self.assertTrue(all(not s.by_appointment for s in day.open_slots))
+        self.assertTrue(all(s.by_appointment for s in day.appointment_slots))
+
+        page = self.client.get(reverse('book_visit')).content.decode()
+        self.assertIn('open to everyone', page)
+        self.assertIn('no need to book', page)
+        self.assertIn('By arrangement', page)
+        # The encouraging line names the drop-in hours only.
+        self.assertIn('1:00–4:00 PM', page)
+
+    def test_an_arranged_slot_can_still_be_booked(self):
+        """Encouraged is not the same as required."""
+        from gallery import visits as engine
+        from gallery.models import OpeningHours, Visit
+        OpeningHours.objects.all().delete()
+        for weekday in range(7):
+            OpeningHours.objects.create(site=self.site, weekday=weekday,
+                                        start=datetime.time(18, 0), end=datetime.time(20, 0),
+                                        by_appointment=True)
+        day = engine.available(self.site)[0]
+        self.assertEqual(day.open_slots, [])
+        self._book(day.appointment_slots[0].start)
+        self.assertEqual(Visit.objects.count(), 1)
+
+    # --- Signed in ---
+
+    def test_a_signed_in_visitor_is_not_asked_who_they_are(self):
+        from gallery.models import Visit
+        user = User.objects.create_user(username='ana@example.com', email='ana@example.com',
+                                        password='pw', first_name='Ana', last_name='Vidal')
+        self.client.force_login(user)
+
+        page = self.client.get(reverse('book_visit')).content.decode()
+        self.assertIn('Booking as', page)
+        self.assertNotIn('id_email', page)
+
+        self.client.post(reverse('book_visit'), {
+            'when': self._first_slot().isoformat(), 'party_size': '2',
+            'note': '', 'address': ''}, follow=True)
+        visit = Visit.objects.get()
+        self.assertEqual(visit.name, 'Ana Vidal')
+        self.assertEqual(visit.email, 'ana@example.com')
+
+    def test_a_signed_in_visitor_cannot_book_under_another_name(self):
+        """Taken from the account, never from the post, or a hidden field would be enough."""
+        from gallery.models import Visit
+        user = User.objects.create_user(username='ana@example.com', email='ana@example.com',
+                                        password='pw', first_name='Ana', last_name='Vidal')
+        self.client.force_login(user)
+        self.client.post(reverse('book_visit'), {
+            'when': self._first_slot().isoformat(), 'party_size': '1',
+            'name': 'Someone Else', 'email': 'someone@example.com',
+            'note': '', 'address': ''}, follow=True)
+        visit = Visit.objects.get()
+        self.assertEqual(visit.name, 'Ana Vidal')
+        self.assertEqual(visit.email, 'ana@example.com')
+
+    def test_a_signed_out_visitor_is_still_asked(self):
+        page = self.client.get(reverse('book_visit')).content.decode()
+        self.assertIn('Your name', page)
+        self.assertNotIn('Booking as', page)
 
     # --- Timezones ---
 

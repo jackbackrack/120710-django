@@ -32,21 +32,66 @@
     {% for field in form %}{% if field.name == 'when' %}{% else %}{% endif %}{% endfor %}
 
     <h5 class="mt-3">Pick a time</h5>
+    {% if site.drop_in_display %}
+    {% comment %}
+      Said before the grid rather than under it: the public hours are the ones worth steering
+      people towards, because nobody has to make a special trip for them.
+    {% endcomment %}
+    <p>
+      The gallery is open to everyone <strong>{{ site.drop_in_display }}</strong> — that is the
+      easiest time to come, and you are welcome to just turn up. Booking one of those times only
+      means we know to expect you.
+    </p>
+    {% endif %}
     <p class="text-muted small">Times are {{ timezone }}.</p>
 
     <div class="slot-days">
-      {% for day, starts in days %}
+      {% for day in days %}
       <div class="slot-day">
-        <div class="slot-date">{{ day|date:"l j F" }}</div>
+        <div class="slot-date">{{ day.date|date:"l j F" }}</div>
+        {% comment %}
+          What is on the walls that day. Somebody choosing between two afternoons is usually
+          choosing between two shows, and "between shows" is worth saying plainly rather than
+          leaving them to find an empty room — they may still want to come, which is the point
+          of showing it rather than hiding those days.
+        {% endcomment %}
+        {% if day.show %}
+        <div class="slot-show"><a href="{{ day.show.get_absolute_url }}">{{ day.show.name }}</a>
+          <span class="text-muted">— until {{ day.show.end|date:"j F" }}</span></div>
+        {% else %}
+        <div class="slot-show text-muted">Between shows — the space itself, and whatever is
+          being installed</div>
+        {% endif %}
+        {% comment %}
+          Drop-in hours first and given the emphasis: those are the times the gallery is open
+          anyway, so a visit then costs nobody a special trip. Arranged times are offered second
+          and quieter — still available, just not the one to reach for first.
+        {% endcomment %}
+        {% if day.open_slots %}
+        <div class="slot-kind">Open — no need to book, but this saves you a wasted trip</div>
         <div class="slot-row">
-          {% for start, left in starts %}
-          <button type="button" class="slot" data-when="{{ start.isoformat }}"
+          {% for slot in day.open_slots %}
+          <button type="button" class="slot slot--open" data-when="{{ slot.start.isoformat }}"
                   aria-pressed="false">
-            {{ start|time:"g:i A" }}
-            {% if left %}<span class="slot-left">{{ left }} left</span>{% endif %}
+            {{ slot.start|time:"g:i A" }}
+            {% if slot.places_left %}<span class="slot-left">{{ slot.places_left }} left</span>{% endif %}
           </button>
           {% endfor %}
         </div>
+        {% endif %}
+
+        {% if day.appointment_slots %}
+        <div class="slot-kind slot-kind--quiet">By arrangement — someone will come in for you</div>
+        <div class="slot-row">
+          {% for slot in day.appointment_slots %}
+          <button type="button" class="slot slot--arranged" data-when="{{ slot.start.isoformat }}"
+                  aria-pressed="false">
+            {{ slot.start|time:"g:i A" }}
+            {% if slot.places_left %}<span class="slot-left">{{ slot.places_left }} left</span>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
@@ -54,8 +99,17 @@
     <div id="details" class="mt-4" hidden>
       <h5>Your details</h5>
       <p class="text-muted small" id="chosen"></p>
+      {% if user.is_authenticated %}
+      {% comment %}
+        Signed in, so we already know who they are and where to write. Shown rather than asked
+        for, and taken from the account server-side so it cannot be edited into somebody else's.
+      {% endcomment %}
+      <p>Booking as <strong>{{ user.get_full_name|default:user.email }}</strong> —
+        confirmation to {{ user.email }}.</p>
+      {% else %}
       {{ form.name|as_crispy_field }}
       {{ form.email|as_crispy_field }}
+      {% endif %}
       {{ form.party_size|as_crispy_field }}
       {{ form.note|as_crispy_field }}
       {{ form.captcha }}
@@ -68,10 +122,16 @@
 
 <style>
   .slot-day { margin-bottom: 1.1rem; }
-  .slot-date { font-weight: 600; margin-bottom: .35rem; }
+  .slot-date { font-weight: 600; }
+  .slot-show { font-size: .85rem; margin-bottom: .35rem; }
   .slot-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .slot-kind { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em;
+               color: #2f7d55; margin: .3rem 0 .25rem; }
+  .slot-kind--quiet { color: #999; }
   .slot { border: 1px solid rgba(0,0,0,.25); background: #fff; border-radius: .3rem;
           padding: .4rem .7rem; cursor: pointer; line-height: 1.2; }
+  .slot--open { border-color: #2f7d55; }
+  .slot--arranged { border-style: dashed; color: #555; }
   .slot[aria-pressed="true"] { background: #198754; border-color: #198754; color: #fff; }
   .slot-left { display: block; font-size: .72rem; opacity: .7; }
 </style>

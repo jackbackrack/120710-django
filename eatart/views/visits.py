@@ -41,7 +41,7 @@ def book_visit(request, site_slug=None):
     tz = site_timezone(site)
 
     if request.method == 'POST':
-        form = VisitForm(request.POST)
+        form = VisitForm(request.POST, user=request.user)
         if form.is_valid():
             when = form.cleaned_data['when']
             party = form.cleaned_data['party_size']
@@ -62,7 +62,7 @@ def book_visit(request, site_slug=None):
                 return render(request, 'visits/booked.html', {
                     'site': site, 'visit': visit, 'when': visit.when.astimezone(tz)})
     else:
-        form = VisitForm()
+        form = VisitForm(user=request.user)
 
     # Rendered in the venue's zone. TIME_ZONE is UTC and USE_TZ is on, so Django converts every
     # aware datetime to UTC for display — which turned a noon opening in Berkeley into a 7pm slot

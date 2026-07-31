@@ -257,6 +257,20 @@ class Site(models.Model):
         return ' · '.join(parts)
 
     @property
+    def drop_in_display(self):
+        """Just the hours anybody can walk in, for saying so plainly. '' when there are none."""
+        blocks = [b for b in self.opening_hours.all() if not b.by_appointment]
+        if not blocks:
+            return ''
+        grouped = {}
+        for block in blocks:
+            grouped.setdefault((block.start, block.end), []).append(block.weekday)
+        return ' · '.join(
+            f'{timeranges.weekday_ranges(days)} {timeranges.time_range(start, end)}'
+            for (start, end), days in sorted(grouped.items(),
+                                             key=lambda item: (min(item[1]), item[0][0])))
+
+    @property
     def schema_opening_hours(self):
         """schema.org `openingHours`, e.g. ["Su 13:00-16:00"].
 
