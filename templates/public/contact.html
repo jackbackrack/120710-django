@@ -17,13 +17,24 @@ Please contact us if you would like more information.
 {{ info_site.name }}, {{ info_site.formatted_address|linebreaksbr }}
 <br>
 {% endif %}
-{% if info_site.email %}<b>email:</b> <a href="mailto:{{ info_site.email }}">{{ info_site.email }}</a><br>{% endif %}
-{% if info_site.phone %}<b>phone:</b> <a href="tel:{{ info_site.phone }}">{{ info_site.phone }}</a><br>{% endif %}
+{% comment %}
+  Deliberately no email address and no phone number. The gallery is reached by booking a visit,
+  by the mailing list, or by the enquiry form on a work — each of which arrives somewhere it can
+  be dealt with, rather than in an inbox. Publishing an address also hands it to every scraper
+  that reads this page.
+
+  Site.email and Site.phone still exist and are still used: the address is where visit
+  notifications go and who campaigns come from. They are simply not printed here.
+{% endcomment %}
 
 {% if info_site.hours_display %}
 <h2>Gallery Hours</h2>
 {{ info_site.hours_display }}
 <br>
+{% if info_site.visits_enabled %}
+<a href="{% url 'book_visit' %}">Book a time to visit</a>
+<br>
+{% endif %}
 {% endif %}
 
 {% comment %}

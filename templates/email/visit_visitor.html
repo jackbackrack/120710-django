@@ -29,12 +29,9 @@ something they must respond to, they made the booking; their calendar should jus
   explain.</p>
 
 {% comment %}
-  The phone only, and framed for the day itself. An email address here read as a second way to
-  arrange a visit, which is exactly what the booking page is meant to replace.
+  No phone number and no address. If plans change the cancellation link above is the answer, and
+  it goes somewhere that updates the calendar rather than somewhere that has to be read.
 {% endcomment %}
-{% if site.phone %}
-<p>Running late or lost on the day? <a href="tel:{{ site.phone }}">{{ site.phone }}</a>.</p>
-{% endif %}
 
 <p>— {{ site.name }}</p>
 </body>

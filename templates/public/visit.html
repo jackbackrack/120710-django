@@ -14,19 +14,6 @@
   {% endif %}
 
   {% comment %}
-    Phone and email only when they exist. This page used to state both unconditionally
-    because there was only ever one gallery; a venue with neither should say nothing
-    rather than offer an empty link.
-  {% endcomment %}
-  {% if info_site.phone or info_site.email %}
-  <p>
-    {% if info_site.phone %}by calling <a href="tel:{{ info_site.phone }}">{{ info_site.phone }}</a>{% endif %}
-    {% if info_site.phone and info_site.email %}<br>{% endif %}
-    {% if info_site.email %}or emailing <a href="mailto:{{ info_site.email }}">{{ info_site.email }}</a>{% endif %}
-  </p>
-  {% endif %}
-
-  {% comment %}
     Guarded on street/city, not on formatted_address: country defaults to US and is
     effectively always set, so formatted_address is never empty — a venue with no address
     would print its name and "United States of America" and nothing else.

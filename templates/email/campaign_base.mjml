@@ -80,7 +80,7 @@ Two constraints this is built around:
       in nothing at all still has an address of "United States of America", and the heading
       rendered above nothing.
     {% endcomment %}
-    {% if site.hours_display or site.visit_notes or site.phone or site.email or site.street %}
+    {% if site.hours_display or site.visit_notes or site.visits_enabled or site.street %}
     <mj-section padding="16px 24px 0" background-color="#f7f7f7">
       <mj-column>
         <mj-text font-size="18px" font-weight="bold" padding="12px 0 6px">Come visit the gallery</mj-text>
@@ -94,13 +94,6 @@ Two constraints this is built around:
         {% if site.visits_enabled %}
         <mj-text padding="0 0 6px">
           <a href="{{ book_visit_url }}" style="color:#198754">Book a time to visit</a>
-        </mj-text>
-        {% elif site.phone or site.email %}
-        <mj-text padding="0 0 6px">
-          To arrange a time:
-          {% if site.phone %}<a href="tel:{{ site.phone }}" style="color:#198754">{{ site.phone }}</a>{% endif %}
-          {% if site.phone and site.email %} or {% endif %}
-          {% if site.email %}<a href="mailto:{{ site.email }}?subject=Gallery%20visit" style="color:#198754">{{ site.email }}</a>{% endif %}
         </mj-text>
         {% endif %}
         {% comment %}

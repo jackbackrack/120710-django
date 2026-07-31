@@ -1361,10 +1361,11 @@ class CampaignStaffPagesTests(TestCase):
         html = campaigns.render_preview(campaign)
         self.assertIn('Come visit the gallery', html)
         self.assertIn('Sundays 1–4pm', html)
-        self.assertIn('tel:341-205-1331', html)
-        self.assertIn('mailto:info@120710.art', html)
         self.assertIn('google.com/maps', html)
         self.assertIn('instagram.com/120710art', html)
+        # No way to phone or write: the address and number are not published any more.
+        self.assertNotIn('tel:341-205-1331', html)
+        self.assertNotIn('mailto:info@120710.art', html)
 
     def test_a_venue_that_has_filled_in_nothing_gets_no_empty_heading(self):
         """Every line is conditional; a bare "Come visit" with nothing under it is worse than none."""
@@ -2265,9 +2266,10 @@ class VisitBookingTests(TestCase):
         visitor = next(m for m in mail.outbox if m.to == ['ana@example.com'])
         html = next(b for b, kind in visitor.alternatives if kind == 'text/html')
         self.assertNotIn('info@120710.art', html)
-        self.assertNotIn('mailto:', html.split('cancel')[0])
-        # The phone stays, but framed for the day rather than as a way to book.
-        self.assertIn('Running late or lost', html)
+        self.assertNotIn('mailto:', html)
+        self.assertNotIn('341-205-1331', html)
+        # Changing plans goes through the cancellation link, which updates the calendar.
+        self.assertIn('/visit/cancel/', html)
 
     def test_the_empty_state_does_not_offer_email_instead(self):
         from gallery.models import OpeningHours
@@ -2280,6 +2282,71 @@ class VisitBookingTests(TestCase):
         self.assertNotIn('info@120710.art', body)
         self.assertNotIn('mailto:', body)
 
+    def test_the_visit_page_stops_offering_email_once_booking_is_on(self):
+        """"by calling … or emailing …" is how you arrange a visit somewhere with no booking
+        page. Where there is one, it is a second way in that never reaches the calendar."""
+        self.site.email = 'info@120710.art'
+        self.site.phone = '341-205-1331'
+        self.site.save(update_fields=['email', 'phone'])
+
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            page = self.client.get(reverse('visit')).content.decode()
+        body = page.split('id="page-title"')[1].split('<footer')[0]
+        self.assertIn('Book a time to visit', body)
+        self.assertNotIn('or emailing', body)
+        self.assertNotIn('by calling', body)
+        self.assertNotIn('info@120710.art', body)
+
+    def test_no_public_page_hands_out_an_address_or_a_number(self):
+        """The gallery is reached by booking, by the mailing list, or by an enquiry on a work.
+
+        Publishing an address also hands it to every scraper that reads the page. Site.email and
+        Site.phone still exist and are still used — the address is where visit notifications go
+        and who campaigns come from — they are simply not printed.
+        """
+        self.site.email = 'info@120710.art'
+        self.site.phone = '341-205-1331'
+        self.site.save(update_fields=['email', 'phone'])
+
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            for name in ('visit', 'contact'):
+                with self.subTest(page=name):
+                    page = self.client.get(reverse(name)).content.decode()
+                    body = page.split('id="page-title"')[1].split('<footer')[0]
+                    self.assertNotIn('info@120710.art', body)
+                    self.assertNotIn('341-205-1331', body)
+                    self.assertNotIn('mailto:', body)
+                    self.assertNotIn('tel:', body)
+
+    def test_the_confirmation_email_hands_out_neither_either(self):
+        self.site.email = 'info@120710.art'
+        self.site.phone = '341-205-1331'
+        self.site.save(update_fields=['email', 'phone'])
+        self._book()
+        visitor = next(m for m in mail.outbox if m.to == ['ana@example.com'])
+        html = next(b for b, kind in visitor.alternatives if kind == 'text/html')
+        self.assertNotIn('341-205-1331', html)
+        self.assertNotIn('mailto:', html)
+        # The cancellation link is the way to change plans, and it updates the calendar.
+        self.assertIn('/visit/cancel/', html)
+
+    def test_a_campaign_footer_hands_out_neither(self):
+        from gallery.models import Campaign
+        self.site.email = 'info@120710.art'
+        self.site.phone = '341-205-1331'
+        self.site.save(update_fields=['email', 'phone'])
+        campaign = Campaign.objects.create(
+            site=self.site, subject='Hello', body_markdown='Body.')
+        html = campaigns.render_preview(campaign)
+        self.assertNotIn('341-205-1331', html)
+        self.assertNotIn('To arrange a time', html)
+        self.assertIn('Book a time to visit', html)
+
+    def test_the_contact_page_links_to_booking_from_the_hours(self):
+        with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
+            page = self.client.get(reverse('contact')).content.decode()
+        self.assertIn('Book a time to visit', page)
+
     def test_a_campaign_points_at_the_booking_page_rather_than_an_address(self):
         from gallery.models import Campaign
         campaign = Campaign.objects.create(
@@ -2287,17 +2354,6 @@ class VisitBookingTests(TestCase):
         html = campaigns.render_preview(campaign)
         self.assertIn('Book a time to visit', html)
         self.assertNotIn('To arrange a time', html)
-
-    def test_a_venue_without_booking_keeps_its_contact_line(self):
-        from gallery.models import Campaign, Site
-        other = Site.objects.create(name='Elsewhere', slug='elsewhere',
-                                    status=Site.STATUS_PUBLISHED,
-                                    email='hello@elsewhere.test', phone='555',
-                                    hours='Sat 12-4')
-        campaign = Campaign.objects.create(
-            site=other, subject='Hello', body_markdown='Body.')
-        html = campaigns.render_preview(campaign)
-        self.assertIn('To arrange a time', html)
 
     # --- Signed in ---
 
@@ -8600,9 +8656,16 @@ class SitePublicInfoTests(TestCase):
         self.assertContains(response, 'Street parking available')
 
     def test_contact_shows_the_venues_own_details(self):
+        """Its address and hours, but no longer an email address or a phone number.
+
+        Those were removed deliberately: the gallery is reached by booking a visit, by the
+        mailing list, or by an enquiry on a work — each of which arrives somewhere it can be
+        dealt with. Publishing an address also hands it to every scraper that reads the page.
+        """
         response = self._page('contact', self.gallery)
-        self.assertContains(response, 'hello@first.example')
-        self.assertContains(response, '555-0100')
+        self.assertContains(response, self.gallery.name)
+        self.assertNotContains(response, 'hello@first.example')
+        self.assertNotContains(response, '555-0100')
 
     def test_map_link_comes_from_the_venues_coordinates(self):
         """Generated, not a committed screenshot of one gallery."""

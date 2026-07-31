@@ -165,7 +165,17 @@ for the day itself rather than as a way to book, and the "come visit" block in e
 to the booking page instead of saying "to arrange a time, phone or email". A visit arranged by
 email is not in the calendar, and then the calendar stops being the record of who is coming.
 
-A venue with `visits_enabled` off keeps the old contact line, since for it that *is* the way.
+This goes further than the booking flow: **no public page prints the gallery's email address or
+phone number at all.** The Visit page's "by calling … or emailing …", the Contact page's `email:`
+and `phone:` lines, the contact line in every campaign footer and the phone number in the visit
+confirmation have all been removed. `Site.email` and `Site.phone` still exist and are still used —
+the address receives visit notifications and is the `ORGANIZER` on calendar invitations — they are
+simply not published.
+
+**One exception, deliberately: the privacy page.** A policy that offers no way to make a data
+request is not a policy, and "write to the gallery" with no address to write to is worse than
+nothing. If you want the address off that page too, replace it with a contact form rather than
+deleting it. There is a note to that effect in the template.
 
 A **signed-in** visitor is not asked their name or address — they have told us both already, so
 the fields are dropped rather than pre-filled, and the values are read from the account on the
