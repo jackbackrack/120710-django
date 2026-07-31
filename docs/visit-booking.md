@@ -53,7 +53,8 @@ Encouraged is not required: an arranged slot can still be booked, and there is a
 
 ### What is on that day
 
-Each day carries the show that is up, linked, or says **Between shows** plainly. Somebody choosing
+Each day carries the show that is up, linked, or says **Between shows — for anything other than
+seeing a show**. Somebody choosing
 between two afternoons is usually choosing between two shows, and days with nothing hanging are
 still offered rather than hidden — a visitor may well want to come and see the space.
 
@@ -139,6 +140,11 @@ names the zone it is showing, so a visitor in another one is not guessing.
 | `visit_capacity` | 0 | people per slot; 0 is no limit |
 | `visit_lead_hours` | 2 | slots sooner than this are not offered |
 | `visit_horizon_days` | 30 | how far ahead booking opens |
+| `arrival_note` | — | what to do at the door, e.g. "Ring the bell" |
+
+`arrival_note` goes in the confirmation email, on the page after booking, and into the calendar
+invitation the gallery gets — the confirmation being the message somebody has open on their phone
+while standing outside. It is separate from *Getting here*, which is about the journey.
 
 ## Where things are
 
@@ -152,6 +158,14 @@ names the zone it is showing, so a visitor in another one is not guessing.
 Cancellation links are signed tokens carrying the booking id *and* the email address, so a
 recycled primary key cannot cancel somebody else's visit. Cancelling is a **POST** — mail clients
 prefetch links, and a scanner must not be able to cancel a visit on the visitor's behalf.
+
+**Booking is the only way to arrange a visit**, and the wording is kept that way on purpose: the
+empty state does not offer an address to write to, the confirmation gives the phone number framed
+for the day itself rather than as a way to book, and the "come visit" block in every campaign links
+to the booking page instead of saying "to arrange a time, phone or email". A visit arranged by
+email is not in the calendar, and then the calendar stops being the record of who is coming.
+
+A venue with `visits_enabled` off keeps the old contact line, since for it that *is* the way.
 
 A **signed-in** visitor is not asked their name or address — they have told us both already, so
 the fields are dropped rather than pre-filled, and the values are read from the account on the

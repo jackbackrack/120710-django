@@ -6,6 +6,7 @@
   <p class="fs-5">{{ when|date:"l j F" }} at {{ when|time:"g:i A" }}, at {{ site.name }}.</p>
   <p>We have emailed {{ visit.email }} with the details and a link to cancel if your plans
     change.</p>
+  {% if site.arrival_note %}<p><strong>{{ site.arrival_note }}</strong></p>{% endif %}
   {% if site.street %}
   <p class="text-muted">{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}</p>
   {% endif %}

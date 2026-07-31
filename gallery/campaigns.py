@@ -419,6 +419,8 @@ def render_campaign(campaign, subscription, request=None, extra_context=None):
         'site_icon_url': campaign_logo_url(site or Subscriber.default_site(), request),
         'site_url': _absolute(site.get_absolute_url(), request) if site else '',
         'maps_url': site.maps_url if site else '',
+        'book_visit_url': (_absolute(reverse('book_visit'), request)
+                           if site and site.visits_enabled else ''),
         'postal_address': (site.formatted_address.replace('\n', ', ') if site else ''),
         'subscriber': subscription.subscriber,
         'subscription': subscription,

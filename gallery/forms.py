@@ -681,6 +681,7 @@ class SiteForm(UserAwareModelForm):
             'hours',
             'about',
             'visit_notes',
+            'arrival_note',
             'visit_image',
             # Booking a visit. Listed explicitly because SiteForm names its fields, so a model
             # field added without touching this is unreachable through the UI — which is exactly

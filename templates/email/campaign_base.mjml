@@ -86,7 +86,16 @@ Two constraints this is built around:
         <mj-text font-size="18px" font-weight="bold" padding="12px 0 6px">Come visit the gallery</mj-text>
         {% if site.hours_display %}<mj-text padding="0 0 6px">{{ site.hours_display }}</mj-text>{% endif %}
         {% if site.visit_notes %}<mj-text padding="0 0 6px">{{ site.visit_notes|striptags|truncatewords:40 }}</mj-text>{% endif %}
-        {% if site.phone or site.email %}
+        {% comment %}
+          When booking is on, this is the only way to arrange a visit — no phone number and no
+          address offered as an alternative, or the calendar stops being the record of who is
+          coming. A venue without booking keeps the old contact line.
+        {% endcomment %}
+        {% if site.visits_enabled %}
+        <mj-text padding="0 0 6px">
+          <a href="{{ book_visit_url }}" style="color:#198754">Book a time to visit</a>
+        </mj-text>
+        {% elif site.phone or site.email %}
         <mj-text padding="0 0 6px">
           To arrange a time:
           {% if site.phone %}<a href="tel:{{ site.phone }}" style="color:#198754">{{ site.phone }}</a>{% endif %}

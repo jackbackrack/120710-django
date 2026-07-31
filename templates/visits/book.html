@@ -20,10 +20,12 @@
   {% endif %}
 
   {% if not days %}
+  {% comment %}
+    Deliberately no "email us to arrange something" here. Booking goes through this page and
+    nowhere else, or the calendar stops being the record of who is coming.
+  {% endcomment %}
   <p class="mt-4">
-    There are no times to book just now. Do get in touch
-    {% if site.email %}at <a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
-    and we will find one.
+    There are no times to book just now &mdash; do check back. New dates open as they are set.
   </p>
   {% else %}
 
@@ -59,8 +61,7 @@
         <div class="slot-show"><a href="{{ day.show.get_absolute_url }}">{{ day.show.name }}</a>
           <span class="text-muted">— until {{ day.show.end|date:"j F" }}</span></div>
         {% else %}
-        <div class="slot-show text-muted">Between shows — the space itself, and whatever is
-          being installed</div>
+        <div class="slot-show text-muted">Between shows — for anything other than seeing a show</div>
         {% endif %}
         {% comment %}
           Drop-in hours first and given the emphasis: those are the times the gallery is open

@@ -2176,7 +2176,7 @@ class VisitBookingTests(TestCase):
     def test_days_between_shows_are_still_offered_and_say_so(self):
         """They may still want to come — that is why those days are shown, not hidden."""
         page = self.client.get(reverse('book_visit')).content.decode()
-        self.assertIn('Between shows', page)
+        self.assertIn('Between shows — for anything other than seeing a show', page)
         self.assertIn('slot', page)
 
     def test_a_draft_show_is_not_named_to_visitors(self):
@@ -2226,6 +2226,78 @@ class VisitBookingTests(TestCase):
         self.assertEqual(day.open_slots, [])
         self._book(day.appointment_slots[0].start)
         self.assertEqual(Visit.objects.count(), 1)
+
+    def test_the_arrival_note_reaches_the_visitor(self):
+        """The confirmation is the message somebody has open while standing at the door."""
+        self.site.arrival_note = 'Ring the bell when you arrive.'
+        self.site.save(update_fields=['arrival_note'])
+        response = self._book()
+
+        self.assertContains(response, 'Ring the bell when you arrive.')
+        visitor = next(m for m in mail.outbox if m.to == ['ana@example.com'])
+        html = next(b for b, kind in visitor.alternatives if kind == 'text/html')
+        self.assertIn('Ring the bell when you arrive.', html)
+
+    def test_the_arrival_note_is_on_the_calendar_event_too(self):
+        from gallery import visits as engine
+        from gallery.models import Visit
+        self.site.arrival_note = 'Ring the bell when you arrive.'
+        self.site.save(update_fields=['arrival_note'])
+        self._book()
+        ics = engine.invitation(Visit.objects.get())
+        self.assertIn('Ring the bell', ics)
+
+    def test_a_venue_with_no_arrival_note_says_nothing(self):
+        response = self._book()
+        self.assertNotContains(response, 'Ring the bell')
+
+    def test_the_arrival_note_is_editable(self):
+        from gallery.forms import SiteForm
+        self.assertIn('arrival_note', SiteForm().fields)
+
+    def test_booking_is_the_only_way_offered_to_arrange_a_visit(self):
+        """No email back door: a visit arranged by email is not in the calendar, so the calendar
+        stops being the record of who is coming."""
+        self.site.phone = '341-205-1331'
+        self.site.save(update_fields=['phone'])
+        response = self._book()
+
+        visitor = next(m for m in mail.outbox if m.to == ['ana@example.com'])
+        html = next(b for b, kind in visitor.alternatives if kind == 'text/html')
+        self.assertNotIn('info@120710.art', html)
+        self.assertNotIn('mailto:', html.split('cancel')[0])
+        # The phone stays, but framed for the day rather than as a way to book.
+        self.assertIn('Running late or lost', html)
+
+    def test_the_empty_state_does_not_offer_email_instead(self):
+        from gallery.models import OpeningHours
+        OpeningHours.objects.all().delete()
+        page = self.client.get(reverse('book_visit')).content.decode()
+        self.assertIn('do check back', page)
+        # The page's own content, not the base template — which carries a commented-out footer
+        # with a stale address in it, invisible to a reader and visible to a grep.
+        body = page.split('id="page-title"')[1].split('<footer')[0]
+        self.assertNotIn('info@120710.art', body)
+        self.assertNotIn('mailto:', body)
+
+    def test_a_campaign_points_at_the_booking_page_rather_than_an_address(self):
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(
+            site=self.site, subject='Hello', body_markdown='Body.')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Book a time to visit', html)
+        self.assertNotIn('To arrange a time', html)
+
+    def test_a_venue_without_booking_keeps_its_contact_line(self):
+        from gallery.models import Campaign, Site
+        other = Site.objects.create(name='Elsewhere', slug='elsewhere',
+                                    status=Site.STATUS_PUBLISHED,
+                                    email='hello@elsewhere.test', phone='555',
+                                    hours='Sat 12-4')
+        campaign = Campaign.objects.create(
+            site=other, subject='Hello', body_markdown='Body.')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('To arrange a time', html)
 
     # --- Signed in ---
 

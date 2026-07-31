@@ -106,6 +106,10 @@ class Site(models.Model):
         blank=True, default='', verbose_name='Getting here',
         help_text='Parking, transit and directions, shown on the Visit page below the '
                   'address.')
+    arrival_note = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='On arrival',
+        help_text='What to do when they get here, e.g. "Ring the bell". Sent with every visit '
+                  'confirmation. Distinct from "Getting here", which is about the journey.')
     visit_image = models.ImageField(
         upload_to='site_visit', blank=True, null=True, verbose_name='Visit photo',
         help_text='A street view or storefront photo for the Visit page.')

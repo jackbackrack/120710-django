@@ -220,6 +220,8 @@ def invitation(visit, method='REQUEST', domain='120710.art', request=None):
                f'Booked by {visit.name} <{visit.email}>']
     if visit.note:
         details.append(visit.note)
+    if site.arrival_note:
+        details.append(site.arrival_note)
     details.append(_absolute(
         reverse('visit_cancel', kwargs={'token': cancel_token(visit)}), request))
 

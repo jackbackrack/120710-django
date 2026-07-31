@@ -13,6 +13,14 @@ something they must respond to, they made the booking; their calendar should jus
   {% else %}{{ site.street }}{% if site.city %}, {{ site.city }}{% endif %}{% endif %}
 </p>
 
+{% if site.arrival_note %}
+{% comment %}
+  What to do at the door, said in the confirmation because that is the message somebody has open
+  on their phone when they are standing outside it.
+{% endcomment %}
+<p><strong>{{ site.arrival_note }}</strong></p>
+{% endif %}
+
 {% if site.visit_notes %}<p>{{ site.visit_notes|striptags }}</p>{% endif %}
 
 <p>Others may be visiting at the same time — the gallery is open, not booked out.</p>
@@ -20,12 +28,12 @@ something they must respond to, they made the booking; their calendar should jus
 <p>If your plans change, <a href="{{ cancel_url }}">cancel your visit here</a>. No need to
   explain.</p>
 
-{% if site.phone or site.email %}
-<p>Anything else:
-  {% if site.phone %}<a href="tel:{{ site.phone }}">{{ site.phone }}</a>{% endif %}
-  {% if site.phone and site.email %} or {% endif %}
-  {% if site.email %}<a href="mailto:{{ site.email }}">{{ site.email }}</a>{% endif %}
-</p>
+{% comment %}
+  The phone only, and framed for the day itself. An email address here read as a second way to
+  arrange a visit, which is exactly what the booking page is meant to replace.
+{% endcomment %}
+{% if site.phone %}
+<p>Running late or lost on the day? <a href="tel:{{ site.phone }}">{{ site.phone }}</a>.</p>
 {% endif %}
 
 <p>— {{ site.name }}</p>
