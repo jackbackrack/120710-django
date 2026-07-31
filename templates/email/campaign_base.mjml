@@ -1,4 +1,4 @@
-{% comment %}
+{% load site_tags %}{% comment %}
 The one shell every campaign renders through, whether its body came from a template or from
 Markdown. Written once so the parts that must be right every time — the physical address and
 the unsubscribe link — cannot be forgotten by whoever writes the body.
@@ -85,7 +85,7 @@ Two constraints this is built around:
       <mj-column>
         <mj-text font-size="18px" font-weight="bold" padding="12px 0 6px">Come visit the gallery</mj-text>
         {% if site.hours_display %}<mj-text padding="0 0 6px">{{ site.hours_display }}</mj-text>{% endif %}
-        {% if site.visit_notes %}<mj-text padding="0 0 6px">{{ site.visit_notes|striptags|truncatewords:40 }}</mj-text>{% endif %}
+        {% if site.visit_notes %}<mj-text padding="0 0 6px">{{ site.visit_notes|text_blocks|linebreaksbr|truncatewords_html:40 }}</mj-text>{% endif %}
         {% comment %}
           When booking is on, this is the only way to arrange a visit — no phone number and no
           address offered as an alternative, or the calendar stops being the record of who is

@@ -1,3 +1,4 @@
+{% load site_tags %}
 {% comment %}
 A data-driven campaign: the shape is fixed, the content comes from the database. This is the
 case the whole MJML-through-Django-templates arrangement exists for — nobody retypes a date,
@@ -49,7 +50,7 @@ that does not mention either.
 
 <mj-section padding="8px 24px">
   <mj-column>
-    {% if show.description %}<mj-text padding="8px 0">{{ show.description|striptags|truncatewords:60 }}</mj-text>{% endif %}
+    {% if show.description %}<mj-text padding="8px 0">{{ show.description|text_blocks|linebreaksbr|truncatewords_html:60 }}</mj-text>{% endif %}
   </mj-column>
 </mj-section>
 

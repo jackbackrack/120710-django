@@ -1,3 +1,4 @@
+{% load site_tags %}
 {% comment %}
 "Opening: <show>" — the mailing that goes out for a show opening.
 
@@ -88,7 +89,7 @@ rendering a hole where the invitation should be.
 {% if show.description %}
 <mj-section padding="8px 24px">
   <mj-column>
-    <mj-text padding="8px 0">{{ show.description|striptags|truncatewords:80 }}</mj-text>
+    <mj-text padding="8px 0">{{ show.description|text_blocks|linebreaksbr|truncatewords_html:80 }}</mj-text>
   </mj-column>
 </mj-section>
 {% endif %}

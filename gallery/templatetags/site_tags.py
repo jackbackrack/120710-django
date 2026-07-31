@@ -1,9 +1,11 @@
+import html
 import re
 
 import nh3
 from django import template
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -102,3 +104,31 @@ def surl(context, obj):
     if isinstance(obj, Artwork):
         return reverse('gallery:site_artwork_detail', kwargs={'site_slug': current_site.slug, 'slug': obj.slug})
     return obj.get_absolute_url()
+
+
+# Elements that end a line of prose. Everything else is inline and should not gain a break.
+_BLOCK_END_RE = re.compile(
+    r'</\s*(?:p|div|li|ul|ol|h[1-6]|blockquote|tr|table|section|article)\s*>|<\s*br\s*/?\s*>',
+    re.IGNORECASE)
+
+
+@register.filter
+def text_blocks(value):
+    """Rich text as plain lines, with the paragraph breaks kept.
+
+    `striptags` on its own removes the tags and nothing else, so two paragraphs come out as one
+    run-on line: "<p>Street parking available</p><p>Nearby AC Transit…</p>" became "Street
+    parking available Nearby AC Transit…", which reads as a single mangled sentence. The
+    information was all there and the shape of it was gone.
+
+    Used where rich text has to become text — the body of an email, an MJML block — as
+    `{{ value|text_blocks|linebreaksbr }}`. On a page use `sanitize_rich` instead and keep the
+    real markup.
+    """
+    if not value:
+        return ''
+    text = _BLOCK_END_RE.sub('\n', str(value))
+    text = strip_tags(text)
+    text = html.unescape(text)
+    lines = [' '.join(line.split()) for line in text.splitlines()]
+    return '\n'.join(line for line in lines if line)

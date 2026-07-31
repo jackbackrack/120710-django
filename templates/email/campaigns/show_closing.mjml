@@ -1,3 +1,4 @@
+{% load site_tags %}
 {% comment %}
 "Closing: <show>" — the mailing that goes out near the end of a run.
 
@@ -80,7 +81,7 @@ standing description, which the reader has probably had once already.
 {% if show.description %}
 <mj-section padding="8px 24px">
   <mj-column>
-    <mj-text padding="8px 0">{{ show.description|striptags|truncatewords:45 }}</mj-text>
+    <mj-text padding="8px 0">{{ show.description|text_blocks|linebreaksbr|truncatewords_html:45 }}</mj-text>
   </mj-column>
 </mj-section>
 {% endif %}

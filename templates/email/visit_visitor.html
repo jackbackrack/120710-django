@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load site_tags %}<!DOCTYPE html>
 <html>
 <body>
 {% comment %}
@@ -21,7 +21,7 @@ something they must respond to, they made the booking; their calendar should jus
 <p><strong>{{ site.arrival_note }}</strong></p>
 {% endif %}
 
-{% if site.visit_notes %}<p>{{ site.visit_notes|striptags }}</p>{% endif %}
+{% if site.visit_notes %}<p>{{ site.visit_notes|text_blocks|linebreaksbr }}</p>{% endif %}
 
 <p>Others may be visiting at the same time — the gallery is open, not booked out.</p>
 

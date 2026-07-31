@@ -2065,6 +2065,85 @@ class OpeningHoursTests(TestCase):
             self.assertEqual(_opening_hours(), ['Su 13:00-16:00'])
 
 
+class RichTextInEmailTests(TestCase):
+    """Rich text has to become text for an email, without losing its shape.
+
+    `striptags` removes the tags and nothing else, so two paragraphs arrive as one run-on line:
+    "<p>Street parking available</p><p>Nearby AC Transit…</p>" read as "Street parking available
+    Nearby AC Transit…". Every word was there and the sense was gone.
+    """
+
+    NOTES = ('<p>Street parking available</p>\r\n'
+             '<p>Nearby AC Transit bus stop at San Pablo and Gilman</p>')
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 10th St', city='Berkeley', state='CA', postal_code='94710',
+            visit_notes=self.NOTES)
+
+    def test_the_filter_keeps_the_paragraph_breaks(self):
+        from gallery.templatetags.site_tags import text_blocks
+        self.assertEqual(
+            text_blocks(self.NOTES),
+            'Street parking available\nNearby AC Transit bus stop at San Pablo and Gilman')
+
+    def test_it_survives_the_shapes_staff_actually_write(self):
+        from gallery.templatetags.site_tags import text_blocks
+        cases = {
+            '<p>One</p><p>Two</p>': 'One\nTwo',
+            'One<br>Two': 'One\nTwo',
+            '<ul><li>One</li><li>Two</li></ul>': 'One\nTwo',
+            '<p>One <strong>bold</strong> word</p>': 'One bold word',
+            '<p>Ampersand &amp; entity</p>': 'Ampersand & entity',
+            '': '',
+            '<p></p><p>Only one</p>': 'Only one',
+        }
+        for source, expected in cases.items():
+            with self.subTest(source=source):
+                self.assertEqual(text_blocks(source), expected)
+
+    def test_the_campaign_footer_keeps_them_apart(self):
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(
+            site=self.site, subject='Hello', body_markdown='Body.')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Street parking available<br />Nearby AC Transit', html)
+        self.assertNotIn('availableNearby', html)
+        self.assertNotIn('available Nearby', html)
+
+    def test_a_show_description_keeps_them_too(self):
+        """Truncation has to come after the breaks go in, or it collapses them again — which is
+        what `truncatewords` did, silently undoing the fix."""
+        from gallery.models import Campaign
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 7, 25), end=datetime.date(2026, 8, 30),
+            description='<p>What happens when artists stop holding back?</p>'
+                        '<p>Selected from 302 submissions.</p>')
+        show.sites.add(self.site)
+        campaign = Campaign.objects.create(
+            site=self.site, show=show, subject='Opening',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('holding back?<br />Selected from 302', html)
+
+    def test_the_visitor_confirmation_keeps_them(self):
+        from django.template.loader import render_to_string
+        html = render_to_string('email/visit_visitor.html',
+                                {'site': self.site, 'visit': None, 'when': None})
+        self.assertIn('Street parking available<br>Nearby AC Transit', html)
+
+    def test_a_long_description_is_still_truncated(self):
+        from gallery.templatetags.site_tags import text_blocks
+        from django.template.defaultfilters import truncatewords_html
+        from django.template.defaultfilters import linebreaksbr
+        long = '<p>' + ' '.join(f'word{i}' for i in range(200)) + '</p>'
+        out = truncatewords_html(linebreaksbr(text_blocks(long)), 45)
+        self.assertIn('word0', out)
+        self.assertNotIn('word100', out)
+
+
 class AddToCalendarTests(TestCase):
     """One click to put an event in somebody's own calendar.
 
