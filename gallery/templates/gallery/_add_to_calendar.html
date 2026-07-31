@@ -1,0 +1,16 @@
+{% comment %}
+"Add to calendar" for one event. Expects `event` in context.
+
+Two links, because there is no one answer: Google is a URL that opens their calendar with the
+event filled in, and the .ics covers Apple Calendar, Outlook and everything else by being a file
+their system already knows how to open. No JavaScript, so this works pasted into an email as
+readily as on a page.
+
+Both carry absolute instants rather than wall-clock times — see calendars.google_calendar_url for
+why that matters to a reader in another timezone.
+{% endcomment %}
+<span class="add-to-cal">
+  <a href="{{ event.google_calendar_url }}" target="_blank" rel="noopener">Add to Google Calendar</a>
+  <span class="text-muted">&nbsp;·&nbsp;</span>
+  <a href="{% url 'gallery:event_ics' event.pk %}">Apple or Outlook (.ics)</a>
+</span>

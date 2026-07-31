@@ -52,6 +52,13 @@ other.
       {% if closing %}🕓 {{ closing.name }}{% if closing.date != show.end %}, {{ closing.date|date:"l, j F" }}{% endif %}, {{ closing.time_range }}<br />{% endif %}
       📍 {% if maps_url %}<a href="{{ maps_url }}" style="color:#222222">{{ site_name }}</a>{% else %}{{ site_name }}{% endif %}
     </mj-text>
+    {% if closing_calendar %}
+    <mj-text font-size="14px" padding="0 0 10px">
+      <a href="{{ closing_calendar.google }}" style="color:#198754">Add to Google Calendar</a>
+      &nbsp;·&nbsp;
+      <a href="{{ closing_calendar.ics }}" style="color:#198754">Apple or Outlook</a>
+    </mj-text>
+    {% endif %}
   </mj-column>
 </mj-section>
 

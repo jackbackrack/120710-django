@@ -62,6 +62,18 @@ rendering a hole where the invitation should be.
     {% if show.start != show.end %}
     <mj-text color="#666666" font-size="14px" padding="0 0 8px">Up through {{ show.end|date:"j F Y" }}.</mj-text>
     {% endif %}
+    {% comment %}
+      Directly under the date, because that is the moment a reader decides to come. Two links
+      rather than one: Google is a URL, and the .ics covers Apple Calendar and Outlook. No
+      JavaScript is possible in an email, so links are the whole mechanism.
+    {% endcomment %}
+    {% if opening_calendar %}
+    <mj-text font-size="14px" padding="0 0 10px">
+      <a href="{{ opening_calendar.google }}" style="color:#198754">Add to Google Calendar</a>
+      &nbsp;·&nbsp;
+      <a href="{{ opening_calendar.ics }}" style="color:#198754">Apple or Outlook</a>
+    </mj-text>
+    {% endif %}
   </mj-column>
 </mj-section>
 

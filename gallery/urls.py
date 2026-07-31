@@ -14,7 +14,7 @@ from gallery.views.subscribers import (subscriber_add, subscriber_delete,
 from gallery.views.checklist import show_checklist_html, show_checklist_pdf
 from gallery.views.thumbnails import regenerate_artwork_thumbnail, regenerate_artist_thumbnail
 from gallery.views.room import room_layout, room_layout_save, room_viewer, room_camera_save, room_2d, save_support_to_catalog, layout_snapshots, restore_layout_snapshot, delete_layout_snapshot
-from gallery.views.calendars import calendar_view, shows_ics
+from gallery.views.calendars import calendar_view, event_ics, shows_ics
 from gallery.views.logistics import show_schedule_windows, artist_schedule, show_schedule_tracker, schedule_ics
 from gallery.views import (
     artwork_autocomplete,
@@ -227,6 +227,8 @@ urlpatterns = [
     path('site/<slug:site_slug>/shows.ics', shows_ics, name='site_shows_ics'),
     path('events/', EventListView.as_view(), name='event_list'),
     path('event/<int:pk>/', EventDetailView.as_view(), name='event_detail'),
+    # A single event to keep, as opposed to /shows.ics which is a feed to subscribe to.
+    path('event/<int:pk>.ics', event_ics, name='event_ics'),
     path('event/<int:pk>/edit/', EventUpdateView.as_view(), name='event_edit'),
     path('event/<int:pk>/delete/', EventDeleteView.as_view(), name='event_delete'),
     path('event/new/', EventCreateView.as_view(), name='event_new'),

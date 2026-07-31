@@ -5,12 +5,13 @@ and /site/<slug>/calendar/ is one venue's. See gallery/calendars.py for the time
 """
 import datetime as dt
 
-from django.http import HttpResponse
-from django.shortcuts import render
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views.decorators.http import condition, require_safe
 
 from gallery import calendars
+from gallery.models import Show
 from gallery.views.mixins import visible_site_or_404
 
 
@@ -95,4 +96,24 @@ def shows_ics(request, site_slug=None):
         site=site, url=request.build_absolute_uri())
     response = HttpResponse(body, content_type='text/calendar; charset=utf-8')
     response['Content-Disposition'] = 'inline; filename="shows.ics"'
+    return response
+
+
+@require_safe
+def event_ics(request, pk):
+    """One event, downloaded rather than subscribed to.
+
+    An attachment, unlike /shows.ics: this is a copy of a single event a reader is choosing to
+    keep, and a Content-Disposition is exactly what makes a client save it instead of trying to
+    subscribe. Public, because the event is.
+    """
+    from gallery.models import Event
+
+    event = get_object_or_404(
+        Event.objects.select_related('show').prefetch_related('show__sites'), pk=pk)
+    if event.show.status not in Show.PUBLIC_STATUSES:
+        raise Http404
+    body = calendars.event_ics(event, domain=request.get_host().split(':')[0])
+    response = HttpResponse(body, content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="event-{event.pk}.ics"'
     return response

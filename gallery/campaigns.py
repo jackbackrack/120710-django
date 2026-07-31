@@ -255,8 +255,21 @@ def show_context(show, request=None):
     finds neither falls back to the show's own start and end dates rather than rendering a gap.
     """
     events = list(show.events.order_by('date', 'start'))
+
+    def add_links(event):
+        """Absolute, because these are read in a mail client with no page to resolve against."""
+        if event is None:
+            return None
+        from gallery.calendars import event_google_url
+        return {
+            'google': event_google_url(event),
+            'ics': _absolute(reverse('gallery:event_ics', kwargs={'pk': event.pk}), request),
+        }
+
     return {
         'show': show,
+        'opening_calendar': add_links(events[0] if events else None),
+        'closing_calendar': add_links(events[-1] if len(events) > 1 else None),
         'show_url': _absolute(show.get_absolute_url(), request),
         # Ordered as the show itself orders them, and capped in the template rather than here so
         # one query serves a template that wants three works and one that wants six.

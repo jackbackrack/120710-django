@@ -25,39 +25,25 @@ class Event(models.Model):
         self.slug = build_unique_slug(self, self.name)
         super().save(*args, **kwargs)
 
-    @staticmethod
-    def _clock(when, meridiem=True):
-        hour = when.hour % 12 or 12
-        text = f'{hour}:{when.minute:02d}'
-        return f'{text} {"AM" if when.hour < 12 else "PM"}' if meridiem else text
-
-    @property
-    def time_range(self):
-        """When it runs, both ends: "4:00–8:00 PM", or "11:00 AM–2:00 PM" across noon.
-
-        A property rather than a template filter because a campaign *subject* needs it too, and
-        subjects allow `{{ }}` only — no `{% load %}` — so a filter could not reach them. One
-        implementation then serves the subject, the body and the events list alike.
-
-        The meridiem is dropped from the start when both ends share it, which is how the old
-        Mailchimp announcements read and how anybody writes an opening time by hand.
-        """
-        same_half = (self.start.hour < 12) == (self.end.hour < 12)
-        return f'{self._clock(self.start, not same_half)}–{self._clock(self.end)}'
-
     def __str__(self):
         return self.show.name + ' ' + self.name
 
     def get_absolute_url(self):
         return reverse('gallery:event_detail', kwargs={'slug': self.slug})
 
+    def google_calendar_url(self):
+        """One-click "add this to my calendar". Absolute instants — see gallery/calendars.py."""
+        from gallery.calendars import event_google_url
+        return event_google_url(self)
+
     @property
     def time_range(self):
-        def fmt(t, include_ampm):
-            s = t.strftime('%I:%M %p').lstrip('0')
-            return s if include_ampm else s.rsplit(' ', 1)[0]
-        start_ampm = self.start.strftime('%p')
-        end_ampm = self.end.strftime('%p')
-        if start_ampm == end_ampm:
-            return f'{fmt(self.start, False)}–{fmt(self.end, True)}'
-        return f'{fmt(self.start, True)}–{fmt(self.end, True)}'
+        """When it runs, both ends: "4:00–8:00 PM", or "11:00 AM–2:00 PM" across noon.
+
+        Shared with opening hours rather than written twice — a campaign subject, the Visit page
+        and an events list should not be able to format the same span three different ways. A
+        property and not a template filter because a subject needs it, and subjects allow
+        `{{ }}` only.
+        """
+        from gallery import timeranges
+        return timeranges.time_range(self.start, self.end)

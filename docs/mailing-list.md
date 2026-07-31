@@ -208,6 +208,16 @@ somebody needs in order to turn up, on their own lines with the emoji the old ca
 Then the hero image, the show's description, whatever the curator wrote for this one, a button,
 and the works.
 
+**Every event carries an "add to calendar" pair.** Google is a URL; the `.ics` covers Apple
+Calendar and Outlook. Two links rather than one because there is no single answer, and no
+JavaScript because none is possible in an email. They sit directly under the date block, which is
+the moment a reader decides to come. `show_context` supplies them absolutely — a mail client has
+no page to resolve a relative URL against. A show with no events offers nothing rather than a dead
+link.
+
+The same pair appears on the event page and beside future entries on the agenda, from
+`gallery/templates/gallery/_add_to_calendar.html`.
+
 **Say the last day a show is open, never the day it comes down.** "Comes down on Saturday" leaves
 a reader unsure whether Saturday is already too late, and beside a closing event on that same
 Saturday it reads as a contradiction. The closing template says *"The last day to see Full-Feel is

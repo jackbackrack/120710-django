@@ -2065,6 +2065,107 @@ class OpeningHoursTests(TestCase):
             self.assertEqual(_opening_hours(), ['Su 13:00-16:00'])
 
 
+class AddToCalendarTests(TestCase):
+    """One click to put an event in somebody's own calendar.
+
+    Two links rather than one, everywhere: Google is a URL, and a .ics file covers Apple
+    Calendar, Outlook and anything else that already knows the format. No JavaScript, so the same
+    two work pasted into an email as on a page.
+    """
+
+    def setUp(self):
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 10th St', city='Berkeley', state='CA', postal_code='94710',
+            timezone='America/Los_Angeles')
+        self.show = Show.objects.create(
+            name='Repetition and Repair', status=Show.STATUS_PUBLISHED,
+            start=datetime.date(2026, 9, 4), end=datetime.date(2026, 10, 3))
+        self.show.sites.add(self.site)
+        self.event = Event.objects.create(
+            name='Opening Reception', show=self.show, date=datetime.date(2026, 9, 4),
+            start=datetime.time(18, 0), end=datetime.time(21, 0),
+            description='Come along.')
+
+    def test_the_google_link_carries_an_absolute_instant(self):
+        """A naive time is read in the *reader's* zone, so a six o'clock opening in Berkeley
+        would land at six o'clock for somebody in New York."""
+        url = self.event.google_calendar_url()
+        self.assertIn('calendar.google.com', url)
+        self.assertIn('action=TEMPLATE', url)
+        # 18:00 Pacific on 4 September is 01:00 UTC on the 5th.
+        self.assertIn('20260905T010000Z', url)
+        self.assertIn('20260905T040000Z', url)
+        self.assertIn('Opening+Reception', url)
+
+    def test_the_ics_download_is_one_event(self):
+        response = self.client.get(reverse('gallery:event_ics',
+                                           kwargs={'pk': self.event.pk}))
+        body = response.content.decode()
+        self.assertEqual(body.count('BEGIN:VEVENT'), 1)
+        self.assertIn('SUMMARY:Opening Reception', body)
+        self.assertIn('DTSTART:20260905T010000Z', body)
+        self.assertIn('1207 10th St', body)
+        self.assertIn('METHOD:PUBLISH', body)
+
+    def test_the_ics_is_an_attachment_not_a_subscription(self):
+        """The opposite of /shows.ics: a copy of one event to keep, so a Content-Disposition is
+        exactly right here and exactly wrong there."""
+        response = self.client.get(reverse('gallery:event_ics',
+                                           kwargs={'pk': self.event.pk}))
+        self.assertIn('attachment', response['Content-Disposition'])
+        self.assertIn('text/calendar', response['Content-Type'])
+
+    def test_an_event_of_a_non_public_show_is_not_downloadable(self):
+        self.show.status = Show.STATUS_DRAFT
+        self.show.save(update_fields=['status'])
+        self.assertEqual(
+            self.client.get(reverse('gallery:event_ics',
+                                    kwargs={'pk': self.event.pk})).status_code, 404)
+
+    def test_the_event_page_offers_both(self):
+        page = self.client.get(self.event.get_absolute_url()).content.decode()
+        self.assertIn('Add to Google Calendar', page)
+        self.assertIn(reverse('gallery:event_ics', kwargs={'pk': self.event.pk}), page)
+
+    def test_the_agenda_offers_them_on_what_is_still_to_come(self):
+        future = Event.objects.create(
+            name='Artist Talk', show=self.show,
+            date=timezone.now().date() + datetime.timedelta(days=7),
+            start=datetime.time(19, 0), end=datetime.time(20, 30))
+        page = self.client.get(reverse('gallery:calendar')).content.decode()
+        self.assertIn('Add to Google Calendar', page)
+        self.assertIn(reverse('gallery:event_ics', kwargs={'pk': future.pk}), page)
+
+    def test_a_campaign_carries_both_links_absolutely(self):
+        """Read in a mail client, which has no page to resolve a relative URL against."""
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(
+            site=self.site, show=self.show, subject='Opening',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertIn('Add to Google Calendar', html)
+        self.assertIn('calendar.google.com', html)
+        self.assertIn(f'/event/{self.event.pk}.ics', html)
+        self.assertNotIn('href="/event/', html)
+
+    def test_a_show_with_no_events_offers_nothing_rather_than_a_dead_link(self):
+        from gallery.models import Campaign
+        Event.objects.all().delete()
+        campaign = Campaign.objects.create(
+            site=self.site, show=self.show, subject='Opening',
+            template_name='show_opening.mjml')
+        html = campaigns.render_preview(campaign)
+        self.assertNotIn('Add to Google Calendar', html)
+
+    def test_one_implementation_of_a_time_span(self):
+        """Event and OpeningHours share it — a duplicate crept in and was dead code, because
+        Python keeps the last definition and the two happened to agree."""
+        from gallery import timeranges
+        self.assertEqual(self.event.time_range,
+                         timeranges.time_range(self.event.start, self.event.end))
+
+
 class PlaceholderPhotoTests(TestCase):
     """A monogram is not a profile photo.
 

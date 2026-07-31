@@ -329,3 +329,85 @@ def visits_feed(site, visits, domain, url=None, base_url=''):
     for line in lines:
         folded.extend(_fold(line))
     return '\r\n'.join(folded) + '\r\n'
+
+
+# ── One event, added to somebody's own calendar ──────────────────────────────
+
+def google_calendar_url(*, title, start, end, details='', location=''):
+    """A "add this to my Google Calendar" link for a single event.
+
+    `start` and `end` must be timezone-aware, and are sent as UTC instants, so a reader in
+    another zone is told the right hour. Google reads a naive time in *the reader's* calendar
+    zone, which would put a six o'clock opening in Berkeley at six o'clock in New York.
+
+    Note that ScheduleWindow and ArtistSchedule deliberately do the opposite, in
+    gallery/models/logistics.py: a drop-off is somebody coming to the building, so the gallery's
+    wall clock is the right one and a floating time is correct there. Public events are read by
+    people who may be anywhere, which is why these are absolute.
+    """
+    from urllib.parse import urlencode
+
+    fmt = '%Y%m%dT%H%M%SZ'
+    return 'https://calendar.google.com/calendar/render?' + urlencode({
+        'action': 'TEMPLATE',
+        'text': title,
+        'dates': f'{_utc(start)}/{_utc(end)}',
+        'details': details,
+        'location': location,
+    })
+
+
+def event_calendar_bits(event):
+    """(title, start, end, location) for one Event, in its venue's zone."""
+    site = event.show.sites.first()
+    tz = site_timezone(site)
+    start = dt.datetime.combine(event.date, event.start, tzinfo=tz)
+    end = dt.datetime.combine(event.date, event.end, tzinfo=tz)
+    if end <= start:
+        end = start + dt.timedelta(hours=2)
+    title = f'{event.name} — {event.show.name}'
+    location = ''
+    if site:
+        location = ', '.join(filter(None, [site.name,
+                                           site.formatted_address.replace('\n', ', ')]))
+    return title, start, end, location
+
+
+def event_google_url(event, details=''):
+    title, start, end, location = event_calendar_bits(event)
+    return google_calendar_url(title=title, start=start, end=end,
+                               details=details or (event.description or ''),
+                               location=location)
+
+
+def event_ics(event, domain):
+    """A one-event VCALENDAR, for downloading rather than subscribing.
+
+    METHOD:PUBLISH, not REQUEST: nobody is being invited and there is nothing to RSVP to — this
+    is a copy of a public event that a reader is choosing to keep.
+    """
+    title, start, end, location = event_calendar_bits(event)
+    now = dj_timezone.now()
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        f'PRODID:-//{domain}//Events//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        f'UID:event-{event.pk}@{domain}',
+        f'DTSTAMP:{_utc(now)}',
+        f'DTSTART:{_utc(start)}',
+        f'DTEND:{_utc(end)}',
+        f'SUMMARY:{_esc(title)}',
+    ]
+    if event.description:
+        lines.append(f'DESCRIPTION:{_esc(event.description)}')
+    if location:
+        lines.append(f'LOCATION:{_esc(location)}')
+    lines.extend(['END:VEVENT', 'END:VCALENDAR'])
+
+    folded = []
+    for line in lines:
+        folded.extend(_fold(line))
+    return '\r\n'.join(folded) + '\r\n'

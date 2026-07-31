@@ -35,6 +35,14 @@
         <br><span class="small">
           <span class="text-muted">part of</span>
           <a class="card__link" href="{% surl row.entry.obj.show %}">{{ row.entry.obj.show.name }}</a>
+          {% comment %}
+            Only on things still to come: an "add to calendar" link beside an event from last
+            March is noise, and the agenda shows both.
+          {% endcomment %}
+          {% if row.entry.sort_date >= today %}
+          <span class="text-muted">·</span>
+          {% with event=row.entry.obj %}{% include 'gallery/_add_to_calendar.html' %}{% endwith %}
+          {% endif %}
         </span>
       {% endif %}
     </span>
