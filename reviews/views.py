@@ -1,5 +1,6 @@
 import json
 
+from django.apps import apps
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
@@ -167,6 +168,12 @@ def artwork_review(request, show_slug, artwork_slug):
             review.juror = request.user
             review.save()
             form.save_criterion_scores(review)
+            posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+            if posthog_client:
+                posthog_client.capture('artwork_review_submitted', properties={
+                    'is_update': instance is not None,
+                    'uses_rubric': bool(show.rubric_criteria.exists()),
+                })
             return redirect('reviews:show_review_dashboard', show_slug=show.slug)
     else:
         form = ArtworkReviewForm(show=show, instance=instance)

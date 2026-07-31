@@ -19,6 +19,7 @@ campaign provider — see gallery/campaigns.py::_connection for why those are ke
 """
 import logging
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
@@ -103,6 +104,11 @@ def subscribe(request):
             )
             if new and subscriptions:
                 send_welcome(request, subscriptions[0])
+                posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+                if posthog_client:
+                    posthog_client.capture('newsletter_subscribed', properties={
+                        'signup_source': 'web_form',
+                    })
             messages.success(request, f'Successfully subscribed {email}!')
             return redirect(request.path)
     else:
@@ -135,6 +141,11 @@ def subscribe_kiosk(request, token):
                 # Worth it here too: an address mistyped on a tablet at an opening is exactly
                 # the kind that would otherwise bounce on every mailing for years.
                 send_welcome(request, subscriptions[0])
+                posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+                if posthog_client:
+                    posthog_client.capture('newsletter_subscribed', properties={
+                        'signup_source': 'kiosk',
+                    })
             success = f'Thanks! {email} has been subscribed.'
             form = KioskSubscribeForm()
     else:

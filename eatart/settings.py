@@ -65,6 +65,9 @@ RECAPTCHA_ENABLED = _env_bool('RECAPTCHA_ENABLED', default=_recaptcha_keys_prese
 
 ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', '127.0.0.1', 'localhost', 'db']
 
+POSTHOG_PROJECT_TOKEN = os.environ.get('POSTHOG_PROJECT_TOKEN', '').strip()
+POSTHOG_HOST = os.environ.get('POSTHOG_HOST', '').strip()
+
 CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'https://shows.120710.art', 'https://www.120710.art', 'https://120710.art']
 
 # Application definition
@@ -150,6 +153,7 @@ MIDDLEWARE = [
     "debug_toolbar.middleware.DebugToolbarMiddleware",  # Django Debug Toolbar
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'posthog.integrations.django.PosthogContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "allauth.account.middleware.AccountMiddleware",  # django-allauth
