@@ -46,7 +46,7 @@ an hour, and the notice period alone will have moved on.
 Slots carry which kind of block they came from all the way to the page, because they are not the
 same offer: one is "the gallery is open, come in", the other is "somebody will make a point of
 being here". Public hours cost nobody a special trip, so the page names them before the grid —
-*"open to everyone Sun 1:00–4:00 PM … you are welcome to just turn up"* — and lists them first, in
+*"open to everyone Sun 1–4 PM … you are welcome to just turn up"* — and lists them first, in
 green, above a quieter *by arrangement* group.
 
 Encouraged is not required: an arranged slot can still be booked, and there is a test saying so.

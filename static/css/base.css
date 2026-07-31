@@ -493,10 +493,17 @@ th, td {
    headings, so the font size has to be overridden or they inherit h3/h4 and dwarf the date they
    belong to. */
 .event-actions { white-space: nowrap; font-weight: 400; }
+/* em, not rem: these sit inside an h3 on a show page and an h4 on a card, which this stylesheet
+   sets to 0.875rem and 0.75rem — and .card__content scales by another 0.9. A fixed size was
+   therefore smaller than the date in one place and larger than it in the other. Relative keeps
+   them just under whatever the date next to them is. */
 .event-actions .btn {
-  font-size: .78rem;
-  padding: .05rem .45rem;
-  line-height: 1.45;
-  vertical-align: middle;
+  font-size: .85em;
+  padding: .05rem .4rem;
+  line-height: 1.4;
+  vertical-align: baseline;
 }
+.event-actions .add-to-cal,
+.event-actions .add-to-cal a { font-size: .85em; }
 .event-actions .add-to-cal { margin-left: .2rem; }
+.event-actions .add-to-cal svg { width: 1em; height: 1em; }

@@ -202,7 +202,7 @@ Each leads with a heading and a one-sentence invitation naming the curator, then
 somebody needs in order to turn up, on their own lines with the emoji the old campaigns used:
 
     📅 Saturday, 25 July
-    🕓 4:00–8:00 PM
+    🕓 4–8 PM
     📍 120710          ← links to the address in a map
 
 Then the hero image, the show's description, whatever the curator wrote for this one, a button,
@@ -327,8 +327,8 @@ without an end, which does not tell anybody whether they can still come at seven
 
 Hours come from `Event.time_range` everywhere — subject, body and events list — so there is one
 implementation. It is a model property rather than a template filter because a *subject* needs it
-too, and subjects allow `{{ }}` only. It reads `4:00–8:00 PM`, dropping the meridiem from the
-start when both ends share it and keeping it when they do not (`11:00 AM–2:00 PM`).
+too, and subjects allow `{{ }}` only. It reads `4–8 PM`, dropping the meridiem from the
+start when both ends share it and keeping it when they do not (`11 AM–2 PM`).
 
 The most important words come first, because inboxes truncate the tail: `Last chance: Full-Feel`
 survives a 40-character preview even though the whole line is longer. Each template in `CAMPAIGN_TEMPLATES` carries a default subject,

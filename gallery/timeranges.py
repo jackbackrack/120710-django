@@ -17,17 +17,21 @@ WEEKDAY_SCHEMA = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 
 
 def clock(when, meridiem=True):
-    """A single time: `4:00 PM`, or `4:00` with the meridiem suppressed."""
+    """A single time: `4 PM`, `4:30 PM`, or the same without the meridiem.
+
+    On the hour, the `:00` is dropped. Nobody says "six oh oh", and these sit on lines that are
+    already tight — an event heading carries a name, a date and two controls beside them.
+    """
     hour = when.hour % 12 or 12
-    text = f'{hour}:{when.minute:02d}'
+    text = f'{hour}' if when.minute == 0 else f'{hour}:{when.minute:02d}'
     return f'{text} {"AM" if when.hour < 12 else "PM"}' if meridiem else text
 
 
 def time_range(start, end):
-    """`4:00–8:00 PM`, or `11:00 AM–2:00 PM` when the two ends straddle noon.
+    """`4–8 PM`, or `11 AM–2 PM` when the two ends straddle noon.
 
     Dropping the repeated meridiem is how anybody writes an opening time by hand. Keeping it
-    across noon is not a nicety: `11:00–2:00 PM` reads as the wrong half of the day.
+    across noon is not a nicety: `11–2 PM` would read as the wrong half of the day.
     """
     same_half = (start.hour < 12) == (end.hour < 12)
     return f'{clock(start, not same_half)}–{clock(end)}'

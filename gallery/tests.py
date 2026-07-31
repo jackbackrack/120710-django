@@ -1420,7 +1420,7 @@ class CampaignStaffPagesTests(TestCase):
         for fact in ('📅', '🕓', '📍'):
             self.assertIn(fact, html)
         self.assertIn('Saturday, 25 July', html)
-        self.assertIn('4:00–8:00 PM', html)
+        self.assertIn('4–8 PM', html)
 
     # --- Subject lines ---
 
@@ -1512,13 +1512,13 @@ class CampaignStaffPagesTests(TestCase):
         import datetime as dt
         from gallery.models import Event as E
         cases = {
-            ((16, 0), (20, 0)): '4:00–8:00 PM',
-            ((18, 30), (21, 0)): '6:30–9:00 PM',
-            ((9, 0), (11, 30)): '9:00–11:30 AM',
+            ((16, 0), (20, 0)): '4–8 PM',
+            ((18, 30), (21, 0)): '6:30–9 PM',
+            ((9, 0), (11, 30)): '9–11:30 AM',
             # Across noon the start needs its own meridiem or it reads as the wrong half of
             # the day.
-            ((11, 0), (14, 0)): '11:00 AM–2:00 PM',
-            ((12, 0), (13, 0)): '12:00–1:00 PM',
+            ((11, 0), (14, 0)): '11 AM–2 PM',
+            ((12, 0), (13, 0)): '12–1 PM',
         }
         for (a, b), expected in cases.items():
             with self.subTest(hours=(a, b)):
@@ -1548,13 +1548,13 @@ class CampaignStaffPagesTests(TestCase):
             site=self.site, show=show, template_name='show_opening.mjml',
             subject=template_subject('show_opening.mjml'))
         self.assertEqual(opening.rendered_subject,
-                         'Opening: Full-Feel — Saturday 25 July, 4:00–8:00 PM')
+                         'Opening: Full-Feel — Saturday 25 July, 4–8 PM')
 
         closing = Campaign.objects.create(
             site=self.site, show=show, template_name='show_closing.mjml',
             subject=template_subject('show_closing.mjml'))
         self.assertEqual(closing.rendered_subject,
-                         'Last chance: Full-Feel — last day 30 August · Closing Party 5:00–8:00 PM')
+                         'Last chance: Full-Feel — last day 30 August · Closing Party 5–8 PM')
 
     def test_a_subject_falls_back_to_the_day_when_a_show_has_no_events(self):
         from gallery.models import Campaign, Show
@@ -1843,19 +1843,19 @@ class OpeningHoursTests(TestCase):
         """Two descriptions of the same hours will eventually disagree, so only one can count."""
         self._hours(6, (13, 0), (16, 0))
         display = self._reload().hours_display
-        self.assertEqual(display, 'Sun 1:00–4:00 PM')
+        self.assertEqual(display, 'Sun 1–4 PM')
         self.assertNotIn('1-4p', display)
 
     def test_identical_days_collapse_into_a_range(self):
         """Seven lines of the same hours is not something anybody reads."""
         for weekday in range(7):
             self._hours(weekday, (10, 0), (17, 0))
-        self.assertEqual(self._reload().hours_display, 'Mon–Sun 10:00 AM–5:00 PM')
+        self.assertEqual(self._reload().hours_display, 'Mon–Sun 10 AM–5 PM')
 
     def test_days_that_are_not_consecutive_are_listed(self):
         for weekday in (0, 2, 4):
             self._hours(weekday, (11, 0), (18, 0))
-        self.assertEqual(self._reload().hours_display, 'Mon, Wed, Fri 11:00 AM–6:00 PM')
+        self.assertEqual(self._reload().hours_display, 'Mon, Wed, Fri 11 AM–6 PM')
 
     def test_drop_in_hours_are_listed_before_appointment_ones(self):
         """Leading with "by appointment" reads like the gallery is shut."""
@@ -1863,8 +1863,8 @@ class OpeningHoursTests(TestCase):
             self._hours(weekday, (11, 0), (18, 0), by_appointment=True)
         self._hours(6, (13, 0), (16, 0))
         display = self._reload().hours_display
-        self.assertTrue(display.startswith('Sun 1:00–4:00 PM'), display)
-        self.assertIn('Mon, Wed, Fri 11:00 AM–6:00 PM by appointment', display)
+        self.assertTrue(display.startswith('Sun 1–4 PM'), display)
+        self.assertIn('Mon, Wed, Fri 11 AM–6 PM by appointment', display)
 
     def test_appointment_hours_are_not_open_to_the_public(self):
         """Telling a search engine the door is unlocked when it is not is worse than saying
@@ -1927,7 +1927,7 @@ class OpeningHoursTests(TestCase):
         self.assertEqual(site.open_periods_on(monday), [], 'appointments should be off')
         self.assertTrue(site.is_open_on(sunday), 'Sunday is staffed and must stay open')
         self.assertEqual([b.time_range for b in site.open_periods_on(sunday)],
-                         ['1:00–4:00 PM'])
+                         ['1–4 PM'])
 
     def test_a_full_closure_beats_an_overlapping_partial_one(self):
         """Otherwise a partial closure quietly reopens a venue a full one had shut."""
@@ -1957,7 +1957,7 @@ class OpeningHoursTests(TestCase):
         self._hours(5, (14, 0), (17, 0))
         periods = self._reload().open_periods_on(datetime.date(2026, 8, 1))
         self.assertEqual([p.time_range for p in periods],
-                         ['10:00 AM–12:00 PM', '2:00–5:00 PM'])
+                         ['10 AM–12 PM', '2–5 PM'])
 
     def test_hours_read_the_same_as_event_times(self):
         """One implementation, so the Visit page and a campaign cannot format a time
@@ -2040,7 +2040,7 @@ class OpeningHoursTests(TestCase):
         self._hours(6, (13, 0), (16, 0))
         with self.settings(GALLERY_DEFAULT_SITE_SLUG=self.site.slug):
             body = self.client.get(reverse('visit')).content.decode()
-        self.assertIn('Sun 1:00–4:00 PM', body)
+        self.assertIn('Sun 1–4 PM', body)
 
     def test_a_campaign_footer_shows_them_too(self):
         from gallery.models import Campaign
@@ -2048,7 +2048,7 @@ class OpeningHoursTests(TestCase):
         campaign = Campaign.objects.create(
             site=self._reload(), subject='Hello', body_markdown='Body.')
         html = campaigns.render_preview(campaign)
-        self.assertIn('Sun 1:00–4:00 PM', html)
+        self.assertIn('Sun 1–4 PM', html)
 
     def test_the_search_engine_listing_stops_being_hand_maintained(self):
         """It was a hard-coded constant that could drift from the hours on the Visit page —
@@ -3007,7 +3007,7 @@ class VisitBookingTests(TestCase):
         self.assertIn('no need to book', page)
         self.assertIn('By arrangement', page)
         # The encouraging line names the drop-in hours only.
-        self.assertIn('1:00–4:00 PM', page)
+        self.assertIn('1–4 PM', page)
 
     def test_an_arranged_slot_can_still_be_booked(self):
         """Encouraged is not the same as required."""
@@ -10284,7 +10284,7 @@ class CampaignTests(TestCase):
         html = campaigns.render_preview(campaign)
         # The time comes from the event, which is the whole point — the heading already says
         # "Opening", so the template does not repeat the event's name under it.
-        self.assertIn('6:00–9:00 PM', html)
+        self.assertIn('6–9 PM', html)
         self.assertIn('Friday, 4 September', html)
         # And the later event is listed rather than presented as the opening.
         self.assertIn('Artist Talk', html)
