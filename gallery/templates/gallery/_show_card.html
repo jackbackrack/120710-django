@@ -1,5 +1,5 @@
 {% load site_tags %}{% surl show as show_url %}
-<div class="card" data-sl-title="{{ show.name }}" data-sl-sub="{{ show.date_range }}" data-sl-url="{{ show_url }}">
+<div class="card" data-sl-title="{{ show.name }}" data-sl-sub="{{ show.date_range_short }}" data-sl-url="{{ show_url }}">
   {% if show.status == show.STATUS_OPEN_CALL and show.submission_type != 'invited' %}
   <div class="text-center" style="background:#fff176;padding:2px 0"><h2 style="margin:0">{% if show.show_type == 'public_art' %}Public Art &middot;{% endif %}Open Call</h2></div>
   {% elif show.status == show.STATUS_IN_REVIEW and show.submission_type != 'invited' %}
@@ -18,13 +18,13 @@
       {% endfor %}
       {% if show.ordered_curators %}<br>{% endif %}
       {% if not hide_site %}{% with sc=show.sites.all %}{% if sc %}<small>{% for s in sc %}<a class="card__link" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</small><br>{% endif %}{% endwith %}{% endif %}
-      {{ show.date_range }}
+      {{ show.date_range_short }}
       {% if show.status == show.STATUS_OPEN_CALL and show.submission_deadline and show.submission_type == 'open' %}
       <br><strong>Deadline:</strong> <span style="background:#fff176;padding:0 2px">{{ show.submission_deadline }}</span>
       {% endif %}
       {% with next_ev=show.get_next_event %}
       {% if next_ev %}
-      <br><span style="background:#fff176;padding:0 2px"><a class="card__link" href="{{ next_ev.get_absolute_url }}">{{ next_ev.name }}</a>: {{ next_ev.date }}, {{ next_ev.time_range }}</span>
+      <br><span style="background:#fff176;padding:0 2px"><a class="card__link" href="{{ next_ev.get_absolute_url }}">{{ next_ev.name }}</a>: {{ next_ev.date|short_date }}, {{ next_ev.time_range }}</span>
       {% include 'gallery/_event_actions.html' with event=next_ev %}
       {% endif %}
       {% endwith %}

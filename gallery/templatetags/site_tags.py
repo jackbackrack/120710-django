@@ -150,3 +150,10 @@ def rsvp_choices():
     style = {EventRsvp.YES: 'success', EventRsvp.MAYBE: 'secondary', EventRsvp.NO: 'secondary'}
     return [{'value': value, 'label': label, 'style': style.get(value, 'secondary')}
             for value, label in EventRsvp.RESPONSE_CHOICES]
+
+
+@register.filter
+def short_date(day):
+    """A date without the year, unless it is not this year. See gallery/timeranges.py."""
+    from gallery import timeranges
+    return timeranges.short_date(day)

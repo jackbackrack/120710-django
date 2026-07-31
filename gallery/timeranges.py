@@ -65,3 +65,42 @@ def weekday_ranges(numbers):
         else:
             parts.append(f'{WEEKDAY_ABBR[run[0]]}–{WEEKDAY_ABBR[run[-1]]}')
     return ', '.join(parts)
+
+
+def short_date(day, today=None):
+    """`Aug 5`, or `Aug 5, 2027` when it is not this year.
+
+    The year is noise nine times in ten — a listing of what is on now does not need to keep
+    saying which year now is — and essential the tenth, when something is genuinely next year.
+    """
+    import datetime as _dt
+
+    if day is None:
+        return ''
+    today = today or _dt.date.today()
+    return day.strftime('%b %-d') if day.year == today.year else day.strftime('%b %-d, %Y')
+
+
+def short_date_range(start, end, today=None):
+    """`Aug 5`, `Aug 5 – 9`, `Aug 5 – Sep 3`, or with years when they are not this one.
+
+    Deliberately separate from Show.date_range, which keeps the year always: that one goes into
+    the catalogue and the checklist, and a printed page read in five years needs to say which
+    year it is talking about. This is for the screen.
+    """
+    import datetime as _dt
+
+    if start is None or end is None:
+        return ''
+    today = today or _dt.date.today()
+    this_year = start.year == end.year == today.year
+
+    if start == end:
+        return short_date(start, today)
+    if start.year != end.year:
+        return f'{short_date(start, today)} – {short_date(end, today)}'
+    if start.month == end.month:
+        tail = f'{end.day}' if this_year else f'{end.day}, {end.year}'
+        return f'{start.strftime("%b %-d")} – {tail}'
+    tail = end.strftime('%b %-d') if this_year else end.strftime('%b %-d, %Y')
+    return f'{start.strftime("%b %-d")} – {tail}'

@@ -14,7 +14,7 @@
     <h1 class="mb-6 text-3xl">{{ show.name }}</h1>
     {% if show.show_type == 'public_art' %}<p class="text-gray-500 text-sm"><strong>Public Art Site</strong></p>{% endif %}
     {% with show_sites=show.sites.all %}{% if show_sites %}<p class="text-gray-500 text-sm"><strong>{% if show_sites|length == 1 %}Site{% else %}Sites{% endif %}:</strong> {% for s in show_sites %}<a class="card__link" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}{% endwith %}
-    <p class="mb-6 text-3xl">{{ show.date_range }}</p>
+    <p class="mb-6 text-3xl">{{ show.date_range_short }}</p>
     <h3 class="mb-6">Curators:
     {% with curators=show.ordered_curators %}
     {% if curators %}
@@ -71,7 +71,7 @@
     {% endcomment %}
     {% for event in show.events.all %}
     <h3 class="mb-3"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>:
-      {{ event.date }}: {{ event.time_range }}
+      {{ event.date|short_date }}: {{ event.time_range }}
       {% include 'gallery/_event_actions.html' %}</h3>
     {% endfor %}
   </div>

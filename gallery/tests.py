@@ -2492,6 +2492,83 @@ class EventRsvpTests(TestCase):
         self.assertIsNone(EventRsvp.objects.get().reminded_at)
 
 
+class ShortDateTests(TestCase):
+    """Dates drop the year when it is this one.
+
+    A listing of what is on now does not need to keep saying which year now is. It stays where it
+    matters — something genuinely next year, and anything printed.
+    """
+
+    def test_this_year_loses_the_year(self):
+        from gallery import timeranges
+        today = datetime.date(2026, 7, 31)
+        self.assertEqual(timeranges.short_date(datetime.date(2026, 8, 5), today), 'Aug 5')
+
+    def test_another_year_keeps_it(self):
+        from gallery import timeranges
+        today = datetime.date(2026, 7, 31)
+        self.assertEqual(timeranges.short_date(datetime.date(2027, 8, 5), today), 'Aug 5, 2027')
+
+    def test_a_run_is_compressed(self):
+        from gallery import timeranges
+        today = datetime.date(2026, 7, 31)
+        cases = {
+            ((2026, 8, 5), (2026, 8, 5)): 'Aug 5',
+            ((2026, 8, 5), (2026, 8, 9)): 'Aug 5 – 9',
+            ((2026, 8, 5), (2026, 9, 3)): 'Aug 5 – Sep 3',
+            ((2027, 3, 1), (2027, 3, 9)): 'Mar 1 – 9, 2027',
+        }
+        for (start, end), expected in cases.items():
+            with self.subTest(start=start, end=end):
+                self.assertEqual(
+                    timeranges.short_date_range(datetime.date(*start),
+                                                datetime.date(*end), today), expected)
+
+    def test_a_run_crossing_new_year_says_both(self):
+        """The one case where dropping it would actively mislead."""
+        from gallery import timeranges
+        today = datetime.date(2026, 7, 31)
+        self.assertEqual(
+            timeranges.short_date_range(datetime.date(2026, 12, 20),
+                                        datetime.date(2027, 1, 10), today),
+            'Dec 20 – Jan 10, 2027')
+
+    def test_the_printed_forms_keep_the_year(self):
+        """A catalogue read in five years has to say which year it means, so date_range is left
+        alone and the screen uses date_range_short."""
+        from django.utils import timezone as tz
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=tz.now().date(), end=tz.now().date() + datetime.timedelta(days=30))
+        self.assertIn(str(tz.now().year), show.date_range)
+        self.assertNotIn(str(tz.now().year), show.date_range_short)
+
+    def test_the_show_page_and_card_use_the_short_form(self):
+        from django.utils import timezone as tz
+        site = Site.objects.create(name='120710', slug='120710',
+                                   status=Site.STATUS_PUBLISHED)
+        show = Show.objects.create(
+            name='Full-Feel', status=Show.STATUS_PUBLISHED,
+            start=tz.now().date(), end=tz.now().date() + datetime.timedelta(days=30))
+        show.sites.add(site)
+        Event.objects.create(
+            name='Opening Reception', show=show,
+            date=tz.now().date() + datetime.timedelta(days=5),
+            start=datetime.time(18, 0), end=datetime.time(21, 0))
+
+        year = str(tz.now().year)
+        for name, url in (('show page', show.get_absolute_url()),
+                          ('show list', reverse('gallery:show_list'))):
+            with self.subTest(page=name):
+                body = self.client.get(url).content.decode()
+                body = body.split('id="page-title"')[1].split('<footer')[0]
+                # Only the prose. A calendar URL carries 20260806 in its dates parameter, which
+                # is correct and has nothing to do with what a reader sees.
+                import re as _re
+                visible = _re.sub(r'<[^>]+>', ' ', _re.sub(r'href="[^"]*"', '', body))
+                self.assertNotIn(year, visible)
+
+
 class AddToCalendarTests(TestCase):
     """One click to put an event in somebody's own calendar.
 

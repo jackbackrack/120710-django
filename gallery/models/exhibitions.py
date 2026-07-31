@@ -117,6 +117,16 @@ class Show(models.Model):
         return reverse('gallery:show_instagram_detail', kwargs={'slug': self.slug})
 
     @property
+    def date_range_short(self):
+        """The run, without repeating the year when it is this one — for the screen.
+
+        `date_range` keeps the year always and is what the catalogue and checklist print, since
+        a page read in five years has to say which year it means.
+        """
+        from gallery import timeranges
+        return timeranges.short_date_range(self.start, self.end)
+
+    @property
     def date_range(self):
         # Example: "Jan 1, 2026 - Jan 5, 2026"
         if self.start.year == self.end.year :
