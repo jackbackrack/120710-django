@@ -54,7 +54,9 @@ of the same hours will eventually disagree.
   <legend class="h6">Closed on</legend>
   <p class="text-muted small">
     Dates the gallery is shut whatever the hours above say &mdash; holidays, or the week between
-    shows. The last day is included.
+    shows. Add as many ranges as you need; the last day of each is included. Tick
+    <em>appointments only</em> when the public hours still run and it is just appointments that
+    cannot happen, so a week away does not close the Sunday somebody else is covering.
   </p>
 
   {{ closure_formset.management_form }}
@@ -64,6 +66,7 @@ of the same hours will eventually disagree.
         <th>From</th>
         <th>Until (inclusive)</th>
         <th style="min-width:14rem">Reason (shown to visitors)</th>
+        <th class="text-center">Appointments<br><span class="fw-normal small">only</span></th>
         <th class="text-end">Remove</th>
       </tr>
     </thead>
@@ -74,10 +77,11 @@ of the same hours will eventually disagree.
         <td>{{ row.start_date }}</td>
         <td>{{ row.end_date }}</td>
         <td>{{ row.note }}</td>
+        <td class="text-center">{{ row.appointments_only }}</td>
         <td class="text-end">{{ row.DELETE }}</td>
       </tr>
       {% if row.errors %}
-      <tr><td colspan="4" class="text-danger small">{{ row.errors }}</td></tr>
+      <tr><td colspan="5" class="text-danger small">{{ row.errors }}</td></tr>
       {% endif %}
       {% endfor %}
     </tbody>

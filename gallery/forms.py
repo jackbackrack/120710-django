@@ -561,7 +561,7 @@ class SiteClosureForm(forms.ModelForm):
     class Meta:
         from gallery.models import SiteClosure
         model = SiteClosure
-        fields = ('start_date', 'end_date', 'note')
+        fields = ('start_date', 'end_date', 'note', 'appointments_only')
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'end_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
@@ -650,6 +650,13 @@ class SiteForm(UserAwareModelForm):
     # for the venues it cannot: the split states, and anywhere outside the US. Built here
     # rather than as model `choices` because 600 names in the field definition get copied
     # into every migration that touches it.
+    # Every one of these has a model default, so an existing caller that posts the site form
+    # without them must still work. Required-by-default would make five new settings a
+    # prerequisite for saving a site at all — which is what it did on the first attempt, and
+    # what broke four unrelated tests.
+    VISIT_DEFAULTS = ('visit_slot_minutes', 'visit_capacity', 'visit_lead_hours',
+                      'visit_horizon_days')
+
     def _timezone_choices(self):
         from zoneinfo import available_timezones
         return [('', '— derive from the state —')] + [
@@ -675,6 +682,14 @@ class SiteForm(UserAwareModelForm):
             'about',
             'visit_notes',
             'visit_image',
+            # Booking a visit. Listed explicitly because SiteForm names its fields, so a model
+            # field added without touching this is unreachable through the UI — which is exactly
+            # what happened to these on the first attempt.
+            'visits_enabled',
+            'visit_slot_minutes',
+            'visit_capacity',
+            'visit_lead_hours',
+            'visit_horizon_days',
             'timezone',
             'image',
             'icon',
@@ -688,11 +703,25 @@ class SiteForm(UserAwareModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        for name in self.VISIT_DEFAULTS:
+            self.fields[name].required = False
         self.fields['timezone'] = forms.ChoiceField(
             choices=self._timezone_choices(), required=False,
             label=self.fields['timezone'].label,
             help_text=self.fields['timezone'].help_text)
 
+
+    def clean(self):
+        cleaned = super().clean()
+        # Left blank means "leave it as it was", not "zero". A blank slot length would offer no
+        # slots at all and look like the feature was broken.
+        for name in self.VISIT_DEFAULTS:
+            if cleaned.get(name) in (None, ''):
+                current = getattr(self.instance, name, None)
+                cleaned[name] = current if current not in (None, '') \
+                    else Site._meta.get_field(name).default
+        return cleaned
 
 class ArtworkSubmissionForm(forms.ModelForm):
     class Meta:

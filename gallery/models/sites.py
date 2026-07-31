@@ -197,9 +197,14 @@ class Site(models.Model):
         which is the same answer as "no hours recorded"; a venue that has entered nothing is
         indistinguishable from one that is never open, and neither should be offered a slot.
         """
-        if any(closure.covers(day) for closure in self.closures.all()):
+        closure = self.closure_on(day)
+        if closure and not closure.appointments_only:
             return []
+
         blocks = [b for b in self.opening_hours.all() if b.weekday == day.weekday()]
+        if closure:
+            # An appointments-only closure: the public hours stand, the arrangeable ones do not.
+            blocks = [b for b in blocks if not b.by_appointment]
         if not include_appointment:
             blocks = [b for b in blocks if not b.by_appointment]
         return sorted(blocks, key=lambda b: b.start)
@@ -209,7 +214,16 @@ class Site(models.Model):
         return bool(self.open_periods_on(day, include_appointment=False))
 
     def closure_on(self, day):
-        return next((c for c in self.closures.all() if c.covers(day)), None)
+        """The closure in force on a date, the strictest one when several overlap.
+
+        Overlapping ranges are ordinary — a week away inside a month between shows — and the
+        answer has to be the one that closes more, or a partial closure would quietly reopen a
+        venue that a full one had shut.
+        """
+        covering = [c for c in self.closures.all() if c.covers(day)]
+        if not covering:
+            return None
+        return sorted(covering, key=lambda c: c.appointments_only)[0]
 
     @property
     def has_structured_hours(self):
@@ -349,6 +363,13 @@ class SiteClosure(models.Model):
     end_date = models.DateField(help_text='Inclusive — the last day closed.')
     note = models.CharField(max_length=255, blank=True, default='',
                             help_text='Shown to visitors, e.g. "Between shows".')
+    # The common case is not "the building is shut" but "I am away, so no appointments — though
+    # somebody is still here for the public hours on Sunday". Expressing that as date ranges
+    # alone would mean one Mon–Sat row per week of an absence.
+    appointments_only = models.BooleanField(
+        default=False, verbose_name='Only closed for appointments',
+        help_text='Tick if the usual public hours still run and it is only appointments that '
+                  'cannot happen — for example you are away but somebody is covering Sunday.')
 
     class Meta:
         ordering = ['start_date']

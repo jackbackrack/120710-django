@@ -1878,6 +1878,54 @@ class OpeningHoursTests(TestCase):
         self.assertEqual(site.open_periods_on(sunday), [])
         self.assertEqual(site.closure_on(sunday).note, 'Between shows')
 
+    def test_several_closures_can_overlap(self):
+        """A week away inside a month between shows is ordinary, not a mistake."""
+        from gallery.models import SiteClosure
+        self._hours(6, (13, 0), (16, 0))
+        SiteClosure.objects.create(site=self.site, start_date=datetime.date(2026, 8, 1),
+                                   end_date=datetime.date(2026, 8, 31), note='Between shows')
+        SiteClosure.objects.create(site=self.site, start_date=datetime.date(2026, 8, 10),
+                                   end_date=datetime.date(2026, 8, 14), note='Away')
+        site = self._reload()
+        self.assertFalse(site.is_open_on(datetime.date(2026, 8, 2)))
+        self.assertFalse(site.is_open_on(datetime.date(2026, 8, 12)))
+        self.assertTrue(site.is_open_on(datetime.date(2026, 9, 6)))
+
+    def test_being_away_can_close_appointments_without_closing_the_public_hours(self):
+        """The real case: away midweek, but somebody is covering Sunday.
+
+        Expressing that with date ranges alone would mean one Mon–Sat row per week of an
+        absence, and getting one wrong closes a Sunday that was staffed.
+        """
+        from gallery.models import SiteClosure
+        self._hours(6, (13, 0), (16, 0))                       # public, Sunday
+        for weekday in (0, 2, 4):
+            self._hours(weekday, (11, 0), (18, 0), by_appointment=True)
+
+        SiteClosure.objects.create(
+            site=self.site, start_date=datetime.date(2026, 8, 1),
+            end_date=datetime.date(2026, 8, 31), note='Away', appointments_only=True)
+        site = self._reload()
+
+        monday, sunday = datetime.date(2026, 8, 3), datetime.date(2026, 8, 2)
+        self.assertEqual(site.open_periods_on(monday), [], 'appointments should be off')
+        self.assertTrue(site.is_open_on(sunday), 'Sunday is staffed and must stay open')
+        self.assertEqual([b.time_range for b in site.open_periods_on(sunday)],
+                         ['1:00–4:00 PM'])
+
+    def test_a_full_closure_beats_an_overlapping_partial_one(self):
+        """Otherwise a partial closure quietly reopens a venue a full one had shut."""
+        from gallery.models import SiteClosure
+        self._hours(6, (13, 0), (16, 0))
+        SiteClosure.objects.create(site=self.site, start_date=datetime.date(2026, 8, 1),
+                                   end_date=datetime.date(2026, 8, 31),
+                                   note='Away', appointments_only=True)
+        SiteClosure.objects.create(site=self.site, start_date=datetime.date(2026, 8, 1),
+                                   end_date=datetime.date(2026, 8, 9), note='Building work')
+        site = self._reload()
+        self.assertFalse(site.is_open_on(datetime.date(2026, 8, 2)))
+        self.assertTrue(site.is_open_on(datetime.date(2026, 8, 16)))
+
     def test_a_closure_includes_its_last_day(self):
         """"Closed 24–26 December" includes the 26th, or the door is locked on a day the site
         said it was open."""
@@ -1936,6 +1984,29 @@ class OpeningHoursTests(TestCase):
         form = SiteClosureForm(data={'start_date': '2026-12-26', 'end_date': '2026-12-24'})
         self.assertFalse(form.is_valid())
         self.assertIn('cannot be before', str(form.errors))
+
+    def test_every_editable_site_field_is_reachable_through_the_form(self):
+        """SiteForm names its fields, so a model field added without touching that list exists
+        in the database and nowhere a person can get at it.
+
+        That is exactly what happened to the visit-booking settings: the model had them, the
+        migration created them, the tests passed, and the checkbox to switch booking on was
+        not on any page.
+        """
+        from gallery.forms import SiteForm
+        from gallery.models import Site
+
+        automatic = {'id', 'slug', 'created_at'}
+        editable = {f.name for f in Site._meta.get_fields()
+                    if getattr(f, 'editable', False) and not f.auto_created
+                    and f.name not in automatic}
+        self.assertEqual(editable - set(SiteForm().fields), set())
+
+    def test_the_booking_settings_can_actually_be_switched_on(self):
+        self.client.force_login(self.staff)
+        page = self.client.get(reverse('gallery:site_edit', kwargs={'slug': self.site.slug}))
+        self.assertContains(page, 'Let visitors book a time')
+        self.assertContains(page, 'name="visits_enabled"')
 
     def test_the_site_form_still_works_without_the_hours_editor(self):
         """The formsets are an addition — their absence must not block creating a site."""

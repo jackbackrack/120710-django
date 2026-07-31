@@ -70,7 +70,18 @@ iCal feed to fetch, cache and parse (with recurrence rules, which is not worth h
 OAuth with a sensitive scope and a verification step.
 
 It buys little here, because slots are shared and each booking arrives as an invitation you can
-simply **decline** if the time turns out to be bad. For a known-busy stretch, add a `SiteClosure`.
+simply **decline** if the time turns out to be bad. For a known-busy stretch, add a closure.
+
+### Closures
+
+As many ranges as you like, each inclusive of its last day, and they may overlap — a week away
+inside a month between shows is ordinary. Where two overlap, the stricter one wins, or a partial
+closure would quietly reopen a venue a full one had shut.
+
+`appointments_only` is for the case date ranges alone express badly: **you are away, so no
+appointments, but somebody is covering the public Sunday hours.** Without it that is one Mon–Sat
+row per week of an absence, and getting one wrong closes a Sunday that was staffed. With it, one
+row over the whole absence removes the arrangeable hours and leaves the drop-in ones.
 
 Worth revisiting only if declining becomes the annoying part. If it does, the cheaper of the two
 routes is Google's per-calendar **"Secret address in iCal format"** fetched server-side — no OAuth
