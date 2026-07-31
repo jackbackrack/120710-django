@@ -258,3 +258,54 @@ def last_modified(entries):
     stamps = [getattr(e.obj, 'created_at', None) for e in entries]
     stamps = [s for s in stamps if s]
     return max(stamps) if stamps else None
+
+
+def visits_feed(site, visits, domain, url=None):
+    """A VCALENDAR of booked visits, for the gallery to subscribe to.
+
+    Complements the invitation emails rather than replacing them. Google refreshes a subscribed
+    external calendar on its own schedule — commonly hours, and it ignores any refresh hint in
+    the file — so this is the standing overview, and the invitation is what tells you about a
+    booking made this morning.
+
+    Cancelled visits are simply absent. On the next poll they disappear, which is the whole
+    behaviour a subscribed feed offers and the reason the SEQUENCE dance is not needed here.
+    """
+    tz = site_timezone(site)
+    now = dj_timezone.now()
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        f'PRODID:-//{domain}//Gallery visits//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        f'X-WR-CALNAME:{_esc(f"{site.name} — visits")}',
+        f'X-WR-TIMEZONE:{tz.key}',
+    ]
+    if url:
+        lines.append(f'X-ORIGINAL-URL:{_esc(url)}')
+
+    for visit in visits:
+        people = f'{visit.party_size} {"person" if visit.party_size == 1 else "people"}'
+        details = [people, visit.email]
+        if visit.note:
+            details.append(visit.note)
+        if site.arrival_note:
+            details.append(site.arrival_note)
+        lines.extend([
+            'BEGIN:VEVENT',
+            f'UID:{visit.uid(domain)}',
+            f'DTSTAMP:{_utc(now)}',
+            f'DTSTART:{_utc(visit.when.astimezone(tz))}',
+            f'DTEND:{_utc(visit.ends.astimezone(tz))}',
+            f'SUMMARY:{_esc(f"Visit — {visit.name}")}',
+            f'DESCRIPTION:{_esc(chr(10).join(details))}',
+            f'LOCATION:{_esc(", ".join(filter(None, [site.name, site.formatted_address.replace(chr(10), ", ")])))}',
+            'END:VEVENT',
+        ])
+    lines.append('END:VCALENDAR')
+
+    folded = []
+    for line in lines:
+        folded.extend(_fold(line))
+    return '\r\n'.join(folded) + '\r\n'

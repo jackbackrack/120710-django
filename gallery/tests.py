@@ -2521,6 +2521,80 @@ class VisitBookingTests(TestCase):
         self.assertIn('Your name', page)
         self.assertNotIn('Booking as', page)
 
+    # --- The calendar feed ---
+
+    def _feed_url(self):
+        self.site.refresh_from_db()
+        if not self.site.visit_feed_token:
+            self.site.save(update_fields=['visit_feed_token'])
+            self.site.refresh_from_db()
+        return f'/visits/{self.site.visit_feed_token}.ics'
+
+    def test_the_feed_lists_booked_visits(self):
+        self._book()
+        body = self.client.get(self._feed_url()).content.decode()
+        self.assertIn('BEGIN:VCALENDAR', body)
+        self.assertIn('BEGIN:VEVENT', body)
+        self.assertIn('Ana Vidal', body)
+        self.assertIn('120710 — visits', body)
+
+    def test_a_cancelled_visit_simply_leaves_the_feed(self):
+        """The whole behaviour a subscribed feed offers, and why no SEQUENCE dance is needed."""
+        from gallery import visits as engine
+        from gallery.models import Visit
+        self._book()
+        visit = Visit.objects.get()
+        self.client.post(reverse('visit_cancel',
+                                 kwargs={'token': engine.cancel_token(visit)}))
+        body = self.client.get(self._feed_url()).content.decode()
+        self.assertNotIn('Ana Vidal', body)
+
+    def test_the_feed_needs_its_secret(self):
+        """It carries names and email addresses, and a subscribed calendar cannot sign in — so
+        the URL is the credential."""
+        self._book()
+        self.assertEqual(self.client.get('/visits/not-the-token.ics').status_code, 404)
+
+    def test_a_wrong_token_does_not_confirm_the_feed_exists(self):
+        self.assertEqual(self.client.get('/visits/wrong.ics').status_code, 404)
+
+    def test_the_feed_is_not_cached_by_anything_shared_or_indexed(self):
+        self._book()
+        response = self.client.get(self._feed_url())
+        self.assertIn('private', response['Cache-Control'])
+        self.assertIn('noindex', response['X-Robots-Tag'])
+
+    def test_the_address_can_be_changed_if_it_gets_out(self):
+        self._book()
+        old_url = self._feed_url()
+        staff = User.objects.create_user(username='fd@example.com', email='fd@example.com',
+                                         password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        self.client.post(reverse('gallery:regenerate_visit_feed',
+                                 kwargs={'pk': self.site.pk}))
+
+        self.assertEqual(self.client.get(old_url).status_code, 404)
+        self.assertEqual(self.client.get(self._feed_url()).status_code, 200)
+
+    def test_only_staff_can_change_the_address(self):
+        url = reverse('gallery:regenerate_visit_feed', kwargs={'pk': self.site.pk})
+        self.assertEqual(self.client.post(url).status_code, 302)
+        artist = User.objects.create_user(username='na@example.com', email='na@example.com',
+                                          password='pw')
+        self.client.force_login(artist)
+        self.assertEqual(self.client.post(url).status_code, 404)
+
+    def test_staff_are_shown_the_address_and_warned_about_it(self):
+        staff = User.objects.create_user(username='fs@example.com', email='fs@example.com',
+                                         password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:visit_list'))
+        self.assertContains(page, '.ics')
+        self.assertContains(page, 'Do')
+        self.assertContains(page, 'not post it anywhere')
+
     # --- Timezones ---
 
     def test_slots_are_shown_in_the_venues_own_time(self):

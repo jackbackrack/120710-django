@@ -144,6 +144,11 @@ class Site(models.Model):
         help_text='Slots sooner than this are not offered.')
     visit_horizon_days = models.PositiveSmallIntegerField(
         default=30, verbose_name='Book up to (days ahead)')
+    # The secret in the visits calendar feed URL. Unlike the shows feed, that one carries
+    # visitors' names and email addresses, so it cannot simply be a public path — and a
+    # subscribed calendar cannot send a password, so the secret has to be in the URL itself.
+    # Kept regenerable: a URL that has leaked can only be dealt with by changing it.
+    visit_feed_token = models.CharField(max_length=64, blank=True, default='', editable=False)
     # Which postal codes count as "in this venue's area", for shows whose scope is local.
     # Stored as a list rather than as a rule (a radius, a set of counties) so the boundary
     # stays editable: if one postal code is wrong you fix that postal code, without a
@@ -305,8 +310,15 @@ class Site(models.Model):
         from urllib.parse import quote_plus
         return f'https://www.google.com/maps/search/?api=1&query={quote_plus(", ".join(parts))}'
 
+    def new_visit_feed_token(self):
+        import secrets
+        self.visit_feed_token = secrets.token_urlsafe(24)
+        return self.visit_feed_token
+
     def save(self, *args, **kwargs):
         self.slug = build_unique_slug(self, self.name)
+        if not self.visit_feed_token:
+            self.new_visit_feed_token()
         # Derived only when unset, so an explicit choice is never overwritten by an address
         # edit. Blank stays blank when the address cannot settle it — the feed falls back to
         # the gallery's own zone and the form asks.

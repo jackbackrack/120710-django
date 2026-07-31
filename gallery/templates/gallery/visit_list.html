@@ -11,6 +11,45 @@
   working copy.
 {% endcomment %}
 <div class="col-11 col-md-9 mx-auto mt-4">
+  {% if feeds %}
+  {% comment %}
+    The standing overview, alongside the invitation emails rather than instead of them: Google
+    refreshes a subscribed calendar on its own schedule — hours, typically — so a booking made
+    this morning arrives by invitation long before it shows up here.
+
+    The address is a secret. It carries visitors' names and email addresses, and a subscribed
+    calendar cannot sign in, so the URL is the credential. Never link it from a public page.
+  {% endcomment %}
+  <details class="mb-4">
+    <summary class="card__link">Subscribe to these in your own calendar</summary>
+    <p class="text-muted small mt-2 mb-2">
+      In Google Calendar: <em>Other calendars → + → From URL</em>, paste the address, and it
+      appears as its own calendar you can colour and switch off. Google decides how often to
+      refresh it — usually a few hours — so treat it as the overview; each booking also arrives
+      as an invitation straight away.
+    </p>
+    {% for site, url in feeds %}
+    <div class="mb-2">
+      <div class="small fw-semibold">{{ site.name }}</div>
+      <input class="form-control form-control-sm font-monospace" readonly value="{{ url }}"
+             onclick="this.select()" aria-label="Calendar address for {{ site.name }}">
+      <form method="post" action="{% url 'gallery:regenerate_visit_feed' site.pk %}"
+            class="mt-1">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-link p-0 text-danger"
+                onclick="return confirm('Change the address for {{ site.name|escapejs }}?\n\nThe old one stops working immediately and you will need to subscribe again.')">
+          new address
+        </button>
+        <span class="text-muted small ms-1">if it has got out</span>
+      </form>
+    </div>
+    {% endfor %}
+    <p class="text-danger small mb-0">
+      Anyone with this address can read every booking, including names and email addresses. Do
+      not post it anywhere.
+    </p>
+  </details>
+  {% endif %}
+
   <h5>Coming up</h5>
   {% if upcoming %}
   <table class="table table-sm align-middle">

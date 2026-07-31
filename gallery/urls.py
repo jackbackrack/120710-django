@@ -5,7 +5,7 @@ from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign
                                      campaign_new, campaign_preview, campaign_resume,
                                      campaign_send, campaign_send_test,
                                      campaign_template_preview)
-from gallery.views.visits import visit_list
+from gallery.views.visits import regenerate_visit_feed, visit_list, visits_ics
 from gallery.views.subscribers import (subscriber_add, subscriber_delete,
                                        subscriber_list, subscriber_unsubscribe_all,
                                        subscription_resubscribe,
@@ -135,6 +135,10 @@ urlpatterns = [
     # The mailing list itself: who is on it, and acting on one person.
     path('subscribers/', subscriber_list, name='subscriber_list'),
     path('visits/', visit_list, name='visit_list'),
+    # Found only by its secret — it carries visitors' names and addresses.
+    path('visits/<str:token>.ics', visits_ics, name='visits_ics'),
+    path('visits/<int:pk>/new-feed-address/', regenerate_visit_feed,
+         name='regenerate_visit_feed'),
     path('subscribers/add/', subscriber_add, name='subscriber_add'),
     path('subscribers/<int:pk>/remove-all/', subscriber_unsubscribe_all,
          name='subscriber_unsubscribe_all'),

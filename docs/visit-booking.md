@@ -83,6 +83,27 @@ just take it rather than asking them to RSVP to themselves.
 One thing to check once, in Google Calendar settings: **"Add invitations to my calendar"** defaults
 to *"From senders I know"*. Mail from the gallery's own address qualifies.
 
+### A subscribable feed, as well
+
+`/visits/<token>.ics` is every booked visit as a calendar. In Google Calendar: *Other calendars →
++ → From URL*. It appears as its own calendar you can colour or switch off, and cancelled visits
+simply vanish from it on the next poll — no `SEQUENCE` dance, because nothing is being updated.
+
+**It complements the invitations, it does not replace them.** Google refreshes a subscribed
+external calendar on its own schedule — commonly hours — and ignores any refresh hint in the file.
+So the invitation is what tells you about a booking made this morning; the feed is the standing
+overview.
+
+**The URL is the credential**, and it carries visitors' names and email addresses. A subscribed
+calendar cannot sign in — Google fetches it with no cookies of ours — so there is nowhere else to
+put the secret. Hence a random per-site token rather than a slug, `private` caching, a
+`noindex` header, a 404 (never a 403) for a wrong token, and a **new address** button, since
+changing the URL is the only way to deal with one that has got out. It is shown on the staff
+Visits page with that warning next to it, and is never linked from a public page.
+
+The shows feed at `/shows.ics` is public because shows are; this one is the opposite, and the two
+should not be confused.
+
 ## What this deliberately does not do
 
 **It does not read your calendar to avoid clashes.** That is the expensive half — either a secret
