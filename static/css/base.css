@@ -462,3 +462,23 @@ th, td {
     background: none;
     border: none;
 }
+
+/* "Add to calendar" — small on purpose: it repeats on every future row of the agenda, so a
+   full button would outweigh the event it belongs to. */
+.add-to-cal { white-space: nowrap; font-size: .8rem; }
+.add-to-cal a {
+  display: inline-block;
+  padding: .1rem .4rem;
+  border: 1px solid rgba(0, 0, 0, .2);
+  border-radius: .25rem;
+  text-decoration: none;
+  color: #2f7d55;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+.add-to-cal a:hover { background: #f2f8f4; border-color: #2f7d55; }
+.add-to-cal svg { vertical-align: -2px; margin-right: .15rem; }
+/* Joined to the button before it, so the pair reads as one control. */
+.add-to-cal__ics { border-left: 0 !important; border-top-left-radius: 0 !important;
+                   border-bottom-left-radius: 0 !important; margin-left: -1px;
+                   color: #777 !important; }

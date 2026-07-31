@@ -55,9 +55,10 @@ other.
     </mj-text>
     {% if closing_calendar %}
     <mj-text font-size="14px" padding="0 0 10px">
-      <a href="{{ closing_calendar.google }}" style="color:#198754">Add to Google Calendar</a>
+      📅 Add to calendar:
+      <a href="{{ closing_calendar.google }}" style="color:#198754">Google</a>
       &nbsp;·&nbsp;
-      <a href="{{ closing_calendar.ics }}" style="color:#198754">Apple or Outlook</a>
+      <a href="{{ closing_calendar.ics }}" style="color:#198754">Apple/Outlook</a>
     </mj-text>
     {% endif %}
   </mj-column>

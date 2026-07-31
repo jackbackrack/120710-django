@@ -2204,8 +2204,17 @@ class AddToCalendarTests(TestCase):
 
     def test_the_event_page_offers_both(self):
         page = self.client.get(self.event.get_absolute_url()).content.decode()
-        self.assertIn('Add to Google Calendar', page)
+        # A glyph and a short label, not a sentence — see _add_to_calendar.html.
+        self.assertIn('calendar.google.com', page)
+        self.assertIn('Add to calendar', page)
         self.assertIn(reverse('gallery:event_ics', kwargs={'pk': self.event.pk}), page)
+
+    def test_the_control_names_itself_for_a_screen_reader(self):
+        """The visible label is short and the icon carries the rest, so the accessible name has
+        to say which calendar each link goes to."""
+        page = self.client.get(self.event.get_absolute_url()).content.decode()
+        self.assertIn('aria-label="Add Opening Reception to Google Calendar"', page)
+        self.assertIn('aria-hidden="true"', page)   # the glyph is decorative
 
     def test_the_agenda_offers_them_on_what_is_still_to_come(self):
         future = Event.objects.create(
@@ -2213,7 +2222,7 @@ class AddToCalendarTests(TestCase):
             date=timezone.now().date() + datetime.timedelta(days=7),
             start=datetime.time(19, 0), end=datetime.time(20, 30))
         page = self.client.get(reverse('gallery:calendar')).content.decode()
-        self.assertIn('Add to Google Calendar', page)
+        self.assertIn('Add to calendar', page)
         self.assertIn(reverse('gallery:event_ics', kwargs={'pk': future.pk}), page)
 
     def test_a_campaign_carries_both_links_absolutely(self):
@@ -2223,7 +2232,7 @@ class AddToCalendarTests(TestCase):
             site=self.site, show=self.show, subject='Opening',
             template_name='show_opening.mjml')
         html = campaigns.render_preview(campaign)
-        self.assertIn('Add to Google Calendar', html)
+        self.assertIn('Add to calendar', html)
         self.assertIn('calendar.google.com', html)
         self.assertIn(f'/event/{self.event.pk}.ics', html)
         self.assertNotIn('href="/event/', html)
@@ -2235,7 +2244,7 @@ class AddToCalendarTests(TestCase):
             site=self.site, show=self.show, subject='Opening',
             template_name='show_opening.mjml')
         html = campaigns.render_preview(campaign)
-        self.assertNotIn('Add to Google Calendar', html)
+        self.assertNotIn('Add to calendar', html)
 
     def test_one_implementation_of_a_time_span(self):
         """Event and OpeningHours share it — a duplicate crept in and was dead code, because

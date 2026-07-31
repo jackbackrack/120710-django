@@ -1,16 +1,30 @@
 {% comment %}
 "Add to calendar" for one event. Expects `event` in context.
 
-Two links, because there is no one answer: Google is a URL that opens their calendar with the
-event filled in, and the .ics covers Apple Calendar, Outlook and everything else by being a file
-their system already knows how to open. No JavaScript, so this works pasted into an email as
-readily as on a page.
+Deliberately small: on the agenda this appears on every future row, so a full-width button or a
+sentence of link text would swamp the thing it belongs to. An inline calendar glyph carries the
+meaning, with the label as the accessible name rather than visible text.
 
-Both carry absolute instants rather than wall-clock times — see calendars.google_calendar_url for
-why that matters to a reader in another timezone.
+Two destinations, because there is no single answer. Google is the primary — one click, opens
+their calendar with the event filled in — and the .ics beside it covers Apple Calendar, Outlook
+and anything else that already understands the format. Both are plain links, so this works
+without JavaScript.
+
+The SVG is inline rather than a static file so it inherits the surrounding colour and needs no
+second request; the same shape is used for the calendar glyph elsewhere.
 {% endcomment %}
 <span class="add-to-cal">
-  <a href="{{ event.google_calendar_url }}" target="_blank" rel="noopener">Add to Google Calendar</a>
-  <span class="text-muted">&nbsp;·&nbsp;</span>
-  <a href="{% url 'gallery:event_ics' event.pk %}">Apple or Outlook (.ics)</a>
+  <a href="{{ event.google_calendar_url }}" target="_blank" rel="noopener"
+     title="Add “{{ event.name }}” to Google Calendar"
+     aria-label="Add {{ event.name }} to Google Calendar">
+    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false">
+      <rect x="1.5" y="3" width="13" height="11.5" rx="1.5" fill="none"
+            stroke="currentColor" stroke-width="1.3"/>
+      <path d="M1.5 6.5h13" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M5 1.5v3M11 1.5v3" stroke="currentColor" stroke-width="1.3"
+            stroke-linecap="round"/>
+    </svg>
+    Add to calendar
+  </a><a href="{% url 'gallery:event_ics' event.pk %}" class="add-to-cal__ics"
+         title="Download for Apple Calendar, Outlook or another app">.ics</a>
 </span>

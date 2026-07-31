@@ -70,9 +70,10 @@ rendering a hole where the invitation should be.
     {% endcomment %}
     {% if opening_calendar %}
     <mj-text font-size="14px" padding="0 0 10px">
-      <a href="{{ opening_calendar.google }}" style="color:#198754">Add to Google Calendar</a>
+      📅 Add to calendar:
+      <a href="{{ opening_calendar.google }}" style="color:#198754">Google</a>
       &nbsp;·&nbsp;
-      <a href="{{ opening_calendar.ics }}" style="color:#198754">Apple or Outlook</a>
+      <a href="{{ opening_calendar.ics }}" style="color:#198754">Apple/Outlook</a>
     </mj-text>
     {% endif %}
   </mj-column>
