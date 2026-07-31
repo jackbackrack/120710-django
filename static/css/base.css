@@ -492,18 +492,33 @@ th, td {
 /* Reply + add-to-calendar, sitting on the same line as an event's date. These live inside
    headings, so the font size has to be overridden or they inherit h3/h4 and dwarf the date they
    belong to. */
-.event-actions { white-space: nowrap; font-weight: 400; }
 /* em, not rem: these sit inside an h3 on a show page and an h4 on a card, which this stylesheet
-   sets to 0.875rem and 0.75rem — and .card__content scales by another 0.9. A fixed size was
-   therefore smaller than the date in one place and larger than it in the other. Relative keeps
-   them just under whatever the date next to them is. */
-.event-actions .btn {
+   sets to 0.875rem and 0.75rem — and .card__content scales by another 0.9. A fixed size came out
+   smaller than the date in one place and larger than it in the other.
+
+   Sized once, here, and inherited by both children. Setting it on the group *and* on the links
+   was the previous bug: .85 × .85 made the .ics link visibly smaller than the RSVP beside it. */
+.event-actions {
+  white-space: nowrap;
+  font-weight: 400;
   font-size: .85em;
-  padding: .05rem .4rem;
-  line-height: 1.4;
-  vertical-align: baseline;
 }
+
+/* One rule for both, so they cannot end up different sizes again. */
+.event-actions .event-actions__rsvp,
+.event-actions .add-to-cal a {
+  display: inline-block;
+  font-size: inherit;
+  padding: .1rem .4rem;
+  border: 1px solid rgba(0, 0, 0, .2);
+  border-radius: .25rem;
+  line-height: 1.4;
+  text-decoration: none;
+  vertical-align: middle;
+}
+.event-actions .event-actions__rsvp { color: #2f7d55; }
+.event-actions .event-actions__rsvp:hover { background: #f2f8f4; border-color: #2f7d55; }
+/* Neutralise the standalone sizes: inside this group the container decides. */
 .event-actions .add-to-cal,
-.event-actions .add-to-cal a { font-size: .85em; }
-.event-actions .add-to-cal { margin-left: .2rem; }
+.event-actions .add-to-cal--compact { font-size: inherit; margin-left: .25rem; }
 .event-actions .add-to-cal svg { width: 1em; height: 1em; }

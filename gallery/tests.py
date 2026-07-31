@@ -2212,7 +2212,7 @@ class EventRsvpTests(TestCase):
         look different in the two places they see it."""
         show_page = self.client.get(self.show.get_absolute_url()).content.decode()
         card_page = self.client.get(reverse('gallery:show_list')).content.decode()
-        for marker in ('event-actions', 'btn-outline-success',
+        for marker in ('event-actions', 'event-actions__rsvp',
                        'add-to-cal add-to-cal--compact'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, show_page)
