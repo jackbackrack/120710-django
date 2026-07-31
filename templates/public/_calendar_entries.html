@@ -41,7 +41,7 @@
           {% endcomment %}
           {% if row.entry.sort_date >= today %}
           <span class="text-muted">·</span>
-          {% with event=row.entry.obj %}{% include 'gallery/_add_to_calendar.html' %}{% endwith %}
+          {% with event=row.entry.obj %}{% include 'gallery/_add_to_calendar.html' with compact=1 %}{% endwith %}
           {% endif %}
         </span>
       {% endif %}

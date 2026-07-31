@@ -465,7 +465,9 @@ th, td {
 
 /* "Add to calendar" — small on purpose: it repeats on every future row of the agenda, so a
    full button would outweigh the event it belongs to. */
-.add-to-cal { white-space: nowrap; font-size: .8rem; }
+.add-to-cal { white-space: nowrap; font-size: .85rem; }
+/* The agenda repeats this on every future row, so it shrinks there. */
+.add-to-cal--compact { font-size: .8rem; }
 .add-to-cal a {
   display: inline-block;
   padding: .1rem .4rem;
@@ -482,3 +484,7 @@ th, td {
 .add-to-cal__ics { border-left: 0 !important; border-top-left-radius: 0 !important;
                    border-bottom-left-radius: 0 !important; margin-left: -1px;
                    color: #777 !important; }
+
+/* Room under the reply form: the description used to sit against the Send button, so the two
+   read as one block. */
+.rsvp { margin-bottom: 1rem; }

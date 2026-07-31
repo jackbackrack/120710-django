@@ -1,4 +1,4 @@
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags site_tags %}
 {% comment %}
   Three answers rather than one button. "Maybe" is the honest reply weeks out, and offering it is
   what stops somebody closing the page having said nothing; "no" looks useless but takes them off
@@ -31,13 +31,18 @@
       <div class="d-flex gap-2 flex-wrap align-items-end">
         <div>
           <label class="form-label mb-1">Are you coming?</label><br>
+          {% comment %}
+            From rsvp_choices, shared with the change-your-mind page — the same question asked
+            in two places must not be asked in two visual languages.
+          {% endcomment %}
           <div class="btn-group" role="group">
-            <input type="radio" class="btn-check" name="response" value="yes" id="rsvp-yes" checked>
-            <label class="btn btn-outline-success btn-sm" for="rsvp-yes">Coming</label>
-            <input type="radio" class="btn-check" name="response" value="maybe" id="rsvp-maybe">
-            <label class="btn btn-outline-secondary btn-sm" for="rsvp-maybe">Maybe</label>
-            <input type="radio" class="btn-check" name="response" value="no" id="rsvp-no">
-            <label class="btn btn-outline-secondary btn-sm" for="rsvp-no">Can't make it</label>
+            {% rsvp_choices as choices %}
+            {% for choice in choices %}
+            <input type="radio" class="btn-check" name="response" value="{{ choice.value }}"
+                   id="rsvp-{{ choice.value }}"{% if forloop.first %} checked{% endif %}>
+            <label class="btn btn-outline-{{ choice.style }} btn-sm"
+                   for="rsvp-{{ choice.value }}">{{ choice.label }}</label>
+            {% endfor %}
           </div>
         </div>
         <div style="max-width:7rem">

@@ -2178,6 +2178,40 @@ class EventRsvpTests(TestCase):
 
     # --- Replying ---
 
+    def test_the_two_places_offering_the_answers_agree(self):
+        """They had drifted: "can't make it" was secondary on one page and danger on the other,
+        and "coming" was outlined on one and filled on the other — the same question asked twice
+        in two visual languages."""
+        from gallery import rsvps as engine
+        from gallery.models import EventRsvp
+
+        self._reply('yes')
+        rsvp = EventRsvp.objects.get()
+        event_page = self.client.get(self.event.get_absolute_url()).content.decode()
+        change_page = self.client.get(reverse(
+            'event_rsvp_change', kwargs={'token': engine.change_token(rsvp)})).content.decode()
+
+        for value, label in EventRsvp.RESPONSE_CHOICES:
+            with self.subTest(value=value):
+                for page in (event_page, change_page):
+                    self.assertIn(f'value="{value}"', page)
+                    self.assertIn(label.replace("'", '&#x27;'), page)
+
+        # And the same colour for each, which is what had drifted.
+        self.assertNotIn('btn-outline-danger', change_page)
+        for style in ('btn-outline-success', 'btn-outline-secondary'):
+            self.assertIn(style, event_page)
+            self.assertIn(style, change_page)
+
+    def test_the_change_page_shows_which_answer_is_current(self):
+        from gallery import rsvps as engine
+        from gallery.models import EventRsvp
+        self._reply('maybe')
+        rsvp = EventRsvp.objects.get()
+        page = self.client.get(reverse(
+            'event_rsvp_change', kwargs={'token': engine.change_token(rsvp)})).content.decode()
+        self.assertIn('aria-pressed="true"', page)
+
     def test_all_three_answers_are_recorded(self):
         from gallery.models import EventRsvp
         for response, email in (('yes', 'a@example.com'), ('maybe', 'b@example.com'),
@@ -2485,12 +2519,26 @@ class AddToCalendarTests(TestCase):
             self.client.get(reverse('gallery:event_ics',
                                     kwargs={'pk': self.event.pk})).status_code, 404)
 
-    def test_the_event_page_offers_both(self):
+    def test_the_event_page_says_which_calendar_each_one_is(self):
+        """There is room here to name them, and which calendar is the thing being chosen
+        between. The agenda gets the short form instead — see the next test."""
         page = self.client.get(self.event.get_absolute_url()).content.decode()
-        # A glyph and a short label, not a sentence — see _add_to_calendar.html.
         self.assertIn('calendar.google.com', page)
-        self.assertIn('Add to calendar', page)
+        self.assertIn('Add to Google Calendar', page)
+        self.assertIn('Apple, Outlook or other (.ics)', page)
         self.assertIn(reverse('gallery:event_ics', kwargs={'pk': self.event.pk}), page)
+
+    def test_the_agenda_uses_the_short_form(self):
+        """It repeats on every future row, where a sentence would swamp the event."""
+        from django.utils import timezone as tz
+        future = Event.objects.create(
+            name='Artist Talk', show=self.show,
+            date=tz.now().date() + datetime.timedelta(days=7),
+            start=datetime.time(19, 0), end=datetime.time(20, 30))
+        page = self.client.get(reverse('gallery:calendar')).content.decode()
+        self.assertIn('add-to-cal--compact', page)
+        self.assertNotIn('Apple, Outlook or other', page)
+        self.assertIn(reverse('gallery:event_ics', kwargs={'pk': future.pk}), page)
 
     def test_the_control_names_itself_for_a_screen_reader(self):
         """The visible label is short and the icon carries the rest, so the accessible name has
@@ -2505,7 +2553,7 @@ class AddToCalendarTests(TestCase):
             date=timezone.now().date() + datetime.timedelta(days=7),
             start=datetime.time(19, 0), end=datetime.time(20, 30))
         page = self.client.get(reverse('gallery:calendar')).content.decode()
-        self.assertIn('Add to calendar', page)
+        self.assertIn('add-to-cal', page)
         self.assertIn(reverse('gallery:event_ics', kwargs={'pk': future.pk}), page)
 
     def test_a_campaign_carries_both_links_absolutely(self):

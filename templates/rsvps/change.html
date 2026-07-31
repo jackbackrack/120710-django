@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load site_tags %}
 {% block title %}Change your answer{% endblock %}
 {% block block_title %}{{ event.name }}{% endblock %}
 {% block content %}
@@ -10,10 +11,20 @@
   <p>{{ event.date|date:"l j F" }}, {{ event.time_range }}</p>
   <p>You are currently down as <strong>{{ rsvp.get_response_display|lower }}</strong>.</p>
   <form method="post">{% csrf_token %}
+    {% comment %}
+      Same three, same colours as the event page — see the rsvp_choices tag. The current answer
+      is filled rather than outlined, so the page shows what you said as well as offering the
+      alternatives.
+    {% endcomment %}
     <div class="d-flex gap-2 flex-wrap">
-      <button class="btn btn-success" name="response" value="yes">Coming</button>
-      <button class="btn btn-outline-secondary" name="response" value="maybe">Maybe</button>
-      <button class="btn btn-outline-danger" name="response" value="no">Can't make it</button>
+      {% rsvp_choices as choices %}
+      {% for choice in choices %}
+      <button class="btn btn-outline-{{ choice.style }}{% if choice.value == rsvp.response %} active{% endif %}"
+              name="response" value="{{ choice.value }}"
+              {% if choice.value == rsvp.response %}aria-pressed="true"{% endif %}>
+        {{ choice.label }}
+      </button>
+      {% endfor %}
     </div>
   </form>
 </div>

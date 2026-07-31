@@ -132,3 +132,21 @@ def text_blocks(value):
     text = html.unescape(text)
     lines = [' '.join(line.split()) for line in text.splitlines()]
     return '\n'.join(line for line in lines if line)
+
+
+@register.simple_tag
+def rsvp_choices():
+    """The three answers with their styling, so the two places offering them cannot drift.
+
+    They had drifted already: the event page called "can't make it" secondary and the
+    change-your-mind page called it danger, and "coming" was outlined on one and filled on the
+    other — the same question asked twice in two visual languages.
+
+    Presentation lives here rather than on the model, but the labels come from the model so the
+    wording has one home.
+    """
+    from gallery.models import EventRsvp
+
+    style = {EventRsvp.YES: 'success', EventRsvp.MAYBE: 'secondary', EventRsvp.NO: 'secondary'}
+    return [{'value': value, 'label': label, 'style': style.get(value, 'secondary')}
+            for value, label in EventRsvp.RESPONSE_CHOICES]
