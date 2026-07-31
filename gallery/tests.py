@@ -2185,6 +2185,38 @@ class EventRsvpTests(TestCase):
         self.assertIn(reverse('event_rsvp', kwargs={'pk': self.event.pk}), page)
         self.assertIn('RSVP', page)
         self.assertIn('add-to-cal', page)
+        # On the same line as the date, not stacked under it.
+        line = page.split(self.event.name)[1].split('</h3>')[0]
+        self.assertIn('event-actions', line)
+        self.assertIn(self.event.time_range, line)
+
+    def test_a_show_card_offers_them_beside_its_next_event(self):
+        """Cards are where a browsing visitor meets a show at all — an event listed there with
+        no way to act on it is the click that never happens."""
+        page = self.client.get(reverse('gallery:show_list')).content.decode()
+        self.assertIn(self.event.name, page)
+        self.assertIn(reverse('event_rsvp', kwargs={'pk': self.event.pk}), page)
+        self.assertIn('event-actions', page)
+
+    def test_a_card_whose_next_event_has_passed_offers_nothing(self):
+        """get_next_event only returns future ones, so the card simply has no event line — but
+        this pins that, since a change there would silently put a dead RSVP on every card."""
+        from django.utils import timezone as tz
+        self.event.date = tz.now().date() - datetime.timedelta(days=1)
+        self.event.save(update_fields=['date'])
+        page = self.client.get(reverse('gallery:show_list')).content.decode()
+        self.assertNotIn(reverse('event_rsvp', kwargs={'pk': self.event.pk}), page)
+
+    def test_both_places_render_the_same_pair(self):
+        """One partial, so the thing that exists because people do not click through cannot
+        look different in the two places they see it."""
+        show_page = self.client.get(self.show.get_absolute_url()).content.decode()
+        card_page = self.client.get(reverse('gallery:show_list')).content.decode()
+        for marker in ('event-actions', 'btn-outline-success',
+                       'add-to-cal add-to-cal--compact'):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, show_page)
+                self.assertIn(marker, card_page)
 
     def test_a_past_event_on_the_show_page_offers_neither(self):
         from django.utils import timezone as tz

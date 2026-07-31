@@ -1,0 +1,18 @@
+{% comment %}
+The pair of controls that follow an event wherever it is listed: reply, and put it in your
+calendar. Expects `event`.
+
+One partial rather than two copies, because these appear beside an event on the show page and on
+every show card, and the whole reason they exist is that people do not click through to an
+event's own page — so they have to look and behave the same in both.
+
+Sized to sit on the same line as a date without enlarging it: the CSS overrides the heading font
+size these usually sit inside. Nothing at all for something that has already happened.
+{% endcomment %}
+{% if not event.is_past %}
+<span class="event-actions">
+  <a class="btn btn-outline-success" href="{% url 'event_rsvp' event.pk %}"
+     title="Reply about {{ event.name }}">RSVP</a>
+  {% include 'gallery/_add_to_calendar.html' with icon_only=1 %}
+</span>
+{% endif %}

@@ -57,7 +57,7 @@ number would otherwise sit in the arithmetic waiting for somebody to widen what 
 
 | | |
 | --- | --- |
-| RSVP button and calendar glyph | beside each event on the **show page** — where most people see an event |
+| RSVP button and calendar glyph | on the same line as the date, on the **show page** and on every **show card** |
 | A page that is only the reply | `/event/<pk>/rsvp/` |
 | Reply form and count | the event page, `gallery/templates/gallery/_rsvp_form.html` |
 | "Let us know you are coming" | the opening mailing, above add-to-calendar |
@@ -73,9 +73,18 @@ pre-filled field can be edited, which would let somebody reply in another person
 
 ## Reaching people who never open the event page
 
-Most people meet an event as a line on a **show page**, and will not click through to its own
-page to find a reply button that only exists there. So each future event carries a small **RSVP**
-button and a calendar glyph beside it.
+Most people meet an event as a line on a **show page** — or, before that, as one line on a **show
+card** — and will not click through to its own page to find a reply button that only exists
+there. So each future event carries a small **RSVP** button and a calendar glyph on the same line
+as its date, in both places.
+
+Both come from one partial, `_event_actions.html`, because the whole reason they exist is that
+people do not click through; they have to look and behave the same wherever an event is listed.
+They are deliberately sized down in CSS: they sit inside `h3` and `h4`, and would otherwise
+inherit the heading size and dwarf the date they belong to.
+
+A card only ever shows `get_next_event`, which is future-only by construction — but there is a
+test pinning that, since a change there would silently put a dead RSVP button on every card.
 
 The button goes to `/event/<pk>/rsvp/` — a page with nothing on it but the three answers, a
 headcount and Send. That duplicates the form embedded on the event page, deliberately: somebody

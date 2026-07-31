@@ -70,16 +70,9 @@
       on the way.
     {% endcomment %}
     {% for event in show.events.all %}
-    <h3 class="mb-1"> <a class="card__link" href="{{ event.get_absolute_url }}"> {{ event.name }}</a>:
-    {{ event.date }}: {{ event.time_range }}</h3>
-    {% if not event.is_past %}
-    <p class="mb-4">
-      <a class="btn btn-outline-success btn-sm" href="{% url 'event_rsvp' event.pk %}">RSVP</a>
-      {% include 'gallery/_add_to_calendar.html' with icon_only=1 %}
-    </p>
-    {% else %}
-    <div class="mb-4"></div>
-    {% endif %}
+    <h3 class="mb-3"><a class="card__link" href="{{ event.get_absolute_url }}">{{ event.name }}</a>:
+      {{ event.date }}: {{ event.time_range }}
+      {% include 'gallery/_event_actions.html' %}</h3>
     {% endfor %}
   </div>
   {% comment %}

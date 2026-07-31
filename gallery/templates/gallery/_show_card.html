@@ -25,6 +25,7 @@
       {% with next_ev=show.get_next_event %}
       {% if next_ev %}
       <br><span style="background:#fff176;padding:0 2px"><a class="card__link" href="{{ next_ev.get_absolute_url }}">{{ next_ev.name }}</a>: {{ next_ev.date }}, {{ next_ev.time_range }}</span>
+      {% include 'gallery/_event_actions.html' with event=next_ev %}
       {% endif %}
       {% endwith %}
     </h4>

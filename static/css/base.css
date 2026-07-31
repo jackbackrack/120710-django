@@ -488,3 +488,15 @@ th, td {
 /* Room under the reply form: the description used to sit against the Send button, so the two
    read as one block. */
 .rsvp { margin-bottom: 1rem; }
+
+/* Reply + add-to-calendar, sitting on the same line as an event's date. These live inside
+   headings, so the font size has to be overridden or they inherit h3/h4 and dwarf the date they
+   belong to. */
+.event-actions { white-space: nowrap; font-weight: 400; }
+.event-actions .btn {
+  font-size: .78rem;
+  padding: .05rem .45rem;
+  line-height: 1.45;
+  vertical-align: middle;
+}
+.event-actions .add-to-cal { margin-left: .2rem; }
