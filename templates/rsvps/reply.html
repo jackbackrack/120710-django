@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load site_tags %}
+
+{% block title %}RSVP — {{ event.name }}{% endblock %}
+{% block block_title %}{{ event.name }}{% endblock %}
+
+{% block content %}
+{% comment %}
+  A page with nothing on it but the reply. Reached from the small button beside an event on a
+  show page, where the risk is that somebody meaning to reply lands on a full event page and
+  loses the thread. Everything here is the answer, the headcount and Send.
+
+  The same three buttons as everywhere else, from the rsvp_choices tag.
+{% endcomment %}
+<div class="col-11 col-md-6 mx-auto mt-4">
+  <p class="fs-5 mb-1">{{ event.date|date:"l j F" }}, {{ event.time_range }}</p>
+  <p class="text-muted">
+    {% if site %}{{ site.name }}{% if site.street %} · {{ site.street }}{% endif %}{% endif %}
+    — part of <a class="card__link" href="{{ event.show.get_absolute_url }}">{{ event.show.name }}</a>
+  </p>
+
+  <form method="post" action="{% url 'event_rsvp' event.pk %}" class="mt-3">{% csrf_token %}
+    <label class="form-label">Are you coming?</label><br>
+    <div class="btn-group mb-3" role="group">
+      {% rsvp_choices as choices %}
+      {% for choice in choices %}
+      <input type="radio" class="btn-check" name="response" value="{{ choice.value }}"
+             id="reply-{{ choice.value }}"{% if forloop.first %} checked{% endif %}>
+      <label class="btn btn-outline-{{ choice.style }}" for="reply-{{ choice.value }}">{{ choice.label }}</label>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3" style="max-width:8rem">
+      <label class="form-label mb-1" for="reply-party">How many of you</label>
+      <input class="form-control" type="number" name="party_size" id="reply-party"
+             value="1" min="1" max="20">
+    </div>
+
+    {% if user.is_authenticated %}
+    <p class="text-muted small">Replying as {{ user.get_full_name|default:user.email }}.</p>
+    {% else %}
+    <div class="row g-2 mb-2">
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="name" placeholder="Your name" required
+               aria-label="Your name">
+      </div>
+      <div class="col-sm-6">
+        <input class="form-control" type="email" name="email" placeholder="Your email" required
+               aria-label="Your email">
+      </div>
+    </div>
+    <p class="text-muted small">For the confirmation and a reminder the day before.</p>
+    {% endif %}
+
+    <input type="hidden" name="note" value="">
+    {% include 'honeypot/honeypot_field.html' %}
+    <button type="submit" class="btn btn-primary mt-2">Send</button>
+    <a class="card__link ms-3" href="{{ event.get_absolute_url }}">More about this event</a>
+  </form>
+</div>
+{% endblock %}

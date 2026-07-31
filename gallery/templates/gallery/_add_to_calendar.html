@@ -14,11 +14,16 @@ The SVG is inline rather than a static file so it inherits the surrounding colou
 second request; the same shape is used for the calendar glyph elsewhere.
 {% endcomment %}
 {% comment %}
-  `compact` is for the agenda, where this repeats on every future row and a sentence of link text
-  would swamp the event it belongs to. Without it — on an event's own page — there is room to say
-  which calendar each one goes to, which is the thing somebody actually has to choose between.
+  Three sizes, each earning its place:
+
+    full        an event's own page — names both calendars, since which one is the actual choice
+    compact     the agenda, where this repeats on every future row and a sentence would swamp it
+    icon_only   beside a heading on a show page, where there is room for a glyph and nothing else
+
+  The glyph alone is a guess for the reader, so icon_only leans on the title and the accessible
+  name to say what it is. That is a real cost, and the reason it is not the default.
 {% endcomment %}
-<span class="add-to-cal{% if compact %} add-to-cal--compact{% endif %}">
+<span class="add-to-cal{% if compact or icon_only %} add-to-cal--compact{% endif %}">
   <a href="{{ event.google_calendar_url }}" target="_blank" rel="noopener"
      title="Add “{{ event.name }}” to Google Calendar"
      aria-label="Add {{ event.name }} to Google Calendar">
@@ -29,8 +34,8 @@ second request; the same shape is used for the calendar glyph elsewhere.
       <path d="M5 1.5v3M11 1.5v3" stroke="currentColor" stroke-width="1.3"
             stroke-linecap="round"/>
     </svg>
-    {% if compact %}Add to calendar{% else %}Add to Google Calendar{% endif %}
+    {% if icon_only %}{% elif compact %}Add to calendar{% else %}Add to Google Calendar{% endif %}
   </a><a href="{% url 'gallery:event_ics' event.pk %}" class="add-to-cal__ics"
          title="Download for Apple Calendar, Outlook or another app"
-         aria-label="Download {{ event.name }} for Apple Calendar, Outlook or another app">{% if compact %}.ics{% else %}Apple, Outlook or other (.ics){% endif %}</a>
+         aria-label="Download {{ event.name }} for Apple Calendar, Outlook or another app">{% if compact or icon_only %}.ics{% else %}Apple, Outlook or other (.ics){% endif %}</a>
 </span>

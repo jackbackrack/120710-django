@@ -9,7 +9,6 @@ import logging
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
 
 from honeypot.decorators import check_honeypot
 
@@ -20,6 +19,10 @@ from gallery.models import Event, EventRsvp, Show
 logger = logging.getLogger(__name__)
 
 
+def _venue(event):
+    return event.show.sites.first()
+
+
 def _public_event(pk):
     event = get_object_or_404(Event.objects.select_related('show'), pk=pk)
     if event.show.status not in Show.PUBLIC_STATUSES:
@@ -28,12 +31,21 @@ def _public_event(pk):
 
 
 @check_honeypot()
-@require_POST
 def event_rsvp(request, pk):
+    """A page of its own for replying, as well as the form embedded on the event page.
+
+    Both exist because they answer different worries. Somebody already reading about the event
+    should not have to go anywhere to reply; somebody glancing at a show page needs a link that
+    obviously means "reply", and landing them on a full event page is where that intent gets
+    lost. This is the same three buttons with nothing else on the page.
+    """
     event = _public_event(pk)
     if event.is_past:
         messages.error(request, 'That event has already happened.')
         return redirect(event.get_absolute_url())
+
+    if request.method != 'POST':
+        return render(request, 'rsvps/reply.html', {'event': event, 'site': _venue(event)})
 
     form = RsvpForm(request.POST, user=request.user)
     if not form.is_valid():

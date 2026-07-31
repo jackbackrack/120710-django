@@ -63,9 +63,23 @@
     <p class="mt-3"><a class="card__link" href="{% url 'gallery:show_rubric' show.pk %}">Judging rubric</a></p>
     {% endif %}
     {% if can_manage_show %}<div class="mt-3">{% include 'gallery/_show_status_control.html' %}</div>{% endif %}
+    {% comment %}
+      A reply button and a calendar glyph next to each event, because this is where most people
+      see an event and they will not click through to its own page to find them. The button
+      goes to a page that is nothing but the three answers, so the intent to reply is not lost
+      on the way.
+    {% endcomment %}
     {% for event in show.events.all %}
-    <h3 class="mb-6"> <a class="card__link" href="{{ event.get_absolute_url }}"> {{ event.name }}</a>:
+    <h3 class="mb-1"> <a class="card__link" href="{{ event.get_absolute_url }}"> {{ event.name }}</a>:
     {{ event.date }}: {{ event.time_range }}</h3>
+    {% if not event.is_past %}
+    <p class="mb-4">
+      <a class="btn btn-outline-success btn-sm" href="{% url 'event_rsvp' event.pk %}">RSVP</a>
+      {% include 'gallery/_add_to_calendar.html' with icon_only=1 %}
+    </p>
+    {% else %}
+    <div class="mb-4"></div>
+    {% endif %}
     {% endfor %}
   </div>
   {% comment %}

@@ -57,6 +57,8 @@ number would otherwise sit in the arithmetic waiting for somebody to widen what 
 
 | | |
 | --- | --- |
+| RSVP button and calendar glyph | beside each event on the **show page** — where most people see an event |
+| A page that is only the reply | `/event/<pk>/rsvp/` |
 | Reply form and count | the event page, `gallery/templates/gallery/_rsvp_form.html` |
 | "Let us know you are coming" | the opening mailing, above add-to-calendar |
 | Change your answer | `/rsvp/<token>/`, linked from every email |
@@ -68,6 +70,34 @@ their mind, not a second guest, and two rows would inflate what the gallery cate
 
 Signed in, name and email are not asked for and are read from the account server-side — a
 pre-filled field can be edited, which would let somebody reply in another person's name.
+
+## Reaching people who never open the event page
+
+Most people meet an event as a line on a **show page**, and will not click through to its own
+page to find a reply button that only exists there. So each future event carries a small **RSVP**
+button and a calendar glyph beside it.
+
+The button goes to `/event/<pk>/rsvp/` — a page with nothing on it but the three answers, a
+headcount and Send. That duplicates the form embedded on the event page, deliberately: somebody
+already reading about an event should not have to go anywhere, and somebody glancing at a show
+page needs a link that obviously means *reply* rather than one that lands them on a full page
+where the intent gets lost.
+
+Both are the same three buttons from the same `rsvp_choices` tag, so they cannot drift.
+
+**Add-to-calendar has three sizes**, each earning its place:
+
+| | |
+| --- | --- |
+| full | an event's own page — names both calendars, since which one is the actual choice |
+| `compact` | the agenda, where it repeats on every future row |
+| `icon_only` | beside a heading on a show page, where there is room for a glyph and nothing else |
+
+A glyph alone is a guess for the reader, so `icon_only` leans on the title and the accessible
+name. That is a real cost and the reason it is not the default.
+
+There is deliberately **no "which calendar?" page**. The two links *are* that choice, and a page
+between them would be a click that adds nothing.
 
 ## What was deliberately left out
 

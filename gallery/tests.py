@@ -2178,6 +2178,48 @@ class EventRsvpTests(TestCase):
 
     # --- Replying ---
 
+    def test_the_show_page_offers_a_way_to_reply(self):
+        """This is where most people see an event, and they will not click through to its own
+        page to find a reply button that was only there."""
+        page = self.client.get(self.show.get_absolute_url()).content.decode()
+        self.assertIn(reverse('event_rsvp', kwargs={'pk': self.event.pk}), page)
+        self.assertIn('RSVP', page)
+        self.assertIn('add-to-cal', page)
+
+    def test_a_past_event_on_the_show_page_offers_neither(self):
+        from django.utils import timezone as tz
+        self.event.date = tz.now().date() - datetime.timedelta(days=1)
+        self.event.save(update_fields=['date'])
+        page = self.client.get(self.show.get_absolute_url()).content.decode()
+        self.assertNotIn(reverse('event_rsvp', kwargs={'pk': self.event.pk}), page)
+
+    def test_the_reply_page_is_only_the_reply(self):
+        """Reached from the show page, where the risk is that somebody meaning to reply lands on
+        a full event page and loses the thread."""
+        page = self.client.get(reverse('event_rsvp',
+                                       kwargs={'pk': self.event.pk})).content.decode()
+        self.assertIn(self.event.name, page)
+        self.assertIn('Are you coming?', page)
+        self.assertIn('How many of you', page)
+        for _, label in __import__('gallery.models', fromlist=['x']).EventRsvp.RESPONSE_CHOICES:
+            self.assertIn(label.replace("'", '&#x27;'), page)
+
+    def test_replying_from_that_page_records_it(self):
+        from gallery.models import EventRsvp
+        self.client.post(reverse('event_rsvp', kwargs={'pk': self.event.pk}),
+                         {'response': 'maybe', 'name': 'Ana Vidal',
+                          'email': 'ana@example.com', 'party_size': '3',
+                          'note': '', 'address': ''}, follow=True)
+        rsvp = EventRsvp.objects.get()
+        self.assertEqual((rsvp.response, rsvp.party_size), ('maybe', 3))
+
+    def test_the_reply_page_refuses_a_past_event(self):
+        from django.utils import timezone as tz
+        self.event.date = tz.now().date() - datetime.timedelta(days=1)
+        self.event.save(update_fields=['date'])
+        r = self.client.get(reverse('event_rsvp', kwargs={'pk': self.event.pk}), follow=True)
+        self.assertContains(r, 'already happened')
+
     def test_the_two_places_offering_the_answers_agree(self):
         """They had drifted: "can't make it" was secondary on one page and danger on the other,
         and "coming" was outlined on one and filled on the other — the same question asked twice
