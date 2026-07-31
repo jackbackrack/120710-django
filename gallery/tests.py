@@ -2406,6 +2406,49 @@ class AddToCalendarTests(TestCase):
             start=datetime.time(18, 0), end=datetime.time(21, 0),
             description='Come along.')
 
+    def test_an_event_without_a_picture_borrows_the_shows(self):
+        """A talk or a closing party is rarely photographed in advance, and the choice is the
+        show's image or a blank card."""
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        buffer = io.BytesIO()
+        Image.new('RGB', (40, 40), 'white').save(buffer, 'JPEG')
+        self.show.image = SimpleUploadedFile('show.jpg', buffer.getvalue(),
+                                             content_type='image/jpeg')
+        self.show.save()
+        self.event.refresh_from_db()
+
+        self.assertFalse(self.event.image)
+        self.assertTrue(self.event.display_image)
+        self.assertEqual(self.event.display_image.name, self.show.image.name)
+
+        page = self.client.get(self.event.get_absolute_url()).content.decode()
+        self.assertIn(self.show.image.url, page)
+
+    def test_its_own_picture_wins_when_it_has_one(self):
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        for target, colour in ((self.show, 'white'), (self.event, 'black')):
+            buffer = io.BytesIO()
+            Image.new('RGB', (40, 40), colour).save(buffer, 'JPEG')
+            target.image = SimpleUploadedFile(f'{colour}.jpg', buffer.getvalue(),
+                                              content_type='image/jpeg')
+            target.save()
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.display_image.name, self.event.image.name)
+
+    def test_neither_gives_nothing_rather_than_an_error(self):
+        """`.url` on an unset ImageField raises, so the property has to answer None."""
+        self.assertFalse(self.show.image)
+        self.assertFalse(self.event.image)
+        self.assertIsNone(self.event.display_image)
+        # And the page renders without it.
+        self.assertEqual(self.client.get(self.event.get_absolute_url()).status_code, 200)
+
     def test_the_google_link_carries_an_absolute_instant(self):
         """A naive time is read in the *reader's* zone, so a six o'clock opening in Berkeley
         would land at six o'clock for somebody in New York."""

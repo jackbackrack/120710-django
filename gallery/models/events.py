@@ -31,6 +31,21 @@ class Event(models.Model):
     def get_absolute_url(self):
         return reverse('gallery:event_detail', kwargs={'slug': self.slug})
 
+    @property
+    def display_image(self):
+        """The event's own picture, or the show's.
+
+        An event without one is still an event *about* a show that has one, and a talk or a
+        closing party rarely gets photographed in advance — so the choice is the show's image or
+        a blank card, and the show's image is what the reader would expect to see anyway.
+
+        Returns None rather than an empty file, because `.url` on an unset ImageField raises.
+        """
+        if self.image:
+            return self.image
+        show_image = getattr(self.show, 'image', None)
+        return show_image or None
+
     # Below this a count discourages rather than encourages: "3 coming" reads as an empty room,
     # and early in a cycle it is always 3. Shown only once it argues for itself.
     RSVP_COUNT_THRESHOLD = 8
