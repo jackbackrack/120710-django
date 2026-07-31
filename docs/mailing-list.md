@@ -527,6 +527,45 @@ Two asymmetries in that page are on purpose:
 Subscribers are not people on the site. They have no account, no artist profile, and no public
 page.
 
+### Segments
+
+Four: **artist**, **collector**, **funder**, and **visitor**. A campaign's *Send to* narrows a
+mailing to one of them — an open call to artists, a preview to collectors — and defaults to
+everyone.
+
+**Somebody can be several at once.** In a small scene the same person paints, buys and sits on
+a board, and forcing one label would mean choosing which of those to stop mailing them about.
+
+**Visitor is not stored.** It is what is left when nobody has said anything else, which keeps it
+true by construction. A stored flag would be a fourth thing to keep in sync, and somebody ticked
+as both "collector" and "visitor" would be a state with no meaning.
+
+**Artist has a second source: the artist directory.** Anybody whose subscriber address matches
+an artist profile is in the artist segment whether or not they ever ticked the box. Derived at
+query time rather than copied onto the row, so an artist who joined the list before they had a
+profile becomes one the moment they do, with nothing to re-run. Matching is case-insensitive —
+subscriber addresses are normalised on save and artist records are typed by hand.
+
+Where they are set:
+
+| | |
+| --- | --- |
+| The subscribe form and the kiosk | optional checkboxes, never required |
+| The staff list | a checkbox per person, with per-segment counts and a filter |
+| An artist profile | automatic, for the artist segment only |
+
+The two differ on purpose. The **public form only ever adds**: it arrives with nothing ticked
+far more often than it means "forget what I told you last time", so re-subscribing must not
+wipe what is known. The **staff page removes on untick**, because an operator clearing a box
+plainly means it.
+
+Asking is deliberately cheap. Three optional ticks that never block a signup — required here
+would trade real subscribers for a tidier database.
+
+`segment_q()` in `gallery/models/subscribers.py` is the single definition, used by both the
+campaign send and the staff filter so the count you see and the list that gets mailed cannot
+disagree.
+
 ### Importing
 
     ./env/bin/python manage.py import_subscribers export.csv --dry-run

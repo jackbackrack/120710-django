@@ -37,6 +37,12 @@ class Campaign(models.Model):
         'gallery.Site', null=True, blank=True, on_delete=models.CASCADE,
         related_name='campaigns',
         help_text='Whose subscribers this goes to. Blank for the network-wide list.')
+    # Narrows the list to the people a mailing is actually about — an open call to artists, a
+    # preview to collectors. Blank is everyone, and stays the default: a segment is a way to
+    # send less mail to people it does not concern, not a thing to have to choose every time.
+    segment = models.CharField(
+        max_length=16, blank=True, default='', verbose_name='Send to',
+        help_text='Everyone on the list, unless you narrow it.')
     subject = models.CharField(max_length=255)
     # Shown after the subject in most inboxes. Left empty, clients scrape the first words of
     # the body instead, which is usually "View this email in your browser".
@@ -98,6 +104,18 @@ class Campaign(models.Model):
     def is_tested(self):
         """A test has gone out since the last content change."""
         return bool(self.test_sent_at and self.test_sent_at >= self.edited_at)
+
+    @property
+    def segment_label(self):
+        """Who this goes to, for a page that has to say so before the Send button."""
+        from gallery.models.subscribers import Subscriber
+        return dict(Subscriber.SEGMENT_CHOICES).get(self.segment, 'Everyone')
+
+    @property
+    def audience_label(self):
+        """The list and the segment together — the one line that describes a send."""
+        listing = self.site.name if self.site_id else 'reset.art (network-wide)'
+        return listing if not self.segment else f'{listing} · {self.segment_label}s'
 
     @property
     def list_is_sendable(self):

@@ -8,7 +8,8 @@ from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign
 from gallery.views.visits import (regenerate_visit_feed, rsvp_csv, visit_detail,
                                   visit_list, visits_ics)
 from gallery.views.subscribers import (subscriber_add, subscriber_delete,
-                                       subscriber_list, subscriber_unsubscribe_all,
+                                       subscriber_interests, subscriber_list,
+                                       subscriber_unsubscribe_all,
                                        subscription_resubscribe,
                                        subscription_unsubscribe)
 from gallery.views.checklist import show_checklist_html, show_checklist_pdf
@@ -146,6 +147,8 @@ urlpatterns = [
     path('subscribers/<int:pk>/remove-all/', subscriber_unsubscribe_all,
          name='subscriber_unsubscribe_all'),
     path('subscribers/<int:pk>/delete/', subscriber_delete, name='subscriber_delete'),
+    path('subscribers/<int:pk>/interests/', subscriber_interests,
+         name='subscriber_interests'),
     path('subscription/<int:pk>/remove/', subscription_unsubscribe,
          name='subscription_unsubscribe'),
     path('subscription/<int:pk>/add-back/', subscription_resubscribe,

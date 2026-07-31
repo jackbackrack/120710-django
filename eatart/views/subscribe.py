@@ -99,6 +99,7 @@ def subscribe(request):
                 last_name=form.cleaned_data['last_name'],
                 sites=[site],
                 source=Subscription.SOURCE_SUBSCRIBE_FORM,
+                interests=form.cleaned_data.get('interests'),
             )
             if new and subscriptions:
                 send_welcome(request, subscriptions[0])
@@ -128,6 +129,7 @@ def subscribe_kiosk(request, token):
                 last_name=form.cleaned_data['last_name'],
                 sites=[site],
                 source=Subscription.SOURCE_KIOSK,
+                interests=form.cleaned_data.get('interests'),
             )
             if new and subscriptions:
                 # Worth it here too: an address mistyped on a tablet at an opening is exactly

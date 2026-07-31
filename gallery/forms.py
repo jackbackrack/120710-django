@@ -892,7 +892,8 @@ class CampaignForm(forms.ModelForm):
     class Meta:
         from gallery.models import Campaign
         model = Campaign
-        fields = ('site', 'subject', 'preheader', 'template_name', 'show', 'body_markdown')
+        fields = ('site', 'segment', 'subject', 'preheader', 'template_name', 'show',
+                  'body_markdown')
         widgets = {
             'subject': forms.TextInput(
                 attrs={'placeholder': 'What the inbox shows first'}),
@@ -926,6 +927,17 @@ class CampaignForm(forms.ModelForm):
             self.fields['site'].help_text = (
                 'Whose subscribers this goes to. The network-wide (reset.art) list is '
                 'unavailable until reset.art has its own email authentication.')
+
+        # Everyone first and preselected. Narrowing a mailing is occasionally right and
+        # usually not, and the failure it invites — an opening announcement that quietly went
+        # to a fifth of the list — is invisible until somebody asks why they never heard.
+        from gallery.models import Subscriber
+        self.fields['segment'] = forms.ChoiceField(
+            choices=[('', 'Everyone on the list')]
+                    + [(value, f'{label}s only') for value, label in Subscriber.SEGMENT_CHOICES],
+            required=False, label='Send to',
+            help_text='Artists include everyone with an artist profile, whether or not they '
+                      'ticked the box themselves.')
 
         # A dropdown of the MJML templates that actually exist, rather than a text box
         # where a typo becomes a TemplateDoesNotExist at send time.

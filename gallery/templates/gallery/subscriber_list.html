@@ -22,9 +22,24 @@
       {{ c.label }} <strong>{{ c.total }}</strong>
     </a>
     {% endfor %}
-    {% if list_filter or status or search %}
+    {% if list_filter or status or search or segment %}
     <a class="card__link" href="?">Clear filters</a>
     {% endif %}
+  </div>
+
+  {% comment %}
+    Segment sizes, counted across everyone still on a list — the number a narrowed campaign
+    would reach, visible before anybody writes one. Artists include everybody with an artist
+    profile, so this is usually larger than the count of people who ticked the box.
+  {% endcomment %}
+  <div class="sub-counts mt-1">
+    <span class="text-muted small">Segments</span>
+    {% for s in segments %}
+    <a class="card__link{% if segment == s.value %} active{% endif %}"
+       href="?segment={{ s.value }}{% if list_filter %}&list={{ list_filter }}{% endif %}">
+      {{ s.label }} <strong>{{ s.total }}</strong>
+    </a>
+    {% endfor %}
   </div>
 
   {# ── Search and status ──────────────────────────────────────────────────── #}
@@ -37,6 +52,13 @@
       <option value="">Everyone</option>
       <option value="subscribed" {% if status == 'subscribed' %}selected{% endif %}>On a list</option>
       <option value="unsubscribed" {% if status == 'unsubscribed' %}selected{% endif %}>Off every list</option>
+    </select>
+    <select name="segment" class="form-select form-select-sm" style="max-width:12rem"
+            aria-label="Segment">
+      <option value="">Any segment</option>
+      {% for s in segments %}
+      <option value="{{ s.value }}" {% if segment == s.value %}selected{% endif %}>{{ s.label }}</option>
+      {% endfor %}
     </select>
     <button type="submit" class="btn btn-sm btn-secondary">Search</button>
   </form>
@@ -76,18 +98,42 @@
   {# ── The people ─────────────────────────────────────────────────────────── #}
   <p class="text-muted small mt-3 mb-1">
     {{ page_obj.paginator.count }} {{ page_obj.paginator.count|pluralize:"person,people" }}
-    {% if search or list_filter or status %}matching{% endif %}.
+    {% if search or list_filter or status or segment %}matching{% endif %}.
   </p>
 
   <table class="table table-sm align-middle">
     <thead>
-      <tr><th>Email</th><th>Name</th><th>Lists</th><th class="text-end">Actions</th></tr>
+      <tr><th>Email</th><th>Name</th><th>Segments</th><th>Lists</th>
+          <th class="text-end">Actions</th></tr>
     </thead>
     <tbody>
       {% for person in page_obj %}
       <tr>
         <td>{{ person.email }}</td>
         <td>{{ person.full_name|default:"—" }}</td>
+        {% comment %}
+          Untick and Save removes one, unlike the subscribe form, which only ever adds — an
+          operator clearing a box plainly means it. "Artist profile" is shown but has no
+          checkbox: it is derived from having a profile, and a box that silently reverted
+          would be worse than none.
+        {% endcomment %}
+        <td class="text-nowrap">
+          <form method="post" action="{% url 'gallery:subscriber_interests' person.pk %}"
+                class="sub-interests">{% csrf_token %}
+            <input type="hidden" name="back" value="{{ query_string }}">
+            {% for value, label in interest_choices %}
+            <label class="small me-1">
+              <input type="checkbox" name="interests" value="{{ value }}"
+                     {% if value == 'artist' and person.is_artist %}checked{% endif %}
+                     {% if value == 'collector' and person.is_collector %}checked{% endif %}
+                     {% if value == 'funder' and person.is_funder %}checked{% endif %}>{{ label }}</label>
+            {% endfor %}
+            <button type="submit" class="btn btn-sm btn-link p-0">save</button>
+            {% if person.in_artist_directory %}
+            <div class="text-muted small">artist profile</div>
+            {% endif %}
+          </form>
+        </td>
         <td>
           {% for sub in person.subscriptions.all %}
           <div class="sub-line">
@@ -133,7 +179,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="4" class="text-center text-muted py-4">Nobody matches that.</td></tr>
+      <tr><td colspan="5" class="text-center text-muted py-4">Nobody matches that.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -154,6 +200,7 @@
 <style>
   .sub-counts { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; align-items: center; }
   .sub-counts .active { font-weight: 700; }
+  .sub-interests label { white-space: nowrap; }
   .sub-line { line-height: 1.5; }
   .sub-on { color: #2f9e6f; font-weight: 600; }
   .sub-off { color: #999; font-weight: 600; }

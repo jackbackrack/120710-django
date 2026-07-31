@@ -502,8 +502,9 @@ def render_preview(campaign, request=None):
 def recipients(campaign):
     """Everyone this campaign goes to.
 
-    is_subscribed is the only gate, and it is applied here rather than at the call site so
-    there is exactly one place that can get it wrong.
+    is_subscribed is the only gate that is never optional, and it is applied here rather than
+    at the call site so there is exactly one place that can get it wrong. A segment narrows
+    it further; no segment means the whole list.
     """
     queryset = (Subscription.objects
                 .select_related('subscriber', 'site')
@@ -512,6 +513,11 @@ def recipients(campaign):
         queryset = queryset.filter(site_id=campaign.site_id)
     else:
         queryset = queryset.filter(site__isnull=True)
+    if campaign.segment:
+        from gallery.models.subscribers import segment_q
+        # distinct(), because matching artists by address is a subquery against a table that
+        # may hold the same address twice.
+        queryset = queryset.filter(segment_q(campaign.segment, 'subscriber')).distinct()
     return queryset.order_by('pk')
 
 

@@ -70,7 +70,7 @@
         <button type="submit" class="btn btn-sm btn-secondary">Start a new draft from this one</button>
       </form>
       <dl>
-        <dt>List</dt><dd>{{ campaign.site.name|default:"Everyone" }}</dd>
+        <dt>List</dt><dd>{{ campaign.audience_label }}</dd>
         <dt>Subject</dt><dd>{{ campaign.subject }}</dd>
         {% if campaign.preheader %}<dt>Preview text</dt><dd>{{ campaign.preheader }}</dd>{% endif %}
         {% if campaign.template_name %}<dt>Template</dt><dd>{{ campaign.template_name }}</dd>{% endif %}
@@ -113,7 +113,7 @@
       <h5>Send to the list</h5>
       <p>
         {{ recipient_count }} subscriber{{ recipient_count|pluralize }} on
-        <strong>{{ campaign.site.name|default:"the network-wide list" }}</strong>.
+        <strong>{{ campaign.audience_label }}</strong>.
       </p>
       {% if campaign.can_send %}
       <form method="post" action="{% url 'gallery:campaign_send' campaign.pk %}">{% csrf_token %}
@@ -192,7 +192,7 @@
       <p>
         {{ remaining_count }} subscriber{{ remaining_count|pluralize }} still to go, of
         {{ sent_so_far|add:remaining_count }} on
-        <strong>{{ campaign.site.name|default:"the network-wide list" }}</strong>.
+        <strong>{{ campaign.audience_label }}</strong>.
       </p>
       <form method="post" action="{% url 'gallery:campaign_resume' campaign.pk %}">{% csrf_token %}
         <button type="submit" class="btn btn-warning"

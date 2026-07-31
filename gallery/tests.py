@@ -2520,6 +2520,191 @@ class EventRsvpTests(TestCase):
         self.assertIsNone(EventRsvp.objects.get().reminded_at)
 
 
+class SubscriberSegmentTests(TestCase):
+    """What somebody is here for, so a mailing can go to the people it concerns.
+
+    Several at once on purpose: in a small scene the same person paints, buys and sits on a
+    board, and one label would mean choosing which of those to stop mailing them about.
+    """
+
+    def setUp(self):
+        from gallery.models import Artist, Subscriber
+        self.Subscriber = Subscriber
+        self.site = Site.objects.create(name='120710', slug='120710',
+                                        status=Site.STATUS_PUBLISHED)
+        # Typed by hand, so mixed case — the match has to survive that.
+        Artist.objects.create(name='Dana Pinto', email='Dana@Example.com')
+        self.join('dana@example.com')
+        self.join('mo@example.com', interests=['collector'])
+        self.join('lee@example.com', interests=['artist', 'funder'])
+        self.join('sam@example.com')
+
+    def join(self, email, **kwargs):
+        from gallery.models import Subscriber
+        subscriber, _ = Subscriber.opt_in(email=email, sites=[self.site], **kwargs)
+        return subscriber
+
+    def _segments(self, email):
+        return self.Subscriber.objects.get(email=email).segments
+
+    def test_nobody_who_said_nothing_is_a_visitor(self):
+        self.assertEqual(self._segments('sam@example.com'), ['visitor'])
+
+    def test_somebody_can_be_more_than_one_thing(self):
+        self.assertEqual(self._segments('lee@example.com'), ['artist', 'funder'])
+
+    def test_an_artist_profile_makes_somebody_an_artist(self):
+        """The whole reason not to store this: an artist who joined the list before they had
+        a profile becomes one the moment they do, with nothing to re-run."""
+        self.assertEqual(self._segments('dana@example.com'), ['artist'])
+        self.assertFalse(self.Subscriber.objects.get(email='dana@example.com').is_artist)
+
+    def test_a_visitor_becomes_an_artist_by_getting_a_profile(self):
+        from gallery.models import Artist
+        self.assertEqual(self._segments('sam@example.com'), ['visitor'])
+        Artist.objects.create(name='Sam', email='sam@example.com')
+        self.assertEqual(self._segments('sam@example.com'), ['artist'])
+
+    def test_resubscribing_does_not_wipe_what_is_known(self):
+        """A subscribe form arrives with nothing ticked far more often than it means
+        'forget what I told you'."""
+        self.join('mo@example.com')
+        self.assertEqual(self._segments('mo@example.com'), ['collector'])
+
+    def test_a_campaign_with_no_segment_goes_to_everyone(self):
+        from gallery import campaigns as engine
+        from gallery.models import Campaign
+        campaign = Campaign.objects.create(site=self.site, subject='x', body_markdown='hi')
+        self.assertEqual(len(engine.recipients(campaign)), 4)
+
+    def test_a_segmented_campaign_reaches_only_that_segment(self):
+        from gallery import campaigns as engine
+        from gallery.models import Campaign
+        expected = {
+            'artist': {'dana@example.com', 'lee@example.com'},
+            'collector': {'mo@example.com'},
+            'funder': {'lee@example.com'},
+            'visitor': {'sam@example.com'},
+        }
+        for segment, emails in expected.items():
+            with self.subTest(segment=segment):
+                campaign = Campaign.objects.create(site=self.site, subject='x',
+                                                   segment=segment, body_markdown='hi')
+                got = {s.subscriber.email for s in engine.recipients(campaign)}
+                self.assertEqual(got, emails)
+
+    def test_a_segment_never_reaches_somebody_who_left(self):
+        """Segmenting narrows the list; it must not be a way around is_subscribed."""
+        from gallery import campaigns as engine
+        from gallery.models import Campaign, Subscriber
+        Subscriber.objects.get(email='mo@example.com').unsubscribe_all()
+        campaign = Campaign.objects.create(site=self.site, subject='x',
+                                           segment='collector', body_markdown='hi')
+        self.assertEqual(list(engine.recipients(campaign)), [])
+
+    def test_the_send_list_has_no_duplicates(self):
+        """Artists are matched by a subquery against a table that may hold one address
+        twice, which without distinct() would mail that person twice."""
+        from gallery import campaigns as engine
+        from gallery.models import Artist, Campaign
+        Artist.objects.create(name='Dana again', email='dana@example.com')
+        campaign = Campaign.objects.create(site=self.site, subject='x',
+                                           segment='artist', body_markdown='hi')
+        addresses = [s.subscriber.email for s in engine.recipients(campaign)]
+        self.assertEqual(len(addresses), len(set(addresses)))
+
+    def test_the_audience_line_says_who_it_goes_to(self):
+        from gallery.models import Campaign
+        plain = Campaign.objects.create(site=self.site, subject='x', body_markdown='hi')
+        narrowed = Campaign.objects.create(site=self.site, subject='x', segment='collector',
+                                           body_markdown='hi')
+        self.assertEqual(plain.audience_label, '120710')
+        self.assertEqual(narrowed.audience_label, '120710 · Collectors')
+
+    def test_the_subscribe_form_records_interests_and_never_requires_them(self):
+        from eatart.forms.subscribe import SubscribeForm
+        self.assertFalse(SubscribeForm().fields['interests'].required)
+        response = self.client.post(reverse('subscribe'), {
+            'first_name': 'Ada', 'last_name': 'Nkem', 'email': 'ada@example.com',
+            'interests': ['collector', 'funder'], 'address': ''}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._segments('ada@example.com'), ['collector', 'funder'])
+
+    def test_signing_up_without_ticking_anything_still_works(self):
+        response = self.client.post(reverse('subscribe'), {
+            'first_name': 'Bo', 'last_name': 'Reyes', 'email': 'bo@example.com',
+            'address': ''}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._segments('bo@example.com'), ['visitor'])
+
+
+class SubscriberSegmentStaffTests(TestCase):
+    """The staff list: seeing segments, filtering by them, and setting them by hand."""
+
+    def setUp(self):
+        from gallery.models import Artist, Subscriber
+        self.site = Site.objects.create(name='120710', slug='120710',
+                                        status=Site.STATUS_PUBLISHED)
+        Artist.objects.create(name='Dana', email='dana@example.com')
+        for email, interests in (('dana@example.com', None),
+                                 ('mo@example.com', ['collector']),
+                                 ('sam@example.com', None)):
+            Subscriber.opt_in(email=email, sites=[self.site], interests=interests)
+        self.staff = User.objects.create_user(username='s@example.com',
+                                              email='s@example.com', password='pw')
+        add_staff_role(self.staff)
+        self.client.force_login(self.staff)
+
+    def test_the_page_counts_each_segment(self):
+        page = self.client.get(reverse('gallery:subscriber_list')).content.decode()
+        self.assertIn('Artist <strong>1</strong>', page)
+        self.assertIn('Collector <strong>1</strong>', page)
+        self.assertIn('Visitor <strong>1</strong>', page)
+
+    def test_filtering_by_segment(self):
+        page = self.client.get(reverse('gallery:subscriber_list'),
+                               {'segment': 'artist'}).content.decode()
+        self.assertIn('dana@example.com', page)
+        self.assertNotIn('mo@example.com', page)
+
+    def test_one_query_for_the_artist_directory_not_one_per_row(self):
+        """The annotation shadows the cached_property of the same name. If that ever stops
+        working this page goes quadratic in the size of the list."""
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        from gallery.models import Subscriber
+        for i in range(30):
+            Subscriber.opt_in(email=f'bulk{i}@example.com', sites=[self.site])
+        with CaptureQueriesContext(connection) as queries:
+            self.client.get(reverse('gallery:subscriber_list'))
+        # A bound well under the 33 rows on the page: per-row would be at least that many.
+        self.assertLess(len(queries), 25)
+
+    def test_staff_can_set_and_clear_interests(self):
+        from gallery.models import Subscriber
+        person = Subscriber.objects.get(email='sam@example.com')
+        url = reverse('gallery:subscriber_interests', kwargs={'pk': person.pk})
+        self.client.post(url, {'interests': ['funder', 'collector']})
+        self.assertEqual(Subscriber.objects.get(pk=person.pk).segments,
+                         ['collector', 'funder'])
+        # Unticking removes, unlike the public form — an operator plainly means it.
+        self.client.post(url, {})
+        self.assertEqual(Subscriber.objects.get(pk=person.pk).segments, ['visitor'])
+
+    def test_setting_interests_is_staff_only(self):
+        from gallery.models import Subscriber
+        person = Subscriber.objects.get(email='sam@example.com')
+        url = reverse('gallery:subscriber_interests', kwargs={'pk': person.pk})
+        self.client.logout()
+        self.assertEqual(self.client.post(url, {'interests': ['funder']}).status_code, 302)
+        outsider = User.objects.create_user(username='o@example.com',
+                                            email='o@example.com', password='pw')
+        self.client.force_login(outsider)
+        self.assertEqual(self.client.post(url, {'interests': ['funder']}).status_code, 404)
+        self.assertEqual(Subscriber.objects.get(pk=person.pk).segments, ['visitor'])
+
+
 class RsvpDashboardTests(TestCase):
     """What curators and admins see: who replied, what past nights drew, and a CSV of it.
 
@@ -3215,7 +3400,16 @@ class VisitBookingTests(TestCase):
                                         by_appointment=True)
 
         from gallery import visits as engine
-        day = engine.available(self.site)[0]
+        from gallery.calendars import site_timezone
+        # A fixed morning, because "the first available day" is not always a whole one: run
+        # this between the lead time and the end of public hours and today has its evening
+        # by-arrangement slots left but none of its afternoon ones, which is correct
+        # behaviour and used to fail this test for a few hours every day.
+        tz = site_timezone(self.site)
+        morning = datetime.datetime.combine(
+            timezone.now().astimezone(tz).date() + datetime.timedelta(days=1),
+            datetime.time(9, 0), tzinfo=tz)
+        day = engine.available(self.site, now=morning)[0]
         self.assertTrue(day.open_slots)
         self.assertTrue(day.appointment_slots)
         self.assertTrue(all(not s.by_appointment for s in day.open_slots))

@@ -15,12 +15,13 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from gallery.models import Site, Subscriber, Subscription
+from gallery.models import Artist, Site, Subscriber, Subscription
+from gallery.models.subscribers import segment_q
 from gallery.permissions import is_staff_user
 
 logger = logging.getLogger(__name__)
@@ -47,8 +48,17 @@ def subscriber_list(request):
     search = (request.GET.get('q') or '').strip()
     list_filter = (request.GET.get('list') or '').strip()
     status = (request.GET.get('status') or '').strip()
+    segment = (request.GET.get('segment') or '').strip()
 
-    people = Subscriber.objects.prefetch_related('subscriptions__site')
+    # Annotated rather than left to the property, which would be one query per row: the
+    # name matches Subscriber.in_artist_directory, and an annotation shadows the
+    # cached_property of the same name.
+    people = (Subscriber.objects.prefetch_related('subscriptions__site')
+              .annotate(in_artist_directory=Exists(
+                  Artist.objects.filter(email__iexact=OuterRef('email')))))
+
+    if segment:
+        people = people.filter(segment_q(segment))
 
     if search:
         people = people.filter(Q(email__icontains=search)
@@ -89,9 +99,19 @@ def subscriber_list(request):
         'total': Subscription.objects.filter(site__isnull=True, is_subscribed=True).count(),
     })
 
+    # Segment sizes across everyone still on a list, so the number a narrowed campaign would
+    # reach is visible before anybody writes it.
+    on_a_list = Subscriber.objects.filter(subscriptions__is_subscribed=True)
+    segments = [{'label': label, 'value': value,
+                 'total': on_a_list.filter(segment_q(value)).distinct().count()}
+                for value, label in Subscriber.SEGMENT_CHOICES]
+
     return render(request, 'gallery/subscriber_list.html', {
         'page_obj': page,
         'counts': counts,
+        'segments': segments,
+        'segment': segment,
+        'interest_choices': Subscriber.INTEREST_CHOICES,
         'search': search,
         'list_filter': list_filter,
         'status': status,
@@ -99,6 +119,29 @@ def subscriber_list(request):
         'default_site': default,
         'query_string': request.GET.urlencode(),
     })
+
+
+@login_required
+@require_POST
+def subscriber_interests(request, pk):
+    """Record what somebody is, from the staff list.
+
+    Not additive, unlike the subscribe form: an operator who unticks a box means to remove
+    it, whereas a subscribe form arrives empty far more often than it means "forget what I
+    said". Being in the artist directory is not settable here — it is derived from having an
+    artist profile, and a checkbox that silently loses its own value would be worse than no
+    checkbox.
+    """
+    _staff_only(request)
+    subscriber = get_object_or_404(Subscriber, pk=pk)
+    changed = subscriber.set_interests(request.POST.getlist('interests'), additive=False)
+    if changed:
+        subscriber.save(update_fields=changed + ['updated_at'])
+        logger.info('Subscriber %s interests set to %s', subscriber.email,
+                    ', '.join(subscriber.segments))
+    messages.success(request, f'{subscriber.email}: '
+                              f'{", ".join(subscriber.segment_labels)}.')
+    return _back(request)
 
 
 @login_required
