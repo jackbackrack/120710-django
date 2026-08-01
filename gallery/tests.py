@@ -788,6 +788,81 @@ class SubmissionOnboardingTests(TestCase):
         artist.save()
         self.assertEqual(self.client.get(self.submit_url).status_code, 200)
 
+    def test_the_submit_url_leads_somebody_with_no_profile_to_create_one(self):
+        """The gap every other test here stepped over: these all started from an artist
+        who already existed, so nothing covered arriving with no profile at all — which
+        is the whole of the new-artist path, since signing up returns you to this URL.
+
+        It used to be a bare `redirect(show)`: no message, no destination, landing on a
+        page whose own call to action was far below the fold."""
+        user = User.objects.create_user(
+            username='fresh@example.com', email='fresh@example.com', password='pw')
+        self.client.force_login(user)
+
+        response = self.client.get(self.submit_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('gallery:artist_new'), response.headers['Location'])
+        # …carrying the way back, so finishing the profile returns them to submitting.
+        self.assertIn('next=', response.headers['Location'])
+        self.assertNotEqual(response.headers['Location'], self.show_url)
+
+        followed = self.client.get(self.submit_url, follow=True)
+        self.assertTrue([m for m in followed.context['messages']],
+                        'redirected with no explanation of what happened')
+
+    def test_the_submit_url_and_the_button_agree_on_the_next_step(self):
+        """Both read from submit_cta, so the URL cannot send somebody somewhere the
+        button would not have."""
+        user = User.objects.create_user(
+            username='agree@example.com', email='agree@example.com', password='pw')
+        self.client.force_login(user)
+        _label, button_url = self._cta()
+        redirected = self.client.get(self.submit_url).headers['Location']
+        self.assertEqual(redirected, button_url)
+
+    def test_an_uninvited_artist_is_told_so_rather_than_sent_to_build_a_profile(self):
+        """Checked before the profile checks: sending somebody off to fill in a profile
+        they will not be allowed to use is a worse dead end than a plain no."""
+        invited_only = Show.objects.create(
+            name='Invited Only', status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_INVITED,
+            start=datetime.date.today() + datetime.timedelta(days=30),
+            end=datetime.date.today() + datetime.timedelta(days=60))
+        user = User.objects.create_user(
+            username='out@example.com', email='out@example.com', password='pw')
+        self.client.force_login(user)
+        url = reverse('gallery:artwork_submit', kwargs={'slug': invited_only.slug})
+        response = self.client.get(url, follow=True)
+        self.assertIn('invitation only',
+                      ' '.join(str(m) for m in response.context['messages']))
+        self.assertNotIn(reverse('gallery:artist_new'),
+                         [r[0] for r in response.redirect_chain][0])
+
+    def test_a_card_never_points_at_a_page_the_reader_cannot_use(self):
+        """Cards used to use a `short_url` that was always the submit page, even at the
+        step whose whole point is that the reader has no profile yet. One url now."""
+        user = User.objects.create_user(
+            username='card@example.com', email='card@example.com', password='pw')
+        self.client.force_login(user)
+        import re
+        body = self.client.get(reverse('gallery:show_list')).content.decode()
+        hrefs = re.findall(r'<a class="card__link new-button" href="([^"]+)"', body)
+        self.assertTrue(hrefs, 'no submit button rendered on the show list')
+        for href in hrefs:
+            with self.subTest(href=href):
+                self.assertNotIn(self.submit_url, href)
+                self.assertIn(reverse('gallery:artist_new'), href)
+
+    def test_the_call_to_action_comes_before_the_artworks(self):
+        """It sat after the Artworks heading, past the rubric, the events and the status
+        controls. An announcement's whole job is to get somebody to this button."""
+        body = self.client.get(self.show_url).content.decode()
+        cta = body.find('submit-cta')
+        artworks = body.find('Artworks (')
+        self.assertNotEqual(cta, -1)
+        self.assertNotEqual(artworks, -1)
+        self.assertLess(cta, artworks)
+
     def test_profile_detour_returns_to_the_submission(self):
         user = User.objects.create_user(
             username='ret@example.com', email='ret@example.com', password='pw')
@@ -5756,11 +5831,21 @@ class ArtistPageSubmitEntryTests(TestCase):
         self.assertNotIn('profile is missing', body)
 
     def test_submit_is_offered_even_with_an_incomplete_profile(self):
-        """It used to be hidden, leaving shows listed that could not be acted on."""
+        """It used to be hidden, leaving shows listed that could not be acted on.
+
+        The button now points at the step that is actually next — finishing the profile —
+        rather than at the submit page, which cannot serve somebody with no photo. The
+        submit URL is still in it, as the `next=` it comes back to."""
+        import re
+        from urllib.parse import unquote
         body = self.client.get(self.artist.get_absolute_url(), follow=True).content.decode()
         self.assertIn('Shows Accepting Submissions', body)
+        href = re.search(r'<a class="card__link new-button" href="([^"]+)"', body)
+        self.assertIsNotNone(href, 'the show was listed with no way to act on it')
+        target = unquote(href.group(1).replace('&amp;', '&'))
+        self.assertIn(reverse('gallery:artist_edit', kwargs={'pk': self.artist.pk}), target)
         self.assertIn(reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
-                      body)
+                      target)
 
     def test_following_it_asks_for_the_photo_and_comes_back(self):
         submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})

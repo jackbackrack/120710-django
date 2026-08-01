@@ -82,7 +82,7 @@ Expects `show`. Optional:
     {% endif %}
     {% if not big %}
     {% if cta %}
-    <a class="card__link new-button" href="{{ cta.short_url|default:cta.url }}" title="{{ cta.hint }}">{{ cta.short_label|default:cta.label }}</a>
+    <a class="card__link new-button" href="{{ cta.url }}" title="{{ cta.hint }}">{{ cta.short_label|default:cta.label }}</a>
     {% elif show.id in submittable_show_ids %}
     <a class="card__link" href="{% url 'gallery:artwork_submit' show.slug %}">Submit</a>
     {% endif %}

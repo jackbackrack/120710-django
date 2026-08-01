@@ -54,6 +54,25 @@
     </div>
     {% endif %}
     {% comment %}
+      One call to action that always names the real next step, whoever is looking — signed
+      out, half-way through a profile, or ready to submit. This page is where every open-call
+      announcement and invitation lands, so it must never be a dead end.
+
+      Directly under the deadline, and above everything else. It used to sit past the rubric,
+      the events, the status controls and the Artworks heading — around 11,000 characters down
+      a page whose description alone can fill a screen. An announcement's whole job is to get
+      somebody to this button, so it cannot be something they have to go looking for.
+    {% endcomment %}
+    {% if submit_cta %}
+    <div class="submit-cta mt-3">
+      <a class="card__link new-button" href="{{ submit_cta.url }}">{{ submit_cta.label }}</a>
+      {% if submit_cta.hint %}<p class="text-muted small mt-1 mb-0">{{ submit_cta.hint }}</p>{% endif %}
+      <p class="text-muted small mt-1 mb-0"><a href="{% url 'howto_guide' 'submit-artwork' %}">How submitting works</a></p>
+    </div>
+    {% elif show.is_accepting_submissions %}
+    <p class="text-muted small mt-3"><a href="{% url 'howto_guide' 'submit-artwork' %}">Help submitting</a></p>
+    {% endif %}
+    {% comment %}
       The rubric is worth reading for the whole life of the show — how the work was
       judged still explains a published or closed show, not just an open call. So it
       is shown whenever criteria exist, independent of status. ShowRubricView has no
@@ -113,20 +132,6 @@
 </div>
 </div>
 <div class="text-center section-label"><h2>Artworks ({{ artwork_data|length }}) <button class="ss-status-btn" data-ss-section type="button">Slideshow</button></h2></div>
-{% comment %}
-  One call to action that always names the real next step, whoever is looking —
-  signed out, half-way through a profile, or ready to submit. This page is where
-  every open-call announcement and invitation lands, so it must never be a dead end.
-{% endcomment %}
-{% if submit_cta %}
-<div class="text-center submit-cta">
-  <a class="card__link new-button" href="{{ submit_cta.url }}">{{ submit_cta.label }}</a>
-  {% if submit_cta.hint %}<p class="text-muted small mt-1 mb-0">{{ submit_cta.hint }}</p>{% endif %}
-  <p class="text-muted small mt-1"><a href="{% url 'howto_guide' 'submit-artwork' %}">How submitting works</a></p>
-</div>
-{% elif show.is_accepting_submissions %}
-<p class="text-center text-muted small mt-2"><a href="{% url 'howto_guide' 'submit-artwork' %}">Help submitting</a></p>
-{% endif %}
 <div class="cards">
 {% for entry in artwork_data %}
 {% with artwork=entry.artwork sub=entry.submission %}

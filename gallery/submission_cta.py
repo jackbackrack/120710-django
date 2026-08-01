@@ -31,8 +31,12 @@ def submit_cta(request, show, artist=None, artist_loaded=False):
     Pass `artist` (with artist_loaded=True) when rendering a list of shows, so the
     profile is looked up once rather than per card.
 
-    Returns {label, url, hint, step} and, for signed-out visitors, {alt_label,
-    alt_url} for the sign-in alternative.
+    Returns {label, short_label, url, hint, step}.
+
+    There is one `url`, deliberately. A card short on space gets a shorter *label*, never a
+    different destination: the one step where those diverged was profile creation, where the
+    short form pointed at the submit page — the exact URL somebody without a profile cannot
+    use. Every entry into this flow now goes to the same place the show page sends them.
     """
     from gallery.models import ArtworkSubmission, Show
 
@@ -61,7 +65,7 @@ def submit_cta(request, show, artist=None, artist_loaded=False):
         return {'label': 'Submit', 'url': submit_url,
                 'hint': 'You will sign in or create an account first — it takes a minute, '
                         'and you will come straight back here.',
-                'short_label': 'Submit', 'short_url': submit_url,
+                'short_label': 'Submit',
                 'step': 1}
 
     if not artist_loaded:
@@ -71,7 +75,7 @@ def submit_cta(request, show, artist=None, artist_loaded=False):
         return {'label': 'Set up your artist profile',
                 'url': f"{reverse('gallery:artist_new')}?{urlencode({'next': submit_url})}",
                 'hint': 'Just a few details so we can credit your work.',
-                'short_label': 'Submit', 'short_url': submit_url, 'step': 2}
+                'short_label': 'Submit', 'step': 2}
 
     missing = [label for field, label in SUBMIT_REQUIRED
                if not getattr(artist, field, None)]
@@ -90,17 +94,17 @@ def submit_cta(request, show, artist=None, artist_loaded=False):
         return {'label': f'Finish your profile ({len(missing)} to go)',
                 'url': f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}",
                 'hint': hint,
-                'short_label': 'Submit', 'short_url': submit_url, 'step': 2}
+                'short_label': 'Submit', 'step': 2}
 
     submitted = ArtworkSubmission.objects.filter(show=show, artwork__artists=artist).count()
     if submitted:
         return {'label': 'Submit another work', 'url': submit_url,
                 'hint': f'You have submitted {submitted} '
                         f'work{"s" if submitted != 1 else ""} to this show.',
-                'short_label': 'Submit another', 'short_url': submit_url, 'step': 3}
+                'short_label': 'Submit another', 'step': 3}
     return {'label': 'Submit Artwork', 'url': submit_url,
             'hint': 'Upload your work and send it in.',
-            'short_label': 'Submit', 'short_url': submit_url, 'step': 3}
+            'short_label': 'Submit', 'step': 3}
 
 
 def submit_ctas(request, shows):

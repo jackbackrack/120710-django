@@ -441,9 +441,28 @@ def artwork_submit(request, slug):
         messages.error(request, 'This show is not currently accepting submissions.')
         return redirect(show)
 
+    # Before the profile checks below: somebody who cannot submit at all is better told
+    # that than sent off to build a profile they will not get to use.
+    if show.submission_type == Show.SUBMISSION_INVITED:
+        from gallery.permissions import user_invited_to_show
+        if not user_invited_to_show(show, request.user):
+            messages.error(request, 'Submissions to this show are by invitation only.')
+            return redirect(show)
+
     artist = request.user.artists.order_by('-created_at').first()
     if not artist:
-        return redirect(show)
+        # The next step, from the same function the show page and every card use, so this
+        # URL and the button that points at it cannot disagree about what comes next.
+        #
+        # This used to be a bare `redirect(show)`: no message, no destination. It stranded
+        # everyone arriving here without a profile — which is the whole of the new-artist
+        # path, since signing up returns you to exactly this URL — on a show page whose
+        # own call to action sits far below the fold.
+        from gallery.submission_cta import submit_cta
+        cta = submit_cta(request, show)
+        messages.info(request, 'First a quick artist profile, so we can credit your work — '
+                               'then you will come straight back here to submit.')
+        return redirect(cta['url'] if cta else show)
 
     # Checked on GET, before the submission form is ever rendered, so nobody loses
     # a filled-in form to this. The show page CTA normally prevents anyone reaching
@@ -472,12 +491,6 @@ def artwork_submit(request, slug):
         qs = urlencode({'highlight': ','.join(missing_fields),
                         'next': reverse('gallery:artwork_submit', kwargs={'slug': slug})})
         return redirect(f"{reverse('gallery:artist_edit', kwargs={'pk': artist.pk})}?{qs}")
-
-    if show.submission_type == Show.SUBMISSION_INVITED:
-        from gallery.permissions import user_invited_to_show
-        if not user_invited_to_show(show, request.user):
-            messages.error(request, 'Submissions to this show are by invitation only.')
-            return redirect(show)
 
     already_submitted_ids = ArtworkSubmission.objects.filter(show=show).values_list('artwork_id', flat=True)
     available_artworks = (
