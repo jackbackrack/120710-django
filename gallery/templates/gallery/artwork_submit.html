@@ -62,10 +62,18 @@
   </form>
   {% endif %}
 
-  <div class="mt-4 text-center">
-    <button class="card__link new-button" type="button" id="toggle-quick-form">
-      + Add a new artwork
-    </button>
+  {% comment %}
+    The toggle is centred with the other controls on this page; the form it opens is not.
+    Centring used to wrap both, so every label, field and button in it sat in the middle of
+    the page — the same form reached from an artist page is left-aligned and full width, and
+    a form that changes shape depending on how you got to it reads as a different form.
+  {% endcomment %}
+  <div class="mt-4">
+    <div class="text-center">
+      <button class="card__link new-button" type="button" id="toggle-quick-form">
+        + Add a new artwork
+      </button>
+    </div>
     <div id="quick-artwork-form" style="display:{% if show_quick_form %}block{% else %}none{% endif %};" class="mt-3 p-3 border rounded">
       <h5>New Artwork</h5>
       <form method="post" enctype="multipart/form-data">
