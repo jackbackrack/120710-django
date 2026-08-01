@@ -238,7 +238,44 @@ class ArtistDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailVi
         return context
 
 
-class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class ReturnsToNext:
+    """Carry `?next=` through a profile form and go back there once it saves.
+
+    Shared by the create and the edit view, because "set up your artist profile" and
+    "finish your profile" are the same step of the same flow, reached the same way. Only
+    the edit view had it, so the brand-new artist — the person the flow exists for — was
+    the one who filled in a profile and got dropped on their own page with no way back to
+    submitting, while somebody with a half-finished profile was returned correctly.
+
+    Validated with url_has_allowed_host_and_scheme: `next` is attacker-supplied, and an
+    unchecked one is an open redirect.
+    """
+
+    def safe_next(self):
+        nxt = self.request.POST.get('next') or self.request.GET.get('next')
+        if nxt and url_has_allowed_host_and_scheme(
+                nxt, allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure()):
+            return nxt
+        return None
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Mid-flow (arrived here on the way to submitting): show the tracker and
+        # carry the destination across the POST.
+        nxt = self.safe_next()
+        if nxt:
+            context['next_url'] = nxt
+            context['progress_step'] = 2
+        return context
+
+    def get_success_url(self):
+        # Back to wherever they were headed, rather than onto their own profile with no
+        # way back to what they were doing.
+        return self.safe_next() or super().get_success_url()
+
+
+class ArtistUpdateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Artist
     form_class = ArtistForm
     template_name = 'gallery/artist_edit.html'
@@ -250,14 +287,6 @@ class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Mid-flow (arrived here on the way to submitting): show the tracker and
-        # carry the destination across the POST.
-        nxt = self.request.POST.get('next') or self.request.GET.get('next')
-        if nxt and url_has_allowed_host_and_scheme(
-                nxt, allowed_hosts={self.request.get_host()},
-                require_https=self.request.is_secure()):
-            context['next_url'] = nxt
-            context['progress_step'] = 2
         artist = self.object
         if artist.user == self.request.user:
             is_empty = (
@@ -268,16 +297,6 @@ class ArtistUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             )
             context['show_claim_hint'] = is_empty
         return context
-
-    def get_success_url(self):
-        # Return to wherever the artist was headed (usually a show's submit page)
-        # rather than dropping them on their own profile with no way back.
-        nxt = self.request.POST.get('next') or self.request.GET.get('next')
-        if nxt and url_has_allowed_host_and_scheme(
-                nxt, allowed_hosts={self.request.get_host()},
-                require_https=self.request.is_secure()):
-            return nxt
-        return super().get_success_url()
 
     def test_func(self):
         obj = self.get_object()
@@ -294,7 +313,7 @@ class ArtistDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return can_delete_artist(self.request.user, obj)
 
 
-class ArtistCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+class ArtistCreateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Artist
     form_class = ArtistForm
     template_name = 'gallery/artist_new.html'

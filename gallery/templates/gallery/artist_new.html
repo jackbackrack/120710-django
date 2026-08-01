@@ -5,7 +5,16 @@
 {% block content %}
 <h1>New Artist</h1>
 {% if form.errors %}<div class="alert alert-danger">Please correct the highlighted fields below.</div>{% endif %}
+{% comment %}
+  The same tracker and the same promise as artist_edit.html. Somebody arriving here is at
+  the same step of the same flow as somebody finishing a half-filled profile — and is more
+  in need of being told where they are, not less.
+{% endcomment %}
+{% if progress_step %}{% include 'gallery/_submission_progress.html' %}
+<p class="text-muted small">Once this is saved you go straight back to submitting your work.</p>
+{% endif %}
 <form action="" method="post" enctype="multipart/form-data" data-has-image="{% if object.image %}1{% endif %}">{% csrf_token %}
+  {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
   {% crispy form %}
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>

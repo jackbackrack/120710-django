@@ -810,6 +810,49 @@ class SubmissionOnboardingTests(TestCase):
         self.assertTrue([m for m in followed.context['messages']],
                         'redirected with no explanation of what happened')
 
+    def test_creating_a_profile_returns_you_to_submitting(self):
+        """The step the whole flow exists for, and the one that did not come back.
+
+        `?next=` was honoured by the edit view but not the create view, so somebody
+        finishing a half-filled profile was returned to submitting while a brand-new
+        artist was dropped on their own profile page."""
+        user = User.objects.create_user(
+            username='back@example.com', email='back@example.com', password='pw')
+        self.client.force_login(user)
+        create_url = f"{reverse('gallery:artist_new')}?next={self.submit_url}"
+
+        response = self.client.post(create_url, {
+            'name': 'Comes Back', 'first_name': 'Comes', 'last_name': 'Back',
+            'email': 'back@example.com', 'zipcode': '94710', 'country': 'US',
+            'next': self.submit_url, 'image': _test_jpg('back.jpg')})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], self.submit_url)
+        self.assertEqual(self.client.get(self.submit_url).status_code, 200)
+
+    def test_the_profile_form_says_where_you_are_and_carries_the_destination(self):
+        """Same tracker and same promise as the edit form — a first-timer needs it more,
+        not less."""
+        user = User.objects.create_user(
+            username='where@example.com', email='where@example.com', password='pw')
+        self.client.force_login(user)
+        body = self.client.get(
+            f"{reverse('gallery:artist_new')}?next={self.submit_url}").content.decode()
+        self.assertIn('straight back to submitting', body)
+        self.assertIn('name="next"', body)
+
+    def test_an_offsite_next_is_refused(self):
+        """`next` is attacker-supplied; an unchecked one is an open redirect."""
+        user = User.objects.create_user(
+            username='evil@example.com', email='evil@example.com', password='pw')
+        self.client.force_login(user)
+        response = self.client.post(
+            f"{reverse('gallery:artist_new')}?next=https://evil.example.com/", {
+                'name': 'E V', 'first_name': 'E', 'last_name': 'V',
+                'email': 'evil@example.com', 'zipcode': '94710', 'country': 'US',
+                'next': 'https://evil.example.com/', 'image': _test_jpg('e.jpg')})
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn('evil.example.com', response.headers['Location'])
+
     def test_the_submit_url_and_the_button_agree_on_the_next_step(self):
         """Both read from submit_cta, so the URL cannot send somebody somewhere the
         button would not have."""
