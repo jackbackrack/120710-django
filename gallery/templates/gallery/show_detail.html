@@ -65,6 +65,12 @@
     {% endcomment %}
     {% if submit_cta %}
     <div class="submit-cta mt-3">
+      {% comment %}
+        The same three-step tracker the profile and artwork pages show, started here — so
+        somebody deciding whether to bother can see the path is finite before they commit
+        to it, and recognises the tracker again on every page after.
+      {% endcomment %}
+      {% include 'gallery/_submission_progress.html' with progress_step=submit_cta.step %}
       <a class="card__link new-button" href="{{ submit_cta.url }}">{{ submit_cta.label }}</a>
       {% if submit_cta.hint %}<p class="text-muted small mt-1 mb-0">{{ submit_cta.hint }}</p>{% endif %}
       <p class="text-muted small mt-1 mb-0"><a href="{% url 'howto_guide' 'submit-artwork' %}">How submitting works</a></p>

@@ -451,18 +451,18 @@ def artwork_submit(request, slug):
 
     artist = request.user.artists.order_by('-created_at').first()
     if not artist:
-        # The next step, from the same function the show page and every card use, so this
-        # URL and the button that points at it cannot disagree about what comes next.
+        # Not `submit_cta(...)['url']` — that is the *button*, which points back here, so
+        # using it would redirect this view to itself forever. profile_next_step is the
+        # remedy, and shares SUBMIT_REQUIRED with the button so the two agree on "ready".
         #
         # This used to be a bare `redirect(show)`: no message, no destination. It stranded
         # everyone arriving here without a profile — which is the whole of the new-artist
         # path, since signing up returns you to exactly this URL — on a show page whose
         # own call to action sits far below the fold.
-        from gallery.submission_cta import submit_cta
-        cta = submit_cta(request, show)
+        from gallery.submission_cta import profile_next_step
         messages.info(request, 'First a quick artist profile, so we can credit your work — '
                                'then you will come straight back here to submit.')
-        return redirect(cta['url'] if cta else show)
+        return redirect(profile_next_step(None, request.path) or show)
 
     # Checked on GET, before the submission form is ever rendered, so nobody loses
     # a filled-in form to this. The show page CTA normally prevents anyone reaching

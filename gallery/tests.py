@@ -702,6 +702,21 @@ class SubmissionOnboardingTests(TestCase):
         m = re.search(r'new-button" href="([^"]*)">([^<]*)</a>', body)
         return (m.group(2).strip(), m.group(1).replace('&amp;', '&')) if m else (None, None)
 
+    def _state(self):
+        """(label, hint, current tracker step) from the show page.
+
+        The label is "Submit" in every state on purpose; what tells somebody where they
+        are is the hint and the tracker, so that is what these assert on."""
+        import re
+        body = self.client.get(self.show_url).content.decode()
+        block = body[body.find('submit-cta'):][:2000]
+        label = re.search(r'new-button" href="[^"]*">([^<]*)</a>', block)
+        hint = re.search(r'text-muted small mt-1 mb-0">([^<]+)<', block)
+        step = re.search(r'class="now"[^>]*>\s*<span[^>]*>(\d)</span>', block)
+        return (label.group(1).strip() if label else None,
+                hint.group(1).strip() if hint else '',
+                int(step.group(1)) if step else None)
+
     def test_anonymous_visitor_is_offered_a_way_in(self):
         """Previously the show page showed nothing at all to a signed-out visitor —
         the one place every open-call announcement lands. The label names neither
@@ -723,50 +738,63 @@ class SubmissionOnboardingTests(TestCase):
         self.assertNotIn('Sign up to submit', body)
         self.assertIn('sign in or create an account', body)
 
-    def test_signed_in_visitor_is_led_through_every_remaining_step(self):
+    def test_the_button_says_submit_in_every_state(self):
+        """Everyone who clicks it wants the same thing, so it offers the same thing.
+
+        The intermediate steps used to be on the button — "Set up your artist profile",
+        "Finish your profile (2 to go)". That read as a detour, and it meant somebody with
+        an account but no profile, who is *further along* than a stranger, was the only
+        reader never offered the thing they came for. The steps are the flow's problem;
+        `artwork_submit` routes each state to the right one."""
         user = User.objects.create_user(
             username='led@example.com', email='led@example.com', password='pw')
         self.client.force_login(user)
-
-        # No profile at all
-        self.assertIn('Set up your artist profile', self._cta()[0])
+        self.assertEqual(self._state()[0], 'Submit')                  # no profile
 
         artist = Artist.objects.create(user=user, first_name='Led', last_name='Through',
                                        email='led@example.com')
-        self.assertIn('Finish your profile', self._cta()[0])
+        self.assertEqual(self._state()[0], 'Submit')                  # incomplete
 
         artist.zipcode = '94710'
         artist.save()
-        self.assertIn('Finish your profile', self._cta()[0])   # photo outstanding
+        self.assertEqual(self._state()[0], 'Submit')                  # photo outstanding
 
         artist.image = _test_jpg('led.jpg')
         artist.save()
-        self.assertEqual(self._cta()[0], 'Submit Artwork')
+        self.assertEqual(self._state()[0], 'Submit')                  # ready
 
         art = Artwork.objects.create(name='Piece', end_year=2025)
         art.artists.add(artist)
         ArtworkSubmission.objects.create(show=self.show, artwork=art, submitted_by=user)
-        self.assertEqual(self._cta()[0], 'Submit another work')
+        # The one exception, and it is not a barrier — it reports rather than redirects.
+        self.assertEqual(self._state()[0], 'Submit another work')
 
-    def test_cta_tracks_profile_completeness_then_offers_submit(self):
+    def test_the_hint_and_the_tracker_say_where_you_are(self):
+        """With one label everywhere, these carry the state — this is the hand-holding."""
         user = User.objects.create_user(
             username='cta@example.com', email='cta@example.com', password='pw')
-        artist = Artist.objects.create(user=user, first_name='Cee', last_name='Tee',
-                                       email='cta@example.com')
         self.client.force_login(user)
-        label, url = self._cta()
-        self.assertIn('Finish your profile', label)
-        self.assertIn('next=', url)
 
-        artist.zipcode = '94710'
-        artist.save()
-        label, _url = self._cta()
-        self.assertIn('Finish your profile', label)   # photo still outstanding
+        _label, hint, step = self._state()
+        self.assertEqual(step, 2)
+        self.assertIn('artist profile', hint)
+
+        artist = Artist.objects.create(user=user, first_name='Cee', last_name='Tee',
+                                       email='cta@example.com', zipcode='94710')
+        _label, hint, step = self._state()
+        self.assertEqual(step, 2)
+        self.assertIn('photo', hint)
 
         artist.image = _test_jpg('cta.jpg')
         artist.save()
-        label, _url = self._cta()
-        self.assertEqual(label, 'Submit Artwork')
+        _label, hint, step = self._state()
+        self.assertEqual(step, 3)
+        self.assertIn('send it in', hint)
+
+    def test_the_tracker_starts_on_the_show_page_for_a_stranger(self):
+        _label, hint, step = self._state()
+        self.assertEqual(step, 1)
+        self.assertIn('sign in or create an account', hint)
 
     def test_submitting_requires_a_photo_but_says_so_before_you_start(self):
         user = User.objects.create_user(
@@ -775,8 +803,7 @@ class SubmissionOnboardingTests(TestCase):
                                        email='nop@example.com', zipcode='94710')
         self.client.force_login(user)
         # The show page names the requirement, so nobody meets it as a surprise...
-        label, _url = self._cta()
-        self.assertIn('Finish your profile', label)
+        self.assertIn('photo', self._state()[1])
         # ...and the submit page itself still refuses, on GET, before any form is
         # filled in, carrying a way back.
         r = self.client.get(self.submit_url)
@@ -853,15 +880,36 @@ class SubmissionOnboardingTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertNotIn('evil.example.com', response.headers['Location'])
 
-    def test_the_submit_url_and_the_button_agree_on_the_next_step(self):
-        """Both read from submit_cta, so the URL cannot send somebody somewhere the
-        button would not have."""
+    def test_the_button_always_points_at_the_submit_url(self):
+        """One destination for every state; the view decides what happens next."""
         user = User.objects.create_user(
             username='agree@example.com', email='agree@example.com', password='pw')
         self.client.force_login(user)
-        _label, button_url = self._cta()
-        redirected = self.client.get(self.submit_url).headers['Location']
-        self.assertEqual(redirected, button_url)
+        self.assertEqual(self._cta()[1], self.submit_url)
+        artist = Artist.objects.create(user=user, first_name='A', last_name='B',
+                                       email='agree@example.com', zipcode='94710')
+        self.assertEqual(self._cta()[1], self.submit_url)
+        artist.image = _test_jpg('a.jpg')
+        artist.save()
+        self.assertEqual(self._cta()[1], self.submit_url)
+
+    def test_the_submit_url_never_redirects_to_itself(self):
+        """The button points at this view, so the view must not answer "not ready" by
+        sending people back to the button — that is an infinite redirect. It briefly did,
+        the moment the button's URL became the same for every state."""
+        user = User.objects.create_user(
+            username='loop@example.com', email='loop@example.com', password='pw')
+        self.client.force_login(user)
+        for state in ('no profile', 'incomplete profile'):
+            with self.subTest(state=state):
+                response = self.client.get(self.submit_url)
+                self.assertEqual(response.status_code, 302)
+                self.assertNotEqual(response.headers['Location'], self.submit_url)
+                # And the place it sends them actually renders.
+                self.assertEqual(
+                    self.client.get(response.headers['Location']).status_code, 200)
+            Artist.objects.create(user=user, first_name='L', last_name='P',
+                                  email='loop@example.com')
 
     def test_an_uninvited_artist_is_told_so_rather_than_sent_to_build_a_profile(self):
         """Checked before the profile checks: sending somebody off to fill in a profile
@@ -881,9 +929,9 @@ class SubmissionOnboardingTests(TestCase):
         self.assertNotIn(reverse('gallery:artist_new'),
                          [r[0] for r in response.redirect_chain][0])
 
-    def test_a_card_never_points_at_a_page_the_reader_cannot_use(self):
-        """Cards used to use a `short_url` that was always the submit page, even at the
-        step whose whole point is that the reader has no profile yet. One url now."""
+    def test_a_card_offers_the_same_one_destination(self):
+        """Cards had a `short_url` that could differ from the button's `url`. There is one
+        url now, and it is the submit page from every surface and every state."""
         user = User.objects.create_user(
             username='card@example.com', email='card@example.com', password='pw')
         self.client.force_login(user)
@@ -893,8 +941,7 @@ class SubmissionOnboardingTests(TestCase):
         self.assertTrue(hrefs, 'no submit button rendered on the show list')
         for href in hrefs:
             with self.subTest(href=href):
-                self.assertNotIn(self.submit_url, href)
-                self.assertIn(reverse('gallery:artist_new'), href)
+                self.assertEqual(href, self.submit_url)
 
     def test_the_call_to_action_comes_before_the_artworks(self):
         """It sat after the Artworks heading, past the rubric, the events and the status
@@ -1038,8 +1085,10 @@ class InvitationSubmissionFlowTests(TestCase):
         self.assertIsNotNone(inv.artist)
 
         label, url = self._cta(self.client)
-        self.assertIn('Finish your profile', label)
-        self.assertIn('next=', url)
+        # One label in every state; the invitee is offered the thing they came for.
+        self.assertEqual(label, 'Submit')
+        self.assertEqual(url, reverse('gallery:artwork_submit',
+                                      kwargs={'slug': self.show.slug}))
 
     def test_existing_artist_signing_in_keeps_the_invitation(self):
         user = User.objects.create_user(
@@ -1059,7 +1108,7 @@ class InvitationSubmissionFlowTests(TestCase):
                                      'password': 'pw123456!x'}, follow=True)
         inv.refresh_from_db()
         self.assertIsNotNone(inv.claimed_by)
-        self.assertEqual(self._cta(self.client)[0], 'Submit Artwork')
+        self.assertEqual(self._cta(self.client)[0], 'Submit')
 
     def test_signed_in_invitee_completes_the_profile_and_submits(self):
         user = User.objects.create_user(
@@ -1070,7 +1119,7 @@ class InvitationSubmissionFlowTests(TestCase):
         self.client.force_login(user)
         self.client.get(inv.get_accept_url(), follow=True)
 
-        self.assertIn('Finish your profile', self._cta(self.client)[0])
+        self.assertEqual(self._cta(self.client)[0], 'Submit')
         r = self.client.post(
             reverse('gallery:artist_edit', kwargs={'pk': artist.pk}),
             {'first_name': 'In', 'last_name': 'Vitee', 'email': 'in@example.com',
@@ -5893,13 +5942,17 @@ class HomePageSubmitEntryTests(TestCase):
         artist = Artist.objects.create(user=user, first_name='Home', last_name='Body',
                                        email='home@example.com')
         self.client.force_login(user)
-        self.assertIn('Finish your profile', self.client.get('/').content.decode())
+        # The label no longer changes; what is still true is that the home page offers
+        # the action and says what is outstanding.
+        home = self.client.get('/').content.decode()
+        self.assertIn('Submit', home)
+        self.assertIn('photo', home)
 
         artist.zipcode = '94710'
         artist.image = _test_jpg('home.jpg')
         artist.save()
         body = self.client.get('/').content.decode()
-        self.assertIn('Submit Artwork', body)
+        self.assertIn('Submit', body)
         self.assertIn(self.submit_url, body)
 
     def test_show_list_offers_the_same_action(self):
@@ -5954,19 +6007,17 @@ class ArtistPageSubmitEntryTests(TestCase):
     def test_submit_is_offered_even_with_an_incomplete_profile(self):
         """It used to be hidden, leaving shows listed that could not be acted on.
 
-        The button now points at the step that is actually next — finishing the profile —
-        rather than at the submit page, which cannot serve somebody with no photo. The
-        submit URL is still in it, as the `next=` it comes back to."""
+        The button says Submit and goes to the submit page whatever is still outstanding —
+        the view sends them to finish the profile and brings them back. Asserted as
+        "listed, and actionable", which is the part that has to stay true however the
+        intermediate routing is arranged."""
         import re
-        from urllib.parse import unquote
+        submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
         body = self.client.get(self.artist.get_absolute_url(), follow=True).content.decode()
         self.assertIn('Shows Accepting Submissions', body)
         href = re.search(r'<a class="card__link new-button" href="([^"]+)"', body)
         self.assertIsNotNone(href, 'the show was listed with no way to act on it')
-        target = unquote(href.group(1).replace('&amp;', '&'))
-        self.assertIn(reverse('gallery:artist_edit', kwargs={'pk': self.artist.pk}), target)
-        self.assertIn(reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug}),
-                      target)
+        self.assertEqual(href.group(1).replace('&amp;', '&'), submit_url)
 
     def test_following_it_asks_for_the_photo_and_comes_back(self):
         submit_url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
