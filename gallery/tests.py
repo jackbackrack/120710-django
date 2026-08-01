@@ -1110,6 +1110,42 @@ class InvitationSubmissionFlowTests(TestCase):
         self.assertIsNotNone(inv.claimed_by)
         self.assertEqual(self._cta(self.client)[0], 'Submit')
 
+    def test_accepting_lands_you_in_the_flow_not_on_the_show_page(self):
+        """Accepting used to leave them on the show page with a button to find. Safe to
+        send anyone straight to submitting now that the submit view routes every state —
+        somebody with no profile is sent to make one and told why."""
+        user = User.objects.create_user(
+            username='straight@example.com', email='straight@example.com', password='pw')
+        invitation = ShowInvitation.objects.create(show=self.show,
+                                                   email='straight@example.com')
+        self.client.force_login(user)
+        # One request, so the messages are exactly the ones this journey produced.
+        response = self.client.get(invitation.get_accept_url(), follow=True)
+        hops = [url for url, _status in response.redirect_chain]
+        self.assertEqual(hops[0], self.submit_url)
+        # No profile, so the flow picks them up from there rather than stopping.
+        self.assertIn(reverse('gallery:artist_new'), hops[1])
+
+        said = [str(m) for m in response.context['messages']]
+        self.assertIn('accepted', said[0])
+        self.assertIn('artist profile', said[1])
+
+    def test_accepting_for_a_show_that_is_closed_stays_on_the_show_page(self):
+        """Otherwise "accepted" would be followed straight away by "not currently
+        accepting submissions", and the show page is the more useful place to be."""
+        self.show.status = Show.STATUS_IN_REVIEW
+        self.show.save(update_fields=['status'])
+        user = User.objects.create_user(
+            username='late@example.com', email='late@example.com', password='pw')
+        invitation = ShowInvitation.objects.create(show=self.show, email='late@example.com')
+        self.client.force_login(user)
+        response = self.client.get(invitation.get_accept_url(), follow=True)
+        self.assertEqual([u for u, _s in response.redirect_chain],
+                         [self.show.get_absolute_url()])
+        said = ' '.join(str(m) for m in response.context['messages'])
+        self.assertIn('accepted', said)
+        self.assertNotIn('not currently accepting', said)
+
     def test_signed_in_invitee_completes_the_profile_and_submits(self):
         user = User.objects.create_user(
             username='in@example.com', email='in@example.com', password='pw')

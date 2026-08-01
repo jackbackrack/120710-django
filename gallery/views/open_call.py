@@ -232,7 +232,15 @@ def accept_invitation(request, slug, token):
     if artist and invitation.artist_id is None:
         invitation.artist = artist
     invitation.save()
-    messages.success(request, f'Invitation to "{show.name}" accepted — you can now submit your work.')
+    messages.success(request, f'Invitation to "{show.name}" accepted.')
+    # Straight into submitting rather than onto the show page with a button to find.
+    # Safe to send anyone here now: the submit view is the state machine, so somebody with
+    # no profile is routed to create one and brought back, and it adds its own message
+    # saying so. Only when the show can actually be submitted to — otherwise this would
+    # follow "accepted" immediately with "not currently accepting submissions", and the
+    # show page is the more useful place to land.
+    if show.is_accepting_submissions:
+        return redirect('gallery:artwork_submit', slug=show.slug)
     return redirect(show)
 
 
