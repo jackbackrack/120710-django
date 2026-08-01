@@ -552,7 +552,8 @@ Where they are set:
 | --- | --- |
 | The subscribe form and the kiosk | optional checkboxes, never required |
 | The staff list | a checkbox per person, with per-segment counts and a filter |
-| An artist profile | automatic, for the artist segment only |
+| The artist profile form's subscribe box | records the artist segment as well as joining |
+| An artist profile matching a subscriber's address | automatic, for the artist segment only |
 
 The two differ on purpose. The **public form only ever adds**: it arrives with nothing ticked
 far more often than it means "forget what I told you last time", so re-subscribing must not
@@ -561,6 +562,14 @@ plainly means it.
 
 Asking is deliberately cheap. Three optional ticks that never block a signup — required here
 would trade real subscribers for a tidier database.
+
+Joining from the artist profile form **records** the artist segment rather than relying on the
+directory match, because that match is on the address: it stops holding the moment the
+profile's email changes or the profile is deleted, and somebody who joined the list from an
+artist profile is an artist either way. Unticking the box still unsubscribes them — that is a
+withdrawal of consent and is honoured — but it does not clear the segment, which is a fact
+about the person rather than a permission. `is_subscribed` is what gates sending, and
+`recipients()` applies it before any segment filter.
 
 `segment_q()` in `gallery/models/subscribers.py` is the single definition, used by both the
 campaign send and the staff filter so the count you see and the list that gets mailed cannot

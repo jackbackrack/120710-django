@@ -202,10 +202,16 @@ class ArtistForm(UserAwareModelForm):
             wants = self.cleaned_data.get('subscribe_to_mailing_list')
             site = Subscriber.default_site()
             if wants:
+                # Recorded, not left to the artist-directory match alone. That match is on
+                # the address, so it stops holding the moment the profile's email changes
+                # or the profile goes away — and somebody who joined the list from an
+                # artist profile is an artist whatever happens to the row afterwards.
+                # opt_in only ever adds, so this cannot clear anything they chose earlier.
                 Subscriber.opt_in(
                     email=artist.email, sites=[site],
                     first_name=artist.first_name, last_name=artist.last_name,
-                    source=Subscription.SOURCE_ARTIST_PROFILE)
+                    source=Subscription.SOURCE_ARTIST_PROFILE,
+                    interests=[Subscriber.ARTIST])
             else:
                 existing = Subscription.objects.filter(
                     subscriber__email=artist.email.lower(), site=site,

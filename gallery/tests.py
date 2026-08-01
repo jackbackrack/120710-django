@@ -2705,6 +2705,84 @@ class SubscriberSegmentTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._segments('ada@example.com'), ['collector', 'funder'])
 
+    def _artist_form(self, artist, user, wants=True, **overrides):
+        from gallery.forms import ArtistForm
+        data = {'name': artist.name, 'first_name': artist.first_name,
+                'last_name': artist.last_name, 'email': artist.email,
+                'zipcode': '94710', 'country': 'US',
+                'subscribe_to_mailing_list': wants}
+        data.update(overrides)
+        return ArtistForm(instance=artist, user=user, data=data,
+                          files={'image': _test_jpg('me.jpg')})
+
+    def test_joining_the_list_from_an_artist_profile_records_them_as_an_artist(self):
+        from gallery.models import Artist, Subscriber
+        user = User.objects.create_user(username='rae@example.com',
+                                        email='rae@example.com', password='pw')
+        artist = Artist.objects.create(user=user, name='Rae Iyer', first_name='Rae',
+                                       last_name='Iyer', email='rae@example.com',
+                                       zipcode='94710')
+        form = self._artist_form(artist, user)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        subscriber = Subscriber.objects.get(email='rae@example.com')
+        self.assertTrue(subscriber.is_artist)
+        self.assertEqual(subscriber.segments, ['artist'])
+
+    def test_the_recorded_flag_outlives_a_change_of_profile_email(self):
+        """Why it is recorded and not left to the directory match: that match is on the
+        address, so it stops holding the moment the profile's email changes."""
+        from gallery.models import Artist, Subscriber
+        user = User.objects.create_user(username='moved@example.com',
+                                        email='moved@example.com', password='pw')
+        artist = Artist.objects.create(user=user, name='Moved On', first_name='Moved',
+                                       last_name='On', email='moved@example.com',
+                                       zipcode='94710')
+        self._artist_form(artist, user).save()
+
+        artist.refresh_from_db()
+        artist.email = 'elsewhere@example.com'
+        artist.save()
+
+        subscriber = Subscriber.objects.get(email='moved@example.com')
+        self.assertFalse(subscriber.in_artist_directory)   # derivation no longer matches
+        self.assertEqual(subscriber.segments, ['artist'])  # the record still does
+
+    def test_an_existing_collector_who_adds_a_profile_stays_a_collector(self):
+        from gallery.models import Artist, Subscriber
+        self.join('both@example.com', interests=['collector'])
+        user = User.objects.create_user(username='both@example.com',
+                                        email='both@example.com', password='pw')
+        artist = Artist.objects.create(user=user, name='Both Ways', first_name='Both',
+                                       last_name='Ways', email='both@example.com',
+                                       zipcode='94710')
+        self._artist_form(artist, user).save()
+        self.assertEqual(Subscriber.objects.get(email='both@example.com').segments,
+                         ['artist', 'collector'])
+
+    def test_leaving_the_list_from_the_profile_still_works(self):
+        """Unticking is a withdrawal of consent and must be honoured. The segment is a
+        fact about the person rather than a permission, so it stays — is_subscribed is
+        what gates sending, and recipients() applies that first."""
+        from gallery import campaigns as engine
+        from gallery.models import Artist, Campaign, Subscriber
+        user = User.objects.create_user(username='off@example.com',
+                                        email='off@example.com', password='pw')
+        artist = Artist.objects.create(user=user, name='Opts Out', first_name='Opts',
+                                       last_name='Out', email='off@example.com',
+                                       zipcode='94710')
+        self._artist_form(artist, user).save()
+        artist.refresh_from_db()
+        self._artist_form(artist, user, wants=False).save()
+
+        subscriber = Subscriber.objects.get(email='off@example.com')
+        self.assertFalse(any(s.is_subscribed for s in subscriber.subscriptions.all()))
+        campaign = Campaign.objects.create(site=self.site, subject='x',
+                                           segment='artist', body_markdown='hi')
+        self.assertNotIn('off@example.com',
+                         [s.subscriber.email for s in engine.recipients(campaign)])
+
     def test_signing_up_without_ticking_anything_still_works(self):
         response = self.client.post(reverse('subscribe'), {
             'first_name': 'Bo', 'last_name': 'Reyes', 'email': 'bo@example.com',
