@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 
+from django.apps import apps
 from django.core import signing
 
 from django.conf import settings
@@ -212,6 +213,11 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         artist = self.request.user.artists.order_by('-created_at').first()
         if artist:
             self.object.artists.add(artist)
+        posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+        if posthog_client:
+            posthog_client.capture('artwork_created', properties={
+                'has_artist_profile': bool(artist),
+            })
         return response
 
     def test_func(self):
@@ -318,6 +324,9 @@ def artwork_inquire(request, pk):
                 f'Inquiry about "{artwork.name}"', body, html,
                 recipient_emails, [f'{sender_name} <{sender_email}>'],
             )
+            posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+            if posthog_client:
+                posthog_client.capture('artwork_inquiry_sent')
             messages.success(request, 'Your inquiry has been sent to the artist.')
             return redirect(artwork.get_absolute_url())
     else:

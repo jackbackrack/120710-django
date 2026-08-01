@@ -6,6 +6,7 @@ the honeypot and reCAPTCHA the other public forms use.
 """
 import logging
 
+from django.apps import apps
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -69,6 +70,13 @@ def event_rsvp(request, pk):
             'reminded_at': None,
         })
     engine.confirm(rsvp, request=request)
+    posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+    if posthog_client:
+        posthog_client.capture('event_rsvp_submitted', properties={
+            'response': rsvp.response,
+            'party_size': rsvp.party_size,
+            'is_new_response': created,
+        })
     logger.info('RSVP %s for event %s: %s (%s)', rsvp.pk, event.pk, rsvp.response,
                 'new' if created else 'changed')
 

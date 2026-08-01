@@ -1,5 +1,6 @@
 import logging
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -232,6 +233,9 @@ def accept_invitation(request, slug, token):
     if artist and invitation.artist_id is None:
         invitation.artist = artist
     invitation.save()
+    posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+    if posthog_client:
+        posthog_client.capture('show_invitation_accepted')
     messages.success(request, f'Invitation to "{show.name}" accepted — you can now submit your work.')
     return redirect(show)
 
@@ -537,6 +541,11 @@ def artwork_submit(request, slug):
                 except IntegrityError:
                     messages.error(request, 'That artwork has already been submitted to this show.')
                     return redirect(show)
+                posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+                if posthog_client:
+                    posthog_client.capture('artwork_submitted', properties={
+                        'submission_type': show.submission_type,
+                    })
                 messages.success(request, f'"{submission.artwork.name}" has been submitted to {show.name}.')
                 _send_submission_confirmation(submission, request)
                 return redirect(show)
@@ -736,6 +745,11 @@ def update_submission_status(request, pk):
         if new_decision in {ArtworkSubmission.UNDECIDED, ArtworkSubmission.CURATOR_SELECTED, ArtworkSubmission.CURATOR_REJECTED, ArtworkSubmission.WITHDRAWN}:
             submission.curator_decision = new_decision
             submission.save(update_fields=['curator_decision'])
+            posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+            if posthog_client:
+                posthog_client.capture('submission_decision_updated', properties={
+                    'decision': new_decision,
+                })
             _sync_show_artworks(submission.show, submission.artwork, new_decision)
     return redirect('gallery:show_submissions', slug=submission.show.slug)
 

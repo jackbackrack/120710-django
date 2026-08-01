@@ -7,6 +7,7 @@ Making every genuine visitor click a second link to prevent it would cost more t
 """
 import logging
 
+from django.apps import apps
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -57,6 +58,12 @@ def book_visit(request, site_slug=None):
                 party_size=party, note=form.cleaned_data['note'])
             engine.confirm_to_visitor(visit, request=request)
             engine.notify_gallery(visit, request=request)
+            posthog_client = getattr(apps.get_app_config('gallery'), 'posthog_client', None)
+            if posthog_client:
+                posthog_client.capture('visit_booked', properties={
+                    'party_size': party,
+                    'slot_minutes': visit.minutes,
+                })
             logger.info('Visit %s booked at %s for %s', visit.pk, site.slug, visit.when)
             with dj_timezone.override(tz):
                 return render(request, 'visits/booked.html', {

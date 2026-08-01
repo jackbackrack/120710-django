@@ -31,6 +31,7 @@ nh3==0.3.6
 oauthlib==3.3.1
 odfpy==1.4.1
 openpyxl==3.1.5
+posthog==7.29.0
 packaging==23.1
 pillow==11.2.1
 psycopg-binary==3.2.3
