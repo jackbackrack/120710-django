@@ -54,14 +54,26 @@
     </div>
     {% endif %}
     {% comment %}
-      One call to action that always names the real next step, whoever is looking — signed
-      out, half-way through a profile, or ready to submit. This page is where every open-call
-      announcement and invitation lands, so it must never be a dead end.
+      The rubric is worth reading for the whole life of the show — how the work was
+      judged still explains a published or closed show, not just an open call. So it
+      is shown whenever criteria exist, independent of status. ShowRubricView has no
+      status gate of its own, so the link is always valid.
 
-      Directly under the deadline, and above everything else. It used to sit past the rubric,
-      the events, the status controls and the Artworks heading — around 11,000 characters down
-      a page whose description alone can fill a screen. An announcement's whole job is to get
-      somebody to this button, so it cannot be something they have to go looking for.
+      Above the submit button, because how the work will be judged is what an artist
+      wants before deciding whether to submit, not after.
+    {% endcomment %}
+    {% if rubric_criteria_count %}
+    <p class="mt-3"><a class="card__link" href="{% url 'gallery:show_rubric' show.pk %}">Judging rubric</a></p>
+    {% endif %}
+    {% comment %}
+      One call to action, whoever is looking — signed out, half-way through a profile, or
+      ready to submit. This page is where every open-call announcement and invitation lands,
+      so it must never be a dead end.
+
+      Near the top, under the deadline and the rubric. It used to sit past the events, the
+      status controls and the Artworks heading — around 11,000 characters down a page whose
+      description alone can fill a screen. An announcement's whole job is to get somebody to
+      this button, so it cannot be something they have to go looking for.
     {% endcomment %}
     {% if submit_cta %}
     <div class="submit-cta mt-3">
@@ -77,15 +89,6 @@
     </div>
     {% elif show.is_accepting_submissions %}
     <p class="text-muted small mt-3"><a href="{% url 'howto_guide' 'submit-artwork' %}">Help submitting</a></p>
-    {% endif %}
-    {% comment %}
-      The rubric is worth reading for the whole life of the show — how the work was
-      judged still explains a published or closed show, not just an open call. So it
-      is shown whenever criteria exist, independent of status. ShowRubricView has no
-      status gate of its own, so the link is always valid.
-    {% endcomment %}
-    {% if rubric_criteria_count %}
-    <p class="mt-3"><a class="card__link" href="{% url 'gallery:show_rubric' show.pk %}">Judging rubric</a></p>
     {% endif %}
     {% if can_manage_show %}<div class="mt-3">{% include 'gallery/_show_status_control.html' %}</div>{% endif %}
     {% comment %}
