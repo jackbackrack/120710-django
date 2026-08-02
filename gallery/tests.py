@@ -7785,6 +7785,24 @@ class AddArtworkOnBehalfTests(MediaImageMixin, TestCase):
                b'\x00\x00\x02\x02D\x01\x00;')
         return SimpleUploadedFile('test.gif', gif, content_type='image/gif')
 
+    def test_the_form_renders_without_asking_crispy_for_a_missing_field(self):
+        """The page looked right and logged a traceback on every render.
+
+        The view popped `artists` off the form after __init__ had already built the
+        crispy layout naming it, so crispy failed to resolve the field, logged the
+        failure and silently dropped it. Output correct, logs full of KeyErrors, and one
+        crispy version away from a 500 — so this asserts on the log, which is the only
+        place the fault was visible."""
+        import logging
+        self.client.force_login(self.staff)
+        with self.assertLogs(level='WARNING') as captured:
+            logging.getLogger().warning('sentinel')   # assertLogs needs at least one
+            response = self.client.get(self.url, {'artist': self.managed.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('artists', response.context['new_form'].fields)
+        self.assertFalse([line for line in captured.output if 'artists' in line],
+                         'crispy could not resolve a field the layout still names')
+
     def test_add_existing_artwork_on_behalf(self):
         self.client.force_login(self.staff)
         r = self.client.post(self.url, {

@@ -352,7 +352,16 @@ class ArtworkForm(UserAwareModelForm):
             'image': NoClearFileInput(),   # required image → no confusing "Clear" checkbox
         }
 
-    def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, without_artists=False, **kwargs):
+        """`without_artists` is for a caller that has already decided the attribution.
+
+        It has to be told here rather than popped afterwards: the crispy layout below
+        names the field only when it is present, and that is read once, at the end of
+        this method. A caller popping it later leaves the layout still asking for a field
+        the form no longer has, which crispy answers by logging a traceback per render
+        and quietly dropping it — right output, alarming logs, and one library version
+        away from a 500.
+        """
         super().__init__(*args, user=user, **kwargs)
         user_has_artist = (
             self.user and
@@ -360,8 +369,8 @@ class ArtworkForm(UserAwareModelForm):
             hasattr(self.user, 'artists') and
             self.user.artists.exists()
         )
-        if not is_staff_user(self.user) or user_has_artist:
-            self.fields.pop('artists')
+        if without_artists or not is_staff_user(self.user) or user_has_artist:
+            self.fields.pop('artists', None)
         else:
             self.fields['artists'].help_text = (
                 'Click to select an artist. Hold Ctrl (Windows) or ⌘ Cmd (Mac) and '

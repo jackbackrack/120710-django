@@ -862,9 +862,10 @@ def add_artwork_on_behalf(request, slug):
     artist = Artist.objects.filter(pk=artist_id).first() if artist_id else None
 
     def _new_form(*args):
-        f = ArtworkForm(*args, user=request.user)
-        f.fields.pop('artists', None)   # attribution is fixed to the chosen artist
-        return f
+        # Attribution is fixed to the chosen artist. Told to the form rather than popped
+        # off it afterwards, which left the crispy layout asking for a field that was no
+        # longer there — see ArtworkForm.__init__.
+        return ArtworkForm(*args, user=request.user, without_artists=True)
 
     new_form = _new_form()
 
