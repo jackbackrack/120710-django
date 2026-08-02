@@ -71,7 +71,16 @@ So a spec change is a two-part deploy:
 
     ./env/bin/python manage.py generateimages
 
-Run it immediately after deploying — ideally as part of the same release step. It walks
+To size the job first:
+
+    ./env/bin/python manage.py shell < scripts/estimate_image_regen.py
+
+It counts what actually has to be generated — a spec costs nothing where its source field
+is empty, so most artworks owe nothing to the two `layout_*` specs — then times a real
+sample against the same storage and extrapolates. On S3 the fetch dominates, so measuring
+on the box beats any arithmetic from a laptop.
+
+Run generateimages immediately after deploying — ideally as part of the same release step. It walks
 every registered spec and writes the missing files. Expect it to take a while against S3
 and to cost one PUT per derivative; there are 22 specs.
 
