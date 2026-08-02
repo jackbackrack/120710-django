@@ -488,6 +488,23 @@ subscription because our own mail server was briefly unhappy is the worse outcom
 The artist profile form has a subscribe checkbox and deliberately sends no welcome email: that
 person is signed in, and their address was already proved deliverable by the account verification.
 
+### Leaving the list
+
+Two callers, one URL, and since RFC 8058 requires that, two different replies:
+
+- A mail client's one-click POST carries `List-Unsubscribe=One-Click` in the body. It gets
+  a bare `text/plain` 200 — nobody reads it, and returning the page would send 15 KB to
+  Gmail on every unsubscribe.
+- Anyone else posting is a person who pressed the button on our own page. They get a page:
+  the confirmation first and unambiguously, then a line that we are sorry to see them go,
+  then a plain link back to `/subscribe/` for whenever.
+
+That page used to be the string `Unsubscribed`, in `text/plain`, with no site around it.
+
+The way back is a link, not a plea. Somebody who has just left should not have to argue
+with a page about it — and an unsubscribe that feels grudging is how a future mailing gets
+reported as spam instead of ignored.
+
 ## The network-wide (reset.art) list is not sendable yet
 
 `CAMPAIGN_NETWORK_LIST_ENABLED` is **off**. A campaign with no venue targets the network-wide

@@ -1,14 +1,42 @@
 {% extends 'base.html' %}
 
-{% block title %}Unsubscribe{% endblock %}
-{% block block_title %}Unsubscribe{% endblock %}
+{% block title %}{% if done %}Unsubscribed{% else %}Unsubscribe{% endif %}{% endblock %}
+{% block block_title %}{% if done %}Unsubscribed{% else %}Unsubscribe{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container text-center" style="max-width:520px">
-{% if invalid %}
+{% if done %}
+  {% comment %}
+    Reached by pressing the button on this page. A mail client's one-click POST never gets
+    here — it takes the plain 200 in the view — so this can be written for a person.
+
+    The confirmation comes first and unambiguously: whatever else the page says, they need
+    to know it worked and nothing more will arrive. The warmth comes after that, and the
+    way back is a plain link rather than a plea. Somebody who has just left should not have
+    to argue with a page about it.
+  {% endcomment %}
+  <p class="mb-4">
+    <strong>{{ subscriber.email }}</strong> is unsubscribed from
+    {% if everything %}all of our mailing lists{% else %}<strong>{{ subscription.list_name }}</strong>{% endif %}.
+    Nothing further will be sent.
+  </p>
+  <p>Sorry to see you go — thank you for the time you gave us.</p>
+  <p class="text-muted">
+    The door stays open. If you would like to hear from us again, whenever that is, you can
+    <a class="card__link" href="{% url 'subscribe' %}">rejoin the list</a> — and you are
+    always welcome at the gallery whether you are on it or not.
+  </p>
+  <p class="mt-4"><a class="card__link" href="{% url 'book_visit' %}">Book a time to visit</a></p>
+{% elif invalid %}
   <p>That unsubscribe link isn’t valid. It may have been altered in transit.</p>
-  <p class="text-muted">Email <a class="card__link" href="mailto:info@120710.art">info@120710.art</a>
-     and we’ll take you off the list by hand.</p>
+  {% comment %}
+    No address to write to: the gallery deliberately stopped publishing one. The unsubscribe
+    link at the foot of any mailing we have sent works on its own, which is the fastest route
+    off the list, and the contact page covers everything else.
+  {% endcomment %}
+  <p class="text-muted">The link at the foot of any of our emails will work — or use the
+     <a class="card__link" href="{% url 'contact' %}">contact page</a> and we’ll take you
+     off the list by hand.</p>
 {% elif already %}
   <p><strong>{{ subscriber.email }}</strong> is already unsubscribed from
      {{ subscription.list_name }}.</p>

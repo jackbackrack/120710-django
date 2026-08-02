@@ -34,12 +34,29 @@ def unsubscribe(request, token):
         # should not silently unsubscribe someone from galleries they never complained
         # about. A bad token still answers 200: telling a mail client the unsubscribe
         # failed makes it warn the recipient, and there is nothing they could do about it.
+        everything = request.POST.get('scope') == 'all'
         if subscription:
-            if request.POST.get('scope') == 'all':
+            if everything:
                 subscription.subscriber.unsubscribe_all()
             else:
                 subscription.unsubscribe(reason=Subscription.UNSUB_REQUESTED)
-        return HttpResponse('Unsubscribed', content_type='text/plain')
+
+        # Two very different callers reach this line. RFC 8058 says a mail client's
+        # one-click POST carries exactly `List-Unsubscribe=One-Click` in the body; it
+        # wants a 200 and nothing else, and nobody reads what it returns. Anyone else
+        # posting here is a person who pressed the button on our own page, and they were
+        # being handed a bare text/plain "Unsubscribed" — no page, no acknowledgement,
+        # not even the site around it.
+        if request.POST.get('List-Unsubscribe') == 'One-Click':
+            return HttpResponse('Unsubscribed', content_type='text/plain')
+
+        return render(request, 'public/unsubscribe.html', {
+            'done': True,
+            'everything': everything,
+            'subscription': subscription,
+            'subscriber': subscription.subscriber if subscription else None,
+            'invalid': subscription is None,
+        })
 
     others = []
     if subscription:

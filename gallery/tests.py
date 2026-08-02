@@ -11315,15 +11315,55 @@ class UnsubscribeTests(TestCase):
         self.subs[0].refresh_from_db()
         self.assertTrue(self.subs[0].is_subscribed, 'a GET must not unsubscribe anyone')
 
+    # RFC 8058: a mail client's one-click POST carries exactly this in the body. The tests
+    # below that omit it are standing in for a person pressing the button on our own page,
+    # which is now a different response — see the view.
+    ONE_CLICK = {'List-Unsubscribe': 'One-Click'}
+
     def test_post_unsubscribes_one_click(self):
         """What Gmail's Unsubscribe button calls, driven by List-Unsubscribe-Post."""
-        response = self.client.post(self.url)
+        response = self.client.post(self.url, self.ONE_CLICK)
         self.assertEqual(response.status_code, 200)
         self.subs[0].refresh_from_db()
         self.assertFalse(self.subs[0].is_subscribed)
 
+    def test_the_one_click_reply_stays_a_bare_200(self):
+        """Nobody reads it and the client only wants a 2xx. This test exists because the
+        human-facing page was added to the same endpoint: returning it here would send a
+        15 KB document to Gmail on every unsubscribe."""
+        response = self.client.post(self.url, self.ONE_CLICK)
+        self.assertEqual(response['Content-Type'], 'text/plain')
+        self.assertLess(len(response.content), 50)
+
+    def test_a_person_pressing_the_button_gets_a_page_not_a_word(self):
+        """It used to answer text/plain "Unsubscribed" — no page, no acknowledgement, not
+        even the site around it."""
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/html', response['Content-Type'])
+        page = response.content.decode()
+        self.assertIn('is unsubscribed from', page)      # the confirmation, first
+        self.assertIn('Sorry to see you go', page)
+        self.assertIn(reverse('subscribe'), page)        # and a way back
+        self.assertIn('site-nav', page)                  # the usual page, not a bare one
+
+    def test_the_page_names_which_list_they_left(self):
+        one = self.client.post(self.url).content.decode()
+        self.assertIn(self.site.name, one)
+        self.assertNotIn('all of our mailing lists', one)
+
+        everything = self.client.post(self.url, {'scope': 'all'}).content.decode()
+        self.assertIn('all of our mailing lists', everything)
+
+    def test_a_broken_link_no_longer_publishes_an_email_address(self):
+        """The gallery deliberately stopped putting an address on public pages."""
+        bad = reverse('unsubscribe', kwargs={'token': 'not-a-real-token'})
+        page = self.client.get(bad).content.decode()
+        self.assertNotIn('mailto:', page)
+        self.assertIn(reverse('contact'), page)
+
     def test_one_click_leaves_the_other_lists_alone(self):
-        self.client.post(self.url)
+        self.client.post(self.url, self.ONE_CLICK)
         self.subs[1].refresh_from_db()
         self.assertTrue(self.subs[1].is_subscribed,
                         "a mail client's button must not unsubscribe lists it never named")
