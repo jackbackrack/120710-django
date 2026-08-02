@@ -5,7 +5,8 @@ from django.db import models
 from django_countries.fields import CountryField
 from django.urls import reverse
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFit, Transpose
+
+from gallery.imaging import web_processors
 
 from gallery import timeranges
 from gallery.models.slugs import build_unique_slug
@@ -114,15 +115,15 @@ class Site(models.Model):
         upload_to='site_visit', blank=True, null=True, verbose_name='Visit photo',
         help_text='A street view or storefront photo for the Visit page.')
     image = models.ImageField(upload_to='site_images', blank=True, null=True)
-    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
-    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
-    detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
+    card_sm = ImageSpecField(source='image', processors=web_processors(width=200), format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=web_processors(width=600), format='JPEG', options={'quality': 80})
+    detail_lg = ImageSpecField(source='image', processors=web_processors(width=1200), format='JPEG', options={'quality': 85})
     icon = models.ImageField(upload_to='site_icons', blank=True, null=True, help_text='Small logo or icon for the site (shown in nav and cards).')
-    icon_sm = ImageSpecField(source='icon', processors=[Transpose(), ResizeToFit(width=32, height=32)], format='PNG', options={'quality': 90})
+    icon_sm = ImageSpecField(source='icon', processors=web_processors(width=32, height=32), format='PNG', options={'quality': 90})
     # For email, where the logo is a masthead rather than a favicon. 300px so it stays sharp on
     # a retina screen at the ~150px it is displayed at. ImageSpecFields are derived files, not
     # columns, so adding one needs no migration.
-    icon_md = ImageSpecField(source='icon', processors=[Transpose(), ResizeToFit(width=300)], format='PNG', options={'quality': 90})
+    icon_md = ImageSpecField(source='icon', processors=web_processors(width=300), format='PNG', options={'quality': 90})
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
 
     # ── Booking a visit ──────────────────────────────────────────────────────

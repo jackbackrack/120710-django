@@ -6,7 +6,8 @@ from django.db import models
 from django.urls import reverse
 from django_countries.fields import CountryField
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFit, Transpose
+
+from gallery.imaging import web_processors
 
 from gallery.models.slugs import build_unique_slug
 
@@ -55,10 +56,10 @@ class Artist(models.Model):
         upload_to=artist_image_upload, blank=True, null=True,
         verbose_name='Profile photo',
     )
-    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
-    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
-    detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
-    slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
+    card_sm = ImageSpecField(source='image', processors=web_processors(width=200), format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=web_processors(width=600), format='JPEG', options={'quality': 80})
+    detail_lg = ImageSpecField(source='image', processors=web_processors(width=1200), format='JPEG', options={'quality': 85})
+    slideshow = ImageSpecField(source='image', processors=web_processors(width=1920), format='JPEG', options={'quality': 85})
     tags = models.ManyToManyField('gallery.Tag', related_name='artists', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

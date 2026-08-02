@@ -20,6 +20,7 @@ Manages artists, artworks, exhibitions (shows), events, and juror reviews/rating
 - **Schema.org JSON-LD** — Pydantic-validated structured data on every public detail page
 - **Event RSVPs** — yes/maybe/no on an event page, with a reminder the day before that is the reason for asking; see [docs/event-rsvps.md](docs/event-rsvps.md)
 - **Visit booking** — visitors pick a slot from the venue's structured opening hours and the gallery gets a calendar invitation by email; no Google integration to configure — see [docs/visit-booking.md](docs/visit-booking.md)
+- **Image colour** — derived images are converted to sRGB through the source's own ICC profile, so an Adobe RGB photograph of an artwork does not shift; changing any image spec needs `manage.py generateimages` in the same deploy — see [docs/image-colour.md](docs/image-colour.md)
 - **Diagnosing a 403** — which of three unrelated faults a "Forbidden" report actually was, from one log line; see [docs/diagnosing-403s.md](docs/diagnosing-403s.md)
 - **Mailing list** — subscribers, campaigns and unsubscribes in our own database; campaigns render from MJML and send via Resend, while transactional mail stays on smtp2go. Sends run in the background and a send that stops part-way can be resumed without mailing anyone twice — see [docs/mailing-list.md](docs/mailing-list.md)
 

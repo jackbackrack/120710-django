@@ -9,7 +9,8 @@ from django.urls import reverse
 def _gen_invite_token():
     return secrets.token_urlsafe(32)
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFit, Transpose
+
+from gallery.imaging import web_processors
 
 from gallery.models.people import Artist
 from gallery.models.slugs import build_unique_slug
@@ -65,10 +66,10 @@ class Show(models.Model):
     show_type = models.CharField(max_length=32, choices=SHOW_TYPE_CHOICES, default=SHOW_TYPE_GALLERY)
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='show_images', blank=True, null=True)
-    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
-    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
-    detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
-    slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
+    card_sm = ImageSpecField(source='image', processors=web_processors(width=200), format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=web_processors(width=600), format='JPEG', options={'quality': 80})
+    detail_lg = ImageSpecField(source='image', processors=web_processors(width=1200), format='JPEG', options={'quality': 85})
+    slideshow = ImageSpecField(source='image', processors=web_processors(width=1920), format='JPEG', options={'quality': 85})
     curators = models.ManyToManyField(Artist, blank=True, related_name='curated_shows')
     sites = models.ManyToManyField('gallery.Site', blank=True, related_name='shows')
     submission_scope = models.CharField(

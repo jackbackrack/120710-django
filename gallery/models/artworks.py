@@ -4,7 +4,8 @@ import re
 from django.db import models
 from django.urls import reverse
 from imagekit.models import ImageSpecField
-from imagekit.processors import ResizeToFit, Transpose
+
+from gallery.imaging import web_processors
 
 from gallery.models.exhibitions import Show
 from gallery.models.people import Artist, _sanitize_upload_filename
@@ -19,9 +20,9 @@ class ArtworkImage(models.Model):
     artwork = models.ForeignKey('Artwork', related_name='supplemental_images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to=artwork_image_upload)
     order = models.IntegerField(default=0)
-    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
-    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
-    slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
+    card_sm = ImageSpecField(source='image', processors=web_processors(width=200), format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=web_processors(width=600), format='JPEG', options={'quality': 80})
+    slideshow = ImageSpecField(source='image', processors=web_processors(width=1920), format='JPEG', options={'quality': 85})
 
     class Meta:
         ordering = ['order', 'pk']
@@ -68,12 +69,12 @@ class Artwork(models.Model):
         verbose_name='Layout / 3D image (optional)',
         help_text='A cropped image of just the artwork, used in the room layout and 3D view. '
                   'Best matched to the piece’s proportions. Defaults to the main image if left blank.')
-    card_sm = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=200)], format='JPEG', options={'quality': 80})
-    card_md = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=600)], format='JPEG', options={'quality': 80})
-    detail_lg = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1200)], format='JPEG', options={'quality': 85})
-    slideshow = ImageSpecField(source='image', processors=[Transpose(), ResizeToFit(width=1920)], format='JPEG', options={'quality': 85})
-    layout_lg = ImageSpecField(source='layout_image', processors=[Transpose(), ResizeToFit(width=1600)], format='JPEG', options={'quality': 85})
-    layout_sm = ImageSpecField(source='layout_image', processors=[Transpose(), ResizeToFit(width=300)], format='JPEG', options={'quality': 80})
+    card_sm = ImageSpecField(source='image', processors=web_processors(width=200), format='JPEG', options={'quality': 80})
+    card_md = ImageSpecField(source='image', processors=web_processors(width=600), format='JPEG', options={'quality': 80})
+    detail_lg = ImageSpecField(source='image', processors=web_processors(width=1200), format='JPEG', options={'quality': 85})
+    slideshow = ImageSpecField(source='image', processors=web_processors(width=1920), format='JPEG', options={'quality': 85})
+    layout_lg = ImageSpecField(source='layout_image', processors=web_processors(width=1600), format='JPEG', options={'quality': 85})
+    layout_sm = ImageSpecField(source='layout_image', processors=web_processors(width=300), format='JPEG', options={'quality': 80})
     PRICING_FOR_SALE = 'for_sale'
     PRICING_ON_REQUEST = 'on_request'
     PRICING_BEST_OFFER = 'best_offer'

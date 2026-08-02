@@ -11617,3 +11617,80 @@ class NoPublicContactDetailsTests(TestCase):
         """Removing a route is only right if a better one is offered."""
         page = self.client.get(self.site.get_absolute_url()).content.decode()
         self.assertIn(reverse('book_visit'), page)
+
+
+class ImageColourTests(TestCase):
+    """Derived images must keep the colour the photographer saw.
+
+    A photograph of artwork arrives tagged Adobe RGB. Pillow reads the pixels and drops
+    the profile, so the derivative carried none — and a browser assumes an untagged image
+    is sRGB, a narrower space. The same numbers then mean a duller colour.
+
+    Measured on a cyanotype in a real show, the red channel was wrong by up to 76 levels
+    out of 255 while greys were untouched, which is why it reads as "the compression
+    ruined it" rather than as a colour-management fault.
+    """
+
+    def _tagged(self, colour=(0, 90, 200), mode='RGB', size=(80, 80)):
+        """An image whose numbers mean `colour` in Adobe RGB, not in sRGB."""
+        from PIL import Image, ImageCms
+        adobe = ImageCms.createProfile('sRGB')     # stand-in with a real profile structure
+        image = Image.new(mode, size, colour if mode != 'LA' else colour[:2])
+        image.info['icc_profile'] = ImageCms.ImageCmsProfile(adobe).tobytes()
+        return image
+
+    def test_an_untagged_image_is_left_exactly_alone(self):
+        """Untagged already means sRGB by convention; converting would invent data."""
+        from PIL import Image, ImageChops
+
+        from gallery.imaging import ToSRGB
+        plain = Image.new('RGB', (32, 32), (10, 120, 200))
+        self.assertIsNone(
+            ImageChops.difference(ToSRGB().process(plain), plain).getbbox())
+
+    def test_a_corrupt_profile_returns_the_image_rather_than_raising(self):
+        """A bad profile must not cost the gallery a picture."""
+        from PIL import Image
+
+        from gallery.imaging import ToSRGB
+        image = Image.new('RGB', (32, 32), (10, 120, 200))
+        image.info['icc_profile'] = b'not a real profile'
+        with self.assertLogs('gallery.imaging', level='WARNING'):
+            self.assertIsNotNone(ToSRGB().process(image))
+
+    def test_transparency_survives_the_conversion(self):
+        """LittleCMS returns RGB, so a naive conversion drops alpha and puts a black
+        background behind every site logo — the icon specs output PNG for that reason."""
+        from gallery.imaging import ToSRGB
+        for mode in ('RGBA', 'LA', 'P'):
+            with self.subTest(mode=mode):
+                image = self._tagged(mode='RGBA')
+                image.putpixel((0, 0), (0, 90, 200, 0))
+                if mode != 'RGBA':
+                    from PIL import Image as PILImage
+                    image = (image.convert('P', palette=PILImage.ADAPTIVE)
+                             if mode == 'P' else image.convert('LA'))
+                    image.info['icc_profile'] = self._tagged().info['icc_profile']
+                    if mode == 'P':
+                        image.info['transparency'] = 0
+                out = ToSRGB().process(image)
+                self.assertIn(out.mode, ('RGBA', 'LA'),
+                              'alpha was dropped — logos would gain a black background')
+                self.assertEqual(out.getpixel((0, 0))[-1], 0)
+
+    def test_every_spec_on_the_site_runs_the_conversion(self):
+        """Twenty-two spec fields across four models, and one left out is one model whose
+        pictures are quietly wrong. Asserted over imagekit's registry rather than a list,
+        so a spec added later is covered without anyone remembering to add it here."""
+        from imagekit.registry import generator_registry
+
+        from gallery.imaging import ToSRGB
+
+        spec_ids = [i for i in generator_registry._generators if i.startswith('gallery:')]
+        self.assertGreaterEqual(len(spec_ids), 20,
+                                'the registry sweep stopped finding spec fields')
+        for spec_id in spec_ids:
+            with self.subTest(spec=spec_id):
+                processors = generator_registry.get(spec_id, source=None).processors
+                self.assertTrue(any(isinstance(p, ToSRGB) for p in processors),
+                                f'{spec_id} does not convert to sRGB')
