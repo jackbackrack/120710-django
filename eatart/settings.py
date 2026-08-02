@@ -65,6 +65,11 @@ RECAPTCHA_ENABLED = _env_bool('RECAPTCHA_ENABLED', default=_recaptcha_keys_prese
 
 ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', '127.0.0.1', 'localhost', 'db']
 
+# A CSRF rejection is the one failure a visitor cannot diagnose and we could not either:
+# the default page explains nothing and the log line cannot tell a stale token from a body
+# that never arrived. This view does both — see eatart/views/csrf.py.
+CSRF_FAILURE_VIEW = 'eatart.views.csrf.csrf_failure'
+
 CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'https://shows.120710.art', 'https://www.120710.art', 'https://120710.art']
 
 # Application definition
@@ -460,9 +465,13 @@ LOGGING = {
     },
     'loggers': {
         # Unhandled request exceptions appear here; route to stderr for visibility.
+        # WARNING, not ERROR: Django logs 4xx at WARNING, so ERROR silently discarded
+        # every 403 and 404 the site ever served. That is how an artist blocked from
+        # saving her profile left no trace at all. The cost is bot 404s in the log, which
+        # is worth knowing about anyway.
         'django.request': {
             'handlers': ['error_console'],
-            'level': 'ERROR',
+            'level': 'WARNING',
             'propagate': False,
         },
         'django.server': {

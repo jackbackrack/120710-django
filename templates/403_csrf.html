@@ -1,8 +1,42 @@
 {% extends 'base.html' %}
 
-{% block title %}Forbidden (403){% endblock title %}
+{% block title %}That didn't go through{% endblock title %}
+{% block block_title %}That didn't go through{% endblock block_title %}
 
+{% comment %}
+  Django's wording here is "CSRF verification failed. Request aborted.", which tells the
+  person nothing they can act on — and the form most likely to land them here is an artist
+  profile they have just spent ten minutes on. What they need is: it was not their fault,
+  their work is probably still in the page behind them, and what to try.
+{% endcomment %}
 {% block content %}
-<h1>Forbidden (403)</h1>
-<p>CSRF verification failed. Request aborted.</p>
+<div class="col-11 col-md-7 mx-auto mt-4">
+  <p>
+    Your submission could not be verified, so nothing was saved. This is almost always the
+    page having sat open too long, or a connection that dropped partway through sending.
+  </p>
+
+  <p><strong>What to try, in order:</strong></p>
+  <ol>
+    <li>
+      Press your browser's <strong>Back</strong> button. What you typed is usually still
+      there.
+    </li>
+    <li>
+      Reload that page, then submit again. If you were uploading a photo you will need to
+      choose it once more.
+    </li>
+    <li>
+      If it keeps happening, try a different browser, or the same one without private
+      browsing.
+    </li>
+  </ol>
+
+  <p class="text-muted small">
+    If it still will not go through, it is a fault at our end rather than yours, and we
+    would like to know. Please
+    <a href="{% url 'howto' %}">see the help pages</a> for how to reach us, and mention
+    what you were trying to save.
+  </p>
+</div>
 {% endblock content %}

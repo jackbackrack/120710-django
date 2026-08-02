@@ -1,0 +1,83 @@
+"""What happens when a POST is rejected for a missing or invalid CSRF token.
+
+Django's default page says "CSRF verification failed. Request aborted." — accurate, and
+useless to the person reading it, who has just lost a form they spent ten minutes filling
+in and has no idea whether the fault is theirs, ours, or their browser's.
+
+The logging is the more important half. A CSRF rejection has several causes that look
+identical from outside, and the one distinguishing test can only be made here, in the
+failure handler, by trying to read the body:
+
+  * `UnreadablePostError` — the body died in transit. The client or something between it
+    and us stopped sending partway. Django's own middleware swallows this exact error and
+    falls through to "token missing" (see django/middleware/csrf.py), which is why a
+    broken upload and a genuinely absent token are indistinguishable in the log line.
+  * an empty POST — the request arrived carrying nothing at all, which points upstream:
+    a proxy or WAF that dropped the body rather than a browser that mis-sent it.
+  * a populated POST with no `csrfmiddlewaretoken` — the page was rendered or served
+    without the hidden field, so the fault is ours or a cache's.
+  * a populated POST *with* a token — the token was stale or mismatched, which is the
+    ordinary case: a page left open too long, or a session that rotated underneath it.
+
+**Key names only, never values.** The form that most often lands here is an artist
+profile, and it carries a bio, a phone number, an email address and a postal address.
+Names are enough to tell the four cases apart; values would put personal data in the log
+of every failed submission.
+
+Defensive throughout: this runs when something is already wrong, and a handler that
+raises turns somebody's 403 into a 500.
+"""
+import logging
+
+from django.http import HttpResponse, UnreadablePostError
+from django.shortcuts import render
+from django.template import TemplateDoesNotExist
+
+logger = logging.getLogger(__name__)
+
+
+def _body_shape(request):
+    """What the request actually carried, as a short phrase for the log.
+
+    Reading `request.POST` is the whole point and is also the thing most likely to blow
+    up, so every branch is guarded.
+    """
+    try:
+        keys = sorted(request.POST.keys())
+    except UnreadablePostError:
+        return 'unreadable (connection broke before the body finished)'
+    except Exception as exc:                                  # noqa: BLE001 — see docstring
+        return f'unreadable ({type(exc).__name__})'
+    if not keys:
+        return 'empty (arrived with no fields at all)'
+    if 'csrfmiddlewaretoken' in keys:
+        return f'{len(keys)} fields including the token (so it was stale, not absent): {keys}'
+    return f'{len(keys)} fields but no token: {keys}'
+
+
+def csrf_failure(request, reason=''):
+    try:
+        user = request.user if hasattr(request, 'user') else None
+        who = f'{user.pk} <{user.email}>' if user is not None and user.is_authenticated \
+            else 'signed out'
+        logger.warning(
+            'CSRF rejected: %s | path=%s | user=%s | body=%s | '
+            'csrftoken cookie=%s | content_type=%s | content_length=%s | ua=%s',
+            reason or 'no reason given',
+            request.path,
+            who,
+            _body_shape(request),
+            'present' if request.COOKIES.get('csrftoken') else 'ABSENT',
+            request.META.get('CONTENT_TYPE', '?'),
+            request.META.get('CONTENT_LENGTH', '?'),
+            request.META.get('HTTP_USER_AGENT', '?')[:200],
+        )
+    except Exception:                                         # noqa: BLE001
+        # Diagnostics must never be the reason somebody sees a 500 instead of a 403.
+        logger.exception('CSRF failure handler could not log the request')
+
+    try:
+        return render(request, '403_csrf.html', {'reason': reason}, status=403)
+    except TemplateDoesNotExist:
+        return HttpResponse('Your submission could not be verified. Please go back, '
+                            'reload the page, and try again.', status=403)

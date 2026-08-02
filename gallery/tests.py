@@ -11409,3 +11409,108 @@ class ArtistMailingListOptInTests(TestCase):
             form.save()
         self.assertFalse(Subscription.objects.filter(
             subscriber__email='opt@example.com', is_subscribed=True).exists())
+
+
+class CsrfFailureTests(TestCase):
+    """A rejected POST should tell the person something useful and tell us something
+    diagnosable.
+
+    Both halves were missing. Django's page said "CSRF verification failed. Request
+    aborted." and its log line said only "Forbidden (CSRF token missing.)", which cannot
+    distinguish a body that never arrived from a page served without a token from a token
+    that had simply gone stale. An artist was blocked from saving her profile for days and
+    neither she nor the logs could say why.
+    """
+
+    BOUNDARY = '----testboundary'
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='csrf@example.com', email='csrf@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            user=self.user, name='C Surf', first_name='C', last_name='Surf',
+            email='csrf@example.com')
+        self.url = reverse('gallery:artist_edit', kwargs={'pk': self.artist.pk})
+
+    def _client(self):
+        from django.test import Client
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.user)
+        return client
+
+    def _part(self, name, value):
+        return (f'--{self.BOUNDARY}\r\nContent-Disposition: form-data; '
+                f'name="{name}"\r\n\r\n{value}\r\n')
+
+    def _post(self, body):
+        with self.assertLogs('eatart.views.csrf', level='WARNING') as captured:
+            response = self._client().generic(
+                'POST', self.url, data=body,
+                content_type=f'multipart/form-data; boundary={self.BOUNDARY}')
+        return response, '\n'.join(captured.output)
+
+    def test_the_page_says_what_happened_and_what_to_do(self):
+        response, _log = self._post(b'')
+        self.assertEqual(response.status_code, 403)
+        page = response.content.decode()
+        self.assertIn('could not be verified', page)
+        self.assertIn('nothing was saved', page)
+        self.assertNotIn('Request aborted', page)      # Django's unhelpful default
+
+    def test_the_log_tells_an_empty_body_from_a_missing_token(self):
+        """The distinction that could not be made before, and the one that matters:
+        an empty body points upstream, a missing token points at our own page."""
+        _r, empty = self._post(b'')
+        self.assertIn('empty (arrived with no fields at all)', empty)
+
+        fields = (self._part('name', 'C Surf') + self._part('email', 'csrf@example.com')
+                  + f'--{self.BOUNDARY}--\r\n')
+        _r, no_token = self._post(fields.encode())
+        self.assertIn('but no token', no_token)
+        self.assertIn("'name'", no_token)
+
+    def test_a_stale_token_is_reported_as_stale_rather_than_missing(self):
+        body = (self._part('csrfmiddlewaretoken', 'x' * 64)
+                + self._part('name', 'C Surf') + f'--{self.BOUNDARY}--\r\n')
+        _response, log = self._post(body.encode())
+        self.assertIn('including the token', log)
+        self.assertIn('stale, not absent', log)
+
+    def test_the_log_records_field_names_but_never_their_values(self):
+        """The form that lands here most often carries a bio, a phone number and a
+        postal address. Names are enough to tell the cases apart."""
+        body = (self._part('bio', 'SECRETBIOTEXT') + self._part('phone', '5551234567')
+                + f'--{self.BOUNDARY}--\r\n')
+        _response, log = self._post(body.encode())
+        self.assertIn("'bio'", log)
+        self.assertIn("'phone'", log)
+        self.assertNotIn('SECRETBIOTEXT', log)
+        self.assertNotIn('5551234567', log)
+
+    def test_an_unreadable_body_is_named_rather_than_crashing(self):
+        """Django's own middleware swallows UnreadablePostError and falls through to
+        'token missing', so a broken upload and an absent token look identical in its
+        log. Reading the body here is what separates them — and must not raise."""
+        from django.http import UnreadablePostError
+
+        from eatart.views.csrf import _body_shape
+
+        class BrokenRequest:
+            @property
+            def POST(self):
+                raise UnreadablePostError('connection broke')
+
+        shape = _body_shape(BrokenRequest())
+        self.assertIn('unreadable', shape)
+        self.assertIn('connection broke', shape)   # names the cause, not just the failure
+
+    def test_the_handler_survives_a_request_it_cannot_describe(self):
+        """It runs when something is already wrong; raising would turn a 403 into a 500."""
+        from eatart.views.csrf import csrf_failure
+        from django.test import RequestFactory
+
+        # A bare RequestFactory request has no .user — exactly the shape the handler
+        # gets if it ever runs before auth middleware.
+        request = RequestFactory().post(self.url)
+        response = csrf_failure(request, reason='CSRF token missing.')
+        self.assertEqual(response.status_code, 403)
