@@ -11,8 +11,15 @@
   <div class="card__content" {% if not site.image %}style="border-top:2px solid #333333"{% endif %}>
     <h1 class="mb-6 text-3xl">{{ site.name }}</h1>
     {% if site.formatted_address %}<p class="text-gray-500 text-sm"><strong>Address:</strong><br><span style="white-space:pre-line">{{ site.formatted_address }}</span></p>{% endif %}
-    {% if site.phone %}<p class="text-gray-500 text-sm"><strong>Phone:</strong> <a class="card__link" href="tel:{{ site.phone }}">{{ site.phone }}</a></p>{% endif %}
-    {% if site.email %}<p class="text-gray-500 text-sm"><strong>Email:</strong> <a class="card__link" href="mailto:{{ site.email }}">{{ site.email }}</a></p>{% endif %}
+    {% comment %}
+      Deliberately no phone number and no email address, matching the Contact page: the
+      gallery is reached by booking a visit, by the mailing list, or by the enquiry form on
+      a work — each of which arrives somewhere it can be dealt with rather than in an inbox.
+      Publishing them here also handed them to every scraper that reads a venue page.
+
+      Site.email and Site.phone still exist and are still used; they are simply not printed.
+    {% endcomment %}
+    {% if site.visits_enabled %}<p class="text-sm"><a class="card__link" href="{% url 'book_visit' %}">Book a time to visit</a></p>{% endif %}
     {% if site.instagram %}<p class="text-gray-500 text-sm"><strong>Instagram:</strong> <a class="card__link" href="https://instagram.com/{{ site.instagram|cut:'@' }}" target="_blank" rel="noopener">{{ site.instagram }}</a></p>{% endif %}
     {% if site.website %}<p class="text-gray-500 text-sm"><strong>Website:</strong> <a class="card__link" href="{{ site.website }}" target="_blank" rel="noopener">{{ site.website }}</a></p>{% endif %}
     {% if site.description %}<p class="text-gray-500 text-sm mt-3">{{ site.description|sanitize }}</p>{% endif %}

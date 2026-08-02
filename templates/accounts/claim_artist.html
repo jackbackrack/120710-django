@@ -43,8 +43,16 @@
     when you signed up. Just go back and fill in your details — you don't need this page.
   </dd>
 </dl>
+{% comment %}
+  No address here: the gallery stopped publishing one, and this page is reachable signed
+  out. The guide covers the ordinary cases, and the contact page is the route to a person
+  who can link a record by hand.
+{% endcomment %}
 <p class="text-muted">
-  Still stuck? Email <a href="mailto:info@120710.art">info@120710.art</a> and a staff member
-  can look up your record or link it for you.
+  Still stuck? The
+  <a href="{% url 'howto_guide' 'linking-your-account-to-an-existing-artist-profile' %}">step-by-step
+  guide</a> covers the usual reasons this happens, and you can reach us through the
+  <a href="{% url 'contact' %}">contact page</a> — a staff member can look up your record
+  or link it for you.
 </p>
 {% endblock content %}

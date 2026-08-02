@@ -5343,7 +5343,11 @@ class PrivacyPageTests(TestCase):
                 r = self.client.get(url)
                 self.assertEqual(r.status_code, 200)
                 self.assertContains(r, '120710')
-                self.assertContains(r, 'info@120710.art')
+                # A route for access, correction and deletion has to stay open — but it
+                # points at the contact page now. Printing the address on the one page a
+                # scraper is guaranteed to read is what the gallery stopped doing.
+                self.assertContains(r, reverse('contact'))
+                self.assertNotContains(r, 'mailto:info@120710.art')
 
     def test_an_unpublished_venue_has_no_public_policy_page(self):
         from gallery.models import Site
@@ -11554,3 +11558,62 @@ class CsrfFailureTests(TestCase):
         request = RequestFactory().post(self.url)
         response = csrf_failure(request, reason='CSRF token missing.')
         self.assertEqual(response.status_code, 403)
+
+
+class NoPublicContactDetailsTests(TestCase):
+    """The gallery's address and phone number stay off public pages.
+
+    Not a style rule: the point is that every way of reaching the gallery should arrive
+    somewhere it gets dealt with — a booking, a mailing-list reply, an enquiry on a work —
+    rather than in an inbox nobody watches. Publishing them also hands them to every
+    scraper that reads the page.
+
+    Written as a sweep rather than one assertion per template because this has now leaked
+    back three separate times: the venue page printed both, the privacy page printed the
+    address, and the unsubscribe and claim pages hard-coded it.
+    """
+
+    def setUp(self):
+        from gallery.models import Site
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA',
+            postal_code='94710', email='info@120710.art', phone='510-555-0142',
+            visits_enabled=True)
+
+    # (url, needs_login). claim-artist is login-required, so asserting against it signed
+    # out would test the login page and pass without ever rendering the thing in question.
+    def _pages(self):
+        return [
+            (reverse('privacy'), False),
+            (reverse('site_privacy', kwargs={'site_slug': self.site.slug}), False),
+            (reverse('contact'), False),
+            (self.site.get_absolute_url(), False),
+            (reverse('unsubscribe', kwargs={'token': 'not-a-real-token'}), False),
+            (reverse('claim_artist'), True),
+        ]
+
+    def test_no_public_page_prints_the_gallery_address_or_number(self):
+        signed_in = User.objects.create_user(
+            username='reader@example.com', email='reader@example.com', password='pw')
+        for url, needs_login in self._pages():
+            with self.subTest(url=url):
+                if needs_login:
+                    self.client.force_login(signed_in)
+                else:
+                    self.client.logout()
+                response = self.client.get(url, follow=True)
+                self.assertEqual(response.status_code, 200)
+                if needs_login:
+                    self.assertFalse(response.redirect_chain,
+                                     'redirected away — the page was never rendered')
+                page = response.content.decode()
+                self.assertNotIn('info@120710.art', page)
+                self.assertNotIn('510-555-0142', page)
+                self.assertNotIn('mailto:', page)
+                self.assertNotIn('tel:', page)
+
+    def test_the_venue_page_offers_booking_in_their_place(self):
+        """Removing a route is only right if a better one is offered."""
+        page = self.client.get(self.site.get_absolute_url()).content.decode()
+        self.assertIn(reverse('book_visit'), page)

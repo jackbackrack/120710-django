@@ -122,11 +122,15 @@
 
 <h2>Asking us to change or delete something</h2>
 <p>
+  {% comment %}
+    A privacy policy has to leave a route open for access, correction and deletion, so this
+    one points at the Contact page rather than dropping the sentence — but it no longer
+    prints the address itself, which is the one page a scraper is guaranteed to read.
+  {% endcomment %}
   You can edit your own profile at any time. For anything else — a copy of what we hold,
-  a correction, or deletion — write to
-  {% if info_site.email %}<a href="mailto:{{ info_site.email }}">{{ info_site.email }}</a>{% else %}the gallery{% endif %}
-  and we will sort it out. If you only want the mail to stop, the unsubscribe link in any
-  mailing is faster.
+  a correction, or deletion — get in touch through the
+  <a href="{% url 'contact' %}">contact page</a> and we will sort it out. If you only want
+  the mail to stop, the unsubscribe link in any mailing is faster.
 </p>
 
 {% if info_site.street or info_site.city %}
