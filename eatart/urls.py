@@ -6,6 +6,7 @@ from accounts.views import ArtistUserCreateView, CustomPasswordResetView, Custom
 from eatart.views.public import (index, visit, contact, about, howto, howto_guide,
                                  howto_reference, linktree, privacy)
 from eatart.views.subscribe import subscribe, subscribe_kiosk
+from eatart.views.health import healthz
 from eatart.views.rsvps import event_rsvp, event_rsvp_change
 from eatart.views.visits import book_visit, cancel_visit
 from eatart.views.unsubscribe import unsubscribe
@@ -16,6 +17,9 @@ from django.conf.urls.static import static
 # 
 
 urlpatterns = [
+    # First, so nothing shadows it. Railway's health check hits this and nothing else.
+    path('healthz', healthz, name='healthz'),
+
     # Before everything else, and served straight from a template: /robots.txt used to 404,
     # which cost a full request cycle *and* left crawlers unguided. TemplateView means no
     # database query and no context processors.

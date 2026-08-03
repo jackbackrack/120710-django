@@ -20,6 +20,7 @@ Manages artists, artworks, exhibitions (shows), events, and juror reviews/rating
 - **Schema.org JSON-LD** — Pydantic-validated structured data on every public detail page
 - **Event RSVPs** — yes/maybe/no on an event page, with a reminder the day before that is the reason for asking; see [docs/event-rsvps.md](docs/event-rsvps.md)
 - **Visit booking** — visitors pick a slot from the venue's structured opening hours and the gallery gets a calendar invitation by email; no Google integration to configure — see [docs/visit-booking.md](docs/visit-booking.md)
+- **Deploying** — migrations and static uploads run in Railway's pre-deploy phase, so the old container keeps serving; migrations must stay backwards-compatible, and there is a `/healthz` that touches nothing — see [docs/railway-deploys.md](docs/railway-deploys.md)
 - **Site directors** — an admin for one venue and nothing beyond it: shows, curation, jurying, pickups, its artists and artworks, its own settings and bookings; see [docs/site-directors.md](docs/site-directors.md)
 - **Image colour** — derived images are converted to sRGB through the source's own ICC profile, so an Adobe RGB photograph of an artwork does not shift; changing any image spec needs `manage.py generateimages` in the same deploy — see [docs/image-colour.md](docs/image-colour.md)
 - **Diagnosing a 403** — which of three unrelated faults a "Forbidden" report actually was, from one log line; see [docs/diagnosing-403s.md](docs/diagnosing-403s.md)

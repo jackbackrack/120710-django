@@ -12088,3 +12088,49 @@ class NudgeInvitedArtistsTests(MediaImageMixin, TestCase):
         response = self.client.get(reverse('gallery:send_submission_reminders',
                                            kwargs={'slug': self.show.slug}))
         self.assertRedirects(response, self.url, fetch_redirect_response=False)
+
+
+class HealthCheckTests(TestCase):
+    """What Railway asks before sending traffic to a new container.
+
+    The deploy hinges on this answering quickly and for the right reason. It must not touch
+    the database: a brief database blip would otherwise make Railway conclude a good build
+    was broken and roll it back, and a deploy is the worst moment to be wrong about that.
+    """
+
+    def test_it_answers_without_touching_the_database(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get('/healthz')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(queries), 0,
+                         'a health check that queries conflates two different failures')
+
+    def test_it_is_never_cached(self):
+        """A cached 200 would keep saying yes after the container stopped being able to."""
+        self.assertIn('no-store', self.client.get('/healthz')['Cache-Control'])
+
+    def test_it_answers_on_the_host_railway_uses(self):
+        """Without healthcheck.railway.app in ALLOWED_HOSTS, Django answers 400, the check
+        never passes, and the deploy silently never goes live."""
+        with self.settings(DEBUG=False, ALLOWED_HOSTS=['healthcheck.railway.app']):
+            response = self.client.get('/healthz', HTTP_HOST='healthcheck.railway.app')
+        self.assertEqual(response.status_code, 200)
+
+    def test_the_real_allowed_hosts_include_it(self):
+        from django.conf import settings
+        self.assertIn('healthcheck.railway.app', settings.ALLOWED_HOSTS)
+
+    def test_nothing_but_a_read_is_allowed(self):
+        self.assertEqual(self.client.post('/healthz').status_code, 405)
+
+    def test_the_web_process_no_longer_migrates_or_collects(self):
+        """Both moved to Railway's pre-deploy phase, where the old container keeps serving
+        while they run. Leaving them in the start command is what caused 5-10 minutes of
+        downtime per deploy, and made every replica race to migrate."""
+        import pathlib
+        procfile = (pathlib.Path(__file__).resolve().parent.parent / 'Procfile').read_text()
+        self.assertIn('gunicorn', procfile)
+        self.assertNotIn('migrate', procfile)
+        self.assertNotIn('collectstatic', procfile)

@@ -63,7 +63,11 @@ _recaptcha_keys_present = bool(RECAPTCHA_PUBLIC_KEY and RECAPTCHA_PRIVATE_KEY)
 # Enabled only when keys exist unless explicitly disabled.
 RECAPTCHA_ENABLED = _env_bool('RECAPTCHA_ENABLED', default=_recaptcha_keys_present)
 
-ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', '127.0.0.1', 'localhost', 'db']
+# 'healthcheck.railway.app' is the Host that Railway's health check sends. Without it
+# Django answers 400 Bad Request, the check never passes, and the deploy silently
+# never goes live — with 'Invalid HTTP_HOST header' the only clue, in a log line that
+# was itself invisible until django.request was lowered to WARNING.
+ALLOWED_HOSTS = ['web-production-7d4c4.up.railway.app', '120710.art', 'www.120710.art', 'shows.120710.art', 'healthcheck.railway.app', '127.0.0.1', 'localhost', 'db']
 
 # A CSRF rejection is the one failure a visitor cannot diagnose and we could not either:
 # the default page explains nothing and the log line cannot tell a stale token from a body
@@ -75,6 +79,14 @@ CSRF_TRUSTED_ORIGINS = ['https://web-production-7d4c4.up.railway.app', 'https://
 # Application definition
 
 INSTALLED_APPS = [
+    # Before django.contrib.staticfiles, deliberately: Collectfasta overrides the
+    # collectstatic command and app order decides whose version wins.
+    #
+    # It exists because django-storages cannot read modification times from S3, so a plain
+    # collectstatic re-uploads every static file on every deploy whether it changed or not
+    # — which is what made deploys take minutes. Collectfasta compares checksums and skips
+    # what is unchanged.
+    'collectfasta',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -405,6 +417,13 @@ _howto_domain = os.environ.get('CLOUDFRONT_DOMAIN') or (
     if HOWTO_IMAGE_BUCKET else None)
 HOWTO_IMAGE_BASE_URL = (
     f'https://{_howto_domain}/{HOWTO_IMAGE_LOCATION}/' if _howto_domain else None)
+
+# Which storage Collectfasta knows how to interrogate. Only meaningful when static files
+# actually go to S3; locally collectstatic is a directory copy and already instant.
+COLLECTFASTA_STRATEGY = 'collectfasta.strategies.boto3.Boto3Strategy'
+# Keeps the deploy honest: with this on, a run that "succeeds" while silently uploading
+# nothing would be indistinguishable from one that worked.
+COLLECTFASTA_ENABLED = USE_S3_STATIC
 
 STORAGES = {
     "default": {
