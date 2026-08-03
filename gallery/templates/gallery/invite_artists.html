@@ -55,6 +55,7 @@
         <th class="text-center" title="Number of artworks submitted to this show">Submitted</th>
         <th>Sent</th>
         <th class="text-center" title="Invitee opened their accept link and linked it to an account">Accepted</th>
+        <th title="What this artist still has to do, and a link to write to them about it">Next step</th>
         <th></th>
       </tr>
     </thead>
@@ -105,6 +106,27 @@
             <span class="text-muted">—</span>
           {% endif %}
         </td>
+        {% comment %}
+          The step this artist is stuck on, the button to write to them about it, and when
+          they were last written to — together, because each is meaningless without the
+          others. Nudge used to be a small link fourth among four in the actions cell and
+          was effectively unfindable, and the last-nudged date was recorded but never shown.
+
+          `row.step` is None once somebody has submitted, which is also exactly when there
+          is nothing to nudge them about.
+        {% endcomment %}
+        <td class="py-2">
+          {% if row.step %}
+            <div class="small">{{ row.step.short }}</div>
+            <a class="card__link" title="Write to {{ row.invitation.email }} about this step"
+               href="{% url 'gallery:nudge_invited_artists' show.slug %}?email={{ row.invitation.email|urlencode }}">Nudge</a>
+            {% if row.nudged_at %}
+            <span class="text-muted small">· last {{ row.nudged_at|date:"j M" }}</span>
+            {% endif %}
+          {% else %}
+            <span class="text-success small">Submitted — nothing to do</span>
+          {% endif %}
+        </td>
         <td class="py-2">
           <form method="post" style="display:inline">
             {% csrf_token %}
@@ -115,16 +137,7 @@
           </form>
           <button type="button" class="btn btn-sm btn-link p-0 card__link ms-2 ss-copy-link"
                   data-link="{{ row.accept_url }}" title="Copy a personal accept link to send directly (works with any account)">Copy link</button>
-          {% comment %}
-            Only where there is something left to say. Somebody who has submitted is
-            finished, and a "nudge" aimed at them would be noise from the artist's side and
-            a mistake waiting to happen from the gallery's.
-          {% endcomment %}
-          {% if not row.submitted_count %}
-          <a class="btn btn-sm btn-link p-0 card__link ms-2"
-             href="{% url 'gallery:nudge_invited_artists' show.slug %}?email={{ row.invitation.email|urlencode }}"
-             title="Write to this artist about the step they still have left">Nudge</a>
-          {% endif %}
+
           <form method="post" style="display:inline">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete">

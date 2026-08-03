@@ -12073,6 +12073,37 @@ class NudgeInvitedArtistsTests(MediaImageMixin, TestCase):
         self.assertIn('Could not send', said)
         self.assertIn('boom@example.com', said)
 
+    # --- the invite table itself ---
+
+    def test_the_table_shows_the_step_the_button_and_the_last_nudge(self):
+        """All three were meant to be here and only the button was. It sat fourth among
+        four links in the actions cell, and the recorded nudge date was never displayed at
+        all — so the page could not answer "who needs chasing, and did I already?"."""
+        from django.utils import timezone as tz
+        self.invite('fresh@example.com')
+        self.invite('already@example.com',
+                    nudged_at=tz.now() - datetime.timedelta(days=3))
+        self.client.force_login(self.staff)
+        page = self.client.get(reverse('gallery:invite_artists',
+                                       kwargs={'slug': self.show.slug})).content.decode()
+        self.assertIn('Next step', page)                       # the column exists
+        self.assertIn('No account yet', page)                  # the step, per row
+        self.assertIn('?email=fresh%40example.com', page)       # its own nudge link
+        self.assertIn('last ', page)                           # when it last went out
+
+    def test_a_submitted_artist_gets_no_button_and_says_so(self):
+        from gallery.models import ArtworkSubmission
+        artist, user = self._complete_artist('fin@example.com')
+        work = Artwork.objects.create(name='Fin', end_year=2026)
+        work.artists.add(artist)
+        ArtworkSubmission.objects.create(show=self.show, artwork=work, submitted_by=user)
+        self.invite('fin@example.com')
+        self.client.force_login(self.staff)
+        page = self.client.get(reverse('gallery:invite_artists',
+                                       kwargs={'slug': self.show.slug})).content.decode()
+        self.assertIn('Submitted — nothing to do', page)
+        self.assertNotIn('?email=fin%40example.com', page)
+
     # --- who may ---
 
     def test_only_somebody_who_manages_the_show_may_nudge(self):

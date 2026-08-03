@@ -400,6 +400,14 @@ def invitation_rows_for(request, show):
             'submitted_count': sub_counts.get(email, 0),
             'nudged_at': inv.nudged_at,
         })
+    # The step each artist is stuck on, stored once so the table, the preview and the
+    # email all read the same value rather than deriving it three times.
+    from gallery import nudges
+    for row in rows:
+        row['step'] = nudges.next_step(
+            has_account=row['has_account'], artist=row['artist'],
+            artworks_count=row['artworks_count'],
+            submitted_count=row['submitted_count'])
     return rows
 
 

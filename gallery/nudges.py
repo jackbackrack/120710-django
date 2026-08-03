@@ -96,12 +96,13 @@ def curator_names(show):
 def outstanding(rows):
     """(row, step) for everyone with something left to do, in table order.
 
-    `rows` are the invite page's own `invitation_rows`, so this adds no second source of
-    truth about who has done what.
+    `rows` are the invite page's own `invitation_rows`, which already carry the step, so
+    this adds no second source of truth about who is stuck where. Falls back to computing
+    it for a caller that built rows without one.
     """
     out = []
     for row in rows:
-        step = next_step(
+        step = row.get('step') if 'step' in row else next_step(
             has_account=row['has_account'],
             artist=row['artist'],
             artworks_count=row['artworks_count'],
