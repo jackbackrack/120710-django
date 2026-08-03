@@ -16,7 +16,7 @@ from gallery.models.room import RoomConfig
 from gallery.forms import (SiteForm, RoomConfigForm, _make_closure_formset,
                            _make_hours_formset, _make_obstacle_formset,
                            _make_support_formset)
-from gallery.permissions import is_staff_user
+from gallery.permissions import directs_site, is_staff_user
 
 ROOM_DEFAULTS = {'width_in': 384, 'depth_in': 576, 'height_in': 120}
 
@@ -241,7 +241,11 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, OpeningHoursMixin,
         return kwargs
 
     def test_func(self):
-        return is_staff_user(self.request.user)
+        # A director runs this venue, so they edit it — hours, closures, visit booking,
+        # the About/Visit/Contact copy. Creating and deleting venues, and appointing
+        # directors, stay with admins.
+        return (is_staff_user(self.request.user)
+                or directs_site(self.request.user, self.get_object()))
 
 
 class SiteDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):

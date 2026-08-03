@@ -79,6 +79,22 @@ class Site(models.Model):
 
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
+    # Whoever runs this venue: an admin for this site and nothing beyond it.
+    #
+    # To User rather than Artist, unlike Show.curators, because the two roles differ in
+    # kind. A curator is a public *credit* — the name printed on the show page — so it
+    # needs an Artist record. Directing is an *access* role, like ShowJuror, which is also
+    # keyed on User. Requiring an Artist profile would also publish every director in the
+    # artists directory and demand a photo and postal code from them.
+    #
+    # And it must not ride on Artist: `ensure_signup_profile` links an unclaimed Artist to
+    # a new account by matching email, so rights held there would transfer to whoever next
+    # signed up with that address.
+    directors = models.ManyToManyField(
+        'auth.User', blank=True, related_name='directed_sites',
+        help_text='Can create and run shows at this venue, and manage the artists and '
+                  'artworks in them. Cannot touch other venues, add other directors, or '
+                  'send campaigns.')
     street = models.CharField(max_length=255, blank=True, verbose_name='Street address')
     city = models.CharField(max_length=100, blank=True)
     state = models.CharField(max_length=100, blank=True, verbose_name='State / Province / Region')

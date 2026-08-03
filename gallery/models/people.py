@@ -61,6 +61,13 @@ class Artist(models.Model):
     detail_lg = ImageSpecField(source='image', processors=web_processors(width=1200), format='JPEG', options={'quality': 85})
     slideshow = ImageSpecField(source='image', processors=web_processors(width=1920), format='JPEG', options={'quality': 85})
     tags = models.ManyToManyField('gallery.Tag', related_name='artists', blank=True)
+    # Who made this record, mirroring Artwork.created_by. A site director's rights over an
+    # artist are otherwise derived from having work in a show at their venue — which a
+    # just-created artist does not yet, so without this they could add somebody on an
+    # artist's behalf and immediately be unable to edit them.
+    created_by = models.ForeignKey('auth.User', null=True, blank=True,
+                                   on_delete=models.SET_NULL,
+                                   related_name='created_artists')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

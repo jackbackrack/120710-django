@@ -27,7 +27,7 @@ from honeypot.decorators import check_honeypot
 
 from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
 from gallery.models import Artwork, ArtworkImage, Tag
-from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_curator_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset
+from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_curator_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset, is_site_director
 from gallery.views.mixins import (CanonicalSlugRedirectMixin, StructuredDataMixin,
                                  visible_site_or_404)
 
@@ -215,7 +215,8 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return response
 
     def test_func(self):
-        return is_artist_user(self.request.user) or is_staff_user(self.request.user)
+        return (is_artist_user(self.request.user) or is_staff_user(self.request.user)
+                or is_site_director(self.request.user))
 
 
 def _client_ip(request):

@@ -16,7 +16,7 @@ from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from gallery.forms import ShowForm
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, Site, Tag
 from gallery.models.show_artwork_numbers import ShowArtworkNumber
-from gallery.permissions import can_delete_artist, can_delete_artwork, can_delete_show, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset
+from gallery.permissions import can_delete_artist, can_delete_artwork, can_delete_show, can_manage_artist, can_manage_artwork, can_manage_show, can_view_reviews, is_staff_user, tag_filter_queryset, visible_artwork_queryset, visible_show_queryset, is_site_director
 from gallery.show_actions import show_actions
 from gallery.submission_cta import submit_cta, submit_ctas
 from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
@@ -334,7 +334,9 @@ class ShowCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return kwargs
 
     def test_func(self):
-        return is_staff_user(self.request.user)
+        # A director creates shows for their own venue; the form's site choices are
+        # narrowed to theirs, so there is nowhere else to put one.
+        return is_staff_user(self.request.user) or is_site_director(self.request.user)
 
 
 @login_required

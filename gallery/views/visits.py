@@ -18,26 +18,45 @@ from django.views.decorators.http import require_POST, require_safe
 from gallery import calendars
 from gallery.calendars import site_timezone
 from gallery.models import Event, EventRsvp, Site, Visit
-from gallery.permissions import is_staff_user
+from gallery.permissions import (directed_site_ids, is_curator_user, is_site_director,
+                                 is_staff_user)
 
 # Enough to see a pattern across a season without turning the page into an archive.
 PAST_EVENT_LIMIT = 25
 
 
 def _may_see(user):
-    return is_staff_user(user) or user.groups.filter(name='curator').exists()
+    # Curator is derived from curated shows, not from a Django group: this used to check
+    # `groups.filter(name='curator')`, which was a second, disagreeing definition of the
+    # same role.
+    return is_staff_user(user) or is_curator_user(user) or is_site_director(user)
 
 
-def _events_with_replies(date_filter, order, limit=None):
+def _visible_site_ids(user):
+    """Which venues' bookings and replies this user may see, or None for all of them.
+
+    Staff and curators see everything, as they always have. A director sees their own
+    venue and no other — without this the page would hand them every other venue's
+    visitors by name.
+    """
+    if is_staff_user(user) or is_curator_user(user):
+        return None
+    return directed_site_ids(user)
+
+
+def _events_with_replies(date_filter, order, limit=None, site_ids=None):
     """Events somebody has replied to, replies prefetched.
 
     A join and a `distinct()` rather than a per-event `exists()`: the page renders every reply
     anyway, so this is one query and a prefetch instead of one round trip per event.
     """
     events = (Event.objects.filter(**date_filter)
-              .filter(rsvps__isnull=False).distinct()
+              .filter(rsvps__isnull=False)
               .select_related('show').prefetch_related('rsvps')
               .order_by(order))
+    if site_ids is not None:
+        events = events.filter(show__sites__pk__in=site_ids)
+    events = events.distinct()
     return list(events[:limit] if limit else events)
 
 
@@ -47,14 +66,23 @@ def visit_list(request):
         raise Http404
 
     now = dj_timezone.now()
+    site_ids = _visible_site_ids(request.user)
     upcoming = (Visit.objects.filter(when__gte=now, cancelled_at__isnull=True)
                 .select_related('site'))
     recent = (Visit.objects.filter(when__lt=now).select_related('site')
-              .order_by('-when')[:25])
+              .order_by('-when'))
+    if site_ids is not None:
+        upcoming = upcoming.filter(site__pk__in=site_ids)
+        recent = recent.filter(site__pk__in=site_ids)
+    recent = recent[:25]
 
+    # A director gets their own venue's calendar address; staff get every venue's.
     feeds = []
-    if is_staff_user(request.user):
-        for site in Site.objects.filter(visits_enabled=True).order_by('name'):
+    feed_sites = Site.objects.filter(visits_enabled=True).order_by('name')
+    if site_ids is not None:
+        feed_sites = feed_sites.filter(pk__in=site_ids)
+    if is_staff_user(request.user) or is_site_director(request.user):
+        for site in feed_sites:
             if not site.visit_feed_token:
                 site.save(update_fields=['visit_feed_token'])
             feeds.append((site, request.build_absolute_uri(
@@ -63,9 +91,10 @@ def visit_list(request):
     # Upcoming events with replies, so the gallery knows what to cater for — and past ones, so
     # what was catered for can be compared against what happened. A reply that vanishes the
     # morning after is a season's worth of turnout thrown away every year.
-    rsvp_events = _events_with_replies({'date__gte': now.date()}, 'date')
+    rsvp_events = _events_with_replies({'date__gte': now.date()}, 'date',
+                                       site_ids=site_ids)
     past_rsvp_events = _events_with_replies(
-        {'date__lt': now.date()}, '-date', limit=PAST_EVENT_LIMIT)
+        {'date__lt': now.date()}, '-date', limit=PAST_EVENT_LIMIT, site_ids=site_ids)
 
     return render(request, 'gallery/visit_list.html', {
         'rsvp_events': rsvp_events,
@@ -99,6 +128,9 @@ def rsvp_csv(request):
         raise Http404
 
     replies = EventRsvp.objects.select_related('event', 'event__show')
+    site_ids = _visible_site_ids(request.user)
+    if site_ids is not None:
+        replies = replies.filter(event__show__sites__pk__in=site_ids).distinct()
     event = None
     if request.GET.get('event'):
         event = get_object_or_404(Event.objects.select_related('show'),
@@ -142,6 +174,9 @@ def visit_detail(request, pk):
     if not _may_see(request.user):
         raise Http404
     visit = get_object_or_404(Visit.objects.select_related('site'), pk=pk)
+    site_ids = _visible_site_ids(request.user)
+    if site_ids is not None and visit.site_id not in site_ids:
+        raise Http404
     tz = site_timezone(visit.site)
     with dj_timezone.override(tz):
         return render(request, 'gallery/visit_detail.html', {

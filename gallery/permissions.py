@@ -31,6 +31,86 @@ def is_artist_user(user):
     return cached
 
 
+def directed_site_ids(user):
+    """Which venues this user runs, as a set of ids. Empty for everyone else.
+
+    Cached on the request's user because the `can_manage_*` helpers are called once per
+    object while rendering a grid, and this would otherwise be a query per card.
+    """
+    if not user.is_authenticated:
+        return set()
+    cached = getattr(user, '_directed_site_ids_cache', None)
+    if cached is None:
+        cached = set(user.directed_sites.values_list('pk', flat=True))
+        user._directed_site_ids_cache = cached
+    return cached
+
+
+def is_site_director(user):
+    """Runs at least one venue. Says nothing about *which* — see directs_site."""
+    return bool(directed_site_ids(user))
+
+
+def directs_site(user, site):
+    site_id = getattr(site, 'pk', site)
+    return site_id in directed_site_ids(user)
+
+
+def _directs_shows_site(user, show):
+    """The show is at a venue this user runs.
+
+    Co-hosting is possible but rare, and one venue's director may act on a show theirs is
+    part of. Deleting is the same rule: the gallery asked for directors to be admins of
+    their own venue, and a show at two venues is unusual enough to be worth a conversation
+    rather than a special case in the code.
+    """
+    if not directed_site_ids(user):
+        return False
+    sites_cache = show.__dict__.get('_prefetched_objects_cache', {})
+    if 'sites' in sites_cache:
+        return any(s.pk in directed_site_ids(user) for s in sites_cache['sites'])
+    return show.sites.filter(pk__in=directed_site_ids(user)).exists()
+
+
+def _directs_artworks_show(user, artwork):
+    """The artwork hangs in a show at a venue this user runs, or they created it.
+
+    The second half matters more than it looks: an artwork's venue is derived from its
+    shows, so one just added on an artist's behalf belongs nowhere until it is put in a
+    show. Without it a director could create a piece and immediately lose the right to
+    fix it.
+    """
+    if not directed_site_ids(user):
+        return False
+    if artwork.created_by_id == user.id:
+        return True
+    from gallery.models import Artwork
+    # Both relations, because they mean different stages. `shows` is the accepted work,
+    # added when a submission is promoted; `submissions` is what is still being juried —
+    # which is precisely when a director is handling it. Checking only the first locked
+    # them out of every open call they were running.
+    return Artwork.objects.filter(pk=artwork.pk).filter(
+        Q(shows__sites__pk__in=directed_site_ids(user))
+        | Q(submissions__show__sites__pk__in=directed_site_ids(user))).exists()
+
+
+def _directs_artists_work(user, artist):
+    """The artist has work in a show at a venue this user runs, or they created the record.
+
+    This is what "a site shows the artists who have shown there" means, expressed as a
+    permission. It follows that an artist who has shown at two venues can be edited by
+    either director — the same shared-record situation two admins have always had.
+    """
+    if not directed_site_ids(user):
+        return False
+    if artist.created_by_id == user.id:
+        return True
+    from gallery.models import Artist
+    return Artist.objects.filter(pk=artist.pk).filter(
+        Q(artworks__shows__sites__pk__in=directed_site_ids(user))
+        | Q(artworks__submissions__show__sites__pk__in=directed_site_ids(user))).exists()
+
+
 def _is_gallery_admin(user):
     """Staff user who has no artist-curator profile — a real gallery admin, not a curator."""
     if not (user.is_authenticated and user.is_staff and not user.is_superuser):
@@ -48,6 +128,8 @@ def can_manage_artist(user, artist):
         return False
     if user.is_superuser or _is_gallery_admin(user):
         return True
+    if _directs_artists_work(user, artist):
+        return True
     return artist.user_id == user.id
 
 
@@ -55,6 +137,8 @@ def can_delete_artist(user, artist):
     if not user.is_authenticated:
         return False
     if user.is_superuser or _is_gallery_admin(user):
+        return True
+    if _directs_artists_work(user, artist):
         return True
     if artist.user_id != user.id:
         return False
@@ -65,6 +149,8 @@ def can_manage_artwork(user, artwork):
     if not user.is_authenticated:
         return False
     if user.is_superuser or _is_gallery_admin(user):
+        return True
+    if _directs_artworks_show(user, artwork):
         return True
     if artwork.created_by_id == user.id or any(a.user_id == user.id for a in artwork.artists.all()):
         return True
@@ -81,6 +167,8 @@ def can_delete_artwork(user, artwork):
         return False
     if user.is_superuser or _is_gallery_admin(user):
         return True
+    if _directs_artworks_show(user, artwork):
+        return True
     if artwork.created_by_id != user.id and not any(a.user_id == user.id for a in artwork.artists.all()):
         return False
     today = datetime.date.today()
@@ -91,6 +179,8 @@ def can_manage_show(user, show):
     if not user.is_authenticated:
         return False
     if user.is_superuser or _is_gallery_admin(user):
+        return True
+    if _directs_shows_site(user, show):
         return True
     if not is_curator_user(user):
         return False
@@ -104,7 +194,11 @@ def can_manage_show(user, show):
 def can_delete_show(user, show):
     if not user.is_authenticated:
         return False
-    return user.is_superuser or _is_gallery_admin(user)
+    if user.is_superuser or _is_gallery_admin(user):
+        return True
+    # Curators still cannot; a director is an admin for their own venue, and the gallery
+    # asked for that to include the irreversible part.
+    return _directs_shows_site(user, show)
 
 
 def can_manage_event(user, event):
@@ -135,9 +229,16 @@ def visible_show_queryset(qs, user):
         return qs
     if is_juror_user(user):
         return qs
+    visible = Q(status__in=Show.PUBLIC_STATUSES)
+    joined = False
+    if is_site_director(user):
+        # Their own venue's drafts, and no other venue's.
+        visible |= Q(sites__pk__in=directed_site_ids(user))
+        joined = True           # sites is many-to-many, so rows can double up
     if is_curator_user(user):
-        return qs.filter(Q(status__in=Show.PUBLIC_STATUSES) | Q(pk__in=_curator_show_ids(user)))
-    return qs.filter(status__in=Show.PUBLIC_STATUSES)
+        visible |= Q(pk__in=_curator_show_ids(user))
+    qs = qs.filter(visible)
+    return qs.distinct() if joined else qs
 
 
 def visible_artwork_queryset(user):

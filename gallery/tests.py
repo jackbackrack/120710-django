@@ -2219,7 +2219,12 @@ class OpeningHoursTests(TestCase):
         editable = {f.name for f in Site._meta.get_fields()
                     if getattr(f, 'editable', False) and not f.auto_created
                     and f.name not in automatic}
-        self.assertEqual(editable - set(SiteForm().fields), set())
+        # As an admin: `directors` is deliberately withheld from anyone else, so a form
+        # built with no user is missing it on purpose. The point of this test is that no
+        # field is unreachable by *anyone*.
+        staff = User.objects.create_user(username='sf@example.com', email='sf@example.com',
+                                         password='pw', is_staff=True)
+        self.assertEqual(editable - set(SiteForm(user=staff).fields), set())
 
     def test_the_booking_settings_can_actually_be_switched_on(self):
         self.client.force_login(self.staff)
@@ -3020,7 +3025,13 @@ class RsvpDashboardTests(TestCase):
                     response=response, party_size=party)
         self.curator = User.objects.create_user(username='cur@example.com',
                                                 email='cur@example.com', password='pw')
-        self.curator.groups.add(Group.objects.get_or_create(name='curator')[0])
+        # A curator is somebody who curates a show, not somebody in a Django group named
+        # 'curator' — the group check in views/visits.py was a second, disagreeing
+        # definition of the role and has been removed.
+        curator_artist = Artist.objects.create(
+            user=self.curator, name='Cura Tor', first_name='Cura', last_name='Tor',
+            email=self.curator.email)
+        self.show.curators.add(curator_artist)
 
     def _as_curator(self):
         self.client.force_login(self.curator)
@@ -11724,3 +11735,148 @@ class ImageColourTests(TestCase):
                 processors = generator_registry.get(spec_id, source=None).processors
                 self.assertTrue(any(isinstance(p, ToSRGB) for p in processors),
                                 f'{spec_id} does not convert to sRGB')
+
+
+class SiteDirectorTests(TestCase):
+    """An admin for one venue and nothing beyond it.
+
+    Most of the surface comes free because it already funnels through can_manage_show —
+    events, jurors, reviews, and the pickup/dropoff scheduling all delegate to it. What
+    these tests are really for is the other half: that none of it leaks sideways to a
+    venue the director does not run.
+    """
+
+    def setUp(self):
+        from gallery.models import Site
+        from gallery.permissions import (can_delete_show, can_manage_artist,
+                                         can_manage_artwork, can_manage_show)
+        self.can_manage_show = staticmethod(can_manage_show).__func__
+        self.can_delete_show = staticmethod(can_delete_show).__func__
+        self.can_manage_artist = staticmethod(can_manage_artist).__func__
+        self.can_manage_artwork = staticmethod(can_manage_artwork).__func__
+        today = datetime.date.today()
+        self.mine = Site.objects.create(name='Mine', slug='mine',
+                                        status=Site.STATUS_PUBLISHED)
+        self.theirs = Site.objects.create(name='Theirs', slug='theirs',
+                                          status=Site.STATUS_PUBLISHED)
+        self.director = User.objects.create_user(
+            username='dir@example.com', email='dir@example.com', password='pw')
+        self.mine.directors.add(self.director)
+
+        def show(name, site, status=Show.STATUS_PUBLISHED):
+            s = Show.objects.create(name=name, status=status, start=today,
+                                    end=today + datetime.timedelta(days=30))
+            s.sites.add(site)
+            return s
+        self.my_show = show('My Show', self.mine)
+        self.their_show = show('Their Show', self.theirs)
+        self.their_draft = show('Their Draft', self.theirs, Show.STATUS_DRAFT)
+        self.my_draft = show('My Draft', self.mine, Show.STATUS_DRAFT)
+
+        def artwork(name, in_show):
+            a = Artist.objects.create(name=f'{name} Maker', email=f'{name}@example.com')
+            w = Artwork.objects.create(name=name, end_year=2026)
+            w.artists.add(a)
+            # Submitted, deliberately NOT promoted into show.artworks: that is the state
+            # during an open call, and checking only the accepted relation locked a
+            # director out of the very work they were jurying.
+            ArtworkSubmission.objects.create(show=in_show, artwork=w)
+            return a, w
+        self.my_artist, self.my_artwork = artwork('Mine', self.my_show)
+        self.their_artist, self.their_artwork = artwork('Theirs', self.their_show)
+
+    # --- shows ---
+
+    def test_manages_and_deletes_shows_at_their_venue(self):
+        self.assertTrue(self.can_manage_show(self.director, self.my_show))
+        self.assertTrue(self.can_delete_show(self.director, self.my_show))
+
+    def test_cannot_touch_another_venues_show(self):
+        self.assertFalse(self.can_manage_show(self.director, self.their_show))
+        self.assertFalse(self.can_delete_show(self.director, self.their_show))
+
+    def test_sees_their_own_venues_drafts_and_no_others(self):
+        from gallery.permissions import visible_show_queryset
+        visible = set(visible_show_queryset(Show.objects.all(), self.director)
+                      .values_list('name', flat=True))
+        self.assertIn('My Draft', visible)
+        self.assertNotIn('Their Draft', visible)
+
+    def test_the_show_form_only_offers_their_own_venue(self):
+        """Not presentation: a ModelMultipleChoiceField rejects a pk outside its queryset,
+        so a posted site id they were never shown fails validation."""
+        from gallery.forms import ShowForm
+        offered = set(ShowForm(user=self.director).fields['sites'].queryset)
+        self.assertEqual(offered, {self.mine})
+
+    # --- artists and artworks, which have no site of their own ---
+
+    def test_manages_artists_and_artworks_shown_at_their_venue(self):
+        self.assertTrue(self.can_manage_artist(self.director, self.my_artist))
+        self.assertTrue(self.can_manage_artwork(self.director, self.my_artwork))
+
+    def test_cannot_touch_ones_shown_only_elsewhere(self):
+        self.assertFalse(self.can_manage_artist(self.director, self.their_artist))
+        self.assertFalse(self.can_manage_artwork(self.director, self.their_artwork))
+
+    def test_keeps_hold_of_what_they_just_created(self):
+        """Site-ness is derived from shows, so a record not yet in one belongs nowhere.
+        Without created_by a director could add somebody on an artist's behalf and be
+        locked out of the result immediately."""
+        fresh_artist = Artist.objects.create(name='Brand New', email='new@example.com',
+                                             created_by=self.director)
+        fresh_work = Artwork.objects.create(name='Untitled', end_year=2026,
+                                            created_by=self.director)
+        self.assertEqual(fresh_artist.artworks.count(), 0)      # in no show at all
+        self.assertTrue(self.can_manage_artist(self.director, fresh_artist))
+        self.assertTrue(self.can_manage_artwork(self.director, fresh_work))
+
+    # --- the venue itself ---
+
+    def test_edits_their_own_venue_but_cannot_create_or_delete_one(self):
+        self.client.force_login(self.director)
+        self.assertEqual(
+            self.client.get(reverse('gallery:site_edit',
+                                    kwargs={'slug': self.mine.slug})).status_code, 200)
+        for name, kwargs in (('gallery:site_edit', {'slug': self.theirs.slug}),
+                             ('gallery:site_new', {}),
+                             ('gallery:site_delete', {'slug': self.mine.slug})):
+            with self.subTest(view=name):
+                self.assertEqual(self.client.get(reverse(name, kwargs=kwargs)).status_code,
+                                 403)
+
+    def test_cannot_appoint_other_directors(self):
+        """Otherwise the role escalates itself: one director could add themselves to every
+        other venue, or hand the role to anybody."""
+        from gallery.forms import ShowForm  # noqa: F401 — keeps the import block honest
+        from gallery.forms import SiteForm
+        self.assertNotIn('directors', SiteForm(instance=self.mine, user=self.director).fields)
+        staff = User.objects.create_user(username='boss@example.com',
+                                         email='boss@example.com', password='pw',
+                                         is_staff=True)
+        self.assertIn('directors', SiteForm(instance=self.mine, user=staff).fields)
+
+    # --- visits and replies, which are per-venue ---
+
+    def test_sees_only_their_own_venues_bookings_and_replies(self):
+        from gallery.models import Visit
+        from django.utils import timezone as tz
+        when = tz.now() + datetime.timedelta(days=2)
+        Visit.objects.create(site=self.mine, when=when, name='My Visitor',
+                             email='mine@example.com', party_size=1)
+        Visit.objects.create(site=self.theirs, when=when, name='Their Visitor',
+                             email='theirs@example.com', party_size=1)
+        self.client.force_login(self.director)
+        page = self.client.get(reverse('gallery:visit_list')).content.decode()
+        self.assertIn('My Visitor', page)
+        self.assertNotIn('Their Visitor', page)
+
+    # --- and the things the role deliberately does not include ---
+
+    def test_gets_no_campaign_or_subscriber_access(self):
+        """Sending goes out under the gallery's name to its whole list; that stays with
+        admins until the gallery says otherwise."""
+        self.client.force_login(self.director)
+        for name in ('gallery:campaign_list', 'gallery:subscriber_list'):
+            with self.subTest(view=name):
+                self.assertEqual(self.client.get(reverse(name)).status_code, 404)

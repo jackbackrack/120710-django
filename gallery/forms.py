@@ -707,6 +707,10 @@ class SiteForm(UserAwareModelForm):
         model = Site
         fields = (
             'name',
+            # Removed for anyone who is not an admin — see __init__. A director editing
+            # their own venue must not be able to appoint more directors, including
+            # themselves onto somebody else's venue.
+            'directors',
             'street',
             'city',
             'state',
@@ -745,6 +749,13 @@ class SiteForm(UserAwareModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        from gallery.permissions import is_staff_user
+        if not (self.user and is_staff_user(self.user)):
+            self.fields.pop('directors', None)
+        else:
+            self.fields['directors'].help_text = Site._meta.get_field('directors').help_text
+            self.fields['directors'].required = False
 
         for name in self.VISIT_DEFAULTS:
             self.fields[name].required = False
@@ -816,7 +827,15 @@ class ShowForm(UserAwareModelForm):
         self.fields['curators'].queryset = Artist.objects.all().order_by('name')
         if self.instance.pk:
             self.fields['curators'].initial = self.instance.curators.all()
-        self.fields['sites'].queryset = Site.objects.all().order_by('name')
+        # A director may only put a show at a venue they run — and only take it off one.
+        # Narrowing the queryset is the enforcement, not just the presentation: a
+        # ModelMultipleChoiceField rejects any pk outside it, so a posted site id they
+        # were never offered fails validation rather than quietly applying.
+        from gallery.permissions import directed_site_ids, is_site_director, is_staff_user
+        sites = Site.objects.all().order_by('name')
+        if user is not None and is_site_director(user) and not is_staff_user(user):
+            sites = sites.filter(pk__in=directed_site_ids(user))
+        self.fields['sites'].queryset = sites
         if self.instance.pk:
             self.fields['sites'].initial = self.instance.sites.all()
         self.fields['submission_deadline'].required = True
