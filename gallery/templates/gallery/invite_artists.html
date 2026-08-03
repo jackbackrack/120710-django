@@ -44,7 +44,7 @@
   {% endif %}
 
   {% if invitation_rows %}
-  <table class="table table-sm table-borderless">
+  <table class="table table-sm table-borderless invite-table">
     <thead class="border-bottom">
       <tr>
         <th>Email</th>
@@ -168,4 +168,34 @@ document.querySelectorAll('.ss-copy-link').forEach(function (btn) {
   });
 });
 </script>
+
+<style>
+  /* The row carries a lot: email, artist, four counts, two dates, the next step and four
+     controls. Sized down so it fits without wrapping rather than by dropping columns —
+     everything in the row is something the gallery reads while chasing people.
+
+     Scoped to this table. base.css sets no .table rules, so a bare `.table` here would
+     quietly resize every grid on the site. */
+  .invite-table { font-size: .78rem; }
+  .invite-table th { font-size: .72rem; }
+
+  /* Bootstrap's .btn sets its own font-size, so buttons ignore the table's and would sit a
+     third larger than the text beside them — the same thing that made the RSVP button
+     dwarf the .ics link next to it. They have to be told explicitly. */
+  .invite-table a,
+  .invite-table button,
+  .invite-table .btn { font-size: inherit; }
+
+  /* .small is 0.875em, which compounds against the reduced base and lands near 9px.
+     Softened so the step description and the dates stay legible. */
+  .invite-table .small { font-size: .95em; }
+
+  /* Dates and counts should never wrap; the email and the step may. */
+  .invite-table td:nth-child(3),
+  .invite-table td:nth-child(4),
+  .invite-table td:nth-child(5),
+  .invite-table td:nth-child(6),
+  .invite-table td:nth-child(7),
+  .invite-table td:nth-child(8) { white-space: nowrap; }
+</style>
 {% endblock %}
