@@ -55,6 +55,25 @@ def _body_shape(request):
     return f'{len(keys)} fields but no token: {keys}'
 
 
+def _edge(request):
+    """What the CDN in front of us saw, so a rejection can be traced past our own logs.
+
+    `cf-ray` identifies one request in Cloudflare's Security Events. That is the only way
+    to answer "did Cloudflare touch this?" — the alternative, when a body arrives empty,
+    is guessing between the visitor's machine and our own edge configuration, and we have
+    already lost days to exactly that guess.
+
+    `cf-connecting-ip` is the visitor's real address; without it every request looks like
+    it came from the proxy, so "is this one person or everyone?" is unanswerable too.
+    """
+    ray = request.META.get('HTTP_CF_RAY')
+    if not ray:
+        return 'no CDN headers (direct, or not behind Cloudflare)'
+    return (f'cf-ray={ray} '
+            f'ip={request.META.get("HTTP_CF_CONNECTING_IP", "?")} '
+            f'country={request.META.get("HTTP_CF_IPCOUNTRY", "?")}')
+
+
 def csrf_failure(request, reason=''):
     try:
         user = request.user if hasattr(request, 'user') else None
@@ -62,7 +81,7 @@ def csrf_failure(request, reason=''):
             else 'signed out'
         logger.warning(
             'CSRF rejected: %s | path=%s | user=%s | body=%s | '
-            'csrftoken cookie=%s | content_type=%s | content_length=%s | ua=%s',
+            'csrftoken cookie=%s | content_type=%s | content_length=%s | %s | ua=%s',
             reason or 'no reason given',
             request.path,
             who,
@@ -70,6 +89,7 @@ def csrf_failure(request, reason=''):
             'present' if request.COOKIES.get('csrftoken') else 'ABSENT',
             request.META.get('CONTENT_TYPE', '?'),
             request.META.get('CONTENT_LENGTH', '?'),
+            _edge(request),
             request.META.get('HTTP_USER_AGENT', '?')[:200],
         )
     except Exception:                                         # noqa: BLE001

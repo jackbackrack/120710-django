@@ -11486,11 +11486,12 @@ class CsrfFailureTests(TestCase):
         return (f'--{self.BOUNDARY}\r\nContent-Disposition: form-data; '
                 f'name="{name}"\r\n\r\n{value}\r\n')
 
-    def _post(self, body):
+    def _post(self, body, headers=None):
         with self.assertLogs('eatart.views.csrf', level='WARNING') as captured:
             response = self._client().generic(
                 'POST', self.url, data=body,
-                content_type=f'multipart/form-data; boundary={self.BOUNDARY}')
+                content_type=f'multipart/form-data; boundary={self.BOUNDARY}',
+                **(headers or {}))
         return response, '\n'.join(captured.output)
 
     def test_the_page_says_what_happened_and_what_to_do(self):
@@ -11519,6 +11520,21 @@ class CsrfFailureTests(TestCase):
         _response, log = self._post(body.encode())
         self.assertIn('including the token', log)
         self.assertIn('stale, not absent', log)
+
+    def test_the_log_carries_the_cdn_trace_id(self):
+        """A body that arrives empty could be the visitor's machine or our own edge, and
+        nothing in our logs could tell them apart. cf-ray identifies the request in
+        Cloudflare's Security Events; its absence says Cloudflare was not in the path at
+        all, which settles the question just as well."""
+        _r, log = self._post(b'', headers={
+            'HTTP_CF_RAY': '9a1b2c3d4e5f6789-SJC',
+            'HTTP_CF_CONNECTING_IP': '203.0.113.7',
+            'HTTP_CF_IPCOUNTRY': 'US'})
+        self.assertIn('cf-ray=9a1b2c3d4e5f6789-SJC', log)
+        self.assertIn('203.0.113.7', log)
+
+        _r, direct = self._post(b'')
+        self.assertIn('no CDN headers', direct)
 
     def test_the_log_records_field_names_but_never_their_values(self):
         """The form that lands here most often carries a bio, a phone number and a

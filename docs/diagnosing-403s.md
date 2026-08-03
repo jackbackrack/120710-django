@@ -47,6 +47,12 @@ Read the `body=` clause first:
 missing", which is why a broken upload and a genuinely absent token produce the same
 Django log line. Only re-reading the body separates them.
 
+The line also carries `cf-ray=...`, which identifies the request in Cloudflare's
+**Security → Events**. That is the only way to tell "the visitor's machine sent nothing"
+from "our own edge dropped it" — an empty body looks identical either way from inside
+Django. If it instead says `no CDN headers`, Cloudflare was not in the path, which
+answers the question just as well.
+
 **Key names only, never values.** The form that lands here most often is an artist
 profile, carrying a bio, a phone number, an email and a postal address. Names are enough
 to tell the four cases apart; values would put personal data in the log of every failed
