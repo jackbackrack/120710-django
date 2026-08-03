@@ -24,9 +24,23 @@
     {% endif %}
   </fieldset>
 
-  <hr class="my-4">
-  <h5>Supplemental Images</h5>
-  <p class="text-muted small">Drag to reorder, or focus a card and use ← → arrow keys. Press Delete to remove. Max 50 MB each.</p>
+  {% comment %}
+    A fieldset with a legend, exactly like the sections crispy renders above it (Required,
+    Pricing, and Layout / 3D image). It used to be an <h5>, which base.css styles at
+    0.625rem, uppercase, in the quiet grey — 10px of muted capitals next to a 1.5rem
+    legend. An artist asked the gallery to add installation photos for them because they
+    never saw that this section existed.
+
+    The <hr> that used to sit here has gone with it: the fieldsets already separate the
+    sections, and a rule between two of them implied a division that is not there.
+  {% endcomment %}
+  <fieldset class="mb-4">
+    <legend>More images of this work <span class="text-muted fw-normal fs-6">(optional)</span></legend>
+    <p class="text-muted small mb-2">
+      Detail shots, alternative views, or the piece installed — anything beyond the main
+      image. Drag to reorder, or focus a card and use ← → arrow keys. Press Delete to
+      remove. Max 50 MB each.
+    </p>
   {{ image_formset.management_form }}
   <div class="cards" id="image-sortable" style="justify-content:flex-start;">
   {% for img_form in image_formset %}
@@ -47,6 +61,8 @@
   </div>
   </div>
   <input type="file" id="image-file-input" accept="image/*" multiple style="display:none">
+
+  </fieldset>
 
   <button class="btn btn-info ms-2" type="submit">Update</button>
 </form>

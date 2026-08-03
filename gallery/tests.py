@@ -12165,3 +12165,60 @@ class HealthCheckTests(TestCase):
         self.assertIn('gunicorn', procfile)
         self.assertNotIn('migrate', procfile)
         self.assertNotIn('collectstatic', procfile)
+
+
+class ArtworkImageSectionsTests(TestCase):
+    """The two image sections on the artwork edit form must be findable.
+
+    "Supplemental Images" was an <h5>, which base.css renders at 0.625rem, uppercase, in
+    the quiet grey — 10px of muted capitals beside a 1.5rem <legend>. An artist asked the
+    gallery to add installation photos for them because they never saw the section existed.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='own@example.com',
+                                             email='own@example.com', password='pw')
+        artist = Artist.objects.create(user=self.user, name='Own Er', first_name='Own',
+                                       last_name='Er', email='own@example.com')
+        self.artwork = Artwork.objects.create(name='Piece', end_year=2026,
+                                              created_by=self.user)
+        self.artwork.artists.add(artist)
+        self.client.force_login(self.user)
+
+    def _edit_page(self):
+        return self.client.get(reverse('gallery:artwork_edit',
+                                       kwargs={'pk': self.artwork.pk})).content.decode()
+
+    def test_both_image_sections_are_headed_like_every_other_section(self):
+        """A <legend>, as crispy renders Required and Pricing — not an <h5> at 10px."""
+        import re
+        page = self._edit_page()
+        legends = [re.sub(r'<[^>]+>', '', m) for m in
+                   re.findall(r'<legend[^>]*>(.*?)</legend>', page, re.S)]
+        joined = ' | '.join(' '.join(t.split()) for t in legends)
+        self.assertIn('Layout / 3D image', joined)
+        self.assertIn('More images of this work', joined)
+        self.assertNotIn('<h5>Supplemental', page)
+
+    def test_the_images_section_says_it_is_optional(self):
+        import re
+        page = self._edit_page()
+        section = re.search(r'<legend[^>]*>More images of this work(.*?)</legend>',
+                            page, re.S).group(1)
+        self.assertIn('(optional)', section)
+
+    def test_no_rule_is_drawn_between_the_two_sections(self):
+        page = self._edit_page()
+        between = page.split('Layout / 3D image')[1].split('More images of this work')[0]
+        self.assertNotIn('<hr', between)
+
+    def test_the_section_says_what_it_is_for(self):
+        """It listed only how to reorder cards, never what to put in them. Installation
+        shots are the thing artists were asking the gallery to add for them."""
+        self.assertIn('installed', self._edit_page())
+
+    def test_the_create_form_says_these_come_after_saving(self):
+        """They only exist on the edit form — an inline formset needs a saved artwork — so
+        an artist adding a piece had no reason to know they were possible."""
+        page = self.client.get(reverse('gallery:artwork_new')).content.decode()
+        self.assertIn('Once this is saved you can add more images', page)

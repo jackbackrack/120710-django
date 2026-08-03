@@ -6,6 +6,16 @@
 {% if form.errors %}<div class="alert alert-danger">Please correct the highlighted fields below.</div>{% endif %}
 <form action="" method="post" enctype="multipart/form-data" data-image-required="1">{% csrf_token %}
   {% crispy form %}
+  {% comment %}
+    The supplemental-images and layout-image sections only exist on the edit form, because
+    an inline formset needs a saved artwork to attach to. Nothing said so, so an artist
+    adding a piece had no reason to know detail or installation shots were possible at all
+    — and one asked the gallery to add theirs by hand.
+  {% endcomment %}
+  <p class="text-muted small mt-2 mb-2">
+    Once this is saved you can add more images of the piece — detail shots, alternative
+    views, or it installed — and crop a version for the room layout.
+  </p>
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>
 {% endblock content %}
