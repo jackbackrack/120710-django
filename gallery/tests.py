@@ -10452,12 +10452,19 @@ class CalendarTests(TestCase):
             street='1207 Tenth Street', city='Berkeley', postal_code='94710')
         self.other_site = Site.objects.create(
             name='Other Venue', status=Site.STATUS_PUBLISHED, state='NY', country='US')
+        # Relative to today, not absolute. These were 2026-08-01/02 and were a current
+        # show with an upcoming opening right up until the real clock passed them, at
+        # which point the opening moved into the past section and two tests failed for
+        # reasons that had nothing to do with the code.
+        today = datetime.date.today()
         self.show = Show.objects.create(
             name='Summer Show', status=Show.STATUS_PUBLISHED,
-            start=datetime.date(2026, 8, 1), end=datetime.date(2026, 8, 31))
+            start=today - datetime.timedelta(days=2),
+            end=today + datetime.timedelta(days=28))
         self.show.sites.add(self.site)
         self.event = Event.objects.create(
-            show=self.show, name='Opening Reception', date=datetime.date(2026, 8, 2),
+            show=self.show, name='Opening Reception',
+            date=today + datetime.timedelta(days=1),
             start=datetime.time(18, 0), end=datetime.time(21, 0))
 
     def _ics(self, site=None):
@@ -10486,7 +10493,12 @@ class CalendarTests(TestCase):
         self.assertEqual(self.site.timezone, 'America/Phoenix')
 
     def test_event_times_are_published_as_utc_instants(self):
-        """18:00 in Berkeley in August is PDT, so 01:00Z the following day."""
+        """18:00 in Berkeley in August is PDT, so 01:00Z the following day.
+
+        Pins its own date rather than using the fixture's: this asserts one exact instant,
+        so it needs a known day, while the listing tests need one relative to today."""
+        self.event.date = datetime.date(2026, 8, 2)
+        self.event.save(update_fields=['date'])
         self.assertIn('DTSTART:20260803T010000Z', self._ics())
         self.assertIn('DTEND:20260803T040000Z', self._ics())
 
@@ -10499,6 +10511,8 @@ class CalendarTests(TestCase):
         Event.objects.create(show=winter, name='Winter Opening',
                              date=datetime.date(2027, 1, 11),
                              start=datetime.time(18, 0), end=datetime.time(21, 0))
+        self.event.date = datetime.date(2026, 8, 2)      # a known summer date, see above
+        self.event.save(update_fields=['date'])
         body = self._ics()
         self.assertIn('DTSTART:20260803T010000Z', body)   # August, PDT (-7)
         self.assertIn('DTSTART:20270112T020000Z', body)   # January, PST (-8)
