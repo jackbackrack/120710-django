@@ -11719,6 +11719,36 @@ class ImageColourTests(TestCase):
                               'alpha was dropped — logos would gain a black background')
                 self.assertEqual(out.getpixel((0, 0))[-1], 0)
 
+    def test_a_profile_that_does_not_match_the_pixels_is_ignored_quietly(self):
+        """Real production files carry Lab and CMYK profiles on data Pillow reads as RGB.
+        LittleCMS answers that with "cannot build transform"; there is no correct
+        conversion to attempt, and a bulk regeneration hit it once per spec per image, so
+        a traceback each time buried the genuine faults."""
+        from PIL import Image, ImageChops, ImageCms
+
+        from gallery.imaging import ToSRGB
+        mismatched = Image.new('RGB', (16, 16), (10, 120, 200))
+        mismatched.info['icc_profile'] = ImageCms.ImageCmsProfile(
+            ImageCms.createProfile('LAB')).tobytes()
+
+        with self.assertLogs('gallery.imaging', level='INFO') as captured:
+            out = ToSRGB().process(mismatched)
+        joined = '\n'.join(captured.output)
+        self.assertIn('does not describe', joined)
+        self.assertNotIn('Traceback', joined)
+        self.assertNotIn('WARNING', joined)
+        self.assertIsNone(ImageChops.difference(out, mismatched).getbbox())
+
+    def test_a_grayscale_image_with_an_rgb_profile_is_left_alone(self):
+        from PIL import Image, ImageCms
+
+        from gallery.imaging import ToSRGB
+        gray = Image.new('L', (16, 16), 128)
+        gray.info['icc_profile'] = ImageCms.ImageCmsProfile(
+            ImageCms.createProfile('sRGB')).tobytes()
+        with self.assertLogs('gallery.imaging', level='INFO'):
+            self.assertEqual(ToSRGB().process(gray).mode, 'L')
+
     def test_every_spec_on_the_site_runs_the_conversion(self):
         """Twenty-two spec fields across four models, and one left out is one model whose
         pictures are quietly wrong. Asserted over imagekit's registry rather than a list,

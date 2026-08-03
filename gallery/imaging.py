@@ -32,6 +32,24 @@ from PIL import Image, ImageCms
 logger = logging.getLogger(__name__)
 
 
+# Which image modes each kind of profile can actually describe. Anything else — a Lab
+# profile on RGB pixels, a CMYK profile on data read as RGB — cannot be built into a
+# transform, and is a mis-tagged file rather than a colour space we could honour.
+_PROFILE_MODES = {'RGB': {'RGB'}, 'GRAY': {'L'}, 'CMYK': {'CMYK'}}
+
+
+def _profile_space(profile):
+    """The profile's own colour space, e.g. 'RGB', 'CMYK', 'GRAY' — or '' if unreadable."""
+    try:
+        return (profile.profile.xcolor_space or '').strip().upper()
+    except Exception:                                         # noqa: BLE001
+        return ''
+
+
+def _profile_describes(profile, mode):
+    return mode in _PROFILE_MODES.get(_profile_space(profile), ())
+
+
 class ToSRGB:
     """Convert to sRGB through the image's own ICC profile.
 
@@ -61,6 +79,17 @@ class ToSRGB:
             working = working.convert('RGB')
         try:
             source = ImageCms.ImageCmsProfile(io.BytesIO(icc))
+            if not _profile_describes(source, working.mode):
+                # A tag that does not match the pixels is not information, it is noise —
+                # a Lab or CMYK profile on data Pillow read as RGB. LittleCMS answers this
+                # with "cannot build transform", and there is no correct conversion to
+                # attempt: treating the numbers as sRGB is exactly as right as before.
+                # Logged flatly rather than as a traceback, because a bulk regeneration
+                # will hit it once per spec per image and the noise buries real faults.
+                logger.info('Ignoring an ICC profile (%s) that does not describe a %s '
+                            'image; leaving its colour alone',
+                            _profile_space(source) or 'unreadable', working.mode)
+                return img
             converted = ImageCms.profileToProfile(
                 working, source, ImageCms.createProfile('sRGB'), outputMode='RGB')
             if converted is not None and alpha is not None:

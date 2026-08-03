@@ -51,8 +51,22 @@ Alpha is carried *around* the conversion, not through it: LittleCMS returns RGB,
 converting a transparent PNG directly drops the channel and puts a black background behind
 every site logo. The `icon_*` specs output PNG for exactly that reason.
 
-A malformed profile logs a warning and returns the image untouched. A wrong picture beats
-no picture.
+Two kinds of unusable profile, treated differently on purpose:
+
+- **A profile that does not describe the pixels** — a Lab or CMYK profile on data Pillow
+  read as RGB. Real files in this collection do this. LittleCMS answers with "cannot build
+  transform", and there is no correct conversion to attempt, so the image is left alone and
+  it logs one flat `INFO` line. A bulk regeneration hits this once per spec per image, and a
+  traceback each time buries the genuine faults.
+- **A malformed profile** — bytes that are not a profile at all. Still a `WARNING` with the
+  traceback, because that is unexpected and worth seeing.
+
+Either way the picture survives: a wrong colour beats no picture.
+
+Editing `ToSRGB` does **not** invalidate anything already generated. The cache hash is over
+the processor *instances*, and `ToSRGB()` pickles to 44 bytes of class reference with no
+state, so changing its methods cannot rename a file. Behaviour fixes here can ship in the
+middle of a regeneration run.
 
 ## Deploying a change to any spec
 
