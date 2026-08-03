@@ -217,6 +217,10 @@ class ShowInvitation(models.Model):
     # When the invitation email was actually sent. Null = never emailed, so a later
     # "Save & Send" (or Resend) will email this person; already-sent ones are skipped.
     email_sent_at = models.DateTimeField(null=True, blank=True)
+    # When this artist was last nudged about the step they still have left. Recorded and
+    # shown rather than enforced: the gallery decides whether somebody needs chasing again,
+    # and a guard that silently skipped people would be worse than a date they can read.
+    nudged_at = models.DateTimeField(null=True, blank=True)
     # Secret claim token: the invite email links to accept-invitation/<token>/, so
     # the invitee can bind this invitation to whatever account they sign in with —
     # even if that email differs from the one they were invited at.

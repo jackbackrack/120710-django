@@ -31,6 +31,18 @@
 
   <div class="text-center section-label"><h2>Invitations sent ({{ invitations|length }})</h2></div>
 
+  {% if outstanding_count %}
+  <p class="mt-3">
+    <a class="card__link new-button"
+       href="{% url 'gallery:nudge_invited_artists' show.slug %}">Nudge
+      {{ outstanding_count }} outstanding artist{{ outstanding_count|pluralize }}</a>
+    <span class="text-muted small ms-2">
+      Each is written to about the one step they have left. You see every message before
+      anything is sent, and anyone who has submitted is skipped.
+    </span>
+  </p>
+  {% endif %}
+
   {% if invitation_rows %}
   <table class="table table-sm table-borderless">
     <thead class="border-bottom">
@@ -103,6 +115,16 @@
           </form>
           <button type="button" class="btn btn-sm btn-link p-0 card__link ms-2 ss-copy-link"
                   data-link="{{ row.accept_url }}" title="Copy a personal accept link to send directly (works with any account)">Copy link</button>
+          {% comment %}
+            Only where there is something left to say. Somebody who has submitted is
+            finished, and a "nudge" aimed at them would be noise from the artist's side and
+            a mistake waiting to happen from the gallery's.
+          {% endcomment %}
+          {% if not row.submitted_count %}
+          <a class="btn btn-sm btn-link p-0 card__link ms-2"
+             href="{% url 'gallery:nudge_invited_artists' show.slug %}?email={{ row.invitation.email|urlencode }}"
+             title="Write to this artist about the step they still have left">Nudge</a>
+          {% endif %}
           <form method="post" style="display:inline">
             {% csrf_token %}
             <input type="hidden" name="action" value="delete">

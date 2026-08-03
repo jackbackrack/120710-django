@@ -10,6 +10,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.html import strip_tags
 
 logger = logging.getLogger(__name__)
 from gallery.forms import ArtworkForm, ArtworkSubmissionForm
@@ -245,53 +247,168 @@ def accept_invitation(request, slug, token):
 
 
 @login_required
-def send_submission_reminders(request, slug):
+def nudge_invited_artists(request, slug):
+    """Write to invited artists about the one step they each have left.
+
+    GET previews, POST sends. The preview is not decoration: this goes out on a curator's
+    behalf to people the gallery is courting, and email cannot be recalled — so who is
+    about to receive what is shown first, per person, with the step named.
+
+    `?email=` narrows both to one artist, which is what the per-row button uses.
+    """
     show = get_object_or_404(Show, slug=slug)
     if not can_manage_show(request.user, show):
         raise Http404
-    if request.method != 'POST':
-        return redirect('gallery:show_submissions', slug=slug)
 
-    submitted_emails = set(
-        ArtworkSubmission.objects.filter(show=show)
-        .exclude(submitted_by__isnull=True)
-        .values_list('submitted_by__email', flat=True)
-    )
-    submitted_emails = {e.lower() for e in submitted_emails if e}
+    from gallery import nudges
 
-    not_submitted = show.invitations.exclude(
-        email__in=submitted_emails
-    ).exclude(
-        email__in=[e.upper() for e in submitted_emails]
-    )
-    # Case-insensitive exclusion via Python
-    not_submitted = [inv for inv in show.invitations.all() if (inv.email or '').lower() not in submitted_emails]
+    rows = invitation_rows_for(request, show)
+    pending = nudges.outstanding(rows)
+    one = (request.POST.get('email') or request.GET.get('email') or '').strip().lower()
+    if one:
+        pending = [(row, step) for row, step in pending
+                   if row['invitation'].email.lower() == one]
 
+    curators = nudges.curator_names(show)
+    site = show.sites.first()
+    howto_url = request.build_absolute_uri(
+        reverse('howto_guide', kwargs={'anchor': 'submit-artwork'}))
     show_url = request.build_absolute_uri(show.get_absolute_url())
-    count = 0
-    for inv in not_submitted:
-        html = render_to_string('email/show_submission_reminder.html', {
-            'show': show,
-            'show_url': show_url,
-        })
-        send_mail(
-            subject=f'Reminder: submit your artwork to {show.name}',
-            message=(
-                f'This is a reminder to submit your artwork to {show.name}. '
-                f'The show will be closing shortly. Visit {show_url} to submit.'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[inv.email],
-            html_message=html,
-            fail_silently=True,
-        )
-        count += 1
 
-    messages.success(request, f'Reminder sent to {count} artist{"s" if count != 1 else ""}.')
-    return redirect('gallery:show_submissions', slug=slug)
+    def context_for(row, step):
+        artist = row['artist']
+        return {
+            'show': show, 'site': site, 'step': step, 'curators': curators,
+            'howto_url': howto_url, 'show_url': show_url,
+            # Their name if we know it. An invitation carries only an address until
+            # somebody claims it, and "Dear noaccount@example.com" reads worse than no
+            # name at all — so the template opens with a plain "Hello" instead.
+            'greeting_name': (artist.first_name or artist.full_name or artist.name
+                              if artist else ''),
+            # Only where it is the thing they need: the token binds the invitation to
+            # whatever address they sign up with, so somebody with no account cannot
+            # proceed without it.
+            'accept_url': row['accept_url'] if step['key'] == nudges.STEP_ACCOUNT else '',
+        }
+
+    if request.method != 'POST':
+        return render(request, 'gallery/nudge_preview.html', {
+            'show': show, 'site': site, 'curators': curators, 'one': one,
+            'previews': [(row, step, render_to_string('email/show_nudge.html',
+                                                      context_for(row, step)))
+                         for row, step in pending],
+        })
+
+    sent, failed = 0, []
+    for row, step in pending:
+        invitation = row['invitation']
+        html = render_to_string('email/show_nudge.html', context_for(row, step))
+        message = EmailMultiAlternatives(
+            subject=f'{show.name}: {step["ask"][0].upper()}{step["ask"][1:]}',
+            body=strip_tags(html),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[invitation.email],
+            # A reply goes to whoever pressed the button. The email offers help, and an
+            # offer of help that lands in a no-reply mailbox is worse than not offering.
+            reply_to=[request.user.email] if request.user.email else None,
+        )
+        message.attach_alternative(html, 'text/html')
+        try:
+            # Not fail_silently: the reminder this replaces swallowed every failure, so a
+            # nudge that never arrived looked exactly like one that did.
+            message.send()
+        except Exception as exc:                              # noqa: BLE001
+            logger.warning('Nudge to %s for show %s failed: %s',
+                           invitation.email, show.pk, exc)
+            failed.append(invitation.email)
+            continue
+        invitation.nudged_at = timezone.now()
+        invitation.save(update_fields=['nudged_at'])
+        sent += 1
+
+    if sent:
+        messages.success(request, f'Nudged {sent} artist{"s" if sent != 1 else ""}.')
+    if failed:
+        messages.error(request, 'Could not send to: ' + ', '.join(failed))
+    if not sent and not failed:
+        messages.info(request, 'Nobody to nudge — everyone invited has submitted.')
+    return redirect('gallery:invite_artists', slug=show.slug)
 
 
 @login_required
+def send_submission_reminders(request, slug):
+    """Retired in favour of the nudge tool, and kept only as a redirect.
+
+    It mailed every non-submitter the same "please submit your work" — whether they had
+    never created an account or had a finished profile and simply not pressed the last
+    button — and with fail_silently=True, so a bounce looked identical to a delivery.
+    Forwarding rather than deleting, so an old bookmark or link lands somewhere useful;
+    leaving it in place would have meant two reminder tools drifting apart.
+    """
+    show = get_object_or_404(Show, slug=slug)
+    if not can_manage_show(request.user, show):
+        raise Http404
+    return redirect('gallery:nudge_invited_artists', slug=show.slug)
+def invitation_rows_for(request, show):
+    """Every invitation to this show with the state the invite table shows.
+
+    Shared with the nudge tool rather than derived twice: "has an account", "profile
+    finished" and "has submitted" must mean the same thing in the table and in the email.
+    The profile test in particular used to be spelled out here *and* in
+    submission_cta.SUBMIT_REQUIRED, which is what the submit gate itself enforces.
+    """
+    from django.contrib.auth import get_user_model
+
+    from gallery.submission_cta import SUBMIT_REQUIRED
+    User = get_user_model()
+
+    invitations = show.invitations.select_related(
+        'artist', 'artist__user', 'claimed_by').order_by('email')
+
+    # Submission counts to THIS show, keyed by lowercased submitter email.
+    sub_counts = {}
+    for email, n in (
+        ArtworkSubmission.objects.filter(show=show)
+        .values_list('submitted_by__email')
+        .annotate(n=Count('id'))
+    ):
+        if email:
+            sub_counts[email.lower()] = n
+
+    accounts = {e.lower() for e in User.objects.values_list('email', flat=True) if e}
+
+    rows = []
+    for inv in invitations:
+        email = inv.email.lower()
+        artist = inv.artist or (
+            Artist.objects.filter(user__email__iexact=email).first()
+            or Artist.objects.filter(email__iexact=email, user__isnull=True).first()
+        )
+        missing = [label for field, label in SUBMIT_REQUIRED
+                   if not (artist and getattr(artist, field, None))]
+        rows.append({
+            'invitation': inv,
+            'artist': artist,
+            'email_sent': bool(inv.email_sent_at),
+            'claimed': bool(inv.claimed_by_id),
+            'claimed_email': (inv.claimed_by.email if inv.claimed_by_id else ''),
+            'accept_url': request.build_absolute_uri(inv.get_accept_url()),
+            'has_account': email in accounts or bool(artist and artist.user_id),
+            'info_complete': bool(artist) and not missing,
+            'missing_fields': missing,
+            'artworks_count': artist.artworks.count() if artist else 0,
+            'submitted_count': sub_counts.get(email, 0),
+            'nudged_at': inv.nudged_at,
+        })
+    return rows
+
+
+
+
+
+
+
+
 def invite_artists(request, slug):
     import re as _re
     show = get_object_or_404(Show, slug=slug)
@@ -395,50 +512,19 @@ def invite_artists(request, slug):
 
         return redirect('gallery:invite_artists', slug=slug)
 
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-
-    invitations = show.invitations.select_related('artist', 'artist__user', 'claimed_by').order_by('email')
+    rows = invitation_rows_for(request, show)
+    invitations = [row['invitation'] for row in rows]
+    # The textarea the gallery edits: one address per line, as it was.
     current_emails = '\n'.join(inv.email for inv in invitations)
 
-    # Submission counts to THIS show, keyed by lowercased submitter email.
-    sub_counts = {}
-    for email, n in (
-        ArtworkSubmission.objects.filter(show=show)
-        .values_list('submitted_by__email')
-        .annotate(n=Count('id'))
-    ):
-        if email:
-            sub_counts[email.lower()] = n
-
-    accounts = {e.lower() for e in User.objects.values_list('email', flat=True) if e}
-
-    invitation_rows = []
-    for inv in invitations:
-        email = inv.email.lower()
-        artist = inv.artist or (
-            Artist.objects.filter(user__email__iexact=email).first()
-            or Artist.objects.filter(email__iexact=email, user__isnull=True).first()
-        )
-        invitation_rows.append({
-            'invitation': inv,
-            'artist': artist,
-            'email_sent': bool(inv.email_sent_at),
-            'claimed': bool(inv.claimed_by_id),
-            'claimed_email': (inv.claimed_by.email if inv.claimed_by_id else ''),
-            'accept_url': request.build_absolute_uri(inv.get_accept_url()),
-            'has_account': email in accounts or bool(artist and artist.user_id),
-            'info_complete': bool(artist and artist.image and artist.first_name
-                                  and artist.last_name and artist.zipcode),
-            'artworks_count': artist.artworks.count() if artist else 0,
-            'submitted_count': sub_counts.get(email, 0),
-        })
-
+    from gallery import nudges
     return render(request, 'gallery/invite_artists.html', {
         'show': show,
         'invitations': invitations,
-        'invitation_rows': invitation_rows,
+        'invitation_rows': rows,
         'current_emails': current_emails,
+        # How many the bulk button would write to, so it can say so before it is pressed.
+        'outstanding_count': len(nudges.outstanding(rows)),
     })
 
 

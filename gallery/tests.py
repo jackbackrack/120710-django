@@ -11910,3 +11910,181 @@ class SiteDirectorTests(TestCase):
         for name in ('gallery:campaign_list', 'gallery:subscriber_list'):
             with self.subTest(view=name):
                 self.assertEqual(self.client.get(reverse(name)).status_code, 404)
+
+
+class NudgeInvitedArtistsTests(MediaImageMixin, TestCase):
+    """Writing to an invited artist about the one step they have left.
+
+    The reminder this replaces sent everyone the same "please submit your work", whether
+    they had never created an account or had a finished profile and simply not pressed the
+    last button — and swallowed every delivery failure.
+    """
+
+    def setUp(self):
+        from gallery.models import ShowInvitation, Site
+        self._setup_media()
+        today = datetime.date.today()
+        self.site = Site.objects.create(name='120710', slug='120710',
+                                        status=Site.STATUS_PUBLISHED)
+        self.show = Show.objects.create(
+            name='after ALBERS', status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_INVITED,
+            submission_deadline=today + datetime.timedelta(days=21),
+            start=today + datetime.timedelta(days=40),
+            end=today + datetime.timedelta(days=70))
+        self.show.sites.add(self.site)
+        for name, first in (('Mel Ito', 'Mel'), ('Sam Roe', 'Sam')):
+            self.show.curators.add(Artist.objects.create(
+                name=name, first_name=first, last_name=name.split()[-1],
+                email=f'{first.lower()}@example.com'))
+        self.url = reverse('gallery:nudge_invited_artists',
+                           kwargs={'slug': self.show.slug})
+        self.staff = User.objects.create_user(username='boss@example.com',
+                                              email='boss@example.com',
+                                              password='pw', is_staff=True)
+        self.invite = lambda email, **kw: ShowInvitation.objects.create(
+            show=self.show, email=email, **kw)
+
+    def tearDown(self):
+        self._teardown_media()
+
+    def _complete_artist(self, email, **kw):
+        user = User.objects.create_user(username=email, email=email, password='pw')
+        return Artist.objects.create(user=user, name=email, first_name='A',
+                                     last_name='B', email=email, zipcode='94710',
+                                     image=self.TEST_ARTIST_IMAGE, **kw), user
+
+    # --- the ladder ---
+
+    def test_each_artist_is_told_the_step_they_are_actually_stuck_on(self):
+        from gallery import nudges
+        self.assertEqual(
+            nudges.next_step(has_account=False, artist=None, artworks_count=0,
+                             submitted_count=0)['key'], nudges.STEP_ACCOUNT)
+        self.assertEqual(
+            nudges.next_step(has_account=True, artist=None, artworks_count=0,
+                             submitted_count=0)['key'], nudges.STEP_PROFILE)
+        bare = Artist.objects.create(name='Bare', email='bare@example.com')
+        self.assertEqual(
+            nudges.next_step(has_account=True, artist=bare, artworks_count=0,
+                             submitted_count=0)['key'], nudges.STEP_DETAILS)
+        done, _u = self._complete_artist('done@example.com')
+        self.assertEqual(
+            nudges.next_step(has_account=True, artist=done, artworks_count=0,
+                             submitted_count=0)['key'], nudges.STEP_ARTWORK)
+        self.assertEqual(
+            nudges.next_step(has_account=True, artist=done, artworks_count=2,
+                             submitted_count=0)['key'], nudges.STEP_SUBMIT)
+
+    def test_somebody_who_has_submitted_is_never_nudged(self):
+        from gallery import nudges
+        done, _u = self._complete_artist('sub@example.com')
+        self.assertIsNone(nudges.next_step(has_account=True, artist=done,
+                                           artworks_count=1, submitted_count=1))
+
+    def test_the_missing_fields_are_named_rather_than_implied(self):
+        """"Finish your profile" is the message that made people ask which bit."""
+        from gallery import nudges
+        partial = Artist.objects.create(name='Part', first_name='Par', last_name='Tial',
+                                        email='part@example.com')          # no zip, no photo
+        step = nudges.next_step(has_account=True, artist=partial,
+                                artworks_count=0, submitted_count=0)
+        self.assertIn('zip code', step['short'])
+        self.assertIn('photo', step['short'])
+
+    # --- the preview, which sends nothing ---
+
+    def test_get_previews_and_sends_nothing(self):
+        self.invite('nobody@example.com')
+        self.client.force_login(self.staff)
+        mail.outbox.clear()
+        page = self.client.get(self.url).content.decode()
+        self.assertIn('nobody@example.com', page)
+        self.assertIn('No account yet', page)
+        self.assertEqual(mail.outbox, [], 'a preview must not send anything')
+
+    def test_the_preview_leaves_out_anyone_who_has_submitted(self):
+        from gallery.models import ArtworkSubmission
+        artist, user = self._complete_artist('finished@example.com')
+        work = Artwork.objects.create(name='Done', end_year=2026)
+        work.artists.add(artist)
+        ArtworkSubmission.objects.create(show=self.show, artwork=work, submitted_by=user)
+        self.invite('finished@example.com')
+        self.invite('stalled@example.com')
+        self.client.force_login(self.staff)
+        page = self.client.get(self.url).content.decode()
+        self.assertIn('stalled@example.com', page)
+        self.assertNotIn('finished@example.com', page)
+
+    # --- sending ---
+
+    def test_the_email_names_the_curators_the_show_and_the_venue(self):
+        self.invite('who@example.com')
+        self.client.force_login(self.staff)
+        mail.outbox.clear()
+        self.client.post(self.url)
+        self.assertEqual(len(mail.outbox), 1)
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertIn('Mel Ito and Sam Roe', html)      # both, not just the first
+        self.assertIn('after ALBERS', html)
+        self.assertIn('120710', html)
+        self.assertIn('/howto/submit-artwork/', html)
+
+    def test_only_somebody_without_an_account_gets_the_accept_link(self):
+        """The token binds the invitation to whatever address they sign up with, so it is
+        exactly what a person with no account needs — and noise for anyone past that."""
+        self.invite('nouser@example.com')
+        artist, _u = self._complete_artist('hasuser@example.com')
+        self.invite('hasuser@example.com')
+        self.client.force_login(self.staff)
+        mail.outbox.clear()
+        self.client.post(self.url)
+        by_to = {m.to[0]: m.alternatives[0][0] for m in mail.outbox}
+        self.assertIn('accept-invite', by_to['nouser@example.com'])
+        self.assertNotIn('accept-invite', by_to['hasuser@example.com'])
+
+    def test_one_artist_can_be_nudged_alone(self):
+        self.invite('a@example.com')
+        self.invite('b@example.com')
+        self.client.force_login(self.staff)
+        mail.outbox.clear()
+        self.client.post(self.url, {'email': 'a@example.com'})
+        self.assertEqual([m.to[0] for m in mail.outbox], ['a@example.com'])
+
+    def test_sending_records_when_and_a_reply_reaches_the_sender(self):
+        invitation = self.invite('rec@example.com')
+        self.client.force_login(self.staff)
+        mail.outbox.clear()
+        self.client.post(self.url)
+        invitation.refresh_from_db()
+        self.assertIsNotNone(invitation.nudged_at)
+        self.assertEqual(mail.outbox[0].reply_to, ['boss@example.com'])
+
+    def test_a_failure_is_reported_rather_than_swallowed(self):
+        """The reminder this replaces passed fail_silently=True, so a nudge that never
+        arrived looked exactly like one that did."""
+        self.invite('boom@example.com')
+        self.client.force_login(self.staff)
+        from unittest import mock
+        with mock.patch('django.core.mail.EmailMultiAlternatives.send',
+                        side_effect=RuntimeError('smtp down')):
+            response = self.client.post(self.url, follow=True)
+        said = ' '.join(str(m) for m in response.context['messages'])
+        self.assertIn('Could not send', said)
+        self.assertIn('boom@example.com', said)
+
+    # --- who may ---
+
+    def test_only_somebody_who_manages_the_show_may_nudge(self):
+        self.invite('x@example.com')
+        outsider = User.objects.create_user(username='out@example.com',
+                                            email='out@example.com', password='pw')
+        self.client.force_login(outsider)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+        self.assertEqual(self.client.post(self.url).status_code, 404)
+
+    def test_the_old_blanket_reminder_now_forwards_here(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('gallery:send_submission_reminders',
+                                           kwargs={'slug': self.show.slug}))
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)

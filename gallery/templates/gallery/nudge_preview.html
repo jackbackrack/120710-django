@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Nudge artists — {{ show.name }}{% endblock %}
+{% block block_title %}Nudge artists — {{ show.name }}{% endblock %}
+
+{% comment %}
+  What each artist is about to receive, before anything is sent. Not decoration: these go
+  out on a curator's behalf to people the gallery is courting, and email cannot be
+  recalled. The step is named per person, so a wrong ladder is obvious here rather than in
+  somebody's inbox.
+{% endcomment %}
+{% block content %}
+<div class="col-11 col-md-9 mx-auto mt-4">
+  <p class="text-muted small">
+    On behalf of {% if curators %}<strong>{{ curators }}</strong>{% else %}the curators{% endif %},
+    signed by the {{ site.name|default:"gallery" }} team, with your address as the reply-to.
+    Anyone who has already submitted is not listed.
+  </p>
+
+  {% if previews %}
+  <form method="post">{% csrf_token %}
+    {% if one %}<input type="hidden" name="email" value="{{ one }}">{% endif %}
+    <p>
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('Send {{ previews|length }} email{{ previews|length|pluralize }}? This cannot be undone.')">
+        Send {{ previews|length }} email{{ previews|length|pluralize }}
+      </button>
+      <a class="card__link ms-3" href="{% url 'gallery:invite_artists' show.slug %}">Cancel</a>
+    </p>
+  </form>
+
+  {% for row, step, body in previews %}
+  <div class="mb-4 p-3 border rounded">
+    <div class="fw-semibold">
+      {{ row.invitation.email }}
+      <span class="text-muted small">— {{ step.short }}</span>
+      {% if row.nudged_at %}
+      <span class="text-muted small">· last nudged {{ row.nudged_at|date:"j M" }}</span>
+      {% endif %}
+    </div>
+    <details class="mt-2">
+      <summary class="card__link small">What they will read</summary>
+      <div class="mt-2 p-3" style="background:#fff">{{ body|safe }}</div>
+    </details>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p>Nobody to nudge — everyone invited to this show has already submitted work.</p>
+  <p><a class="card__link" href="{% url 'gallery:invite_artists' show.slug %}">Back to invitations</a></p>
+  {% endif %}
+</div>
+{% endblock %}

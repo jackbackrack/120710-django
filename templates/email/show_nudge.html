@@ -1,0 +1,48 @@
+{% comment %}
+  A nudge to one invited artist, naming the one thing they have left to do.
+
+  Deliberately plain and short. It is a note from a person on a curator's behalf, not a
+  mailing — it goes out over the transactional mail path, and looking like a newsletter
+  would be both wrong and worse at getting read.
+
+  The accept link is included whenever they have no account yet, because that token is
+  what binds the invitation to whatever address they sign up with. Without it they would
+  have to go and find the original invitation email.
+{% endcomment %}<!DOCTYPE html>
+<html>
+<body>
+<p>{% if greeting_name %}Dear {{ greeting_name }}{% else %}Hello{% endif %},</p>
+
+<p>
+  I'm helping {% if curators %}{{ curators }}{% else %}the curators{% endif %} with
+  production for <strong>{{ show.name }}</strong>{% if site %} at {{ site.name }}{% endif %}.
+</p>
+
+<p>
+  You've been invited to show work, and the next step is to <strong>{{ step.ask }}</strong>.
+  {{ step.why }}
+</p>
+
+{% if show.submission_deadline %}
+<p>The submission deadline is <strong>{{ show.submission_deadline }}</strong>.</p>
+{% endif %}
+
+{% if accept_url %}
+<p>Your personal invitation link: <a href="{{ accept_url }}">{{ accept_url }}</a></p>
+{% else %}
+<p>Start here: <a href="{{ show_url }}">{{ show.name }}</a></p>
+{% endif %}
+
+<p>
+  There are step-by-step instructions with pictures here:
+  <a href="{{ howto_url }}">{{ howto_url }}</a>
+</p>
+
+<p>If you get stuck at any point, just reply to this and I'll sort it out.</p>
+
+<p>
+  Sincerely,<br>
+  The {% if site %}{{ site.name }}{% else %}gallery{% endif %} team
+</p>
+</body>
+</html>

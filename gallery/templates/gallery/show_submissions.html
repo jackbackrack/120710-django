@@ -46,13 +46,15 @@
     {% endif %}
   </div>
   {% if can_manage %}
-  <form method="post" action="{% url 'gallery:send_submission_reminders' show.slug %}" class="mt-2">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-sm btn-link p-0 card__link"
-            onclick="return confirm('Send submission reminder to {{ invited_not_submitted|length }} artist{{ invited_not_submitted|length|pluralize }}?')">
-      Send reminder to non-submitters
-    </button>
-  </form>
+  {% comment %}
+    Points at the nudge preview, which replaced the blanket reminder: each artist is
+    written to about the step they actually have left, and nothing sends until you have
+    seen it.
+  {% endcomment %}
+  <p class="mt-2">
+    <a class="card__link" href="{% url 'gallery:nudge_invited_artists' show.slug %}">Nudge
+      artists who have not submitted</a>
+  </p>
   {% endif %}
   {% endif %}
 </div>
