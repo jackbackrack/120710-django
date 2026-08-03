@@ -11527,6 +11527,47 @@ class CsrfFailureTests(TestCase):
         self.assertIn('nothing was saved', page)
         self.assertNotIn('Request aborted', page)      # Django's unhelpful default
 
+    def _post_meta(self, body, **meta):
+        """A POST whose headers we control.
+
+        Needed because RequestFactory.generic only sets CONTENT_TYPE when `data` is
+        non-empty (`if data:`), so the natural way to test an empty body drops the very
+        header the page branches on — while a real browser sends both.
+        """
+        from django.test import Client
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.user)
+        with self.assertLogs('eatart.views.csrf', level='WARNING'):
+            return client.generic('POST', self.url, data=body, **meta)
+
+    def test_an_empty_body_with_a_file_attached_names_the_likely_cause(self):
+        """The signature of the real fault: Safari wrote the headers, boundary and all,
+        and sent nothing. "CSRF verification failed" told the artist nothing she could
+        act on; a file her Mac could not read is something she can fix in a minute."""
+        page = self._post_meta(
+            b'', CONTENT_TYPE=f'multipart/form-data; boundary={self.BOUNDARY}',
+            CONTENT_LENGTH='0').content.decode()
+        self.assertIn('without any data in it', page)
+        self.assertIn('iCloud', page)
+        self.assertIn('Download Now', page)
+
+    def test_an_empty_body_with_no_file_does_not_blame_a_file(self):
+        """Same symptom, different cause. Telling somebody to re-download a photo they
+        never attached would be worse than saying nothing."""
+        page = self._post_meta(b'', CONTENT_TYPE='application/x-www-form-urlencoded',
+                               CONTENT_LENGTH='0').content.decode()
+        self.assertNotIn('iCloud', page)
+        self.assertIn('could not be verified', page)
+
+    def test_a_stale_token_still_gets_the_reload_advice(self):
+        body = (self._part('csrfmiddlewaretoken', 'x' * 64) + self._part('name', 'X')
+                + f'--{self.BOUNDARY}--\r\n')
+        page = self._post_meta(
+            body.encode(),
+            CONTENT_TYPE=f'multipart/form-data; boundary={self.BOUNDARY}').content.decode()
+        self.assertNotIn('iCloud', page)
+        self.assertIn('Back', page)
+
     def test_the_log_tells_an_empty_body_from_a_missing_token(self):
         """The distinction that could not be made before, and the one that matters:
         an empty body points upstream, a missing token points at our own page."""
@@ -11585,9 +11626,9 @@ class CsrfFailureTests(TestCase):
             def POST(self):
                 raise UnreadablePostError('connection broke')
 
-        shape = _body_shape(BrokenRequest())
-        self.assertIn('unreadable', shape)
-        self.assertIn('connection broke', shape)   # names the cause, not just the failure
+        kind, phrase = _body_shape(BrokenRequest())
+        self.assertEqual(kind, 'unreadable')       # what the page branches on
+        self.assertIn('connection broke', phrase)  # names the cause, not just the failure
 
     def test_the_handler_survives_a_request_it_cannot_describe(self):
         """It runs when something is already wrong; raising would turn a 403 into a 500."""

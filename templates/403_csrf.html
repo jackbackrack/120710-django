@@ -6,11 +6,50 @@
 {% comment %}
   Django's wording here is "CSRF verification failed. Request aborted.", which tells the
   person nothing they can act on — and the form most likely to land them here is an artist
-  profile they have just spent ten minutes on. What they need is: it was not their fault,
-  their work is probably still in the page behind them, and what to try.
+  profile or an artwork they have just spent ten minutes on.
+
+  Two quite different faults arrive at this page, so it says two different things:
+
+  * The body arrived **empty** — the browser wrote the headers and sent no data. When a
+    file was attached that is almost always a file the machine could not read, and on a Mac
+    that means iCloud holding it in the cloud with no local copy. Naming that is the
+    difference between somebody fixing it in a minute and giving up.
+  * Anything else — a stale token, a page left open, a rotated session. Reload and retry.
+
+  The view decides which, from what actually reached Django; see eatart/views/csrf.py.
 {% endcomment %}
 {% block content %}
 <div class="col-11 col-md-7 mx-auto mt-4">
+
+{% if body_empty and sent_a_file %}
+  <p>
+    <strong>Your browser sent the form without any data in it</strong>, so nothing was
+    saved. That almost always means it could not read the file you attached.
+  </p>
+
+  <p><strong>The usual cause on a Mac is iCloud</strong> — the picture is in your iCloud
+     library or iCloud Drive, and this Mac only has a placeholder for it rather than the
+     file itself. The file chooser still shows it, so nothing looks wrong until you save.</p>
+
+  <p><strong>What fixes it:</strong></p>
+  <ol>
+    <li>
+      Find the picture in <strong>Finder</strong>, right-click it and choose
+      <strong>Download Now</strong>. Wait for the little cloud icon beside it to disappear.
+    </li>
+    <li>
+      Or, if it lives in <strong>Photos</strong>, export it to your Desktop first and use
+      that copy — dragging or exporting always makes a real file.
+    </li>
+    <li>Then come back here, choose the file again, and save.</li>
+  </ol>
+
+  <p class="text-muted small">
+    A quick way to tell them apart: take a screenshot (⌘⇧4) and try uploading that. A
+    screenshot is always a real file on your Mac, so if it saves and your picture does not,
+    it is the picture that needs downloading rather than anything wrong with your account.
+  </p>
+{% else %}
   <p>
     Your submission could not be verified, so nothing was saved. This is almost always the
     page having sat open too long, or a connection that dropped partway through sending.
@@ -31,8 +70,9 @@
       browsing.
     </li>
   </ol>
+{% endif %}
 
-  <p class="text-muted small">
+  <p class="text-muted small mt-4">
     If it still will not go through, it is a fault at our end rather than yours, and we
     would like to know. Please
     <a href="{% url 'howto' %}">see the help pages</a> for how to reach us, and mention

@@ -36,8 +36,17 @@ from django.template import TemplateDoesNotExist
 logger = logging.getLogger(__name__)
 
 
+# What the body turned out to be. The page says different things for each, because they
+# are different problems for the person reading it — a stale token means "reload and try
+# again", an empty body means "your browser sent nothing, and here is the usual reason".
+BODY_UNREADABLE = 'unreadable'
+BODY_EMPTY = 'empty'
+BODY_STALE = 'stale'
+BODY_NO_TOKEN = 'no-token'
+
+
 def _body_shape(request):
-    """What the request actually carried, as a short phrase for the log.
+    """(kind, phrase) — what the request actually carried.
 
     Reading `request.POST` is the whole point and is also the thing most likely to blow
     up, so every branch is guarded.
@@ -45,14 +54,15 @@ def _body_shape(request):
     try:
         keys = sorted(request.POST.keys())
     except UnreadablePostError:
-        return 'unreadable (connection broke before the body finished)'
+        return BODY_UNREADABLE, 'unreadable (connection broke before the body finished)'
     except Exception as exc:                                  # noqa: BLE001 — see docstring
-        return f'unreadable ({type(exc).__name__})'
+        return BODY_UNREADABLE, f'unreadable ({type(exc).__name__})'
     if not keys:
-        return 'empty (arrived with no fields at all)'
+        return BODY_EMPTY, 'empty (arrived with no fields at all)'
     if 'csrfmiddlewaretoken' in keys:
-        return f'{len(keys)} fields including the token (so it was stale, not absent): {keys}'
-    return f'{len(keys)} fields but no token: {keys}'
+        return BODY_STALE, (f'{len(keys)} fields including the token '
+                            f'(so it was stale, not absent): {keys}')
+    return BODY_NO_TOKEN, f'{len(keys)} fields but no token: {keys}'
 
 
 def _edge(request):
@@ -85,7 +95,7 @@ def csrf_failure(request, reason=''):
             reason or 'no reason given',
             request.path,
             who,
-            _body_shape(request),
+            _body_shape(request)[1],
             'present' if request.COOKIES.get('csrftoken') else 'ABSENT',
             request.META.get('CONTENT_TYPE', '?'),
             request.META.get('CONTENT_LENGTH', '?'),
@@ -97,7 +107,20 @@ def csrf_failure(request, reason=''):
         logger.exception('CSRF failure handler could not log the request')
 
     try:
-        return render(request, '403_csrf.html', {'reason': reason}, status=403)
+        kind, _phrase = _body_shape(request)
+    except Exception:                                         # noqa: BLE001
+        kind = None
+    # Only call it a file problem when a file was actually being sent. An empty
+    # urlencoded post is the same symptom with a different cause, and telling somebody to
+    # re-download a photo they never attached would be worse than saying nothing.
+    sent_a_file = 'multipart/form-data' in request.META.get('CONTENT_TYPE', '')
+
+    try:
+        return render(request, '403_csrf.html', {
+            'reason': reason,
+            'body_empty': kind in (BODY_EMPTY, BODY_UNREADABLE),
+            'sent_a_file': sent_a_file,
+        }, status=403)
     except TemplateDoesNotExist:
         return HttpResponse('Your submission could not be verified. Please go back, '
                             'reload the page, and try again.', status=403)

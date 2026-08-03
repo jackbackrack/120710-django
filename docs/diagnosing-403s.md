@@ -53,6 +53,21 @@ from "our own edge dropped it" — an empty body looks identical either way from
 Django. If it instead says `no CDN headers`, Cloudflare was not in the path, which
 answers the question just as well.
 
+## What the visitor is told
+
+The page branches on the same classification. An **empty body sent with a file attached**
+gets the specific message — the browser sent no data, which almost always means it could
+not read the attached file, and on a Mac that is iCloud holding it in the cloud with no
+local copy. It names Finder's **Download Now**, exporting from Photos, and the screenshot
+test as a way to confirm.
+
+Everything else gets the general advice: go Back, reload, retry.
+
+The distinction matters because the two are unrelated faults that arrive at the same
+handler. An empty *urlencoded* post looks identical from Django's side but has nothing to
+do with files, and telling somebody to re-download a photo they never attached would be
+worse than saying nothing — so the file wording is gated on the content type as well.
+
 **Key names only, never values.** The form that lands here most often is an artist
 profile, carrying a bio, a phone number, an email and a postal address. Names are enough
 to tell the four cases apart; values would put personal data in the log of every failed
