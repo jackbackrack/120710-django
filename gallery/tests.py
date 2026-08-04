@@ -1292,6 +1292,77 @@ class ArtistCreationPermissionTests(TestCase):
             'a profile a curator creates for another artist must not be linked to the '
             'curator — that is what makes it claimable later')
 
+    def _post_new_artist(self, first_name, **extra):
+        data = {
+            'first_name': first_name, 'last_name': 'Halloway',
+            'email': f'{first_name.lower()}@example.com', 'country': 'US',
+            'zipcode': '94710', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
+            'bio': '', 'statement': '', 'phone': '', 'website': '',
+            'instagram': '', 'venmo': '',
+            'image': _test_jpg(f'{first_name.lower()}.jpg'),
+        }
+        data.update(extra)
+        self.client.post(reverse('gallery:artist_new'), data)
+        return Artist.objects.filter(first_name=first_name).first()
+
+    def test_an_admin_without_a_profile_is_not_attached_to_the_artist_they_record(self):
+        """The case the old guard got backwards.
+
+        It claimed the profile whenever the creator had none of their own, reading "no
+        artist profile" as "must be making their own". An admin has no artist profile and
+        is the likeliest person to be entering a record for an artist who will never have
+        an account — so an admin recording a dead artist got their own login attached to
+        him, and he then read as the admin's own profile everywhere it counts.
+        """
+        admin = self._user('admin-no-profile@example.com', is_staff=True)
+        self.assertFalse(admin.artists.exists(), 'fixture: the admin has no profile')
+        self.client.force_login(admin)
+        created = self._post_new_artist('Albers')
+        self.assertIsNotNone(created, 'the admin could not create the artist at all')
+        self.assertIsNone(
+            created.user,
+            'an admin with no profile of their own recorded an artist and was attached to '
+            'them — the field was left blank and blank has to mean nobody')
+        self.assertFalse(admin.artists.exists(),
+                         'the artist now shows up as the admin\'s own profile')
+
+    def test_an_admin_can_still_deliberately_link_the_profile_to_somebody(self):
+        """Blank means nobody, but the field must still work when it is filled in."""
+        admin = self._user('admin-linking@example.com', is_staff=True)
+        recipient = self._user('theartist@example.com')
+        self.client.force_login(admin)
+        created = self._post_new_artist('Anni', user=recipient.pk)
+        self.assertEqual(created.user, recipient)
+
+    def test_an_ordinary_user_creating_their_first_profile_still_gets_it(self):
+        """The regression to avoid: they are not offered the field, so the view answers for
+        them, and it must answer with themselves or they cannot edit what they just made."""
+        user = self._user('firsttimer@example.com')
+        self.client.force_login(user)
+        created = self._post_new_artist('Wren')
+        self.assertEqual(created.user, user)
+
+    def test_a_non_staff_curator_is_not_shown_the_whole_user_list(self):
+        """Why the field is staff-only, so a later reader does not "fix" it.
+
+        A non-staff curator is somebody whose own artist profile curates a show, so they
+        always have a profile and the view never guesses for them — they gain nothing from
+        the field, and it would show them every user's email address and let them hand a
+        profile to any account.
+        """
+        curator_artist = Artist.objects.create(
+            user=self._user('cur-nostaff@example.com'), first_name='Cura',
+            last_name='Tor', email='cur-nostaff@example.com')
+        show = Show.objects.create(name='Curated', status=Show.STATUS_OPEN_CALL)
+        show.curators.add(curator_artist)
+        self.client.force_login(curator_artist.user)
+        page = self.client.get(reverse('gallery:artist_new'))
+        self.assertEqual(page.status_code, 200, 'a curator may create artist records')
+        self.assertNotContains(page, 'Linked user account')
+        created = self._post_new_artist('Josef')
+        self.assertIsNone(created.user,
+                          'a curator recording another artist was attached to them')
+
     def test_artists_page_offers_New_to_exactly_those_who_can_use_it(self):
         curator = self._user('cur3@example.com', is_staff=True)
         Artist.objects.create(user=curator, first_name='Cura', last_name='Tor',

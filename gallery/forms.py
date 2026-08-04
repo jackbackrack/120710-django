@@ -101,12 +101,21 @@ class ArtistForm(UserAwareModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, user=user, **kwargs)
+        # Staff only, deliberately not curators. A non-staff curator is by definition
+        # somebody whose own artist profile curates a show, so they always have one, and
+        # the create view therefore never guesses on their behalf. Showing them the field
+        # would buy nothing and would put every user's email address, and the ability to
+        # hand a profile to any account, in front of them.
         if not is_staff_user(self.user):
             self.fields.pop('user')
         else:
             self.fields['user'].queryset = User.objects.order_by('email')
             self.fields['user'].required = False
             self.fields['user'].label = 'Linked user account'
+            self.fields['user'].help_text = (
+                'Leave blank for an artist who has no account and is not going to get one. '
+                'Set it only to hand them the profile — whoever is chosen here can edit it '
+                'and it appears as theirs.')
         # The photo IS required before submitting. Chasing photos after acceptance costs the
         # gallery far more than it costs an artist to supply one now, so the cost is paid up
         # front — and the flow works to make it cheap: the field takes a phone camera shot
@@ -188,7 +197,9 @@ class ArtistForm(UserAwareModelForm):
             Fieldset('Mailing list', 'subscribe_to_mailing_list'),
         )
         if 'user' in self.fields:
-            layout.append(Fieldset('Admin', 'user'))
+            # Named for what the field does, not for who sees it: curators see it too now,
+            # and "Admin" told the person nothing about the one decision it asks for.
+            layout.append(Fieldset('Whose profile this is', 'user'))
         self.helper.layout = layout
 
     def save(self, commit=True):

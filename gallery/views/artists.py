@@ -324,11 +324,19 @@ class ArtistCreateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, C
         return kwargs
 
     def form_valid(self, form):
-        # Only claim the new profile for its creator when they have none of their own.
-        # A curator adding a record for someone who cannot sign up must not have their
-        # own account silently attached to it — and for staff the form has a "Linked user
-        # account" field, whose value (including blank) this would otherwise overwrite.
-        if not self.request.user.artists.exists():
+        # Claim the new profile for its creator only when the form did not ask. "Linked
+        # user account" is shown to whoever may be recording somebody else — staff and
+        # curators — and their answer, blank included, is the answer.
+        #
+        # Having no profile of your own is not evidence you are making your own: an admin
+        # has no artist profile and is the *most* likely person to be entering a record for
+        # an artist who will never have an account. Guessing from that attached the admin's
+        # own login to a dead artist, which then reads as the admin's profile everywhere it
+        # matters — their Me page, and every submission credited through it.
+        #
+        # So the silent claim is left only for ordinary users, who are not offered the
+        # field and have no way to be creating a record for anyone but themselves.
+        if 'user' not in form.fields and not self.request.user.artists.exists():
             form.instance.user = self.request.user
         return super().form_valid(form)
 
