@@ -113,9 +113,15 @@
         <td>{{ person.full_name|default:"—" }}</td>
         {% comment %}
           Untick and Save removes one, unlike the subscribe form, which only ever adds — an
-          operator clearing a box plainly means it. "Artist profile" is shown but has no
-          checkbox: it is derived from having a profile, and a box that silently reverted
-          would be worse than none.
+          operator clearing a box plainly means it. Having an artist profile is shown but has
+          no checkbox: it is derived from the profile, and a box that silently reverted would
+          be worse than none.
+
+          It says "Artist ✓ — from their artist profile" rather than just "artist profile",
+          which read as a contradiction: an unticked Artist box directly above a line saying
+          the person is an artist, with nothing to say which one the filters and campaigns
+          believe. They believe both — the box OR the profile — so the line now states the
+          outcome instead of leaving it to be inferred.
         {% endcomment %}
         <td class="text-nowrap">
           <form method="post" action="{% url 'gallery:subscriber_interests' person.pk %}"
@@ -130,7 +136,10 @@
             {% endfor %}
             <button type="submit" class="btn btn-sm btn-link p-0">save</button>
             {% if person.in_artist_directory %}
-            <div class="text-muted small">artist profile</div>
+            <div class="text-muted small"
+                 title="This address matches an artist on file, so they count as an Artist for filtering and for campaigns whether or not the box is ticked. Derived from the profile, so it cannot be unticked here.">
+              Artist ✓ — from their artist profile
+            </div>
             {% endif %}
           </form>
         </td>

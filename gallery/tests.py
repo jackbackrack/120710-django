@@ -3024,6 +3024,28 @@ class SubscriberSegmentStaffTests(TestCase):
         self.assertIn('dana@example.com', page)
         self.assertNotIn('mo@example.com', page)
 
+    def test_an_artist_profile_counts_as_the_ticked_box_for_filtering(self):
+        """Dana has a profile and never ticked Artist. The question an operator asks looking
+        at that row is whether the filter believes the box or the profile — it believes
+        either, and the row has to say so rather than showing an unticked box next to a
+        line that appears to contradict it."""
+        from gallery.models import Subscriber
+
+        dana = Subscriber.objects.get(email='dana@example.com')
+        self.assertFalse(dana.is_artist, 'fixture: Dana never ticked the box')
+        self.assertTrue(dana.in_artist_directory, 'fixture: Dana has an artist profile')
+        self.assertEqual(dana.segments, [Subscriber.ARTIST])
+
+        page = self.client.get(reverse('gallery:subscriber_list'),
+                               {'segment': 'artist'}).content.decode()
+        self.assertIn('dana@example.com', page)
+        self.assertIn('from their artist profile', page,
+                      'the row must say why an unticked Artist box still counts')
+        visitors = self.client.get(reverse('gallery:subscriber_list'),
+                                   {'segment': 'visitor'}).content.decode()
+        self.assertNotIn('dana@example.com', visitors,
+                         'having a profile must take somebody out of Visitor too')
+
     def test_one_query_for_the_artist_directory_not_one_per_row(self):
         """The annotation shadows the cached_property of the same name. If that ever stops
         working this page goes quadratic in the size of the list."""
