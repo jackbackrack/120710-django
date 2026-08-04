@@ -1486,56 +1486,103 @@ def capture_invitation_show(rec, facts):
     rec.at_step(3)
     rec.shot_region(3, 'table')
 
-    # Step 4 — "controls to fix a wrong email in place, Resend, or Copy link."
-    rec.at_step(4)
-    rec.shot_region(4, 'table tbody tr')
+    # Step 4 is what the Submitted column counts — a column of the table already
+    # photographed in step 3, not a screen of its own.
 
-    # Step 5 is what the invitation email contains — not a page in the app.
+    # Step 5 — "controls to fix a wrong email in place, Resend, or Copy link."
+    rec.at_step(5)
+    rec.shot_region(5, 'table tbody tr')
 
-    # Step 6 — "Change the show status to Open Call on the show detail page."
+    # Step 6 — "The Next step column names what each artist still has to do ... with a
+    #           Nudge link beside it and the date they were last nudged."
+    # The column and its header, not the whole table: the step is about one column, and
+    # the table is already step 3. `.invite-next-step` exists on the cell for this. The
+    # header has to be in the frame — cropped to the cells alone it is an unlabelled
+    # fragment reading "No account yet / Nudge", with nothing to say where it lives.
     rec.at_step(6)
+    rec.shot_region(6, 'th:has-text("Next step")',
+                    'tbody tr:last-child .invite-next-step')
+
+    # Step 7 — "Each row has its own Nudge link, and 'Nudge N outstanding artists' above
+    #           the table does all of them at once."
+    # The bulk link only: the per-row one is the same href with ?email=, so matching on
+    # the href ending picks out the one this step is naming. Its explanatory line is in
+    # the same paragraph and belongs in the picture.
+    rec.at_step(7)
+    rec.shot_region(7, 'p:has(a[href$="/nudge/"])')
+
+    # Step 8 — "every recipient is listed with the step it names, 'What they will read'
+    #           opens that person's message in full."
+    # Open the first one. Shot collapsed, this is three disclosure triangles and a Send
+    # button — a picture of a page that appears to show nothing, illustrating a step whose
+    # whole point is that you read the message before it goes.
+    rec.at_step(8)
+    rec.goto(f'{show_url}nudge/')
+    rec.expect_visible('nothing is sent until you press Send',
+                       'button:has-text("Send")')
+    rec.click('open "What they will read"',
+              rec.page.locator('details summary').first)
+    rec.expect_visible('read the message in full', 'details[open] div')
+    # To the first preview only: the page is a column of near-identical blocks, and the
+    # full page is two thirds empty background below them.
+    rec.shot_region(8, 'form:has(button:has-text("Send"))', 'details[open]')
+
+    # Step 9 — "The table records when each artist was last nudged."
+    # Stamped through the ORM rather than by sending: the Send button carries a
+    # confirm() dialog, and the point of the picture is the recorded date on the row,
+    # not the act of sending. Same reasoning as the status changes below.
+    _db(_stamp_capture_nudges, facts['slug'])
+    rec.at_step(9)
+    rec.goto(f'{show_url}invite/')
+    rec.shot_region(9, 'th:has-text("Next step")',
+                    'tbody tr:last-child .invite-next-step')
+
+    # Step 10 is what the invitation email contains — not a page in the app.
+
+    # Step 11 — "Change the show status to Open Call on the show detail page."
+    rec.at_step(11)
     rec.goto(show_url)
-    rec.shot(6, selector='form[action*="transition-status"], form[action*="transition"]')
+    rec.shot(11, selector='form[action*="transition-status"], form[action*="transition"]')
 
-    # Step 7 points at the add-on-behalf guide.
+    # Step 12 points at the add-on-behalf guide.
 
-    # Steps 8, 10, 11 are further status changes and the publish confirmation. Drive the
+    # Steps 13, 15, 16 are further status changes and the publish confirmation. Drive the
     # show forward through the ORM rather than the status control: the control is already
-    # photographed in step 6, and clicking through six transitions makes the run slow and
+    # photographed in step 11, and clicking through six transitions makes the run slow and
     # fragile for pictures that would all look the same.
     _db(_advance_capture_show, facts['slug'], Show.STATUS_DRAFT)
 
-    # Step 9 — "Go to the Submissions page ... bulk select ... The action bar at the
-    #           bottom moves all selected cards in one step."
-    rec.at_step(9)
+    # Step 14 — "Go to the Submissions page ... bulk select ... The action bar at the
+    #            bottom moves all selected cards in one step."
+    rec.at_step(14)
     rec.goto(f'{show_url}submissions/')
-    rec.shot(9)
+    rec.shot(14)
 
-    # Step 10 — "change the show status to Published ... redirects to the Publish Show
+    # Step 15 — "change the show status to Published ... redirects to the Publish Show
     #            confirmation page."
-    rec.at_step(10)
+    rec.at_step(15)
     rec.goto(f'{show_url}promote/')
-    rec.shot(10)
+    rec.shot(15)
 
-    # Step 11 — "Review the diff and click 'Confirm & Publish Show'."
-    rec.at_step(11)
-    rec.shot_region(11, 'form:has(button:has-text("Confirm"))')
+    # Step 16 — "Review the diff and click 'Confirm & Publish Show'."
+    rec.at_step(16)
+    rec.shot_region(16, 'form:has(button:has-text("Confirm"))')
 
-    # Step 12 — "click 'Send Emails' ... The button shows how many are pending."
-    rec.at_step(12)
+    # Step 17 — "click 'Send Emails' ... The button shows how many are pending."
+    rec.at_step(17)
     _db(_advance_capture_show, facts['slug'], Show.STATUS_PUBLISHED)
     rec.goto(show_url)
     rec.click('open the Logistics menu', rec.control('Logistics'))
     rec.expect_visible('see Send Emails in the menu', '.dropdown-menu.show')
-    rec.shot_region(12, '.dropdown-menu.show')
+    rec.shot_region(17, '.dropdown-menu.show')
 
-    # Step 13 is closing the show — the same status control as step 6.
+    # Step 18 is closing the show — the same status control as step 11.
 
-    # Step 14 — "add events using the New Event link on the show detail page."
-    rec.at_step(14)
+    # Step 19 — "add events using the New Event link on the show detail page."
+    rec.at_step(19)
     rec.click('open the Manage menu', rec.control('Manage'))
     rec.expect_visible('see New Event in the menu', '.dropdown-menu.show')
-    rec.shot_region(14, '.dropdown-menu.show')
+    rec.shot_region(19, '.dropdown-menu.show')
 
 
 def _advance_capture_show(slug, status):
@@ -1543,6 +1590,16 @@ def _advance_capture_show(slug, status):
     if not slug.startswith(CAPTURE_SHOW_PREFIX):
         raise CommandError(f'refusing to change the status of "{slug}" — not a capture show')
     Show.objects.filter(slug=slug).update(status=status)
+
+
+def _stamp_capture_nudges(slug):
+    """Record a last-nudged date on a capture show's invitations, and nowhere else."""
+    from django.utils import timezone
+    from gallery.models import ShowInvitation
+
+    if not slug.startswith(CAPTURE_SHOW_PREFIX):
+        raise CommandError(f'refusing to stamp nudges on "{slug}" — not a capture show')
+    ShowInvitation.objects.filter(show__slug=slug).update(nudged_at=timezone.now())
 
 
 # ── show-lifecycle-and-status ────────────────────────────────────────────────
@@ -2685,9 +2742,10 @@ CAPTURE_SCRIPTS = {
     'how-to-run-an-invitation-only-show': {
         'prepare': prepare_invitation_show,
         'run': capture_invitation_show,
-        # 5 is the invitation email's contents; 7 points at the on-behalf guide; 8 and 13
-        # are further uses of the status control photographed in step 6.
-        'prose_only': {5, 7, 8, 13},
+        # 4 is what the Submitted column counts, a column of the step 3 table; 10 is the
+        # invitation email's contents; 12 points at the on-behalf guide; 13 and 18 are
+        # further uses of the status control photographed in step 11.
+        'prose_only': {4, 10, 12, 13, 18},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },

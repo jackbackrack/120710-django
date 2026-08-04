@@ -115,7 +115,7 @@
           `row.step` is None once somebody has submitted, which is also exactly when there
           is nothing to nudge them about.
         {% endcomment %}
-        <td class="py-2">
+        <td class="py-2 invite-next-step">
           {% if row.step %}
             <div class="small">{{ row.step.short }}</div>
             <a class="card__link" title="Write to {{ row.invitation.email }} about this step"

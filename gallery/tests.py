@@ -10531,10 +10531,16 @@ class CalendarTests(TestCase):
     # --- The exclusive DTEND ---
 
     def test_all_day_show_end_is_exclusive(self):
-        """A show ending 31 Aug must publish DTEND 1 Sep, or clients draw it a day short."""
+        """A show ending 31 Aug must publish DTEND 1 Sep, or clients draw it a day short.
+
+        Derived from the fixture rather than written out: the fixture moves with today, so
+        hard-coded dates here passed only while the real clock happened to agree with
+        them, and then failed for a reason that had nothing to do with the code.
+        """
         body = self._ics()
-        self.assertIn('DTSTART;VALUE=DATE:20260801', body)
-        self.assertIn('DTEND;VALUE=DATE:20260901', body)
+        self.assertIn(f'DTSTART;VALUE=DATE:{self.show.start:%Y%m%d}', body)
+        day_after_the_last_day = self.show.end + datetime.timedelta(days=1)
+        self.assertIn(f'DTEND;VALUE=DATE:{day_after_the_last_day:%Y%m%d}', body)
 
     def test_a_single_day_show_still_has_a_days_length(self):
         one_day = Show.objects.create(
@@ -12263,3 +12269,116 @@ class ArtworkImageSectionsTests(TestCase):
         an artist adding a piece had no reason to know they were possible."""
         page = self.client.get(reverse('gallery:artwork_new')).content.decode()
         self.assertIn('Once this is saved you can add more images', page)
+
+
+class OnBehalfSubmissionCreditTests(MediaImageMixin, TestCase):
+    """A submission counts for the artist whose work it is, not whoever pressed the button.
+
+    "Add artwork on behalf of an artist" records `submitted_by` as the staff member, so
+    counting by submitter credited the gallery's own address. The artist's row read zero —
+    and because the nudge tool reads the same number, the gallery would have emailed them
+    asking them to submit work the gallery had already submitted for them.
+    """
+
+    def setUp(self):
+        from gallery.models import ShowInvitation, Site
+        self._setup_media()
+        today = datetime.date.today()
+        self.site = Site.objects.create(name='120710', slug='120710',
+                                        status=Site.STATUS_PUBLISHED)
+        self.show = Show.objects.create(
+            name='after ALBERS', status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_INVITED,
+            start=today + datetime.timedelta(days=40),
+            end=today + datetime.timedelta(days=70))
+        self.show.sites.add(self.site)
+        self.staff = User.objects.create_user(username='boss@example.com',
+                                              email='boss@example.com',
+                                              password='pw', is_staff=True)
+        self.artist = Artist.objects.create(
+            name='Mag Pie', first_name='Mag', last_name='Pie',
+            email='mag@example.com', zipcode='94710', image=self.TEST_ARTIST_IMAGE)
+        self.invitation = ShowInvitation.objects.create(show=self.show,
+                                                        email='mag@example.com')
+        self.invite_url = reverse('gallery:invite_artists',
+                                  kwargs={'slug': self.show.slug})
+
+    def tearDown(self):
+        self._teardown_media()
+
+    def _artwork(self, name):
+        work = Artwork.objects.create(name=name, end_year=2026)
+        work.artists.add(self.artist)
+        return work
+
+    def _add_on_behalf(self, work):
+        self.client.force_login(self.staff)
+        return self.client.post(
+            reverse('gallery:add_artwork_on_behalf', kwargs={'slug': self.show.slug}),
+            {'artist': self.artist.pk, 'action': 'add_existing', 'artwork': work.pk},
+            follow=True)
+
+    def _counts(self):
+        from gallery.views.open_call import submission_counts
+        return dict(submission_counts(self.show))
+
+    def test_the_artist_is_credited_not_the_staff_member_who_clicked(self):
+        self._add_on_behalf(self._artwork('Piece One'))
+        counts = self._counts()
+        self.assertEqual(counts.get('mag@example.com'), 1)
+        self.assertNotIn('boss@example.com', counts,
+                         'the gallery was credited with the artist\'s submission')
+
+    def test_it_shows_on_the_invite_scoreboard(self):
+        self._add_on_behalf(self._artwork('Piece One'))
+        self._add_on_behalf(self._artwork('Piece Two'))
+        import re
+        page = self.client.get(self.invite_url).content.decode()
+        row = next(tr for tr in re.findall(r'<tr class="border-bottom">.*?</tr>',
+                                           page, re.S) if 'mag@example.com' in tr)
+        cells = [re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', c)).strip()
+                 for c in re.findall(r'<td[^>]*>(.*?)</td>', row, re.S)]
+        self.assertEqual(cells[5], '2')                       # Submitted column
+
+    def test_the_nudge_does_not_chase_them(self):
+        """The worst consequence: emailing an artist to submit work already in the show."""
+        self._add_on_behalf(self._artwork('Piece One'))
+        mail.outbox.clear()
+        self.client.post(reverse('gallery:nudge_invited_artists',
+                                 kwargs={'slug': self.show.slug}))
+        self.assertNotIn('mag@example.com', [m.to[0] for m in mail.outbox])
+
+    def test_their_invitation_survives_an_edit_of_the_email_list(self):
+        """The removal guard read the same wrong source, so editing the list would have
+        deleted the invitation of somebody whose work was in the show."""
+        from gallery.models import ShowInvitation
+        self._add_on_behalf(self._artwork('Piece One'))
+        self.client.post(self.invite_url, {'action': 'save_emails', 'emails': ''},
+                         follow=True)
+        self.assertTrue(
+            ShowInvitation.objects.filter(show=self.show,
+                                          email='mag@example.com').exists())
+
+    def test_a_self_submission_still_counts(self):
+        """The regression to avoid: crediting the artist must not stop counting the
+        ordinary case, where the artist submitted it themselves."""
+        from gallery.models import ArtworkSubmission
+        user = User.objects.create_user(username='mag@example.com',
+                                        email='mag@example.com', password='pw')
+        self.artist.user = user
+        self.artist.save(update_fields=['user'])
+        ArtworkSubmission.objects.create(show=self.show, artwork=self._artwork('Own'),
+                                         submitted_by=user)
+        self.assertEqual(self._counts().get('mag@example.com'), 1)
+
+    def test_one_of_each_counts_two_not_three(self):
+        """A submission credits a person once, however many ways it could match."""
+        from gallery.models import ArtworkSubmission
+        user = User.objects.create_user(username='mag@example.com',
+                                        email='mag@example.com', password='pw')
+        self.artist.user = user
+        self.artist.save(update_fields=['user'])
+        ArtworkSubmission.objects.create(show=self.show, artwork=self._artwork('Own'),
+                                         submitted_by=user)
+        self._add_on_behalf(self._artwork('Added for them'))
+        self.assertEqual(self._counts().get('mag@example.com'), 2)

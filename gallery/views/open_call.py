@@ -349,6 +349,45 @@ def send_submission_reminders(request, slug):
     if not can_manage_show(request.user, show):
         raise Http404
     return redirect('gallery:nudge_invited_artists', slug=show.slug)
+def submission_counts(show):
+    """How many works each invited person has in this show, keyed by lowercased email.
+
+    Credited to the **artist the work belongs to**, not to whoever pressed the button.
+    "Add artwork on behalf of an artist" records `submitted_by` as the staff member doing
+    it, so counting by submitter attributed the gallery's own address and left the artist
+    reading zero. That was not only a wrong scoreboard: the nudge tool reads the same
+    number and would email an artist asking them to submit work the gallery had already
+    submitted for them, and the invitation-removal guard would delete the invitation of
+    somebody whose work was in the show.
+
+    An artist is matched on their own address and on their linked account's, because an
+    invitation is only an email until somebody claims it and the two need not agree.
+
+    Falls back to `submitted_by` only for a submission whose artwork has no artist at all,
+    so a stray record still counts for somebody rather than vanishing.
+    """
+    from collections import defaultdict
+
+    counts = defaultdict(int)
+    submissions = (ArtworkSubmission.objects.filter(show=show)
+                   .select_related('submitted_by', 'artwork')
+                   .prefetch_related('artwork__artists', 'artwork__artists__user'))
+    for sub in submissions:
+        emails = set()
+        for artist in sub.artwork.artists.all():
+            if artist.email:
+                emails.add(artist.email.lower())
+            if artist.user_id and artist.user.email:
+                emails.add(artist.user.email.lower())
+        if not emails and sub.submitted_by and sub.submitted_by.email:
+            emails = {sub.submitted_by.email.lower()}
+        # Once per submission per person, so an artist who submitted one piece themselves
+        # and had a second added for them counts two rather than three.
+        for email in emails:
+            counts[email] += 1
+    return counts
+
+
 def invitation_rows_for(request, show):
     """Every invitation to this show with the state the invite table shows.
 
@@ -365,15 +404,7 @@ def invitation_rows_for(request, show):
     invitations = show.invitations.select_related(
         'artist', 'artist__user', 'claimed_by').order_by('email')
 
-    # Submission counts to THIS show, keyed by lowercased submitter email.
-    sub_counts = {}
-    for email, n in (
-        ArtworkSubmission.objects.filter(show=show)
-        .values_list('submitted_by__email')
-        .annotate(n=Count('id'))
-    ):
-        if email:
-            sub_counts[email.lower()] = n
+    sub_counts = submission_counts(show)
 
     accounts = {e.lower() for e in User.objects.values_list('email', flat=True) if e}
 
@@ -489,12 +520,9 @@ def invite_artists(request, slug):
             # any earlier rows that were never sent. Already-sent people are skipped.
             sent = _send_unsent_invitations(show, request, emails=new_emails)
 
-            submitted_emails = {
-                e.lower() for e in
-                ArtworkSubmission.objects.filter(show=show)
-                .values_list('submitted_by__email', flat=True)
-                if e
-            }
+            # Same source as the scoreboard: an artist whose work the gallery added
+            # on their behalf must not have their invitation deleted either.
+            submitted_emails = set(submission_counts(show))
             removed = 0
             kept = []
             for email in existing_emails - new_emails:
