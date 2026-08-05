@@ -259,6 +259,14 @@ def render_consignment(consignment):
                 f'Agreement version {consignment.version}, terms version '
                 f'{snap.get("terms_version")}.', st['small']),
         ]
+        # Named when it was not the artist's own account. Whoever holds a signing link can
+        # use it, so the honest thing a document can do is say who was logged in at the time
+        # rather than imply it must have been the artist.
+        by = consignment.signed_by
+        if by is not None and by.pk != getattr(consignment.artist, 'user_id', None):
+            sig.append(Paragraph(
+                f'Signed while <b>{by.get_username()}</b> was logged in, which is not this '
+                f'artist\u2019s own account.', st['small']))
     else:
         sig = [Paragraph('Not signed', st['h2']),
                Paragraph('This is a draft and has not been agreed to.', st['small'])]

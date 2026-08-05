@@ -181,6 +181,26 @@ Nothing else. In particular an unsigned agreement does **not** block drop-off: i
 outstanding on the staff dashboard and is chased by email, because turning an artist away at
 the door over paperwork is worse than accepting the work and following up.
 
+## Who can actually sign
+
+Whoever holds a signing link can use it. That is true of every e-signature link and is the
+deliberate price of reaching artists with no account — but this page also hands staff that
+link on a **copy link** button, which made an earlier claim that "staff cannot open somebody's
+signing page" a fiction: a curator could have signed as the artist.
+
+A logged-in person who runs the show is now refused somebody else's token. That is not
+airtight and cannot be — the same curator in a private window is indistinguishable from the
+artist. So the guard is backed by the record: `signed_by` stores whoever was logged in when a
+signature was made, and both the dashboard and the PDF say so when it was not the artist's own
+account. Preventing what can be prevented, and disclosing the rest.
+
+## Signed records are protected from deletion
+
+`show` and `artist` are `on_delete=PROTECT`. They were `CASCADE`, so deleting an artist or a
+show destroyed every signed agreement attached to it — a legal record removed by tidying up a
+database row, with nothing to say it had gone. Deletion now refuses while an agreement exists,
+which is the right way round: the record is the reason not to delete.
+
 ## The signature
 
 Typed full name, an explicit affirmation checkbox, and the time, IP address and user agent

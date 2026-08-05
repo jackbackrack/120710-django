@@ -47,9 +47,13 @@ class Consignment(models.Model):
         (STATUS_VOIDED, 'Voided by the gallery'),
     ]
 
-    show = models.ForeignKey('gallery.Show', on_delete=models.CASCADE,
+    # PROTECT, not CASCADE. These were cascading, so deleting an artist or a show destroyed
+    # every signed agreement attached to it — a legal record removed by tidying up a
+    # database row, with nothing to say it had gone. Deletion now refuses while an agreement
+    # exists, which is the right way round: the record is the reason not to delete.
+    show = models.ForeignKey('gallery.Show', on_delete=models.PROTECT,
                              related_name='consignments')
-    artist = models.ForeignKey('gallery.Artist', on_delete=models.CASCADE,
+    artist = models.ForeignKey('gallery.Artist', on_delete=models.PROTECT,
                                related_name='consignments')
     version = models.PositiveSmallIntegerField(default=1)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)

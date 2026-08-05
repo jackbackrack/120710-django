@@ -12576,6 +12576,11 @@ class USStateTests(TestCase):
         self.assertEqual(form.cleaned_data['state'], 'CA')
 
 
+def sign_url_for(show, artist):
+    from gallery.views.consignment import sign_url
+    return sign_url(show, artist)
+
+
 class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
     """The agreement an artist signs before dropping work off.
 
@@ -13351,6 +13356,55 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertEqual(
             self.Consignment.objects.filter(
                 status=self.Consignment.STATUS_SIGNED).count(), 1)
+
+    def test_a_curator_cannot_sign_with_the_link_the_page_hands_them(self):
+        """The copy-link button gives staff an artist\u2019s signing URL, which made the
+        "staff cannot open this page" guard a fiction: they could sign as the artist."""
+        from gallery.views.consignment import sign_url
+
+        self._complete_profile()
+        staff = User.objects.create_user(username='t1@example.com',
+                                         email='t1@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        url = sign_url(self.show, self.artist)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.post(url, {'action': 'sign', 'agree': 'on', 'signed_name': 'Mag Pie'})
+        self.assertFalse(self.Consignment.objects.exists())
+
+    def test_the_artist_can_still_use_their_own_link_while_logged_in(self):
+        """The guard must not lock out the person it is for."""
+        from gallery.views.consignment import sign_url
+
+        self._complete_profile()
+        self.client.force_login(self.user)
+        self.assertEqual(
+            self.client.get(sign_url(self.show, self.artist)).status_code, 200)
+
+    def test_a_signature_from_another_account_is_recorded_and_shown(self):
+        """It cannot be prevented outright — the same person in a private window is
+        indistinguishable — so what matters is that the record says so."""
+        other = User.objects.create_user(username='t2@example.com',
+                                         email='t2@example.com', password='pw')
+        self._complete_profile()
+        self.client.force_login(other)
+        # Not staff, so the guard does not apply; they are simply holding the link.
+        self.client.post(sign_url_for(self.show, self.artist),
+                         {'action': 'sign', 'agree': 'on', 'signed_name': 'Mag Pie'})
+        con = self.Consignment.objects.get()
+        self.assertEqual(con.signed_by, other)
+        self.assertNotEqual(con.signed_by_id, self.artist.user_id)
+
+    def test_deleting_an_artist_cannot_destroy_a_signed_agreement(self):
+        """These cascaded, so tidying up an artist row removed a legal record with nothing
+        to say it had gone."""
+        from django.db.models import ProtectedError
+
+        self._sign()
+        with self.assertRaises(ProtectedError):
+            self.artist.delete()
+        with self.assertRaises(ProtectedError):
+            self.show.delete()
 
     # ── Who may read it ──────────────────────────────────────────────────────
 

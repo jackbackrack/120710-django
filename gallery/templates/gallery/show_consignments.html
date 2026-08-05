@@ -116,6 +116,15 @@
                  title="Cancelled by the gallery rather than replaced by a later signature. The signed document is kept and still readable; the artist shows as unsigned so they can be asked for a new one.">{{ row.consignment.void_reason }}</div>
           {% elif row.consignment %}
             <span class="text-success">Signed {{ row.consignment.signed_at|date:"j M" }}</span>
+            {% comment %}
+              Flagged when somebody else was logged in. Whoever holds a signing link can use
+              it, and this page hands staff that link — so the check that matters is not
+              preventing it but showing it.
+            {% endcomment %}
+            {% if row.signed_by_someone_else %}
+            <div class="small text-warning hint"
+                 title="Signed while {{ row.consignment.signed_by.get_username }} was logged in, which is not this artist's own account. Whoever holds a signing link can use it, so this is recorded rather than prevented.">not their own account</div>
+            {% endif %}
           {% else %}
             <span class="text-muted">Not signed</span>
             {% for b in row.blockers %}<div class="small text-muted">{{ b.staff_text }}</div>{% endfor %}

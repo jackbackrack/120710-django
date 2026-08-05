@@ -59,12 +59,23 @@ def sign_url(show, artist, request=None):
 def _artist_for(request, show, token):
     """Who this page is for: the token's artist, or the signed-in user's own profile.
 
-    Staff cannot open somebody's signing page by URL. Signing is an act by a person, and a
-    page that let a curator sign as an artist would make every signature deniable.
+    Whoever holds a link can sign with it — that is true of every e-signature link and is
+    the deliberate price of reaching artists with no account. But this page also hands staff
+    that link on a "copy link" button, so a curator could have opened an artist's page and
+    signed as them, which would make every signature deniable. A logged-in person who runs
+    the show is therefore refused somebody else's token.
+
+    It is not airtight and cannot be: the same curator in a private window is
+    indistinguishable from the artist. What that leaves behind is the audit trail —
+    `signed_by` records whoever was logged in when a signature was made, and the dashboard
+    and the PDF say so when it was not the artist.
     """
     if token:
         tok_show, artist = from_token(token)
         if artist is None or tok_show is None or tok_show.pk != show.pk:
+            raise Http404
+        if (request.user.is_authenticated and artist.user_id != request.user.id
+                and can_manage_show(request.user, show)):
             raise Http404
         return artist
     if not request.user.is_authenticated:
@@ -351,6 +362,9 @@ def show_consignments(request, slug):
             'missing_values': sum(1 for w in works if w['agreed_value'] is None),
             'consignment': consigned,
             'out_of_date': terms.is_out_of_date(consigned) if consigned else False,
+            'signed_by_someone_else': bool(
+                consigned and consigned.is_signed and consigned.signed_by_id
+                and consigned.signed_by_id != artist.user_id),
             'represented': artist.is_represented,
             'blockers': blocking,
             'sign_url': sign_url(show, artist, request),
