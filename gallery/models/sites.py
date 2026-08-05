@@ -115,6 +115,14 @@ class Site(models.Model):
         help_text='Percentage of the sale price this venue keeps. Used in consignment '
                   'agreements. Leave blank if it has not been decided — agreements will '
                   'not generate until it has.')
+    # How long after the last pickup window the venue stays liable for work nobody has
+    # collected. Without a cutoff "until it is collected" has no end, and an artist who
+    # never comes back leaves the gallery insuring their work forever.
+    custody_grace_days = models.PositiveSmallIntegerField(
+        default=7, verbose_name='Days we stay responsible after pickup closes',
+        help_text='After the last pickup time, how many days the venue remains responsible '
+                  'for work that has not been collected. Stated in every consignment '
+                  'agreement. After it, uncollected work is held at the artist’s risk.')
     instagram = models.CharField(max_length=100, blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     description = models.TextField(blank=True)

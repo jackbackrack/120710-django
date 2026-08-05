@@ -127,7 +127,14 @@
       it — <strong>in full, not less our commission</strong>. It starts at your asking price;
       change it if that is not what the piece is worth to you.
     </p>
-    <button class="btn btn-sm btn-outline-secondary" type="submit">Save</button>
+    {% comment %}
+      "Save and continue", not "Save". The signature box only appears once nothing is
+      missing, and those blockers are computed from what is stored — so an artist who has
+      typed into every field but not pressed this sees no way to sign and no reason why.
+      The button names the step, the redirect lands on #sign, and the blocked state below
+      says which button to press.
+    {% endcomment %}
+    <button class="btn btn-primary btn-sm" type="submit">Save and continue</button>
   </form>
 
   {# ── Terms ──────────────────────────────────────────────────────────────── #}
@@ -136,16 +143,32 @@
     Commission <strong>{{ rate|floatformat:"-2" }}%</strong> of the sale price.
     Total agreed value <strong>${{ total_agreed_value|floatformat:"-2" }}</strong>.
   </p>
+  {% comment %}
+    Both end dates, not just the pickup one. The date the gallery stops being responsible is
+    the term an artist is most likely to be surprised by later, so it is on the page they
+    sign rather than only in the PDF they file.
+  {% endcomment %}
+  <p class="small">
+    In our care from <strong>{{ custody.from|date:"j M Y"|default:"drop-off" }}</strong>.
+    Please collect by <strong>{{ custody.pickup_by|date:"j M Y" }}</strong>. Our
+    responsibility ends {{ custody.grace_days }} days later, on
+    <strong>{{ custody.until|date:"j M Y" }}</strong>, whether or not the work has been
+    collected.
+  </p>
   {% for heading, points in sections %}
   <p class="mb-1"><strong>{{ heading }}</strong></p>
   <ul class="small">{% for p in points %}<li>{{ p }}</li>{% endfor %}</ul>
   {% endfor %}
 
   {# ── Sign ───────────────────────────────────────────────────────────────── #}
-  <div class="section-label mt-4"><h2>Sign</h2></div>
+  <div class="section-label mt-4" id="sign"><h2>Sign</h2></div>
   {% if blockers %}
-  <p class="mb-1">Before you can sign:</p>
+  <p class="mb-1">Nearly there. Still needed:</p>
   <ul class="small">{% for b in blockers %}<li>{{ b.text }}</li>{% endfor %}</ul>
+  <p class="small text-muted">
+    Fill those in above and press <strong>Save and continue</strong> — the signature box
+    appears here once nothing is missing.
+  </p>
   {% else %}
   <form method="post" class="mt-2">{% csrf_token %}
     <input type="hidden" name="action" value="sign">

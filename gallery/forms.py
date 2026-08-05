@@ -759,6 +759,7 @@ class SiteForm(UserAwareModelForm):
             'phone',
             # What this venue takes on a sale, and what its consignment agreements say.
             'commission_rate',
+            'custody_grace_days',
             'instagram',
             'website',
             'description',
@@ -786,8 +787,19 @@ class SiteForm(UserAwareModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
         }
 
+    def clean_custody_grace_days(self):
+        value = self.cleaned_data.get('custody_grace_days')
+        if value in (None, ''):
+            return Site._meta.get_field('custody_grace_days').default
+        return value
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Optional on the form, never empty on the model. The column cannot be null — every
+        # agreement has to state a cutoff — so clearing the box falls back to the default
+        # rather than refusing the whole form over a field most people will never touch.
+        self.fields['custody_grace_days'].required = False
 
         from gallery.permissions import is_staff_user
         if not (self.user and is_staff_user(self.user)):

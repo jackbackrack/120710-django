@@ -151,9 +151,12 @@ def render_consignment(consignment):
 
     flow.append(Spacer(1, 6))
     flow.append(Paragraph(
-        f'Commission: <b>{_pct(rate)}%</b> of the sale price. '
-        f'In our care from <b>{_date(custody.get("from"))}</b> to '
-        f'<b>{_date(custody.get("to"))}</b>.', st['body']))
+        f'Commission: <b>{_pct(rate)}%</b> of the sale price.', st['body']))
+    flow.append(Paragraph(
+        f'In our care from <b>{_date(custody.get("from"))}</b>. Please collect by '
+        f'<b>{_date(custody.get("pickup_by"))}</b>. Our responsibility ends '
+        f'{custody.get("grace_days")} days later, on <b>{_date(custody.get("to"))}</b>, '
+        f'whether or not the work has been collected.', st['body']))
 
     # ── Terms ────────────────────────────────────────────────────────────────
     for heading, points in snap.get('terms', []):

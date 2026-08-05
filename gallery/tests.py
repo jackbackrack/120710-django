@@ -12672,6 +12672,28 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self._work('Added Later', price=100)
         self.assertTrue(consignment.is_out_of_date(con))
 
+    def test_a_finished_show_is_never_flagged_out_of_date(self):
+        """Most works here are in several shows, and the agreed value is one field on the
+        artwork shared by all of them. Setting it while signing for this show changes the
+        number last year\u2019s agreement was signed against — and without this guard the
+        artist is asked to re-sign for a show that ended, about work already returned."""
+        from gallery import consignment
+
+        self._sign()
+        con = self.Consignment.objects.get()
+        self._work('Added Later', price=100)
+        self.assertTrue(consignment.is_out_of_date(con), 'still running: should flag')
+
+        past = datetime.date.today() - datetime.timedelta(days=90)
+        self.show.start, self.show.end = past, past + datetime.timedelta(days=20)
+        self.show.save(update_fields=['start', 'end'])
+        self.show.schedule_windows.all().delete()
+        # Re-fetch: `con.show` was loaded before the dates moved, and refresh_from_db does
+        # not reach through the relation.
+        con = self.Consignment.objects.get(pk=con.pk)
+        self.assertFalse(consignment.is_out_of_date(con),
+                         'a show whose custody period is over must not nag')
+
     def test_signing_again_supersedes_rather_than_overwrites(self):
         self._sign()
         self._work('Added Later', price=100)
@@ -12686,6 +12708,53 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.client.force_login(self.user)
         self.client.post(self.url, {'action': 'sign', 'signed_name': 'Mag Pie'})
         self.assertFalse(self.Consignment.objects.exists())
+
+    # ── When responsibility ends ─────────────────────────────────────────────
+
+    def test_liability_ends_a_set_time_after_pickup_closes(self):
+        """"Until it is collected" has no end. An artist who never comes back would
+        otherwise leave the gallery insuring their work forever."""
+        from gallery import consignment
+
+        custody = consignment.custody_for(self.show)
+        pickup_by = self.show.end + datetime.timedelta(days=1)   # the pickup window
+        self.assertEqual(custody['pickup_by'], pickup_by)
+        self.assertEqual(custody['grace_days'], 7)
+        self.assertEqual(custody['until'], pickup_by + datetime.timedelta(days=7))
+
+    def test_the_venue_sets_how_long_that_is(self):
+        from gallery import consignment
+
+        self.site.custody_grace_days = 3
+        self.site.save(update_fields=['custody_grace_days'])
+        custody = consignment.custody_for(self.show)
+        self.assertEqual(custody['until'],
+                         custody['pickup_by'] + datetime.timedelta(days=3))
+
+    def test_both_dates_are_frozen_into_the_agreement(self):
+        """The cutoff is the term an artist is most likely to be surprised by later, so it
+        has to be in the document rather than computed from settings that can change."""
+        self._sign()
+        custody = self.Consignment.objects.get().snapshot['custody']
+        self.assertIsNotNone(custody['pickup_by'])
+        self.assertIsNotNone(custody['to'])
+        self.assertEqual(custody['grace_days'], 7)
+        self.assertGreater(custody['to'], custody['pickup_by'])
+
+    def test_the_page_states_the_cutoff_before_anybody_signs(self):
+        self._complete_profile()
+        self.client.force_login(self.user)
+        page = self.client.get(self.url)
+        self.assertContains(page, 'responsibility ends')
+
+    def test_the_terms_say_it_covers_unsold_work_too(self):
+        """The gallery is responsible whether or not the piece sells — the old wording read
+        as though custody were about the sale."""
+        from gallery import consignment
+
+        while_we_have_it = dict(consignment.terms_text())['While we have it']
+        self.assertTrue(any('whether or not it sells' in p for p in while_we_have_it))
+        self.assertTrue(any('no longer responsible' in p for p in while_we_have_it))
 
     # ── Represented artists ──────────────────────────────────────────────────
 

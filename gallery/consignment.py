@@ -6,11 +6,16 @@ the gallery is liable for.
 
 See docs/consignment-agreements.md for the reasoning.
 """
+import datetime as dt
 from decimal import Decimal
 
 from django.utils import timezone
 
 from gallery.models.consignment import TERMS_VERSION, fingerprint_of
+
+# Used only when a show has no single venue to read it from — a show at two sites, which the
+# rate check rejects anyway, so this is a floor rather than a policy.
+DEFAULT_CUSTODY_GRACE_DAYS = 7
 
 
 class NoCommissionRate(Exception):
@@ -162,6 +167,34 @@ def material_facts(show, artist, rate, rows):
     }
 
 
+def venue_of(show):
+    """The one site a show is at, or None if it is at several — see commission_rate_for."""
+    sites = list(show.sites.all())
+    return sites[0] if len(sites) == 1 else None
+
+
+def custody_for(show, venue=None):
+    """When the gallery becomes responsible for the work, and when it stops.
+
+    Two different dates at the end. `pickup_by` is when the artist is asked to collect;
+    `until` is when the gallery's responsibility ends whether they did or not. Without the
+    second, "until it is collected" has no end and an artist who never comes back leaves the
+    gallery liable for their work indefinitely.
+    """
+    venue = venue if venue is not None else venue_of(show)
+    windows = list(show.schedule_windows.all())
+    dropoffs = [w.date for w in windows if w.kind != 'pickup']
+    pickups = [w.date for w in windows if w.kind == 'pickup']
+    grace = venue.custody_grace_days if venue else DEFAULT_CUSTODY_GRACE_DAYS
+    pickup_by = max(pickups) if pickups else show.end
+    return {
+        'from': min(dropoffs) if dropoffs else None,
+        'pickup_by': pickup_by,
+        'grace_days': grace,
+        'until': pickup_by + dt.timedelta(days=grace) if pickup_by else None,
+    }
+
+
 def freeze(show, artist, at=None):
     """Everything the agreement says, as a plain dict, at this moment.
 
@@ -175,11 +208,8 @@ def freeze(show, artist, at=None):
     """
     rate = commission_rate_for(show)
     rows = artwork_rows(show, artist, rate)
-    sites = list(show.sites.all())
-    venue = sites[0] if len(sites) == 1 else None
-    windows = list(show.schedule_windows.all())
-    dropoffs = [w.date for w in windows if w.kind != 'pickup']
-    pickups = [w.date for w in windows if w.kind == 'pickup']
+    venue = venue_of(show)
+    custody = custody_for(show, venue)
 
     at = at or timezone.now()
     return {
@@ -209,8 +239,10 @@ def freeze(show, artist, at=None):
             'curators': [str(c) for c in show.ordered_curators],
         },
         'custody': {
-            'from': min(dropoffs).isoformat() if dropoffs else None,
-            'to': max(pickups).isoformat() if pickups else None,
+            'from': custody['from'].isoformat() if custody['from'] else None,
+            'pickup_by': custody['pickup_by'].isoformat() if custody['pickup_by'] else None,
+            'grace_days': custody['grace_days'],
+            'to': custody['until'].isoformat() if custody['until'] else None,
         },
         'commission_rate': str(rate),
         'artworks': rows,
@@ -246,8 +278,18 @@ def is_out_of_date(consignment):
     An agreement covering three pieces while five are on the wall is a document that will be
     produced in the one situation where it matters and found not to cover the piece in
     question. Better to notice and re-sign.
+
+    Only while the gallery still has the work, though. A piece may be in several shows —
+    most of this collection is — and `Artwork.replacement_cost` is one field shared across
+    all of them. Setting an agreed value while signing for this autumn's show therefore
+    changes the number last year's agreement was signed against, and without this guard the
+    artist would be asked to re-sign an agreement for a show that ended months ago, about
+    work the gallery gave back. Once custody has ended there is nothing left to agree.
     """
     if not consignment.is_signed:
+        return False
+    ends = custody_for(consignment.show).get('until')
+    if ends and ends < dt.date.today():
         return False
     try:
         return current_fingerprint(consignment.show, consignment.artist) != consignment.fingerprint
@@ -270,8 +312,12 @@ def terms_text():
         ]),
         ('While we have it', [
             'The gallery is responsible for the work from the time it is dropped off until '
-            'it is collected. The artist is responsible for getting it here, and the buyer '
-            'for taking it away.',
+            'the artist collects it — whether or not it sells. The artist is responsible '
+            'for getting it here, and a buyer for taking it away once it is theirs.',
+            'That responsibility ends on the date shown above, which is a set number of days '
+            'after the last pickup time. Work still here after that date is held at the '
+            'artist’s risk: the gallery will look after it, but is no longer responsible '
+            'for loss or damage, and does not pay its agreed value.',
             'If a piece is lost, stolen or damaged beyond repair while in the gallery’s '
             'care, the gallery pays the artist that piece’s agreed value in full — not the '
             'agreed value less commission.',
@@ -292,5 +338,7 @@ def terms_text():
         ('Getting it back', [
             'Unsold work is returned to the artist at the end of the show, at the pickup '
             'time they choose.',
+            'Work that is not collected is not abandoned — the gallery will hold it and get '
+            'in touch — but from the date above it is at the artist’s risk.',
         ]),
     ]

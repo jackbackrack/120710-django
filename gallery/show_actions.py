@@ -24,7 +24,8 @@ def _post(label, url, confirm, title=''):
 
 def show_actions(show, *, can_manage=False, can_delete=False, can_view_reviews=False,
                  can_assign_jurors=False, can_view_3d=False, can_view_checklist=False,
-                 can_schedule_dropoff=False, can_print_controls=False,
+                 can_schedule_dropoff=False, needs_consignment=False,
+                 can_print_controls=False,
                  emails_pending=0, emails_sent=0):
     """Return {'buttons': [...], 'menus': [{'label', 'items'}, ...]}.
 
@@ -49,6 +50,12 @@ def show_actions(show, *, can_manage=False, can_delete=False, can_view_reviews=F
         word = 'Install' if show.self_install else 'Drop-off'
         buttons.append(_link(f'Schedule My {word} & Pickup',
                              reverse('gallery:artist_schedule', kwargs={'slug': slug})))
+    # Beside the scheduling button, because signing and booking a drop-off are the same
+    # errand. Shown only while there is something to sign, so it disappears once done.
+    if needs_consignment:
+        buttons.append(_link('Sign My Consignment Agreement',
+                             reverse('gallery:consign', kwargs={'slug': slug}),
+                             'What we are responsible for, and what we take if it sells'))
 
     # ── Menus: curator and admin tools ────────────────────────────────────────
     curate = []

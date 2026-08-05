@@ -25,6 +25,31 @@ from gallery.views.mixins import CanonicalSlugRedirectMixin, StructuredDataMixin
 from gallery.views.placards import PER_PAGE as PLACARDS_PER_PAGE
 
 
+
+def _needs_consignment(user, show):
+    """Whether to offer this viewer the consignment button on a show page.
+
+    Only their own agreement, and only when there is something to do: they have work in the
+    show, they are not represented by a gallery that consigns on their behalf, and they have
+    not already signed a current version. A button that leads to "nothing to do here" is
+    worse than no button.
+    """
+    if not user.is_authenticated:
+        return False
+    artist = Artist.objects.filter(user=user, artworks__shows=show).distinct().first()
+    if artist is None or artist.is_represented:
+        return False
+
+    from gallery import consignment as terms
+    from gallery.models import Consignment
+
+    signed = (Consignment.objects
+              .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)
+              .order_by('-version').first())
+    if signed is None:
+        return True
+    return terms.is_out_of_date(signed)
+
 class ShowListView(ListView):
     """All shows, or — at /site/<slug>/shows/ — just one venue's.
 
@@ -92,6 +117,10 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             and Artist.objects.filter(user=self.request.user, artworks__shows=show).exists()
         )
         context['has_schedule_windows'] = show.schedule_windows.exists()
+        # A button of their own, not only the emailed link. An artist who has heard the
+        # gallery needs an agreement should be able to go and find it, and the email may be
+        # in a spam folder or sent before they had work in the show.
+        context['needs_consignment'] = _needs_consignment(self.request.user, show)
         context['can_delete_show'] = can_delete_show(self.request.user, show)
         has_placements = show.wall_placements.exists()
         context['has_placements'] = has_placements
@@ -179,6 +208,7 @@ class ShowDetailView(CanonicalSlugRedirectMixin, StructuredDataMixin, DetailView
             can_view_3d=context['can_view_3d'],
             can_view_checklist=context['can_view_checklist'],
             can_schedule_dropoff=context['can_schedule_dropoff'],
+            needs_consignment=context['needs_consignment'],
             can_print_controls=context.get('can_show_print_controls', False),
             emails_pending=context.get('emails_pending', 0),
             emails_sent=context.get('emails_sent', 0),

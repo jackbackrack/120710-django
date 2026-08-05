@@ -100,6 +100,7 @@ def _page(request, show, artist, token):
         'signed': signed,
         'out_of_date': terms.is_out_of_date(signed) if signed else False,
         'sections': terms.terms_text(),
+        'custody': terms.custody_for(show),
         'total_agreed_value': sum(r['agreed_value'] or 0 for r in rows),
     })
 
@@ -112,7 +113,9 @@ def consign(request, slug, token=None):
         action = request.POST.get('action')
         if action == 'save':
             _save_inline(request, show, artist)
-            return redirect(_back(show, token))
+            # Land on the signature rather than the top of the page. Saving is the step that
+            # reveals it, and a redirect to the top looks like nothing happened.
+            return redirect(_back(show, token) + '#sign')
         if action == 'sign':
             return _sign(request, show, artist, token)
     return _page(request, show, artist, token)

@@ -168,6 +168,32 @@ Silent staleness is the alternative and it is worse: an agreement that covers th
 while five are on the wall is a document that will be produced in the one situation where it
 matters and found not to cover the piece in question.
 
+## When responsibility ends
+
+    Site.custody_grace_days   default 7
+
+"Until it is collected" has no end. An artist who never comes back would leave the gallery
+liable for their work indefinitely, so the agreement states two dates: the pickup date the
+artist is asked to meet, and a cutoff a set number of days later after which uncollected work
+is held **at the artist's risk**. The gallery still looks after it and still gets in touch;
+it just no longer pays the agreed value if something happens to it.
+
+Both dates are frozen into the snapshot and stated on the page before anybody signs, not only
+in the PDF afterwards — the cutoff is the term an artist is most likely to be surprised by
+later.
+
+## The same work in several shows
+
+Most of this collection has been shown more than once, and `Artwork.replacement_cost` is a
+single field shared across every show the piece is in. Setting an agreed value while signing
+for this autumn's show therefore changes the number last year's agreement was measured
+against.
+
+The freeze means the old signed document is unaffected — but the staleness check would still
+notice the difference and ask the artist to re-sign an agreement for a show that ended months
+ago, about work the gallery has already given back. So `is_out_of_date` stops looking once
+custody has ended. There is nothing left to agree about a show that is over.
+
 ## Collaborative works
 
 A work credited to two artists appears on both artists' agreements and both must sign. The
