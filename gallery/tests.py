@@ -13217,6 +13217,28 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
 
     # ── The staff view ───────────────────────────────────────────────────────
 
+    def test_the_dashboard_says_what_its_warnings_mean(self):
+        """Both labels were too terse to read. "— check" said nothing without hovering for
+        a tooltip, and "out of date" named neither what had changed nor what to do."""
+        staff = User.objects.create_user(username='s6@example.com',
+                                         email='s6@example.com', password='pw')
+        add_staff_role(staff)
+
+        self.work.price = 1000000
+        self.work.agreed_value = 1000000
+        self.work.save(update_fields=['price', 'agreed_value'])
+        self._sign()
+        self._work('Added After Signing', price=100)
+
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:show_consignments',
+                                       kwargs={'slug': self.show.slug}))
+        self.assertContains(page, 'their work has changed since')
+        self.assertContains(page, 'sign again')
+        self.assertContains(page, 'worth asking about')
+        # Thousands separators: an extra zero is invisible in $1000000.
+        self.assertContains(page, '$1,000,000')
+
     def test_the_dashboard_totals_what_the_gallery_is_liable_for(self):
         staff = User.objects.create_user(username='s@example.com',
                                          email='s@example.com', password='pw')

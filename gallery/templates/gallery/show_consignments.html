@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}Consignments — {{ show.name }}{% endblock %}
 {% block block_title %}Consignments — {{ show.name }}{% endblock %}
@@ -28,7 +29,7 @@
   <p class="mb-1">
     {% if rate %}Commission <strong>{{ rate|floatformat:"-2" }}%</strong>
     {% else %}<strong>No commission</strong>{% endif %} ·
-    Total agreed value <strong>${{ exposure|floatformat:"-2" }}</strong>
+    Total agreed value <strong>${{ exposure|floatformat:"-2"|intcomma }}</strong>
     <span class="text-muted small">— what we would owe if every piece were lost</span>
   </p>
   {% endif %}
@@ -73,7 +74,7 @@
         </td>
         <td class="text-center small">{{ row.artworks|length }}</td>
         <td class="text-end small">
-          ${{ row.agreed_value|floatformat:"-2" }}
+          ${{ row.agreed_value|floatformat:"-2"|intcomma }}
           {% if row.missing_values %}
           <div class="text-warning small">{{ row.missing_values }} without a value</div>
           {% endif %}
@@ -83,19 +84,30 @@
             so instead the outliers are surfaced here, while declining the piece is still
             possible. Once it is in the door and the agreement signed, the figure binds.
           {% endcomment %}
+          {% comment %}
+            Spelled out rather than abbreviated to "— check", which said nothing without
+            hovering for the tooltip and read like a column header.
+          {% endcomment %}
           {% for w in row.outliers %}
-          <div class="text-warning small"
-               title="Well above its asking price, or large in absolute terms. Worth asking about before the work arrives.">
-            {{ w.title }} ${{ w.agreed_value|floatformat:"-2" }} — check
+          <div class="text-warning small">
+            {{ w.title }}: ${{ w.agreed_value|floatformat:"-2"|intcomma }} —
+            high, worth asking about before the work arrives
           </div>
           {% endfor %}
         </td>
         <td class="small">
           {% if row.represented %}
             <span class="text-muted">On paper</span>
+          {% comment %}
+            "Out of date" did not say what had gone out of date or what to do. What it means
+            is that the work in the show is no longer what the artist signed for — a piece
+            added, removed or repriced, or the agreement wording itself changed — so the
+            signed document does not cover what is actually on the wall.
+          {% endcomment %}
           {% elif row.consignment and row.out_of_date %}
-            <span class="text-warning">Signed {{ row.consignment.signed_at|date:"j M" }} —
-              out of date</span>
+            <span class="text-warning">Signed {{ row.consignment.signed_at|date:"j M" }},
+              but their work has changed since</span>
+            <div class="small text-muted">Email them to sign again — the old one is kept.</div>
           {% elif row.consignment %}
             <span class="text-success">Signed {{ row.consignment.signed_at|date:"j M" }}</span>
           {% else %}
