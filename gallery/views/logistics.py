@@ -100,14 +100,24 @@ def artist_schedule(request, slug):
     # Whether this artist still owes a consignment agreement. Represented artists never do —
     # theirs is arranged with their gallery — so they are not prompted for one they cannot
     # validly give.
+    from gallery import consignment as consignment_terms
     from gallery.models import Consignment
     signed = (Consignment.objects
               .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)
               .order_by('-version').first())
+    # Gated on a rate existing, like the show page's button: until a venue has one no
+    # agreement can be generated, and pointing an artist at "this is not ready yet" is worse
+    # than saying nothing.
+    try:
+        consignment_terms.commission_rate_for(show)
+        rate_is_set = True
+    except consignment_terms.NoCommissionRate:
+        rate_is_set = False
     return render(request, 'gallery/artist_schedule.html', {
         'show': show, 'artist': artist, 'kinds': kinds_ctx,
         'consignment_signed': signed,
-        'consignment_needed': signed is None and not artist.is_represented,
+        'consignment_needed': (rate_is_set and signed is None
+                               and not artist.is_represented),
     })
 
 
