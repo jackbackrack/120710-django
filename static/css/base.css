@@ -522,3 +522,31 @@ th, td {
 .event-actions .add-to-cal,
 .event-actions .add-to-cal--compact { font-size: inherit; margin-left: .25rem; }
 .event-actions .add-to-cal svg { width: 1em; height: 1em; }
+
+/* ── Rounded panels ──────────────────────────────────────────────────────────
+   One radius, matching Bootstrap's form controls (its $border-radius is .375rem),
+   so a panel next to an input does not have squarer corners than the input.
+
+   `.card__box` was used in three templates and defined nowhere, so those boxes were
+   styling nothing at all — which is why the consignment pages read as bare text and
+   square-cornered tables on the background. */
+:root {
+    --panel-radius: .375rem;
+}
+
+.card__box {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, .12);
+    border-radius: var(--panel-radius);
+}
+
+/* Tables need `border-collapse: separate` for a radius to take on the corners at all,
+   with zero spacing so cells still meet. Bootstrap draws its lines with box-shadow
+   inset on cells rather than real borders, so nothing doubles up. Clipping the corners
+   is what keeps the first and last header cells from poking out of the curve. */
+table.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--panel-radius);
+    overflow: hidden;
+}

@@ -1760,6 +1760,44 @@ def capture_consignment(rec, facts):
     # Step 9 is what happens when the work changes — a state, reached by editing the show.
 
 
+def _sign_capture_consignment(slug):
+    """Put a signed agreement on a capture show, so the Void control has something to act on.
+
+    Refuses anything that is not a capture show, like the other helpers here: this writes a
+    signature, and writing one against a real show would fabricate an agreement nobody made.
+    """
+    from django.utils import timezone
+
+    from gallery import consignment as terms
+    from gallery.models import Artist, Consignment
+    from gallery.models.consignment import fingerprint_of
+
+    if not slug.startswith(CAPTURE_SHOW_PREFIX):
+        raise CommandError(f'refusing to sign an agreement on "{slug}" — not a capture show')
+    show = Show.objects.prefetch_related('sites').get(slug=slug)
+    artist = Artist.objects.get(name=CONSIGN_ARTIST_NAME)
+    artist.street, artist.city, artist.state = '1 Tenth Street', 'Berkeley', 'CA'
+    artist.is_represented = False
+    artist.save(update_fields=['street', 'city', 'state', 'is_represented'])
+    for artwork in terms.artworks_for(show, artist):
+        if artwork.agreed_value is None:
+            artwork.agreed_value = artwork.price or 400
+            artwork.save(update_fields=['agreed_value'])
+
+    now = timezone.now()
+    snapshot = terms.freeze(show, artist, at=now)
+    rate = terms.commission_rate_for(show)
+    Consignment.objects.update_or_create(
+        show=show, artist=artist, version=1,
+        defaults={
+            'status': Consignment.STATUS_SIGNED, 'commission_rate': rate,
+            'terms_version': snapshot['terms_version'], 'snapshot': snapshot,
+            'fingerprint': fingerprint_of(
+                terms.material_facts(show, artist, rate, snapshot['artworks'])),
+            'signed_at': now, 'signed_name': CONSIGN_ARTIST_NAME,
+        })
+
+
 def capture_consignments_staff(rec, facts):
     """The curator's side: the venue rate, the dashboard, and the totals."""
     _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
@@ -1785,7 +1823,19 @@ def capture_consignments_staff(rec, facts):
     rec.at_step(5)
     rec.shot_region(5, 'form:has(button:has-text("Email"))')
 
-    # Steps 6-8 are policy, an out-of-date state, and the PDF link.
+    # Step 10 — "Void cancels a signed agreement. Open Void on the artist's row, say why."
+    # The control only exists on a signed row, and this capture's artist has not signed —
+    # that is the artist guide's job — so the signature is put in through the ORM. Nothing
+    # here is photographing the act of signing; it is photographing what Void looks like.
+    _db(_sign_capture_consignment, facts['slug'])
+    rec.at_step(10)
+    rec.goto(f'/show/{facts["slug"]}/consignments/')
+    rec.click('open Void on the artist\u2019s row',
+              rec.page.locator('details summary:has-text("Void")').first)
+    rec.expect_visible('say why it is being voided', 'input[name="reason"]')
+    rec.shot_region(10, 'details[open]')
+
+    # Steps 6-9 and 11-13 are policy, states that need particular data, and the PDF link.
 
 
 # ── show-lifecycle-and-status ────────────────────────────────────────────────
@@ -2954,10 +3004,11 @@ CAPTURE_SCRIPTS = {
     'consignments-staff': {
         'prepare': prepare_consignment,
         'run': capture_consignments_staff,
-        # 2 is the per-show override field on the show edit form; 6 describes the two counts
-        # that step 3 already photographs; 7 is policy rather than a screen; 8 needs a signed
-        # agreement gone stale; 9 is the PDF itself.
-        'prose_only': {2, 6, 7, 8, 9},
+        # 2 is the per-show override on the show edit form; 6 describes the two counts step 3
+        # already photographs; 7 and 12 are policy; 8 needs an agreement gone stale and 9 an
+        # outlier, neither of which this show has; 11 is the distinction between voiding and
+        # re-signing; 13 is the PDF itself.
+        'prose_only': {2, 6, 7, 8, 9, 11, 12, 13},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },

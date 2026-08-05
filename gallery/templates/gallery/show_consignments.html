@@ -140,7 +140,8 @@
               {% csrf_token %}
               <input class="form-control form-control-sm" name="reason" required
                      style="max-width:15rem"
-                     placeholder="Why? e.g. piece not accepted">
+                     {# Short: in a table cell anything longer is truncated mid-word. #}
+                     placeholder="Why?" title="Why it is being voided — it goes on the record with your name and the date.">
               <button class="btn btn-sm btn-outline-danger mt-1" type="submit"
                       onclick="return confirm('Void {{ row.artist }}\u2019s signed agreement? It is kept and stays readable; they will show as unsigned.')">
                 Void this agreement</button>
