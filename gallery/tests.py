@@ -12528,6 +12528,24 @@ class USStateTests(TestCase):
         self.assertEqual(us_states.clean_state('Ontario', 'CA'), 'Ontario')
         self.assertEqual(us_states.clean_state('Gwynedd', 'GB'), 'Gwynedd')
 
+    def test_a_legacy_bad_value_nobody_touched_is_left_alone(self):
+        """Four artists here have "c" or "b" from before this check existed. Refusing to save
+        their profile until they fix a field they did not come to edit would block them on
+        the submission path for the sake of tidiness."""
+        from gallery import us_states
+
+        self.assertEqual(us_states.clean_state('c', 'US', stored='c'), 'c')
+
+    def test_but_a_newly_typed_bad_value_is_still_refused(self):
+        from django.core.exceptions import ValidationError
+
+        from gallery import us_states
+
+        with self.assertRaises(ValidationError):
+            us_states.clean_state('Califf', 'US', stored='CA')
+        with self.assertRaises(ValidationError):
+            us_states.clean_state('zz', 'US', stored='c')
+
     def test_blank_stays_blank(self):
         """The address is optional until somebody consigns; requiring it here would demand
         a state from every entrant to an open call."""
@@ -13417,6 +13435,17 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertEqual(page.context['unreachable'], 1)
         self.assertContains(page, 'no email address on file')
         self.assertContains(page, 'copy link')
+
+    def test_no_commission_rate_means_no_button_for_the_artist(self):
+        """Every venue is in this state until somebody sets a rate. A prominent invitation to
+        sign that leads to "this is not ready yet" is worse than no button."""
+        from gallery.views.exhibitions import _needs_consignment
+
+        self.assertTrue(_needs_consignment(self.user, self.show))
+        self.site.commission_rate = None
+        self.site.save(update_fields=['commission_rate'])
+        self.show = Show.objects.get(pk=self.show.pk)
+        self.assertFalse(_needs_consignment(self.user, self.show))
 
     def test_a_stranger_cannot_see_the_dashboard(self):
         other = User.objects.create_user(username='nobody@example.com',

@@ -43,6 +43,14 @@ def _needs_consignment(user, show):
     from gallery import consignment as terms
     from gallery.models import Consignment
 
+    # No rate, no agreement — so no button. Without this an artist gets a prominent
+    # invitation to sign that leads to "this is not ready yet", which is worse than no
+    # button at all, and it is the state every venue is in until somebody sets a rate.
+    try:
+        terms.commission_rate_for(show)
+    except terms.NoCommissionRate:
+        return False
+
     signed = (Consignment.objects
               .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)
               .order_by('-version').first())

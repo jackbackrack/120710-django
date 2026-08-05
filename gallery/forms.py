@@ -311,8 +311,9 @@ class ArtistForm(UserAwareModelForm):
         # Validated here rather than in clean_state, because whether a state is required to
         # be a US one depends on the country field, and a per-field clean cannot see it.
         try:
-            cleaned['state'] = us_states.clean_state(cleaned.get('state'),
-                                                     cleaned.get('country'))
+            cleaned['state'] = us_states.clean_state(
+                cleaned.get('state'), cleaned.get('country'),
+                stored=getattr(self.instance, 'state', None))
         except ValidationError as exc:
             self.add_error('state', exc)
         return cleaned
@@ -862,8 +863,9 @@ class SiteForm(UserAwareModelForm):
         # the country field, which a per-field clean cannot see. The venue's time zone is
         # derived from the two-letter code, so "calif" would leave it with no zone at all.
         try:
-            cleaned['state'] = us_states.clean_state(cleaned.get('state'),
-                                                     cleaned.get('country'))
+            cleaned['state'] = us_states.clean_state(
+                cleaned.get('state'), cleaned.get('country'),
+                stored=getattr(self.instance, 'state', None))
         except ValidationError as exc:
             self.add_error('state', exc)
         return cleaned

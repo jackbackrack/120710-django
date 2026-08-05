@@ -56,11 +56,17 @@ def normalise(value):
     return _BY_NAME.get(' '.join(text.lower().split()))
 
 
-def clean_state(state, country):
+def clean_state(state, country, stored=None):
     """The value to store, raising ValidationError if the US was claimed and it is not one.
 
     Outside the US the text is kept as typed: "state" means a province, a region or nothing,
     and there is no list to check it against.
+
+    `stored` is what is already on the record. An existing bad value that nobody is touching
+    is left alone: four artists here have "c" or "b" from before this check existed, and
+    refusing to save their profile until they fix a field they did not come to edit would
+    block them on the submission path for the sake of tidiness. Anything newly typed is
+    still checked, so no new bad value gets in.
     """
     text = (state or '').strip()
     if not is_us(country):
@@ -69,6 +75,8 @@ def clean_state(state, country):
         return text
     code = normalise(text)
     if code is None:
+        if stored is not None and text == (stored or '').strip():
+            return text
         raise ValidationError(
             '“%(value)s” is not a US state. Start typing and pick one from the list, or '
             'use its two-letter abbreviation.',
