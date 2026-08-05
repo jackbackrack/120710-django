@@ -51,11 +51,17 @@ def show_actions(show, *, can_manage=False, can_delete=False, can_view_reviews=F
         buttons.append(_link(f'Schedule My {word} & Pickup',
                              reverse('gallery:artist_schedule', kwargs={'slug': slug})))
     # Beside the scheduling button, because signing and booking a drop-off are the same
-    # errand. Shown only while there is something to sign, so it disappears once done.
+    # errand. Shown only while there is something to sign, so it disappears once done — and
+    # worded for which of the two it is, since "Sign" read oddly to somebody who already had.
     if needs_consignment:
-        buttons.append(_link('Sign My Consignment Agreement',
-                             reverse('gallery:consign', kwargs={'slug': slug}),
-                             'What we are responsible for, and what we take if it sells'))
+        resigning = needs_consignment == 'resign'
+        buttons.append(_link(
+            'Re-sign My Consignment Agreement' if resigning
+            else 'Sign My Consignment Agreement',
+            reverse('gallery:consign', kwargs={'slug': slug}),
+            'Your work in this show has changed since you signed'
+            if resigning else
+            'What we are responsible for, and what we take if it sells'))
 
     # ── Menus: curator and admin tools ────────────────────────────────────────
     curate = []

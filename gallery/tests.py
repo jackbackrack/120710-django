@@ -13460,6 +13460,21 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertContains(page, 'no email address on file')
         self.assertContains(page, 'copy link')
 
+    def test_the_button_says_re_sign_to_somebody_who_already_signed(self):
+        """It said "Sign My Consignment Agreement" to an artist being asked again because
+        the show had changed under them."""
+        from gallery.views.exhibitions import _needs_consignment
+
+        self.assertEqual(_needs_consignment(self.user, self.show), 'sign')
+        self._sign()
+        self.show = Show.objects.get(pk=self.show.pk)
+        self.assertIsNone(_needs_consignment(self.user, self.show),
+                          'nothing to offer once signed and current')
+
+        self._work('Added After Signing', price=100)
+        self.show = Show.objects.get(pk=self.show.pk)
+        self.assertEqual(_needs_consignment(self.user, self.show), 'resign')
+
     def test_no_commission_rate_means_no_button_for_the_artist(self):
         """Every venue is in this state until somebody sets a rate. A prominent invitation to
         sign that leads to "this is not ready yet" is worse than no button."""

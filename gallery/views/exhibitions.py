@@ -27,7 +27,11 @@ from gallery.views.placards import PER_PAGE as PLACARDS_PER_PAGE
 
 
 def _needs_consignment(user, show):
-    """Whether to offer this viewer the consignment button on a show page.
+    """What to offer this viewer on the show page: 'sign', 'resign', or None.
+
+    A string rather than a boolean because the button said "Sign My Consignment Agreement"
+    to somebody who had already signed one and was being asked again because the show had
+    changed under them. Both remain truthy, so a template testing it still works.
 
     Only their own agreement, and only when there is something to do: they have work in the
     show, they are not represented by a gallery that consigns on their behalf, and they have
@@ -57,8 +61,8 @@ def _needs_consignment(user, show):
               .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)
               .order_by('-version').first())
     if signed is None:
-        return True
-    return terms.is_out_of_date(signed)
+        return 'sign'
+    return 'resign' if terms.is_out_of_date(signed) else None
 
 class ShowListView(ListView):
     """All shows, or — at /site/<slug>/shows/ — just one venue's.
