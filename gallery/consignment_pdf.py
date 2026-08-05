@@ -250,9 +250,15 @@ def render_consignment(consignment):
     flow.append(Spacer(1, 14))
     if consignment.is_signed:
         signed_on = consignment.signed_at.strftime('%B %-d, %Y at %H:%M %Z').strip()
+        # The capacity, when there is one, is the whole point of recording it: an executor
+        # signing for an artist who has died must not read as the artist signing.
+        who = f'<b>{consignment.signed_name}</b>'
+        if consignment.signed_capacity:
+            who += (f'<br/>signing for {snap.get("artist", {}).get("name", "the artist")} '
+                    f'as {consignment.signed_capacity}')
         sig = [
             Paragraph('Signed', st['h2']),
-            Paragraph(f'<b>{consignment.signed_name}</b>', st['body']),
+            Paragraph(who, st['body']),
             Paragraph(
                 f'Electronically signed on {signed_on}. '
                 f'Recorded from {consignment.signed_ip or "an unknown address"}. '

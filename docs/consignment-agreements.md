@@ -310,6 +310,38 @@ The model is registered in Django admin too, as a last resort, with everything t
 constitutes the agreement read-only and no add permission. An editable snapshot would make
 every signature deniable, and a consignment exists because somebody signed one.
 
+## Signing for somebody else
+
+    Consignment.signed_capacity
+
+Blank means the artist signed for themselves, which is nearly always. Anything else is the
+authority the signer is acting under — "executor", "guardian", "studio manager" — and the PDF
+then reads *"Ada Vance, signing for Josef Albers as executor of the estate"* rather than
+implying the artist signed.
+
+This platform is built for artists with no account and for estates with no living artist, so
+somebody else typing a name into that box was already happening. It just had nowhere to say
+so. Optional and closed behind a disclosure, so the ordinary case costs nothing.
+
+## After the work goes home
+
+    Site.introduction_tail_days   default 60
+
+The artist may sell the work however they like once it is collected and owes the gallery
+nothing — with one exception, which is the standard "tail": a buyer **the gallery actually
+introduced** during the show, buying within the window. It never covers somebody the artist
+found themselves, which is the usual complaint about tail clauses and the reason this one is
+written narrowly.
+
+The platform can evidence it: enquiries arrive through `artwork_inquire`, so "the gallery
+introduced this buyer" is a record rather than an assertion. The terms also commit the gallery
+to telling the artist who it introduced before the work leaves, so nobody learns of a claim
+after the fact.
+
+Set the window to 0 to waive it, and the clause disappears rather than reading "within 0
+days". It is also suppressed on a show that takes no commission, where a tail would claim a
+share of nothing.
+
 ## Collaborative works
 
 A work credited to two artists appears on both artists' agreements and both must sign. The

@@ -26,7 +26,7 @@ from django.db import models
 
 # Bumped when the boilerplate itself changes. Signed agreements keep the version they were
 # signed under, so old signatures keep meaning what they meant.
-TERMS_VERSION = 5
+TERMS_VERSION = 6
 
 
 class Consignment(models.Model):
@@ -84,6 +84,14 @@ class Consignment(models.Model):
     # to stand up. A drawn squiggle adds perceived weight and no legal weight.
     signed_at = models.DateTimeField(null=True, blank=True)
     signed_name = models.CharField(max_length=255, blank=True, default='')
+    # Blank means the artist signed for themselves, which is nearly always. Anything else is
+    # the authority the signer is acting under — "executor", "guardian", "studio manager".
+    # The platform is built for artists who have no account and estates that have no artist,
+    # so somebody else typing a name into the box was already happening with nothing to
+    # record who they were or what let them do it.
+    signed_capacity = models.CharField(
+        max_length=120, blank=True, default='',
+        verbose_name='Signing as, if not the artist')
     signed_ip = models.GenericIPAddressField(null=True, blank=True)
     signed_user_agent = models.CharField(max_length=500, blank=True, default='')
     signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,

@@ -235,6 +235,28 @@
              placeholder="Type your full name" value="{{ artist }}" required>
       <button class="btn btn-primary btn-sm" type="submit">Sign</button>
     </div>
+    {% comment %}
+      Somebody signing for the artist — an executor, a guardian, a studio manager — was
+      already happening, because this platform is built for artists with no account and for
+      estates with no living artist. It just had nowhere to say so, and typing the artist's
+      name into the box was the only option. Optional and closed by default, so the ordinary
+      case costs nothing.
+    {% endcomment %}
+    <details class="mt-2">
+      <summary class="card__link small" style="cursor:pointer">
+        I am signing on behalf of {{ artist }}</summary>
+      <div class="mt-2">
+        <label class="form-label small mb-0" for="signed_capacity">
+          Your name and what allows you to sign</label>
+        <input class="form-control form-control-sm" id="signed_capacity"
+               name="signed_capacity" style="max-width:26rem"
+               placeholder="e.g. Ada Vance, executor of the estate">
+        <p class="text-muted small mt-1 mb-0">
+          Type your own name in the box above as well. Both go on the agreement, so it is
+          clear who signed and on whose authority.
+        </p>
+      </div>
+    </details>
     <p class="text-muted small mt-2">
       Typing your name here is your signature. We record the date and time with it.
     </p>

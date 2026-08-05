@@ -226,6 +226,15 @@ def _logo_name(venue):
     return ''
 
 
+DEFAULT_TAIL_DAYS = 60
+
+
+def tail_days_for(show, venue=None):
+    """How long the gallery can claim commission on a buyer it introduced."""
+    venue = venue if venue is not None else venue_of(show)
+    return venue.introduction_tail_days if venue else DEFAULT_TAIL_DAYS
+
+
 def venue_of(show):
     """The one site a show is at, or None if it is at several — see commission_rate_for."""
     sites = list(show.sites.all())
@@ -313,7 +322,7 @@ def freeze(show, artist, at=None):
         'commission_rate': str(rate),
         'artworks': rows,
         'total_agreed_value': sum(r['agreed_value'] or 0 for r in rows),
-        'terms': terms_text(rate),
+        'terms': terms_text(rate, tail_days=tail_days_for(show, venue)),
     }
 
 
@@ -429,7 +438,7 @@ def custody_sentence(custody, date_format=None):
         f'{days} days later, whichever comes first.')
 
 
-def terms_text(rate=None):
+def terms_text(rate=None, tail_days=None):
     """The boilerplate, versioned.
 
     Takes the rate because "the gallery keeps the commission shown above" is nonsense when
@@ -460,6 +469,10 @@ def terms_text(rate=None):
             'If a piece is lost, stolen or damaged beyond repair while in the gallery’s '
             'care, the gallery pays the artist that piece’s agreed value in full — not the '
             'agreed value less commission.',
+            'The agreed value covers the work itself. Damage to a frame, mount, plinth, '
+            'glazing or packaging is not covered by it: the gallery will tell the artist and '
+            'pay to repair or replace what it damaged, but a scuffed frame is not a lost '
+            'artwork and does not pay out the agreed value.',
             'The agreed value is exactly that — agreed. The artist proposes it, and the '
             'gallery may query it or decline to take a piece before it is dropped off. '
             'Once the work has been accepted the figure above is what applies.',
@@ -480,11 +493,36 @@ def terms_text(rate=None):
             'The work is not sold above or below the listed price without asking the artist '
             'first.',
         ]),
-        ('Copyright', [
+        ('Copyright and images', [
             'The artist keeps copyright in the work. Selling a piece transfers the object, '
             'not the right to reproduce it.',
-            'The gallery may photograph the work to document and promote the exhibition.',
+            'The gallery may photograph the work and use those photographs to document and '
+            'promote the gallery and its exhibitions: on this website, including its '
+            'permanent archive of past shows; in printed and digital catalogues, checklists '
+            'and wall labels; on social media; and in the gallery’s own mailings and press '
+            'material.',
+            'That permission continues after the show closes, so the record of the exhibition '
+            'stays complete. It does not extend to selling the images, licensing them to '
+            'anybody else, or using them to promote another business, and it can be withdrawn '
+            'for future use by asking.',
+            'The artist is credited by name wherever their work appears.',
         ]),
+        ('After it goes home', [
+            'Once the work is collected the artist may sell it however they like and owes the '
+            'gallery nothing.'
+            # A tail on a show that takes no commission would claim a share of nothing. The
+            # exception only exists where there is a commission for it to be an exception to.
+            if not tail_days or (rate is not None and rate == 0) else
+            f'Once the work is collected the artist may sell it however they like and owes '
+            f'the gallery nothing — with one exception. If the gallery introduced a buyer '
+            f'during the show, and that buyer buys the piece within {tail_days} days of it '
+            f'going home, the commission above is still due on that sale. It applies only to '
+            f'a buyer the gallery can show it introduced, and to nobody else the artist finds '
+            f'themselves.',
+        ] + ([] if not tail_days or (rate is not None and rate == 0) else [
+            'The gallery tells the artist who it introduced, so both know who this covers '
+            'before the work leaves.',
+        ])),
         ('Getting it back', [
             'Collecting unsold work after the show closes is the artist’s responsibility, '
             'at the pickup time they choose. The gallery does not post or deliver it.',

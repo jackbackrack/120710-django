@@ -13438,6 +13438,96 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
             found += [f for f in files if f.lower().endswith('.pdf')]
         self.assertEqual(found, [])
 
+    # ── Signing for somebody else ────────────────────────────────────────────
+
+    def test_somebody_can_sign_on_the_artists_behalf(self):
+        """The platform is built for artists with no account and estates with no living
+        artist, and this had nowhere to be said — so typing the artist\u2019s name into the box
+        was the only option, recording nothing about who did it or what let them."""
+        self._complete_profile()
+        self.client.force_login(self.user)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(self.url, {
+                'action': 'sign', 'agree': 'on', 'signed_name': 'Ada Vance',
+                'signed_capacity': 'executor of the estate'})
+        con = self.Consignment.objects.get()
+        self.assertEqual(con.signed_name, 'Ada Vance')
+        self.assertEqual(con.signed_capacity, 'executor of the estate')
+
+    def test_the_pdf_says_who_signed_and_on_whose_authority(self):
+        from gallery.consignment_pdf import render_consignment
+
+        self._complete_profile()
+        self.client.force_login(self.user)
+        self.client.post(self.url, {'action': 'sign', 'agree': 'on',
+                                    'signed_name': 'Ada Vance',
+                                    'signed_capacity': 'guardian'})
+        pdf = render_consignment(self.Consignment.objects.get())
+        self.assertTrue(pdf.startswith(b'%PDF-'))
+
+    def test_the_ordinary_case_records_no_capacity(self):
+        self._sign()
+        self.assertEqual(self.Consignment.objects.get().signed_capacity, '')
+
+    # ── Frame damage, images and the tail ────────────────────────────────────
+
+    def test_a_damaged_frame_is_not_a_lost_artwork(self):
+        from gallery import consignment
+
+        care = dict(consignment.terms_text(25))['While we have it']
+        self.assertTrue(any('frame' in p and 'not covered' in p for p in care))
+
+    def test_the_image_permission_names_the_places_images_actually_go(self):
+        """It said "to document and promote the exhibition" while the platform publishes to a
+        permanent public archive, social media, catalogues and mailings."""
+        from gallery import consignment
+
+        images = dict(consignment.terms_text(25))['Copyright and images']
+        joined = ' '.join(images)
+        for channel in ('website', 'permanent archive', 'catalogues', 'social media',
+                        'mailings'):
+            self.assertIn(channel, joined)
+        self.assertIn('after the show closes', joined)
+        self.assertIn('can be withdrawn', joined)
+
+    def test_the_tail_covers_only_a_buyer_the_gallery_introduced(self):
+        from gallery import consignment
+
+        after = dict(consignment.terms_text(25, tail_days=60))['After it goes home']
+        joined = ' '.join(after)
+        self.assertIn('60 days', joined)
+        self.assertIn('introduced', joined)
+        self.assertIn('nobody else the artist finds themselves', joined)
+
+    def test_a_zero_tail_says_the_artist_owes_nothing(self):
+        """Set the venue's window to 0 and the exception disappears rather than reading as
+        "within 0 days", which is a sentence nobody should have to parse."""
+        from gallery import consignment
+
+        after = dict(consignment.terms_text(25, tail_days=0))['After it goes home']
+        joined = ' '.join(after)
+        self.assertIn('owes the gallery nothing', joined)
+        self.assertNotIn('exception', joined)
+
+    def test_no_commission_means_no_tail_either(self):
+        """A tail on a show that takes nothing would claim a share of nothing — the PDF read
+        "the gallery takes no commission" and then "the commission above is still due"."""
+        from gallery import consignment
+
+        after = dict(consignment.terms_text(0, tail_days=60))['After it goes home']
+        joined = ' '.join(after)
+        self.assertIn('owes the gallery nothing', joined)
+        self.assertNotIn('still due', joined)
+
+    def test_the_venue_sets_the_window(self):
+        from gallery import consignment
+
+        self.assertEqual(consignment.tail_days_for(self.show), 60)
+        self.site.introduction_tail_days = 90
+        self.site.save(update_fields=['introduction_tail_days'])
+        self.show = Show.objects.get(pk=self.show.pk)
+        self.assertEqual(consignment.tail_days_for(self.show), 90)
+
     # ── Recording who has been asked ─────────────────────────────────────────
 
     def test_a_request_records_when_and_by_whom(self):

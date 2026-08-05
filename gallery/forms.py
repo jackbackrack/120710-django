@@ -790,6 +790,7 @@ class SiteForm(UserAwareModelForm):
             # What this venue takes on a sale, and what its consignment agreements say.
             'commission_rate',
             'custody_grace_days',
+            'introduction_tail_days',
             'instagram',
             'website',
             'description',
@@ -817,10 +818,23 @@ class SiteForm(UserAwareModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
         }
 
+    # Optional on the form, never empty on the model. Their columns cannot be null — every
+    # agreement has to state both numbers — so clearing a box falls back to the field's
+    # default rather than refusing the whole form over a setting most people never touch.
+    # Listed here rather than handled one at a time: the first of them was fixed this way,
+    # the second was added without it, and six unrelated site tests failed.
+    DEFAULTED_NUMBERS = ('custody_grace_days', 'introduction_tail_days')
+
     def clean_custody_grace_days(self):
-        value = self.cleaned_data.get('custody_grace_days')
+        return self._or_default('custody_grace_days')
+
+    def clean_introduction_tail_days(self):
+        return self._or_default('introduction_tail_days')
+
+    def _or_default(self, name):
+        value = self.cleaned_data.get(name)
         if value in (None, ''):
-            return Site._meta.get_field('custody_grace_days').default
+            return Site._meta.get_field(name).default
         return value
 
     def __init__(self, *args, **kwargs):
@@ -829,7 +843,8 @@ class SiteForm(UserAwareModelForm):
         # Optional on the form, never empty on the model. The column cannot be null — every
         # agreement has to state a cutoff — so clearing the box falls back to the default
         # rather than refusing the whole form over a field most people will never touch.
-        self.fields['custody_grace_days'].required = False
+        for name in self.DEFAULTED_NUMBERS:
+            self.fields[name].required = False
 
         # The venue's state decides its time zone, which is derived from the two-letter
         # code, so a free-text "calif" would silently leave the venue with no zone.

@@ -266,6 +266,7 @@ def _sign(request, show, artist, token):
         fingerprint=fingerprint_of(terms.material_facts(show, artist, rate, rows)),
         signed_at=now,
         signed_name=typed,
+        signed_capacity=request.POST.get('signed_capacity', '').strip()[:120],
         signed_ip=_client_ip(request),
         signed_user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
         signed_by=request.user if request.user.is_authenticated else None,

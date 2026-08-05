@@ -123,6 +123,14 @@ class Site(models.Model):
         help_text='After the last pickup time, how many days the venue remains responsible '
                   'for work that has not been collected. Stated in every consignment '
                   'agreement. After it, uncollected work is held at the artist’s risk.')
+    # After the work goes home the artist may sell it freely and owes nothing. The one
+    # exception is a buyer the gallery actually introduced, for a while. Set to 0 to waive it
+    # entirely — the agreement then says the artist owes nothing on any later sale.
+    introduction_tail_days = models.PositiveSmallIntegerField(
+        default=60, verbose_name='Days we can claim commission on a buyer we introduced',
+        help_text='If the gallery introduced a buyer during the show, a sale to that buyer '
+                  'within this many days of the work going home still pays commission. '
+                  'Sales to anyone else never do. 0 waives it.')
     instagram = models.CharField(max_length=100, blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     description = models.TextField(blank=True)
