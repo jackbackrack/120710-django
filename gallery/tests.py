@@ -12605,6 +12605,31 @@ class ArtworkCreateIdempotencyTests(MediaImageMixin, TestCase):
         self.client.post(self.url, self._payload('tok-b', name='Untitled'))
         self.assertEqual(Artwork.objects.filter(name='Untitled').count(), 2)
 
+    def test_an_identical_piece_warns_but_is_not_refused(self):
+        """"Distinct enough" is the wrong test for artwork: untitled work is ordinary and
+        series work differs by a millimetre or not at all. A rule strict enough to catch a
+        real duplicate refuses real work, and that cost lands on the artist."""
+        from django.contrib.messages import get_messages
+
+        self.client.post(self.url, self._payload('tok-x', name='Same Piece'))
+        response = self.client.post(self.url, self._payload('tok-y', name='Same Piece'))
+
+        self.assertEqual(Artwork.objects.filter(name='Same Piece').count(), 2,
+                         'it must not refuse — only mention it')
+        notes = [str(m) for m in get_messages(response.wsgi_request)]
+        self.assertTrue(any('already has the same title' in n for n in notes), notes)
+
+    def test_a_different_size_is_not_flagged(self):
+        """Series work differing only in dimensions is ordinary and must stay quiet."""
+        from django.contrib.messages import get_messages
+
+        self.client.post(self.url, self._payload('tok-p', name='Untitled'))
+        payload = self._payload('tok-q', name='Untitled')
+        payload['width_inches'] = 30
+        response = self.client.post(self.url, payload)
+        notes = [str(m) for m in get_messages(response.wsgi_request)]
+        self.assertFalse(any('same title' in n for n in notes), notes)
+
     def test_each_render_gets_its_own_token(self):
         import re
 
@@ -12613,6 +12638,48 @@ class ArtworkCreateIdempotencyTests(MediaImageMixin, TestCase):
             body = self.client.get(self.url).content.decode()
             seen.add(re.search(r'name="create_token" value="([^"]+)"', body).group(1))
         self.assertEqual(len(seen), 3, 'a reused token would refuse a genuine second artwork')
+
+
+class ArtistCreateIdempotencyTests(MediaImageMixin, TestCase):
+    """One profile per rendered form. Same window as the artwork form: it uploads a photo."""
+
+    def setUp(self):
+        self._setup_media()
+        self.user = User.objects.create_user(username='np@example.com',
+                                             email='np@example.com', password='pw')
+        self.client.force_login(self.user)
+        self.url = reverse('gallery:artist_new')
+
+    def tearDown(self):
+        self._teardown_media()
+
+    def _payload(self, token):
+        return {
+            'first_name': 'New', 'last_name': 'Person', 'email': 'np@example.com',
+            'country': 'US', 'zipcode': '94710', 'street': '', 'city': '', 'state': '',
+            'bio': '', 'statement': '', 'phone': '', 'website': '', 'instagram': '',
+            'venmo': '', 'create_token': token, 'image': _test_jpg('n.jpg'),
+        }
+
+    def test_the_form_carries_a_token(self):
+        self.assertContains(self.client.get(self.url), 'name="create_token"')
+
+    def test_replaying_the_same_submission_creates_one_profile(self):
+        self.client.post(self.url, self._payload('artist-tok'))
+        self.client.post(self.url, self._payload('artist-tok'))
+        self.assertEqual(Artist.objects.filter(first_name='New').count(), 1)
+
+    def test_a_fresh_form_still_creates_a_second_profile(self):
+        """Curators legitimately add several artists in a row."""
+        curator = User.objects.create_user(username='cu@example.com',
+                                           email='cu@example.com', password='pw',
+                                           is_staff=True)
+        self.client.force_login(curator)
+        self.client.post(self.url, self._payload('one'))
+        second = self._payload('two')
+        second['first_name'] = 'Other'
+        self.client.post(self.url, second)
+        self.assertEqual(Artist.objects.filter(last_name='Person').count(), 2)
 
 
 class USStateTests(TestCase):

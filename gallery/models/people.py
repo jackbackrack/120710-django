@@ -82,6 +82,11 @@ class Artist(models.Model):
     created_by = models.ForeignKey('auth.User', null=True, blank=True,
                                    on_delete=models.SET_NULL,
                                    related_name='created_artists')
+    # One profile per rendered form — same reasoning as Artwork.create_token. This form
+    # uploads a photograph too, so it has the same slow window in which somebody clicks
+    # again, and a back-button resubmit is invisible to any script on the page.
+    create_token = models.CharField(max_length=64, blank=True, null=True, unique=True,
+                                    editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

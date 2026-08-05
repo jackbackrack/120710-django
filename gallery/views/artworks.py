@@ -199,6 +199,38 @@ class ArtworkDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return can_delete_artwork(self.request.user, obj)
 
 
+def _warn_if_identical(request, artwork):
+    """Say so when a new piece matches one the artist already has, exactly.
+
+    A warning and not a refusal, deliberately. "Distinct enough" is the wrong test for
+    artwork: untitled work is ordinary, series work differs by a millimetre or not at all,
+    and an emerging-artist gallery sees more of both than most. A rule strict enough to
+    catch a real duplicate refuses real work, and the cost of that lands on the artist while
+    the cost of a missed duplicate is a row somebody deletes.
+
+    So this matches on everything at once — title, year, medium and both dimensions — which
+    is rare enough to be worth mentioning and never worth blocking on.
+    """
+    if not artwork.pk:
+        return
+    twin = (Artwork.objects
+            .filter(artists__in=artwork.artists.all())
+            .filter(name__iexact=(artwork.name or '').strip(),
+                    end_year=artwork.end_year,
+                    medium=artwork.medium,
+                    width_inches=artwork.width_inches,
+                    height_inches=artwork.height_inches)
+            .exclude(pk=artwork.pk)
+            .distinct()
+            .first())
+    if twin is None:
+        return
+    messages.warning(
+        request,
+        f'Heads up: “{twin.name}” already has the same title, year, medium and size. '
+        f'If this was meant to be one piece rather than two, you can delete either.')
+
+
 class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     """Creating an artwork, once per rendered form.
 
@@ -256,6 +288,7 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         artist = self.request.user.artists.order_by('-created_at').first()
         if artist:
             self.object.artists.add(artist)
+        _warn_if_identical(self.request, self.object)
         return response
 
     def test_func(self):

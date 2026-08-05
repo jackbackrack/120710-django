@@ -1,10 +1,14 @@
 from eatart.schemaorg.mappers import artist_to_schema
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import Http404
+import uuid
+
+from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse, reverse_lazy
@@ -323,7 +327,23 @@ class ArtistCreateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, C
         kwargs['user'] = self.request.user
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault('create_token', uuid.uuid4().hex)
+        return context
+
     def form_valid(self, form):
+        # One profile per rendered form. This uploads a photograph, so there is the same
+        # multi-second window in which somebody clicks Save again — and a back-button
+        # resubmit is a fresh page that no script can see.
+        token = (self.request.POST.get('create_token') or '').strip()[:64]
+        if token:
+            existing = Artist.objects.filter(create_token=token).first()
+            if existing is not None:
+                messages.info(self.request, 'That was already saved — here it is.')
+                return redirect(existing)
+            form.instance.create_token = token
+
         # Claim the new profile for its creator only when the form did not ask. "Linked
         # user account" is shown to whoever may be recording somebody else — staff and
         # curators — and their answer, blank included, is the answer.
@@ -338,7 +358,14 @@ class ArtistCreateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, C
         # field and have no way to be creating a record for anyone but themselves.
         if 'user' not in form.fields and not self.request.user.artists.exists():
             form.instance.user = self.request.user
-        return super().form_valid(form)
+        try:
+            with transaction.atomic():
+                return super().form_valid(form)
+        except IntegrityError:
+            existing = Artist.objects.filter(create_token=token).first() if token else None
+            if existing is None:
+                raise
+            return redirect(existing)
 
     def test_func(self):
         # Two separate reasons to be here: you have no profile and are creating your own,

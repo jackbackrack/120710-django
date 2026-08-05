@@ -16,6 +16,8 @@
 <form action="" method="post" enctype="multipart/form-data" data-has-image="{% if object.image %}1{% endif %}">{% csrf_token %}
   {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
   {% crispy form %}
+  {# One profile per rendered form; a replay of this token redirects to what it made. #}
+  <input type="hidden" name="create_token" value="{{ create_token }}">
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>
 {% endblock content %}
