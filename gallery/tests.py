@@ -2297,6 +2297,29 @@ class OpeningHoursTests(TestCase):
                                          password='pw', is_staff=True)
         self.assertEqual(editable - set(SiteForm(user=staff).fields), set())
 
+    def test_every_editable_show_field_is_reachable_through_the_form(self):
+        """The same guard as the venue form above, which Show did not have.
+
+        It caught this immediately: `commission_rate` was added to the model, migrated and
+        used by the consignment agreement, and was on no page — so a show could never be put
+        on different terms from its venue, and the only way to find out was to look for the
+        field and fail to find it.
+        """
+        from gallery.forms import ShowForm
+        from gallery.models import Show
+
+        # `tags` is reachable, just only through Django admin (ShowAdmin.filter_horizontal),
+        # which is a real route for the one role that can use it. Named here so the
+        # exception is a decision rather than a gap nobody noticed.
+        automatic = {'id', 'slug', 'created_at', 'tags'}
+        editable = {f.name for f in Show._meta.get_fields()
+                    if getattr(f, 'editable', False) and not f.auto_created
+                    and f.name not in automatic}
+        staff = User.objects.create_user(username='shf@example.com',
+                                         email='shf@example.com', password='pw',
+                                         is_staff=True)
+        self.assertEqual(editable - set(ShowForm(user=staff).fields), set())
+
     def test_the_booking_settings_can_actually_be_switched_on(self):
         self.client.force_login(self.staff)
         page = self.client.get(reverse('gallery:site_edit', kwargs={'slug': self.site.slug}))

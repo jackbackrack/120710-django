@@ -85,6 +85,21 @@ with only `eatart/howto_manifest.json` committed. **Read
 `docs/visual-howto-documentation.md` before working on it** — including for what a
 `DocumentationMismatch` from a capture run means, which is that the prose is wrong.
 
+## Before committing: `./scripts/check.sh`
+
+Run it and read it. It checks that everything imports, that no model change is missing a
+migration, that nothing the change needs is untracked, that no `{# #}` spans a line, and
+that the whole suite passes — unfiltered.
+
+Each of those is there because something got through without it. The one that matters most
+is the last: **never decide a run passed by looking at a grepped slice of its output.** A
+syntax error, an import failure and a collection error all print neither `FAIL` nor `OK`, so
+a filter that keeps only those lines reports silence as success.
+
+The untracked check exists for the same reason in a different disguise: `git add gallery
+eatart` is not `git add -A`, tests read the working tree rather than the index, and two
+templates the mail path renders stayed untracked through eleven commits and a green suite.
+
 ## Running the tests
 
 ```

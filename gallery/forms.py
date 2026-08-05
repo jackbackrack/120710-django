@@ -870,6 +870,8 @@ class ShowForm(UserAwareModelForm):
             'submission_type',
             'submission_scope',
             'max_submissions_per_artist',
+            # Blank means "use the venue's rate", which is the normal case.
+            'commission_rate',
             'submission_deadline',
             'review_deadline',
             'decision_date',
