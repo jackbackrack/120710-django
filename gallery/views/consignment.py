@@ -164,6 +164,14 @@ def _save_inline(request, show, artist):
         if value < 0:
             messages.error(request, f'{artwork.name}: an agreed value cannot be negative.')
             continue
+        # Refused, not silently clamped. Quietly changing a number somebody typed into a
+        # document they are about to sign is worse than telling them it will not do.
+        if terms.too_high(artwork.price, value):
+            messages.error(
+                request,
+                f'{artwork.name}: an agreed value cannot be more than the asking price of '
+                f'${artwork.price:,.0f}. Lower it, or raise the price of the piece.')
+            continue
         if artwork.agreed_value != value:
             artwork.agreed_value = value
             artwork.save(update_fields=['agreed_value'])

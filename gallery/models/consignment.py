@@ -26,7 +26,7 @@ from django.db import models
 
 # Bumped when the boilerplate itself changes. Signed agreements keep the version they were
 # signed under, so old signatures keep meaning what they meant.
-TERMS_VERSION = 2
+TERMS_VERSION = 3
 
 
 class Consignment(models.Model):

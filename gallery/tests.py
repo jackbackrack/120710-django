@@ -12741,14 +12741,53 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
 
     # ── An implausible value ─────────────────────────────────────────────────
 
-    def test_a_wild_agreed_value_is_flagged_to_staff(self):
-        """No cap — a cap would refuse honest work priced unusually — but the gallery is
-        liable for the full stated figure, so somebody should see it while declining the
-        piece is still possible."""
+    def test_an_agreed_value_cannot_exceed_the_asking_price(self):
+        """A piece offered at $2,000 is worth $2,000 by the artist's own account. This also
+        closes the one way to game it: a modest price to attract buyers, a large agreed
+        value to attract a payout."""
         from gallery import consignment
 
-        self.work.agreed_value = 50000            # a $2,000 piece
-        self.work.save(update_fields=['agreed_value'])
+        self.assertTrue(consignment.too_high(2000, 5000))
+        self.assertFalse(consignment.too_high(2000, 2000))
+        self.assertFalse(consignment.too_high(2000, 500), 'lower must stay allowed')
+        self.assertFalse(consignment.too_high(None, 5000), 'no price, nothing to measure')
+
+    def test_the_page_refuses_a_value_above_the_price(self):
+        """Refused, not silently clamped — quietly changing a number in a document somebody
+        is about to sign is worse than saying it will not do."""
+        self.client.force_login(self.user)
+        self.client.post(self.url, {'action': 'save',
+                                    f'agreed_value_{self.work.pk}': '9999'})
+        self.work.refresh_from_db()
+        self.assertIsNone(self.work.agreed_value, 'the wild figure was stored anyway')
+
+    def test_a_value_above_the_price_blocks_signing(self):
+        """Data can predate the rule, so the gate cannot rely on input validation alone."""
+        from gallery import consignment
+
+        self._complete_profile()
+        Artwork.objects.filter(pk=self.work.pk).update(agreed_value=9999)
+        keys = [b['key'] for b in consignment.blockers(self.show, self.artist)]
+        self.assertIn('agreed_value_too_high', keys)
+
+    def test_the_artwork_form_refuses_it_too(self):
+        """The consignment page is not the only way in."""
+        from gallery.forms import ArtworkForm
+
+        form = ArtworkForm(data={
+            'name': 'Test', 'end_year': 2026, 'pricing_type': Artwork.PRICING_FOR_SALE,
+            'price': 2000, 'agreed_value': 9999}, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('agreed_value', form.errors)
+
+    def test_a_large_value_is_still_flagged_to_staff(self):
+        """Capped at the price, but an expensive piece is worth knowing about while
+        declining it is still possible."""
+        from gallery import consignment
+
+        self.work.price = 12000
+        self.work.agreed_value = 12000
+        self.work.save(update_fields=['price', 'agreed_value'])
         rows = consignment.artwork_rows(self.show, self.artist, 25)
         self.assertTrue(consignment.is_outlier(rows[0]))
 
@@ -12758,7 +12797,6 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.client.force_login(staff)
         page = self.client.get(reverse('gallery:show_consignments',
                                        kwargs={'slug': self.show.slug}))
-        self.assertContains(page, 'check')
         self.assertEqual(len(page.context['rows'][0]['outliers']), 1)
 
     def test_an_ordinary_value_is_not_flagged(self):

@@ -92,14 +92,24 @@ the gallery.
 
 ## An implausible value
 
-There is **no cap**, because a cap refuses honest work that happens to be priced unusually.
-Instead the agreement says the value is *agreed* — the artist proposes it, and the gallery may
-query it or decline the piece before it is dropped off — and the staff dashboard flags any
-figure more than `OUTLIER_RATIO` times the asking price, or over `OUTLIER_ABSOLUTE`, so
-somebody sees it while refusing is still possible. Once the work has been accepted and the
-agreement signed, the figure binds.
+**An agreed value may not exceed the piece's own asking price.** A work offered at $2,000 is
+worth $2,000 by the artist's own account, so the gallery is not liable for more than that if
+it is destroyed. Lower is allowed — an artist may value a piece below what they hope to get
+for it.
 
-The artist never sees the threshold. It marks a row, it does not block anything.
+That closes the only real way to game this: a modest price to be attractive to buyers and a
+large agreed value to be attractive if something goes wrong. It is refused rather than
+silently clamped, at every way in — the consignment page, the artwork form, and the gate on
+signing, because stored data can predate the rule. It is also stated in the agreement, so it
+is a term rather than a validation error nobody can see the reason for.
+
+Work with **no price** — not for sale, or price on request — has nothing to measure against.
+There the artist sets the figure, the agreement says the gallery may query it, and the staff
+dashboard flags anything over `OUTLIER_ABSOLUTE` so somebody sees it while declining the piece
+is still possible. Priced work is flagged the same way if it is simply expensive.
+
+The artist never sees the threshold. It marks a row and blocks nothing; the ceiling is the
+part that binds.
 
 ## The signed thing is frozen
 

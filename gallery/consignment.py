@@ -153,6 +153,16 @@ def blockers(show, artist, rows=None):
             'staff_text': f'{missing} piece{"" if missing == 1 else "s"} without an agreed '
                           f'value.',
         })
+
+    over = [r for r in rows if too_high(r['price'], r['agreed_value'])]
+    if over:
+        names = ', '.join(r['title'] for r in over)
+        found.append({
+            'key': 'agreed_value_too_high',
+            'text': f'An agreed value cannot be more than the asking price: {names}. '
+                    f'Lower it, or raise the price of the piece.',
+            'staff_text': f'Agreed value above the asking price: {names}.',
+        })
     return found
 
 
@@ -325,28 +335,37 @@ def is_out_of_date(consignment):
         return False
 
 
-# A stated value this far above the asking price is worth a human look before the work is
-# accepted. Not a limit and never shown to the artist — it only marks a row on the staff
-# dashboard, where somebody can ask about it before the piece is in the building.
-OUTLIER_RATIO = 3
+# Large in absolute terms is still worth a human look, whether or not it is capped by a
+# price. Never shown to the artist — it marks a row on the staff dashboard and blocks
+# nothing.
 OUTLIER_ABSOLUTE = 5000
 
 
-def is_outlier(row):
-    """Whether this piece's agreed value deserves a second look.
+def too_high(price, value):
+    """Whether an agreed value exceeds the piece's own asking price.
 
-    The gallery is liable for the full stated value, and the artist sets it. There is no
-    cap — a cap would refuse honest work priced unusually — but a figure several times the
-    asking price, or large in absolute terms, is worth querying while refusing the piece is
-    still possible. Once the work is in the door and the agreement signed, the number binds.
+    A piece offered at $2,000 is worth $2,000 by the artist's own account, so the gallery
+    should not be liable for more than that if it is destroyed. Lower is fine — an artist
+    may value a piece below what they hope to sell it for — and work with no price has
+    nothing to measure against, which is why the absolute flag still exists.
+
+    The rule also removes the one real way to game this: declare a modest price to be
+    attractive to buyers and a large agreed value to be attractive if something goes wrong.
+    """
+    if price in (None, '') or value in (None, ''):
+        return False
+    return float(value) > float(price)
+
+
+def is_outlier(row):
+    """Whether this piece's agreed value deserves a second look before the work arrives.
+
+    Priced work is capped at its price, so this is now only about size: a genuinely
+    expensive piece is worth knowing about while declining it is still possible, and an
+    unpriced one has no ceiling at all.
     """
     value = row.get('agreed_value')
-    if value is None:
-        return False
-    price = row.get('price')
-    if price:
-        return value > price * OUTLIER_RATIO or value >= OUTLIER_ABSOLUTE
-    return value >= OUTLIER_ABSOLUTE
+    return value is not None and value >= OUTLIER_ABSOLUTE
 
 
 def terms_text(rate=None):
@@ -380,6 +399,9 @@ def terms_text(rate=None):
             'The agreed value is exactly that — agreed. The artist proposes it, and the '
             'gallery may query it or decline to take a piece before it is dropped off. '
             'Once the work has been accepted the figure above is what applies.',
+            'A piece offered for sale cannot have an agreed value above its asking price. '
+            'It may be lower. Work that is not for sale has no asking price to measure '
+            'against, so the artist sets the figure and the gallery may query it.',
             'The gallery will not alter, copy or lend the work, and will take reasonable '
             'care of it.',
         ]),

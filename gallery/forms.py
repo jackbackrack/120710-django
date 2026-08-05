@@ -464,9 +464,9 @@ class ArtworkForm(UserAwareModelForm):
         self.fields['agreed_value'].help_text = (
             'What this piece is worth to you if it were lost, stolen or damaged beyond '
             'repair. Leave it blank and we use your asking price, which is usually right. '
-            'It is what we pay you, in full, while the work is in our care — so we may ask '
-            'about a figure well above the price before taking the piece. Never shown '
-            'publicly.')
+            'It is what we pay you, in full, while the work is in our care. It cannot be '
+            'more than the asking price — a piece you offer at $2,000 is worth $2,000 by '
+            'your own account — but it can be less. Never shown publicly.')
 
         self._require_explicit_pricing()
 
@@ -550,6 +550,17 @@ class ArtworkForm(UserAwareModelForm):
             self.add_error('price', 'A price is required when "For Sale" is selected.')
         if pricing_type in (Artwork.PRICING_NFS, Artwork.PRICING_ON_REQUEST):
             cleaned['price'] = None
+
+        # Checked after the line above, so it uses the price that will actually be stored:
+        # switching a piece to Not For Sale clears the price, and there is then nothing to
+        # measure the agreed value against.
+        from gallery.consignment import too_high
+        if too_high(cleaned.get('price'), cleaned.get('agreed_value')):
+            self.add_error(
+                'agreed_value',
+                f'This cannot be more than the asking price of '
+                f'${cleaned["price"]:,.0f}. A piece you offer at that price is worth that '
+                f'much by your own account — lower this, or raise the price.')
         return cleaned
 
 
