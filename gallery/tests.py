@@ -12500,6 +12500,64 @@ class OnBehalfSubmissionCreditTests(MediaImageMixin, TestCase):
         self.assertEqual(self._counts().get('mag@example.com'), 2)
 
 
+class USStateTests(TestCase):
+    """States were free text everywhere, and the artist table shows what that produced:
+    "c", "b", "ca". `timezone_from_address` keys on the two-letter code, so a lower-case one
+    silently resolves to nothing."""
+
+    def test_a_name_or_a_code_both_become_the_code(self):
+        from gallery import us_states
+
+        for typed in ('california', 'California', 'ca', 'CA', '  CALIFORNIA  '):
+            self.assertEqual(us_states.normalise(typed), 'CA', typed)
+
+    def test_something_that_is_not_a_state_is_refused_in_the_us(self):
+        from django.core.exceptions import ValidationError
+
+        from gallery import us_states
+
+        with self.assertRaises(ValidationError):
+            us_states.clean_state('Calif', 'US')
+        with self.assertRaises(ValidationError):
+            us_states.clean_state('b', 'US')
+
+    def test_outside_the_us_the_text_is_kept_as_typed(self):
+        """"State" means a province, a region or nothing at all, and there is no list."""
+        from gallery import us_states
+
+        self.assertEqual(us_states.clean_state('Ontario', 'CA'), 'Ontario')
+        self.assertEqual(us_states.clean_state('Gwynedd', 'GB'), 'Gwynedd')
+
+    def test_blank_stays_blank(self):
+        """The address is optional until somebody consigns; requiring it here would demand
+        a state from every entrant to an open call."""
+        from gallery import us_states
+
+        self.assertEqual(us_states.clean_state('', 'US'), '')
+
+    def test_both_forms_offer_the_list_and_normalise(self):
+        from django.contrib.auth.models import AnonymousUser
+
+        from gallery.forms import ArtistForm, SiteForm
+
+        for form in (ArtistForm(user=AnonymousUser()), SiteForm(user=AnonymousUser())):
+            markup = str(form['state'])
+            self.assertIn('list="us-states"', markup)
+            self.assertIn('<option value="California">', markup)
+
+    def test_the_venue_form_normalises_on_save(self):
+        """The venue's time zone is derived from the code, so "california" must not be
+        stored as typed — it would leave the venue with no zone at all."""
+        from gallery.forms import SiteForm
+
+        staff = User.objects.create_user(username='st@example.com', email='st@example.com',
+                                         password='pw', is_staff=True)
+        form = SiteForm(data={'name': 'Venue', 'country': 'US', 'state': 'california',
+                              'status': Site.STATUS_DRAFT}, user=staff)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['state'], 'CA')
+
+
 class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
     """The agreement an artist signs before dropping work off.
 
@@ -12647,6 +12705,21 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertEqual(self.artist.street, '1 Test St')
         self.assertIs(self.artist.is_represented, False)
         self.assertEqual(nfs.agreed_value, 400)
+
+    def test_the_consignment_page_normalises_the_state_too(self):
+        """A third way into the same column. Skipping the check here would put "ca" back."""
+        self.client.force_login(self.user)
+        self.client.post(self.url, {'action': 'save', 'street': '1 Test St',
+                                    'city': 'Berkeley', 'state': 'california'})
+        self.artist.refresh_from_db()
+        self.assertEqual(self.artist.state, 'CA')
+
+    def test_the_consignment_page_refuses_a_non_state(self):
+        self.client.force_login(self.user)
+        self.client.post(self.url, {'action': 'save', 'street': '1 Test St',
+                                    'city': 'Berkeley', 'state': 'Califf'})
+        self.artist.refresh_from_db()
+        self.assertNotEqual(self.artist.state, 'Califf')
 
     def test_the_address_is_the_profile_address_not_a_copy(self):
         """One field, read and written from both places, rather than a consignment copy
@@ -12899,6 +12972,19 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertTrue(any('still $2,000' in n for n in notes), notes)
         self.assertFalse(any(n == 'Saved.' for n in notes),
                          'it did not save, so it must not say it did')
+
+    def test_an_error_message_is_styled_as_an_error(self):
+        """base.html renders `alert alert-{{ message.tags }}`. Django tags errors "error"
+        and Bootstrap defines "danger", so without MESSAGE_TAGS every error in the app came
+        out as an undefined class and rendered as plain text — in the one place somebody is
+        meant to notice that something went wrong."""
+        self._complete_profile()
+        self.client.force_login(self.user)
+        page = self.client.post(self.url, {
+            'action': 'save', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
+            f'agreed_value_{self.work.pk}': '9999'}, follow=True)
+        self.assertContains(page, 'alert-danger')
+        self.assertNotContains(page, 'alert-error')
 
     def test_a_value_above_the_price_blocks_signing(self):
         """Data can predate the rule, so the gate cannot rely on input validation alone."""

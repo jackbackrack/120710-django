@@ -9,6 +9,7 @@ from crispy_forms.layout import Layout, Field, Row, Column, HTML, Fieldset
 
 from gallery.models import (Artist, Artwork, ArtworkImage, ArtworkSubmission, Event, Show,
                             Site, Subscriber, Subscription, Tag)
+from gallery import us_states
 from gallery.permissions import is_curator_user, is_staff_user
 
 
@@ -155,6 +156,9 @@ class ArtistForm(UserAwareModelForm):
             self.fields[name].help_text = (
                 'Only needed if we consign work from you \u2014 it is how we return '
                 'unsold pieces. Never shown publicly.')
+        # Completion for US states, and normalisation on the way in. Free text produced
+        # "c", "b" and "ca" in this table, none of which resolves to anything.
+        self.fields['state'].widget = us_states.USStateInput()
 
         # Three states, not two. The model field is nullable so that "never asked" stays
         # distinct from "said no" \u2014 every artist who existed before this was added is in
@@ -301,6 +305,17 @@ class ArtistForm(UserAwareModelForm):
         if value and not value.startswith('@'):
             value = '@' + value
         return value or None
+
+    def clean(self):
+        cleaned = super().clean()
+        # Validated here rather than in clean_state, because whether a state is required to
+        # be a US one depends on the country field, and a per-field clean cannot see it.
+        try:
+            cleaned['state'] = us_states.clean_state(cleaned.get('state'),
+                                                     cleaned.get('country'))
+        except ValidationError as exc:
+            self.add_error('state', exc)
+        return cleaned
 
     def clean_website(self):
         from django.core.validators import URLValidator
@@ -815,6 +830,10 @@ class SiteForm(UserAwareModelForm):
         # rather than refusing the whole form over a field most people will never touch.
         self.fields['custody_grace_days'].required = False
 
+        # The venue's state decides its time zone, which is derived from the two-letter
+        # code, so a free-text "calif" would silently leave the venue with no zone.
+        self.fields['state'].widget = us_states.USStateInput()
+
         from gallery.permissions import is_staff_user
         if not (self.user and is_staff_user(self.user)):
             self.fields.pop('directors', None)
@@ -839,6 +858,14 @@ class SiteForm(UserAwareModelForm):
                 current = getattr(self.instance, name, None)
                 cleaned[name] = current if current not in (None, '') \
                     else Site._meta.get_field(name).default
+        # Here rather than in a clean_state: whether the state has to be a US one depends on
+        # the country field, which a per-field clean cannot see. The venue's time zone is
+        # derived from the two-letter code, so "calif" would leave it with no zone at all.
+        try:
+            cleaned['state'] = us_states.clean_state(cleaned.get('state'),
+                                                     cleaned.get('country'))
+        except ValidationError as exc:
+            self.add_error('state', exc)
         return cleaned
 
 class ArtworkSubmissionForm(forms.ModelForm):

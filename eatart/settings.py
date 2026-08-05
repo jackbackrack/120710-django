@@ -517,6 +517,17 @@ LOGGING = {
 }
 
 
+# Bootstrap calls it "danger"; Django calls it "error". base.html renders
+# `alert alert-{{ message.tags }}`, so without this every error message in the app came out
+# as `alert-error` — a class Bootstrap does not define — and rendered as unstyled plain
+# text in the one place a person is meant to notice something went wrong.
+from django.contrib.messages import constants as message_constants  # noqa: E402
+
+MESSAGE_TAGS = {
+    message_constants.ERROR: 'danger',
+    message_constants.DEBUG: 'secondary',
+}
+
 '''
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/' # 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'

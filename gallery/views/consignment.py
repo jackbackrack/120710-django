@@ -10,6 +10,7 @@ See docs/consignment-agreements.md.
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import signing
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,6 +19,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST, require_safe
 
 from gallery import consignment as terms
+from gallery import us_states
 from gallery.consignment_mail import send_signed_copy
 from gallery.models import Artist, Consignment, Show
 from gallery.models.consignment import fingerprint_of
@@ -112,6 +114,7 @@ def _page(request, show, artist, token):
         'custody_sentence': terms.custody_sentence(
             custody, date_format=lambda d: d.strftime('%-d %b %Y') if d else '—'),
         'missing': missing,
+        'us_states_datalist': us_states.datalist_html(),
         'missing_values': missing_values,
         'total_agreed_value': sum(r['agreed_value'] or 0 for r in rows),
     })
@@ -156,10 +159,20 @@ def _save_inline(request, show, artist):
     """
     refused = False
     changed = []
-    for field in ('street', 'city', 'state'):
+    for field in ('street', 'city'):
         if field in request.POST:
             setattr(artist, field, request.POST.get(field, '').strip())
             changed.append(field)
+
+    # Normalised here too, not only in the artist and venue forms — this page writes to the
+    # same column, and a third way in that skipped the check would put "ca" back.
+    if 'state' in request.POST:
+        try:
+            artist.state = us_states.clean_state(request.POST['state'], artist.country)
+            changed.append('state')
+        except DjangoValidationError as exc:
+            messages.error(request, exc.messages[0])
+            refused = True
 
     represented = request.POST.get('is_represented')
     if represented in ('yes', 'no'):

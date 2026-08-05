@@ -94,9 +94,15 @@
       </div>
       <div class="col-5 col-md-2">
         <label class="form-label small mb-0" for="state">State <span class="text-danger" title="Required">*</span></label>
+        {% comment %}
+          The same completion list the artist and venue forms use, from
+          gallery/us_states.py. Free text here produced "c", "b" and "ca" in the artist
+          table, and the value is normalised on save for the same reason.
+        {% endcomment %}
         <input class="form-control form-control-sm{% if 'state' in missing %} is-invalid{% endif %}"
-               id="state" name="state"
+               id="state" name="state" list="us-states"
                value="{{ artist.state }}" autocomplete="address-level1">
+        {{ us_states_datalist|safe }}
       </div>
     </div>
     <p class="text-muted small mt-1">Only used to return unsold work. Never shown publicly.</p>
