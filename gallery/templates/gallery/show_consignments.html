@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Consignments — {{ show.name }}{% endblock %}
+{% block block_title %}Consignments — {{ show.name }}{% endblock %}
+
+{% comment %}
+  Who has signed, what is outstanding, and what the gallery is liable for if the building
+  burns down. The exposure total is the reason this page shows money at all: it is the sum of
+  figures the artists set themselves, and it is worth seeing before a show opens rather than
+  after a claim.
+
+  An unsigned agreement is deliberately not a blocker anywhere — it shows here and is chased
+  by email. Turning an artist away at the door over paperwork is worse than taking the work
+  and following up.
+{% endcomment %}
+{% block content %}
+<div class="col-11 mx-auto mt-4">
+
+  {% if rate_error %}
+  <div class="card__box p-3 mb-3">
+    <p class="mb-1"><strong>No agreements can be generated yet.</strong> {{ rate_error }}</p>
+    <p class="mb-0 small text-muted">
+      Set it on the venue for every show there, or on this show alone if it is on different
+      terms.
+    </p>
+  </div>
+  {% else %}
+  <p class="mb-1">
+    Commission <strong>{{ rate|floatformat:"-2" }}%</strong> ·
+    Total agreed value <strong>${{ exposure|floatformat:"-2" }}</strong>
+    <span class="text-muted small">— what we would owe if every piece were lost</span>
+  </p>
+  {% endif %}
+
+  {% if outstanding %}
+  <form method="post" action="{% url 'gallery:email_consignment_links' show.slug %}"
+        class="d-inline">{% csrf_token %}
+    <button class="card__link new-button" type="submit">
+      Email {{ outstanding }} unsigned artist{{ outstanding|pluralize }} their link</button>
+  </form>
+  {% endif %}
+
+  <table class="table table-sm align-middle mt-3">
+    <thead>
+      <tr class="small">
+        <th>Artist</th><th class="text-center">Works</th>
+        <th class="text-end">Agreed value</th><th>Status</th><th>Link</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="border-bottom">
+        <td>
+          {{ row.artist }}
+          {% if row.represented %}
+          <div class="text-muted small">
+            represented by {{ row.artist.representing_gallery|default:"another gallery" }}
+            — arranged with them
+          </div>
+          {% endif %}
+        </td>
+        <td class="text-center small">{{ row.artworks|length }}</td>
+        <td class="text-end small">
+          ${{ row.agreed_value|floatformat:"-2" }}
+          {% if row.missing_values %}
+          <div class="text-warning small">{{ row.missing_values }} without a value</div>
+          {% endif %}
+        </td>
+        <td class="small">
+          {% if row.represented %}
+            <span class="text-muted">On paper</span>
+          {% elif row.consignment and row.out_of_date %}
+            <span class="text-warning">Signed {{ row.consignment.signed_at|date:"j M" }} —
+              out of date</span>
+          {% elif row.consignment %}
+            <span class="text-success">Signed {{ row.consignment.signed_at|date:"j M" }}</span>
+          {% else %}
+            <span class="text-muted">Not signed</span>
+            {% for b in row.blockers %}<div class="small text-muted">{{ b.text }}</div>{% endfor %}
+          {% endif %}
+        </td>
+        <td class="small text-nowrap">
+          {% if row.consignment %}
+          <a class="card__link" href="{% url 'gallery:consignment_pdf' row.consignment.pk %}">PDF</a>
+          {% endif %}
+          {% if not row.represented %}
+          <form method="post" action="{% url 'gallery:email_consignment_links' show.slug %}"
+                style="display:inline">{% csrf_token %}
+            <input type="hidden" name="email" value="{{ row.artist.email }}">
+            <button class="btn btn-sm btn-link p-0 align-baseline" type="submit">email</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-muted small">No work in this show yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock content %}

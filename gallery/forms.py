@@ -89,6 +89,8 @@ class ArtistForm(UserAwareModelForm):
             'venmo',
             'bio',
             'statement',
+            'is_represented',
+            'representing_gallery',
             'user',
         )
         widgets = {
@@ -154,6 +156,17 @@ class ArtistForm(UserAwareModelForm):
                 'Only needed if we consign work from you \u2014 it is how we return '
                 'unsold pieces. Never shown publicly.')
 
+        # Three states, not two. The model field is nullable so that "never asked" stays
+        # distinct from "said no" \u2014 every artist who existed before this was added is in
+        # the first state, and only the second is safe to consign against. Django renders a
+        # NullBooleanField as a select whose empty option reads "Unknown", which sounds like
+        # a fault; it says so plainly instead.
+        self.fields['is_represented'].widget.choices = [
+            ('unknown', 'Not answered'), ('true', 'Yes'), ('false', 'No')]
+        self.fields['is_represented'].label = 'Does a gallery represent you?'
+        self.fields['representing_gallery'].label = 'Which gallery?'
+        self.fields['representing_gallery'].help_text = 'Only if you answered yes.'
+
         # Group the form so it's obvious what's required: required fields (with
         # asterisks) come first under a "Required" heading, optional ones after.
         self.helper = FormHelper()
@@ -183,6 +196,7 @@ class ArtistForm(UserAwareModelForm):
         required = ['first_name', 'last_name', 'email', 'country', 'zipcode', 'image']
         optional = ['street', 'city', 'state', 'phone', 'website', 'instagram',
                     'venmo', 'bio', 'statement']
+        representation = ['is_represented', 'representing_gallery']
         layout = Layout(
             HTML('<p class="text-muted small mb-3">Fields marked '
                  '<span class="text-danger">*</span> are required.</p>'),
@@ -193,6 +207,18 @@ class ArtistForm(UserAwareModelForm):
                      'printed in the show catalogue — worth adding now while you are '
                      'here. The rest help people get in touch.</p>'),
                 *optional,
+            ),
+            # Its own group, and worded as a fact about who we contract with rather than
+            # as an eligibility question. It decides whether an artist may sign a
+            # consignment agreement at all — under exclusive representation their gallery
+            # holds sole authority to consign — so it is asked plainly and not buried
+            # among the contact details.
+            Fieldset(
+                'Gallery representation',
+                HTML('<p class="text-muted small mb-3">If a gallery represents you we '
+                     'arrange consignment with them rather than with you. It does not '
+                     'affect whether you can show here.</p>'),
+                *representation,
             ),
             Fieldset('Mailing list', 'subscribe_to_mailing_list'),
         )
@@ -731,6 +757,8 @@ class SiteForm(UserAwareModelForm):
             'submission_zipcodes',
             'email',
             'phone',
+            # What this venue takes on a sale, and what its consignment agreements say.
+            'commission_rate',
             'instagram',
             'website',
             'description',

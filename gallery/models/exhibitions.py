@@ -93,6 +93,13 @@ class Show(models.Model):
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_UNDER_CONSIDERATION, db_index=True)
     blind_review = models.BooleanField(default=False, verbose_name='Blind review', help_text='Hide artist names from jurors and curators during review and selection.')
     self_install = models.BooleanField(default=True, verbose_name='Artists install their own work', help_text='On: artists schedule an install time (which is also their drop-off). Off: artists schedule a drop-off and the curator installs.')
+    # Overrides the venue's rate for this show only — a benefit or members' show. Blank means
+    # "use the venue's", which is the normal case, so this is left alone almost always.
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        verbose_name='Commission (%) for this show',
+        help_text='Leave blank to use the venue’s usual rate. Set it only for a show on '
+                  'different terms, such as a benefit.')
     tags = models.ManyToManyField('gallery.Tag', related_name='shows', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

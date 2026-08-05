@@ -48,6 +48,20 @@ class Artist(models.Model):
     zipcode = models.CharField(verbose_name='ZIP / postal code',
                                max_length=10, blank=True, default='')
     website = models.URLField(max_length=255, blank=True, null=True)
+    # ── Gallery representation ───────────────────────────────────────────────
+    #
+    # Null is "never asked", False is "they said no". Kept distinct on purpose: every artist
+    # who existed before this field was added is in the first state, and only the second is
+    # safe to act on. Treating null as False would have the software generate agreements for
+    # people it has no answer about.
+    #
+    # It matters beyond bookkeeping. Under exclusive representation the gallery holds sole
+    # authority to consign, so an artist-direct agreement signed by that artist is worth
+    # nothing — the software refuses to generate one and the consignment is handled on paper.
+    is_represented = models.BooleanField(
+        null=True, blank=True, verbose_name='Represented by a gallery?')
+    representing_gallery = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='Gallery name')
     instagram = models.CharField(verbose_name='Instagram: your handle starting with @', max_length=255, blank=True, null=True)
     venmo = models.CharField(verbose_name='Venmo: your username starting with @', max_length=255, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)

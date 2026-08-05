@@ -7,6 +7,8 @@ from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign
                                      campaign_template_preview)
 from gallery.views.visits import (regenerate_visit_feed, rsvp_csv, visit_detail,
                                   visit_list, visits_ics)
+from gallery.views.consignment import (consign, consignment_pdf, email_consignment_links,
+                                       show_consignments)
 from gallery.views.subscribers import (subscriber_add, subscriber_delete,
                                        subscriber_interests, subscriber_list,
                                        subscriber_unsubscribe_all,
@@ -111,6 +113,13 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submissions/$', show_submissions, name='show_submissions'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/submissions/remind/$', send_submission_reminders, name='send_submission_reminders'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/nudge/$', nudge_invited_artists, name='nudge_invited_artists'),
+    # The token form comes first: without it the plain /consign/ pattern would need to not
+    # match a token, and a trailing path segment is exactly what a slug-ish regex swallows.
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/consign/(?P<token>[A-Za-z0-9_:-]+)/$', consign, name='consign_with_token'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/consign/$', consign, name='consign'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/consignments/$', show_consignments, name='show_consignments'),
+    re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/consignments/request/$', email_consignment_links, name='email_consignment_links'),
+    path('consignment/<int:pk>/pdf/', consignment_pdf, name='consignment_pdf'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/promote/$', promote_artworks, name='promote_artworks'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/add-artwork/$', add_artwork_on_behalf, name='add_artwork_on_behalf'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artist-emails/$', show_artist_emails, name='show_artist_emails'),

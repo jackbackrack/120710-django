@@ -97,7 +97,18 @@ def artist_schedule(request, slug):
             'kind': k, 'label': _KIND_LABEL[k], 'current': cur,
             'form': ArtistScheduleForm(windows=windows_by_kind[k], prefix=k, initial=initial),
         })
-    return render(request, 'gallery/artist_schedule.html', {'show': show, 'artist': artist, 'kinds': kinds_ctx})
+    # Whether this artist still owes a consignment agreement. Represented artists never do —
+    # theirs is arranged with their gallery — so they are not prompted for one they cannot
+    # validly give.
+    from gallery.models import Consignment
+    signed = (Consignment.objects
+              .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)
+              .order_by('-version').first())
+    return render(request, 'gallery/artist_schedule.html', {
+        'show': show, 'artist': artist, 'kinds': kinds_ctx,
+        'consignment_signed': signed,
+        'consignment_needed': signed is None and not artist.is_represented,
+    })
 
 
 # ── ICS download (Apple Calendar / Outlook / Google) ──────────────────────────

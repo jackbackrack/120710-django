@@ -105,6 +105,16 @@ class Site(models.Model):
     country = CountryField(default='US')
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=30, blank=True)
+    # What this venue takes on a sale, and what its consignment agreements say. Null is not
+    # zero: null means no rate has been set and no agreement will generate, where zero means
+    # a venue that deliberately takes nothing. Printing "0%" because nobody filled it in
+    # would put a number in a contract that nobody chose.
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        verbose_name='Commission (%)',
+        help_text='Percentage of the sale price this venue keeps. Used in consignment '
+                  'agreements. Leave blank if it has not been decided — agreements will '
+                  'not generate until it has.')
     instagram = models.CharField(max_length=100, blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     description = models.TextField(blank=True)

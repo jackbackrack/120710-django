@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Consignment — {{ show.name }}{% endblock %}
+{% block block_title %}Consignment — {{ show.name }}{% endblock %}
+
+{% comment %}
+  One page: the artist's address, their work with an agreed value on each, what the gallery
+  takes, and the signature. Everything missing is fillable here.
+
+  That is the whole design. The two things absent when an artist arrives are the street
+  address and the agreed values, and sending them to the profile form and then to each
+  artwork form makes this a three-stop errand — which is where people give up. So the
+  address and the values save from this page and write back to Artist and Artwork.
+
+  The money is shown per piece in dollars rather than as a percentage, because "gallery $500
+  / you $1,500" is a fact and "25%" is arithmetic somebody has to do on a phone at a
+  drop-off.
+{% endcomment %}
+{% block content %}
+<div class="col-11 col-lg-9 mx-auto mt-4">
+
+{% if fatal %}
+  {% for b in blockers %}{% if b.fatal %}
+  <div class="card__box p-3 mb-3">
+    <p class="mb-0">{{ b.text }}</p>
+  </div>
+  {% endif %}{% endfor %}
+  <p><a class="card__link" href="{{ show.get_absolute_url }}">Back to {{ show.name }}</a></p>
+
+{% else %}
+
+  {% if signed and not out_of_date %}
+  <div class="card__box p-3 mb-4">
+    <p class="mb-1"><strong>Signed</strong> on {{ signed.signed_at|date:"j M Y" }} by
+       {{ signed.signed_name }}.</p>
+    <a class="card__link" href="{% url 'gallery:consignment_pdf' signed.pk %}">
+      Download your copy (PDF)</a>
+  </div>
+  {% elif signed and out_of_date %}
+  <div class="card__box p-3 mb-4">
+    <p class="mb-1"><strong>Your work in this show has changed</strong> since you signed on
+       {{ signed.signed_at|date:"j M Y" }}. Please look it over and sign again — the new
+       agreement replaces the old one, which we keep.</p>
+    <a class="card__link" href="{% url 'gallery:consignment_pdf' signed.pk %}">
+      See what you signed before (PDF)</a>
+  </div>
+  {% endif %}
+
+  <form method="post">{% csrf_token %}
+    <input type="hidden" name="action" value="save">
+
+    {# ── Who, and where unsold work goes back to ─────────────────────────── #}
+    <div class="section-label"><h2>You</h2></div>
+    <p class="mb-2">{{ artist }} · {{ artist.email }}</p>
+    <div class="row g-2">
+      <div class="col-12 col-md-6">
+        <label class="form-label small mb-0" for="street">Street address</label>
+        <input class="form-control form-control-sm" id="street" name="street"
+               value="{{ artist.street }}" autocomplete="street-address">
+      </div>
+      <div class="col-7 col-md-4">
+        <label class="form-label small mb-0" for="city">City</label>
+        <input class="form-control form-control-sm" id="city" name="city"
+               value="{{ artist.city }}" autocomplete="address-level2">
+      </div>
+      <div class="col-5 col-md-2">
+        <label class="form-label small mb-0" for="state">State</label>
+        <input class="form-control form-control-sm" id="state" name="state"
+               value="{{ artist.state }}" autocomplete="address-level1">
+      </div>
+    </div>
+    <p class="text-muted small mt-1">Only used to return unsold work. Never shown publicly.</p>
+
+    {% if artist.is_represented is None %}
+    <div class="section-label mt-4"><h2>Representation</h2></div>
+    <p class="mb-1">Are you currently represented by a gallery? If so we arrange this with
+       them rather than with you.</p>
+    <label class="me-3"><input type="radio" name="is_represented" value="no"> No</label>
+    <label><input type="radio" name="is_represented" value="yes"> Yes</label>
+    <input class="form-control form-control-sm mt-2" style="max-width:22rem"
+           name="representing_gallery" placeholder="Gallery name">
+    {% endif %}
+
+    {# ── The work ─────────────────────────────────────────────────────────── #}
+    <div class="section-label mt-4"><h2>Your work in this show</h2></div>
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr class="small">
+          <th>Work</th><th>Price</th>
+          <th title="What we pay you if it is lost, stolen or damaged in our care">
+            Agreed value</th>
+          <th>If it sells</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>
+            {{ row.title }}
+            <div class="text-muted small">
+              {{ row.year }}{% if row.medium %} · {{ row.medium }}{% endif %}{% if row.dimensions %} · {{ row.dimensions }}{% endif %}
+            </div>
+          </td>
+          <td class="small">{% if row.price %}${{ row.price|floatformat:"-2" }}{% else %}<span class="text-muted">{{ row.pricing }}</span>{% endif %}</td>
+          <td style="max-width:9rem">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">$</span>
+              <input class="form-control" name="agreed_value_{{ row.pk }}"
+                     inputmode="decimal"
+                     value="{% if row.agreed_value %}{{ row.agreed_value|floatformat:"-2" }}{% endif %}">
+            </div>
+          </td>
+          <td class="small">
+            {% if row.for_sale and row.gallery_share is not None %}
+              gallery ${{ row.gallery_share|floatformat:"-2" }}<br>
+              <strong>you ${{ row.artist_share|floatformat:"-2" }}</strong>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="text-muted small">
+      The agreed value is what we pay you if a piece is lost, stolen or damaged while we have
+      it — <strong>in full, not less our commission</strong>. It starts at your asking price;
+      change it if that is not what the piece is worth to you.
+    </p>
+    <button class="btn btn-sm btn-outline-secondary" type="submit">Save</button>
+  </form>
+
+  {# ── Terms ──────────────────────────────────────────────────────────────── #}
+  <div class="section-label mt-4"><h2>The agreement</h2></div>
+  <p class="small">
+    Commission <strong>{{ rate|floatformat:"-2" }}%</strong> of the sale price.
+    Total agreed value <strong>${{ total_agreed_value|floatformat:"-2" }}</strong>.
+  </p>
+  {% for heading, points in sections %}
+  <p class="mb-1"><strong>{{ heading }}</strong></p>
+  <ul class="small">{% for p in points %}<li>{{ p }}</li>{% endfor %}</ul>
+  {% endfor %}
+
+  {# ── Sign ───────────────────────────────────────────────────────────────── #}
+  <div class="section-label mt-4"><h2>Sign</h2></div>
+  {% if blockers %}
+  <p class="mb-1">Before you can sign:</p>
+  <ul class="small">{% for b in blockers %}<li>{{ b.text }}</li>{% endfor %}</ul>
+  {% else %}
+  <form method="post" class="mt-2">{% csrf_token %}
+    <input type="hidden" name="action" value="sign">
+    <label class="d-block mb-2">
+      <input type="checkbox" name="agree" required>
+      I have read the agreement above and agree to it.
+    </label>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <input class="form-control form-control-sm" style="max-width:20rem" name="signed_name"
+             placeholder="Type your full name" value="{{ artist }}" required>
+      <button class="btn btn-primary btn-sm" type="submit">Sign</button>
+    </div>
+    <p class="text-muted small mt-2">
+      Typing your name here is your signature. We record the date and time with it.
+    </p>
+  </form>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock content %}

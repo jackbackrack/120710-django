@@ -1,5 +1,6 @@
 from gallery.models.artworks import Artwork, ArtworkImage
 from gallery.models.collection import CollectionPiece, SavedArtwork
+from gallery.models.consignment import Consignment
 from gallery.models.events import Event
 from gallery.models.exhibitions import Show, ShowInvitation
 from gallery.models.linktree import LinkTreeEntry
@@ -15,5 +16,5 @@ from gallery.models.visits import Visit
 from gallery.models.submissions import ArtworkSubmission
 from gallery.models.tags import Tag
 
-__all__ = ['Artist', 'Campaign', 'CampaignDelivery', 'ArtistSchedule', 'Artwork', 'ArtworkImage', 'ArtworkSubmission', 'CollectionPiece', 'LinkTreeEntry', 'EventRsvp', 'OpeningHours', 'SiteClosure', 'Visit',
+__all__ = ['Artist', 'Consignment', 'Campaign', 'CampaignDelivery', 'ArtistSchedule', 'Artwork', 'ArtworkImage', 'ArtworkSubmission', 'CollectionPiece', 'LinkTreeEntry', 'EventRsvp', 'OpeningHours', 'SiteClosure', 'Visit',
     'Subscriber', 'Subscription', 'RoomConfig', 'SavedArtwork', 'ScheduleWindow', 'Show', 'ShowInvitation', 'ShowArtworkNumber', 'ShowLayoutSnapshot', 'Site', 'SiteSupport', 'Event', 'Support', 'Tag', 'WallObstacle', 'WallPlacement']

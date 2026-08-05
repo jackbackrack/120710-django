@@ -191,6 +191,23 @@ def can_manage_show(user, show):
     return show.curators.filter(user=user).exists()
 
 
+def can_view_consignment(user, consignment):
+    """Who may read a signed agreement — it carries a home address and a signature.
+
+    The artist it is about, and whoever runs the show: its curators, staff, and the
+    directors of its venue. The same circle that may already see an artist's venmo, email
+    and phone, which is the rule the gallery set for private details.
+
+    Note this is not `can_manage_artist`: a curator is not covered by that unless they also
+    direct the venue, and a curator plainly needs to see the agreements for their own show.
+    """
+    if not user.is_authenticated:
+        return False
+    if consignment.artist.user_id == user.id:
+        return True
+    return can_manage_show(user, consignment.show)
+
+
 def can_delete_show(user, show):
     if not user.is_authenticated:
         return False

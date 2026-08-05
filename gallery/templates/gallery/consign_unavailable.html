@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Consignment — {{ show.name }}{% endblock %}
+{% block block_title %}Consignment — {{ show.name }}{% endblock %}
+
+{% comment %}
+  Shown when no agreement can be generated because no commission rate is set. Deliberately
+  not a silent 0%: a contract is the wrong place to discover that nobody decided what the
+  gallery takes, so the page stops and says so rather than printing a number nobody chose.
+
+  The artist is told it is our end, not theirs. The specific reason is for whoever can fix
+  it, and it names a setting rather than a traceback.
+{% endcomment %}
+{% block content %}
+<div class="col-11 col-md-7 mx-auto mt-4">
+  <p>
+    <strong>This agreement is not ready yet</strong>, and that is our end rather than yours.
+    Nothing you need to do — we will email you as soon as it is.
+  </p>
+  <p class="text-muted small">{{ reason }}</p>
+  <p><a class="card__link" href="{{ show.get_absolute_url }}">Back to {{ show.name }}</a></p>
+</div>
+{% endblock content %}

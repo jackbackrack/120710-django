@@ -91,6 +91,10 @@ def show_actions(show, *, can_manage=False, can_delete=False, can_view_reviews=F
                                reverse('gallery:show_schedule_windows', kwargs={'slug': slug})))
         logistics.append(_link('Schedule Tracker',
                                reverse('gallery:show_schedule_tracker', kwargs={'slug': slug})))
+        # Beside the schedule, because a consignment is signed on or before drop-off and
+        # the two are the same errand from the artist's side.
+        logistics.append(_link('Consignments',
+                               reverse('gallery:show_consignments', kwargs={'slug': slug})))
 
     manage = []
     if can_manage:

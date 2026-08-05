@@ -12475,3 +12475,332 @@ class OnBehalfSubmissionCreditTests(MediaImageMixin, TestCase):
                                          submitted_by=user)
         self._add_on_behalf(self._artwork('Added for them'))
         self.assertEqual(self._counts().get('mag@example.com'), 2)
+
+
+class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
+    """The agreement an artist signs before dropping work off.
+
+    See docs/consignment-agreements.md. The properties worth defending are that a signed
+    agreement never changes, that a home address never becomes a public file, and that the
+    page an artist reaches collects everything it needs without sending them elsewhere.
+    """
+
+    def setUp(self):
+        from gallery.models import Consignment, ScheduleWindow
+        self.Consignment = Consignment
+        self._setup_media()
+        today = datetime.date.today()
+        self.site = Site.objects.create(
+            name='120710', slug='120710', status=Site.STATUS_PUBLISHED,
+            street='1207 Tenth Street', city='Berkeley', state='CA',
+            postal_code='94710', commission_rate=25)
+        self.show = Show.objects.create(
+            name='AFTER ALBERS', status=Show.STATUS_PUBLISHED,
+            start=today + datetime.timedelta(days=8),
+            end=today + datetime.timedelta(days=57))
+        self.show.sites.add(self.site)
+        ScheduleWindow.objects.create(show=self.show, kind='dropoff',
+                                      date=today + datetime.timedelta(days=7),
+                                      start=datetime.time(10), end=datetime.time(14))
+        ScheduleWindow.objects.create(show=self.show, kind='pickup',
+                                      date=today + datetime.timedelta(days=58),
+                                      start=datetime.time(10), end=datetime.time(14))
+        self.user = User.objects.create_user(username='mag@example.com',
+                                             email='mag@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            name='Mag Pie', first_name='Mag', last_name='Pie', email='mag@example.com',
+            zipcode='94710', user=self.user, image=self.TEST_ARTIST_IMAGE)
+        self.work = self._work('Blue Square', price=2000)
+        self.url = reverse('gallery:consign', kwargs={'slug': self.show.slug})
+
+    def tearDown(self):
+        self._teardown_media()
+
+    def _work(self, name, price=None, pricing=None):
+        work = Artwork.objects.create(
+            name=name, end_year=2026, medium='oil on panel', price=price,
+            pricing_type=pricing or (Artwork.PRICING_FOR_SALE if price
+                                     else Artwork.PRICING_NFS))
+        work.artists.add(self.artist)
+        work.shows.add(self.show)
+        return work
+
+    def _complete_profile(self):
+        self.artist.street = '1 Test St'
+        self.artist.city = 'Berkeley'
+        self.artist.state = 'CA'
+        self.artist.is_represented = False
+        self.artist.save()
+
+    def _sign(self):
+        # captureOnCommitCallbacks because the confirmation mail is sent from
+        # transaction.on_commit — deliberately, so a slow or dead mail server cannot roll
+        # back a signature the artist has already given. TestCase never commits, so without
+        # this the callback would silently never run and the mail assertions would pass by
+        # testing nothing.
+        self._complete_profile()
+        self.client.force_login(self.user)
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(self.url, {'action': 'sign', 'agree': 'on',
+                                               'signed_name': 'Mag Pie'})
+
+    # ── The agreed value ─────────────────────────────────────────────────────
+
+    def test_the_agreed_value_defaults_to_the_asking_price(self):
+        """The whole reason it is not called replacement cost: an artist types nothing, and
+        the default errs high because it is anchored on their own price."""
+        from gallery import consignment
+
+        rows = consignment.artwork_rows(self.show, self.artist, 25)
+        self.assertEqual(rows[0]['agreed_value'], 2000)
+
+    def test_a_stated_value_overrides_the_price(self):
+        from gallery import consignment
+
+        self.work.replacement_cost = 1200
+        self.work.save(update_fields=['replacement_cost'])
+        rows = consignment.artwork_rows(self.show, self.artist, 25)
+        self.assertEqual(rows[0]['agreed_value'], 1200)
+
+    def test_work_that_is_not_for_sale_has_no_default_and_blocks_signing(self):
+        """Nothing to inherit, so it is the one case an artist must fill in."""
+        from gallery import consignment
+
+        self._complete_profile()
+        self._work('Study')                       # NFS, no price
+        keys = [b['key'] for b in consignment.blockers(self.show, self.artist)]
+        self.assertIn('agreed_value', keys)
+
+    def test_the_split_is_computed_in_dollars(self):
+        from gallery import consignment
+
+        row = consignment.artwork_rows(self.show, self.artist, 25)[0]
+        self.assertEqual(row['gallery_share'], 500)
+        self.assertEqual(row['artist_share'], 1500)
+
+    # ── The rate ─────────────────────────────────────────────────────────────
+
+    def test_the_show_inherits_its_venue_rate(self):
+        from gallery import consignment
+
+        self.assertEqual(consignment.commission_rate_for(self.show), 25)
+
+    def test_a_show_may_override_its_venue(self):
+        from gallery import consignment
+
+        self.show.commission_rate = 0
+        self.show.save(update_fields=['commission_rate'])
+        self.assertEqual(consignment.commission_rate_for(self.show), 0)
+
+    def test_no_rate_anywhere_refuses_rather_than_assuming_zero(self):
+        """A contract is the wrong place to discover nobody decided what the gallery takes."""
+        from gallery import consignment
+
+        self.site.commission_rate = None
+        self.site.save(update_fields=['commission_rate'])
+        with self.assertRaises(consignment.NoCommissionRate):
+            consignment.commission_rate_for(self.show)
+
+    def test_the_page_says_so_instead_of_500ing(self):
+        self.site.commission_rate = None
+        self.site.save(update_fields=['commission_rate'])
+        self._complete_profile()
+        self.client.force_login(self.user)
+        page = self.client.get(self.url)
+        self.assertEqual(page.status_code, 409)
+        self.assertContains(page, 'not ready yet', status_code=409)
+
+    # ── Filling it in without leaving the page ───────────────────────────────
+
+    def test_the_address_and_values_save_from_this_page(self):
+        """The point of the design: no trip to the profile form and each artwork form."""
+        nfs = self._work('Study')
+        self.client.force_login(self.user)
+        self.client.post(self.url, {
+            'action': 'save', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
+            'is_represented': 'no', f'agreed_value_{nfs.pk}': '400'})
+        self.artist.refresh_from_db()
+        nfs.refresh_from_db()
+        self.assertEqual(self.artist.street, '1 Test St')
+        self.assertIs(self.artist.is_represented, False)
+        self.assertEqual(nfs.replacement_cost, 400)
+
+    def test_a_missing_address_blocks_signing(self):
+        from gallery import consignment
+
+        self.artist.is_represented = False
+        self.artist.save(update_fields=['is_represented'])
+        keys = [b['key'] for b in consignment.blockers(self.show, self.artist)]
+        self.assertIn('address', keys)
+
+    def test_signing_is_refused_while_something_is_missing(self):
+        self.client.force_login(self.user)
+        self.client.post(self.url, {'action': 'sign', 'agree': 'on',
+                                    'signed_name': 'Mag Pie'})
+        self.assertFalse(self.Consignment.objects.exists())
+
+    # ── Signing, and the freeze ──────────────────────────────────────────────
+
+    def test_signing_records_the_signature_and_mails_a_copy(self):
+        mail.outbox.clear()
+        self._sign()
+        con = self.Consignment.objects.get()
+        self.assertTrue(con.is_signed)
+        self.assertEqual(con.signed_name, 'Mag Pie')
+        self.assertIsNotNone(con.signed_at)
+        self.assertEqual(con.commission_rate, 25)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual([n for n, _, _ in mail.outbox[0].attachments],
+                         [f'consignment-{self.show.slug}-v1.pdf'])
+
+    def test_a_later_price_change_does_not_rewrite_what_was_signed(self):
+        """The single most important property. A contract that rewrites itself is not one."""
+        self._sign()
+        con = self.Consignment.objects.get()
+        self.work.price = 9999
+        self.work.save(update_fields=['price'])
+        con.refresh_from_db()
+        self.assertEqual(con.snapshot['artworks'][0]['price'], 2000)
+
+    def test_a_later_change_marks_the_agreement_out_of_date(self):
+        """An agreement covering three works while five are on the wall is worse than none."""
+        from gallery import consignment
+
+        self._sign()
+        con = self.Consignment.objects.get()
+        self.assertFalse(consignment.is_out_of_date(con))
+        self._work('Added Later', price=100)
+        self.assertTrue(consignment.is_out_of_date(con))
+
+    def test_signing_again_supersedes_rather_than_overwrites(self):
+        self._sign()
+        self._work('Added Later', price=100)
+        self.client.post(self.url, {'action': 'sign', 'agree': 'on',
+                                    'signed_name': 'Mag Pie'})
+        versions = {(c.version, c.status) for c in self.Consignment.objects.all()}
+        self.assertEqual(versions, {(1, self.Consignment.STATUS_SUPERSEDED),
+                                    (2, self.Consignment.STATUS_SIGNED)})
+
+    def test_the_box_must_be_ticked(self):
+        self._complete_profile()
+        self.client.force_login(self.user)
+        self.client.post(self.url, {'action': 'sign', 'signed_name': 'Mag Pie'})
+        self.assertFalse(self.Consignment.objects.exists())
+
+    # ── Represented artists ──────────────────────────────────────────────────
+
+    def test_a_represented_artist_cannot_sign(self):
+        """Their gallery holds sole authority to consign, so a signature here is worthless."""
+        from gallery import consignment
+
+        self.artist.is_represented = True
+        self.artist.representing_gallery = 'NIAD Art Center'
+        self.artist.street, self.artist.city, self.artist.state = '1 A St', 'Berkeley', 'CA'
+        self.artist.save()
+        blocking = consignment.blockers(self.show, self.artist)
+        self.assertTrue(any(b.get('fatal') for b in blocking))
+        self.client.force_login(self.user)
+        self.client.post(self.url, {'action': 'sign', 'agree': 'on', 'signed_name': 'Mag'})
+        self.assertFalse(self.Consignment.objects.exists())
+
+    def test_a_represented_artist_is_not_chased(self):
+        from gallery.consignment_mail import unsigned_artists
+
+        self.artist.is_represented = True
+        self.artist.save(update_fields=['is_represented'])
+        self.assertNotIn(self.artist, unsigned_artists(self.show))
+
+    def test_never_asked_is_not_the_same_as_said_no(self):
+        """Every artist who predates the field is null, and null must not consign."""
+        from gallery import consignment
+
+        self.assertIsNone(self.artist.is_represented)
+        keys = [b['key'] for b in consignment.blockers(self.show, self.artist)]
+        self.assertIn('representation', keys)
+
+    # ── Who may read it ──────────────────────────────────────────────────────
+
+    def test_the_pdf_renders_for_the_artist(self):
+        self._sign()
+        con = self.Consignment.objects.get()
+        page = self.client.get(reverse('gallery:consignment_pdf', kwargs={'pk': con.pk}))
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page['Content-Type'], 'application/pdf')
+        self.assertTrue(page.content.startswith(b'%PDF-'))
+
+    def test_a_stranger_cannot_read_somebody_elses_agreement(self):
+        """It carries a home address and a signature."""
+        self._sign()
+        con = self.Consignment.objects.get()
+        other = User.objects.create_user(username='nosy@example.com',
+                                         email='nosy@example.com', password='pw')
+        self.client.force_login(other)
+        self.assertEqual(
+            self.client.get(reverse('gallery:consignment_pdf',
+                                    kwargs={'pk': con.pk})).status_code, 404)
+
+    def test_nothing_is_written_to_storage(self):
+        """Media is world-readable (public-read ACL, no query auth), so the agreement is
+        rendered per request and never stored. A file would be a leak with a stable URL."""
+        import os
+
+        self._sign()
+        found = []
+        for root, _dirs, files in os.walk(self._media_tmp):
+            found += [f for f in files if f.lower().endswith('.pdf')]
+        self.assertEqual(found, [])
+
+    # ── The staff view ───────────────────────────────────────────────────────
+
+    def test_the_dashboard_totals_what_the_gallery_is_liable_for(self):
+        staff = User.objects.create_user(username='s@example.com',
+                                         email='s@example.com', password='pw')
+        add_staff_role(staff)
+        self._work('Second', price=500)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:show_consignments',
+                                       kwargs={'slug': self.show.slug}))
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.context['exposure'], 2500)
+        self.assertEqual(page.context['outstanding'], 1)
+
+    def test_a_stranger_cannot_see_the_dashboard(self):
+        other = User.objects.create_user(username='nobody@example.com',
+                                         email='nobody@example.com', password='pw')
+        self.client.force_login(other)
+        self.assertEqual(
+            self.client.get(reverse('gallery:show_consignments',
+                                    kwargs={'slug': self.show.slug})).status_code, 404)
+
+    # ── The token link ───────────────────────────────────────────────────────
+
+    def test_an_artist_with_no_account_can_sign_from_their_link(self):
+        """A profile a curator created has no login, and an estate has none either."""
+        from gallery.views.consignment import sign_url
+
+        self.artist.user = None
+        self.artist.save(update_fields=['user'])
+        self._complete_profile()
+        url = sign_url(self.show, self.artist)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.client.post(url, {'action': 'sign', 'agree': 'on', 'signed_name': 'Mag Pie'})
+        self.assertTrue(self.Consignment.objects.filter(artist=self.artist).exists())
+
+    def test_a_tampered_token_opens_nothing(self):
+        from gallery.views.consignment import sign_url
+
+        url = sign_url(self.show, self.artist)
+        # Mangled inside the token, keeping the trailing slash: lopping characters off the
+        # end removes the slash too, and APPEND_SLASH then answers 301 before the view is
+        # ever reached — which looks like a pass and tests nothing.
+        tampered = url[:-6] + ('a' if url[-6] != 'a' else 'b') + url[-5:]
+        self.assertEqual(self.client.get(tampered).status_code, 404)
+
+    def test_staff_cannot_open_an_artists_signing_page_by_url(self):
+        """Signing is an act by a person. A page a curator could sign on their behalf would
+        make every signature deniable."""
+        staff = User.objects.create_user(username='s2@example.com',
+                                         email='s2@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
