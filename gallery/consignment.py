@@ -368,6 +368,32 @@ def is_outlier(row):
     return value is not None and value >= OUTLIER_ABSOLUTE
 
 
+def custody_sentence(custody, date_format=None):
+    """When the gallery becomes responsible, and when it stops — as one sentence.
+
+    Lives here because the signing page and the PDF must say the same thing, and they said
+    subtly different things when each wrote its own. `<b>` rather than `<strong>` because
+    both HTML and ReportLab understand it, so one string serves both.
+
+    `date_format` takes a formatter for the two dates; the default is ISO, which is what a
+    caller gets if it does not care.
+    """
+    fmt = date_format or (lambda d: d.isoformat() if d else '—')
+    start = fmt(custody.get('from')) if custody.get('from') else 'drop-off'
+    collect_by = fmt(custody.get('pickup_by'))
+    ends = fmt(custody.get('until'))
+    days = custody.get('grace_days')
+
+    if days is None:
+        # An agreement signed before the cutoff existed. Rendered as it was agreed.
+        return f'In our care from <b>{start}</b> to <b>{ends}</b>.'
+    return (
+        f'In our care from <b>{start}</b>. The work must be collected by '
+        f'<b>{collect_by}</b> — by the buyer if it sells, by the artist if it does not. '
+        f'Our responsibility ends when it is collected or on <b>{ends}</b>, '
+        f'{days} days later, whichever comes first.')
+
+
 def terms_text(rate=None):
     """The boilerplate, versioned.
 
@@ -387,12 +413,15 @@ def terms_text(rate=None):
         ]),
         ('While we have it', [
             'The gallery is responsible for the work from the time it is dropped off until '
-            'the artist collects it — whether or not it sells. The artist is responsible '
-            'for getting it here, and a buyer for taking it away once it is theirs.',
-            'That responsibility ends on the date shown above, which is a set number of days '
-            'after the last pickup time. Work still here after that date is held at the '
-            'artist’s risk: the gallery will look after it, but is no longer responsible '
-            'for loss or damage, and does not pay its agreed value.',
+            'it is collected — by the buyer if it sells, by the artist if it does not. That '
+            'holds whether or not the piece sells. Bringing the work here is the artist’s '
+            'own responsibility, and taking it away is the buyer’s once it is theirs.',
+            'That responsibility ends when the work is collected, or on the date shown '
+            'above, whichever comes first. That date is a set number of days after the last '
+            'pickup time.',
+            'Work still here afterwards is held at the artist’s risk: the gallery will look '
+            'after it and will get in touch, but is no longer responsible for loss or '
+            'damage and does not pay its agreed value.',
             'If a piece is lost, stolen or damaged beyond repair while in the gallery’s '
             'care, the gallery pays the artist that piece’s agreed value in full — not the '
             'agreed value less commission.',
@@ -420,9 +449,9 @@ def terms_text(rate=None):
             'The gallery may photograph the work to document and promote the exhibition.',
         ]),
         ('Getting it back', [
-            'Unsold work is returned to the artist at the end of the show, at the pickup '
-            'time they choose.',
+            'Collecting unsold work after the show closes is the artist’s responsibility, '
+            'at the pickup time they choose. The gallery does not post or deliver it.',
             'Work that is not collected is not abandoned — the gallery will hold it and get '
-            'in touch — but from the date above it is at the artist’s risk.',
+            'in touch — but from the date above it is there at the artist’s risk.',
         ]),
     ]

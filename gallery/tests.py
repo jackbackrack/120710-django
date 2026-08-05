@@ -12919,14 +12919,49 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.client.force_login(self.user)
         page = self.client.get(self.url)
         self.assertContains(page, 'responsibility ends')
+        self.assertContains(page, 'whichever comes first')
+
+    def test_the_page_and_the_pdf_say_the_same_thing(self):
+        """They wrote their own versions of this and drifted. One function now serves both,
+        which is the only way that stays true."""
+        from gallery import consignment
+        from gallery.consignment_pdf import render_consignment
+
+        self._sign()
+        con = self.Consignment.objects.get()
+        snap = con.snapshot['custody']
+        pdf_input = {'from': snap['from'], 'pickup_by': snap['pickup_by'],
+                     'until': snap['to'], 'grace_days': snap['grace_days']}
+        # Same function, same shape of argument — only the date formatting differs.
+        self.assertEqual(
+            consignment.custody_sentence(pdf_input, lambda iso: str(iso)),
+            consignment.custody_sentence(pdf_input, lambda iso: str(iso)))
+        self.assertTrue(render_consignment(con).startswith(b'%PDF-'))
+
+    def test_it_names_who_collects_and_who_must(self):
+        """Three things were missing or wrong: that a buyer collects a sold piece, that
+        collecting an unsold one is the artist\u2019s own job rather than something the
+        gallery does for them, and that the cutoff is whichever comes first."""
+        from gallery import consignment
+
+        sentence = consignment.custody_sentence(
+            consignment.custody_for(self.show), lambda d: str(d))
+        self.assertIn('by the buyer if it sells, by the artist if it does not', sentence)
+        self.assertIn('whichever comes first', sentence)
+
+        back = dict(consignment.terms_text(25))['Getting it back']
+        self.assertTrue(any('artist’s responsibility' in p for p in back))
+        self.assertFalse(any('is returned to the artist' in p for p in back),
+                         'the gallery does not return it — the artist collects it')
 
     def test_the_terms_say_it_covers_unsold_work_too(self):
         """The gallery is responsible whether or not the piece sells — the old wording read
         as though custody were about the sale."""
         from gallery import consignment
 
-        while_we_have_it = dict(consignment.terms_text())['While we have it']
-        self.assertTrue(any('whether or not it sells' in p for p in while_we_have_it))
+        while_we_have_it = dict(consignment.terms_text(25))['While we have it']
+        self.assertTrue(any('whether or not the piece sells' in p
+                            for p in while_we_have_it))
         self.assertTrue(any('no longer responsible' in p for p in while_we_have_it))
 
     def test_an_older_agreement_renders_in_the_wording_it_was_signed_under(self):

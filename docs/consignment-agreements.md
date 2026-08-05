@@ -208,15 +208,27 @@ matters and found not to cover the piece in question.
 
     Site.custody_grace_days   default 7
 
-"Until it is collected" has no end. An artist who never comes back would leave the gallery
-liable for their work indefinitely, so the agreement states two dates: the pickup date the
-artist is asked to meet, and a cutoff a set number of days later after which uncollected work
-is held **at the artist's risk**. The gallery still looks after it and still gets in touch;
-it just no longer pays the agreed value if something happens to it.
+The gallery is responsible from drop-off until the work is collected — **by the buyer if it
+sells, by the artist if it does not** — and that holds whether or not the piece sells.
+
+"Until it is collected" has no end, though. An artist who never comes back would leave the
+gallery liable indefinitely, so responsibility ends **when the work is collected, or a set
+number of days after the last pickup time, whichever comes first**. After that the work is
+still here and still cared for, and the gallery will get in touch — but it is at the artist's
+risk, and the agreed value is not paid.
+
+Collecting unsold work is stated as the **artist's own responsibility**. The gallery does not
+post or deliver it, and saying that the work "is returned to the artist" implied otherwise.
 
 Both dates are frozen into the snapshot and stated on the page before anybody signs, not only
 in the PDF afterwards — the cutoff is the term an artist is most likely to be surprised by
 later.
+
+`custody_sentence()` writes that sentence once, in `gallery/consignment.py`, and both the
+signing page and the PDF render it. They each wrote their own before and drifted: the page a
+person signs and the document they are sent describing the same period differently is the
+kind of discrepancy that only matters once, expensively. It emits `<b>` rather than
+`<strong>` because HTML and ReportLab both understand it.
 
 ## The same work in several shows
 

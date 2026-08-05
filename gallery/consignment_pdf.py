@@ -226,20 +226,19 @@ def render_consignment(consignment):
     flow.append(Paragraph(
         'Commission: <b>none</b> — the artist receives the full sale price.' if zero_rate
         else f'Commission: <b>{_pct(rate)}%</b> of the sale price.', st['body']))
-    # Agreements signed before the cutoff existed have no `grace_days`, and they are
-    # rendered in the wording they were signed under. Printing a cutoff on one of those
-    # would state a term the artist never agreed to — which is the same failure as letting a
-    # signed document rewrite itself, just spelled differently.
-    if custody.get('grace_days') is not None:
-        custody_line = (
-            f'In our care from <b>{_date(custody.get("from"))}</b>. Please collect by '
-            f'<b>{_date(custody.get("pickup_by"))}</b>. Our responsibility ends '
-            f'{custody.get("grace_days")} days later, on <b>{_date(custody.get("to"))}</b>, '
-            f'whether or not the work has been collected.')
-    else:
-        custody_line = (f'In our care from <b>{_date(custody.get("from"))}</b> to '
-                        f'<b>{_date(custody.get("to"))}</b>.')
-    flow.append(Paragraph(custody_line, st['body']))
+    # One sentence, written once in gallery/consignment.py, so the PDF and the page an
+    # artist signed cannot describe the custody period differently. Agreements signed before
+    # the cutoff existed have no grace period and are rendered as they were agreed — printing
+    # a cutoff on one of those would state a term nobody agreed to.
+    from gallery.consignment import custody_sentence
+
+    flow.append(Paragraph(
+        custody_sentence({'from': custody.get('from'),
+                          'pickup_by': custody.get('pickup_by'),
+                          'until': custody.get('to'),
+                          'grace_days': custody.get('grace_days')},
+                         date_format=lambda iso: _date(iso)),
+        st['body']))
 
     # ── Terms ────────────────────────────────────────────────────────────────
     for heading, points in snap.get('terms', []):

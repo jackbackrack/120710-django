@@ -83,6 +83,7 @@ def _page(request, show, artist, token):
                        'is_staff_reason': True}, status=409)
 
     rows = terms.artwork_rows(show, artist, rate)
+    custody = terms.custody_for(show)
     blocking = terms.blockers(show, artist, rows=rows)
     signed = (Consignment.objects
               .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)
@@ -107,7 +108,9 @@ def _page(request, show, artist, token):
         'signed': signed,
         'out_of_date': terms.is_out_of_date(signed) if signed else False,
         'sections': terms.terms_text(rate),
-        'custody': terms.custody_for(show),
+        'custody': custody,
+        'custody_sentence': terms.custody_sentence(
+            custody, date_format=lambda d: d.strftime('%-d %b %Y') if d else '—'),
         'missing': missing,
         'missing_values': missing_values,
         'total_agreed_value': sum(r['agreed_value'] or 0 for r in rows),

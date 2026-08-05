@@ -179,17 +179,12 @@
     Total agreed value <strong>${{ total_agreed_value|floatformat:"-2" }}</strong>.
   </p>
   {% comment %}
-    Both end dates, not just the pickup one. The date the gallery stops being responsible is
-    the term an artist is most likely to be surprised by later, so it is on the page they
-    sign rather than only in the PDF they file.
+    Rendered from the same function the PDF uses, so the page somebody signs and the
+    document they are sent cannot describe the custody period differently. The cutoff is the
+    term an artist is most likely to be surprised by later, so it is here and not only in
+    the PDF they file away.
   {% endcomment %}
-  <p class="small">
-    In our care from <strong>{{ custody.from|date:"j M Y"|default:"drop-off" }}</strong>.
-    Please collect by <strong>{{ custody.pickup_by|date:"j M Y" }}</strong>. Our
-    responsibility ends {{ custody.grace_days }} days later, on
-    <strong>{{ custody.until|date:"j M Y" }}</strong>, whether or not the work has been
-    collected.
-  </p>
+  <p class="small">{{ custody_sentence|safe }}</p>
   {% for heading, points in sections %}
   <p class="mb-1"><strong>{{ heading }}</strong></p>
   <ul class="small">{% for p in points %}<li>{{ p }}</li>{% endfor %}</ul>
