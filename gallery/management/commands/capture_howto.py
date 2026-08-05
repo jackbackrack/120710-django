@@ -2233,42 +2233,49 @@ def capture_manage_sites(rec, facts):
     rec.at_step(4)
     rec.shot_region(4, '#div_id_hours', '#div_id_visit_image')
 
-    # Step 5 — "Optionally fill in 'Local area name' and 'Local postal codes'."
+    # Step 5 — "Check the Time zone. It is filled in from the state for a US venue."
+    # The zone field alone. Framing it together with the state it derives from sounded
+    # right and photographed the entire form: the two sit at opposite ends of it, so their
+    # union is the page. The field's own help text says where the value comes from.
     rec.at_step(5)
-    rec.shot_region(5, '#div_id_submission_area_label', '#div_id_submission_zipcodes')
+    rec.shot_region(5, '#div_id_timezone')
 
-    # Step 6 — "click 'Look up coordinates from address' ... review the matched address
-    #           shown beneath the button."
+    # Step 6 — "Optionally fill in 'Local area name' and 'Local postal codes'."
     rec.at_step(6)
-    rec.shot_region(6, '#geocode-btn', '#geocode-status')
+    rec.shot_region(6, '#div_id_submission_area_label', '#div_id_submission_zipcodes')
 
-    # Step 7 — "enter the latitude and longitude values manually."
+    # Step 7 — "click 'Look up coordinates from address' ... review the matched address
+    #           shown beneath the button."
     rec.at_step(7)
-    rec.shot_region(7, '#div_id_latitude', '#div_id_longitude')
+    rec.shot_region(7, '#geocode-btn', '#geocode-status')
 
-    # Step 8 — "Set Status to Published."
+    # Step 8 — "enter the latitude and longitude values manually."
     rec.at_step(8)
-    rec.shot_region(8, '#div_id_status')
+    rec.shot_region(8, '#div_id_latitude', '#div_id_longitude')
 
-    # Step 9 — "In the Gallery Room section ... enter the room dimensions ... and
-    #           optionally upload texture images."
+    # Step 9 — "Set Status to Published."
     rec.at_step(9)
-    rec.shot_region(9, '#div_id_width_in', '#div_id_ceiling_image')
+    rec.shot_region(9, '#div_id_status')
 
-    # Step 10 — "In the Obstacles table, add obstacles such as doors or windows."
+    # Step 10 — "In the Gallery Room section ... enter the room dimensions ... and
+    #           optionally upload texture images."
     rec.at_step(10)
-    rec.shot_region(10, '#obstacle-table')
+    rec.shot_region(10, '#div_id_width_in', '#div_id_ceiling_image')
 
-    # Step 11 is saving.
+    # Step 11 — "In the Obstacles table, add obstacles such as doors or windows."
+    rec.at_step(11)
+    rec.shot_region(11, '#obstacle-table')
 
-    # Step 12 — "To edit an existing site, open the site detail page and click Edit."
-    rec.at_step(12)
+    # Step 12 is saving.
+
+    # Step 13 — "To edit an existing site, open the site detail page and click Edit."
+    rec.at_step(13)
     rec.goto('/site/120710/')
     # The card that carries the link, not the link: cropped to the <a> this was 22x19 px
     # of the word Edit, which does not tell anyone where to find it.
-    rec.shot_region(12, '.card:has(a[href*="/edit/"])')
+    rec.shot_region(13, '.card:has(a[href*="/edit/"])')
 
-    # Step 13 is deleting, which lives behind that same Edit page.
+    # Step 14 is deleting, which lives behind that same Edit page.
 
 
 # ── how-to-configure-a-sites-room-and-walls-staff-only ───────────────────────
@@ -2931,7 +2938,7 @@ CAPTURE_SCRIPTS = {
         # 4 is what the Submitted column counts, a column of the step 3 table; 10 is the
         # invitation email's contents; 12 points at the on-behalf guide; 13 and 18 are
         # further uses of the status control photographed in step 11.
-        'prose_only': {4, 10, 12, 13, 18},
+        'prose_only': {4, 10, 12, 13, 18, 20},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },
@@ -2947,9 +2954,10 @@ CAPTURE_SCRIPTS = {
     'consignments-staff': {
         'prepare': prepare_consignment,
         'run': capture_consignments_staff,
-        # 2 is the per-show override field on the show edit form; 6 is policy rather than a
-        # screen; 7 needs a signed agreement gone stale; 8 is the PDF itself.
-        'prose_only': {2, 6, 7, 8},
+        # 2 is the per-show override field on the show edit form; 6 describes the two counts
+        # that step 3 already photographs; 7 is policy rather than a screen; 8 needs a signed
+        # agreement gone stale; 9 is the PDF itself.
+        'prose_only': {2, 6, 7, 8, 9},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },
@@ -2966,7 +2974,7 @@ CAPTURE_SCRIPTS = {
         'run': capture_open_call_show,
         # 6, 8 and 14 are further uses of the status control shown in step 2; 10 points
         # at the curation slideshow guide.
-        'prose_only': {6, 8, 10, 14},
+        'prose_only': {6, 8, 10, 14, 15},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },
@@ -3001,8 +3009,11 @@ CAPTURE_SCRIPTS = {
     'how-to-create-and-manage-sites-staff-only': {
         'prepare': prepare_manage_sites,
         'run': capture_manage_sites,
-        # 11 is saving; 13 is deleting, behind the Edit page shown in step 12.
-        'prose_only': {11, 13},
+        # 12 is saving; 14 is deleting, behind the Edit page shown in step 13. These were
+        # {11, 13} against a guide that had since gained a "Check the Time zone" step at
+        # position 5 — so every picture from there on was captioned with the prose of the
+        # step before it.
+        'prose_only': {12, 14},
         'reset': _cleanup_capture_sites,
         'cleanup': _cleanup_capture_sites,
     },
@@ -3026,7 +3037,7 @@ CAPTURE_SCRIPTS = {
         'prepare': prepare_schedule_windows,
         'run': capture_schedule_windows,
         # 6 is what the artist then sees — the companion guide's subject.
-        'prose_only': {6},
+        'prose_only': {6, 9},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },
@@ -3034,7 +3045,7 @@ CAPTURE_SCRIPTS = {
         'prepare': prepare_artist_schedule,
         'run': capture_artist_schedule,
         # 4 is what install vs drop-off means — a rule, not a control.
-        'prose_only': {4},
+        'prose_only': {4, 7},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },

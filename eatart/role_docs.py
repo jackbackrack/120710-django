@@ -120,6 +120,7 @@ HOW_TO_GUIDES = [
             'Back on the show detail page, click "Send Emails" to notify artists of their acceptance or rejection. The emails are sent in the background — the page returns immediately. The button shows how many are pending and how many have already been sent, so it is safe to click again if something goes wrong without sending duplicates.',
             'Change the show status to Closed when the show run ends.',
             'Optionally add events (openings, talks) using the New Event link on the show detail page.',
+            'Collect consignment agreements before the work arrives. Each artist signs one saying what the gallery is responsible for while it holds their work and what it takes if the work sells. Show \u2192 Logistics \u2192 Consignments lists who has signed and what the gallery is liable for in total. See \u201cHow to collect consignment agreements\u201d for the whole of it.',
         ],
     },
     {
@@ -155,6 +156,7 @@ HOW_TO_GUIDES = [
             'Review the diff and click "Confirm & Publish Show". This adds all Selected artworks to the show and sets the status to Published.',
             'Back on the show detail page, click "Send Emails" to notify artists of their acceptance or rejection. Emails are sent in the background so the page never times out, even for large shows. The button shows pending vs. sent counts and is safe to re-click — artists who already received an email will not be sent a duplicate.',
             'Change the show status to Closed on the show detail page when the show run ends.',
+            'Collect consignment agreements before the work arrives. Each artist signs one saying what the gallery is responsible for while it holds their work and what it takes if the work sells. Show \u2192 Logistics \u2192 Consignments lists who has signed and what the gallery is liable for in total. See \u201cHow to collect consignment agreements\u201d for the whole of it.',
         ],
     },
     {
@@ -339,6 +341,7 @@ HOW_TO_GUIDES = [
             'Artists with accepted work see a "Schedule My Install & Pickup" (or "Drop-off & Pickup") button on the show page once at least one window exists; they choose a specific time within your ranges.',
             'To track arrivals, click "Schedule Tracker" on the show detail page. It lists every accepted artist with their chosen times (or "not scheduled").',
             'Tick the Done box in each column when an artist has installed/dropped off and when they have picked up. The summary at the top shows how many are done and how many are outstanding, so you know who to follow up with.',
+            'Collect consignment agreements before the work arrives. Each artist signs one saying what the gallery is responsible for while it holds their work and what it takes if the work sells. Show \u2192 Logistics \u2192 Consignments lists who has signed and what the gallery is liable for in total. See \u201cHow to collect consignment agreements\u201d for the whole of it.',
         ],
     },
     {
@@ -386,6 +389,7 @@ HOW_TO_GUIDES = [
             'If the show is self-install, your install time is also your drop-off — you bring and hang your work in one visit. If the curator installs, you only drop the work off at your chosen time.',
             'Your chosen times are shown on the page, and you can come back to update them any time before the window. The curator checks you off once your work arrives.',
             'After you set a time, "Add to calendar" links appear next to it: Google opens Google Calendar pre-filled; the Apple / Outlook (.ics) link downloads a calendar file that opens in Apple Calendar, Outlook, or any calendar app. Both include the gallery address.',
+            'Sign your consignment agreement before you drop work off \u2014 there is a button on the show page, and a link in the email. It says what the gallery is responsible for while it has your work and what it takes if the work sells. See \u201cHow to sign your consignment agreement\u201d.',
         ],
     },
     {
