@@ -12671,17 +12671,31 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
             'is_represented': 'no'})
         self.assertTrue(ready['Location'].endswith('#sign'))
 
-    def test_signing_lands_on_the_confirmation_not_the_old_scroll_position(self):
-        """Without a fragment the browser restores the previous position, so the page
-        visibly jumps to the top and back down to a signature box that is gone."""
+    def test_signing_confirms_where_the_button_was(self):
+        """Being sent to the top of a long page to find out what happened is the round trip
+        this replaces. A fragment is still needed: without one the browser restores the old
+        position and the page visibly jumps to the top first."""
         self._complete_profile()
         self.client.force_login(self.user)
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(self.url, {'action': 'sign', 'agree': 'on',
                                                    'signed_name': 'Mag Pie'})
-        self.assertTrue(response['Location'].endswith('#signed'))
+        self.assertTrue(response['Location'].endswith('#sign'),
+                        'signing should leave the reader where the button was')
         page = self.client.get(self.url)
-        self.assertContains(page, 'id="signed"')
+        # The box says it itself. The flash message above is dismissible and gone on the
+        # next reload, and the anchor scrolls past it, so news that lives only there is
+        # both easy to miss and temporary.
+        self.assertContains(page, 'A copy has been emailed to')
+        self.assertContains(page, self.artist.email)
+
+    def test_a_signed_agreement_does_not_offer_to_sign_again(self):
+        """Left in place the form invited a second signature, superseding a perfectly good
+        agreement with an identical one."""
+        self._sign()
+        page = self.client.get(self.url)
+        self.assertNotContains(page, 'name="signed_name"')
+        self.assertEqual(self.Consignment.objects.count(), 1)
 
     # ── Signing, and the freeze ──────────────────────────────────────────────
 

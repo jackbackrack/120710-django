@@ -233,10 +233,10 @@ def _sign(request, show, artist, token):
     # down must not roll back a signature the artist has already given.
     transaction.on_commit(lambda: send_signed_copy(consignment, request=request))
     messages.success(request, 'Signed — thank you. A copy is on its way to you by email.')
-    # To the confirmation at the top, not the bare URL: without a fragment the browser
-    # restores the old scroll position and the page visibly jumps to the top and back down
-    # to the signature box that is no longer there.
-    return redirect(_back(show, token) + '#signed')
+    # Back to where the button was. The confirmation renders there in place of the form, so
+    # there is nothing to scroll to — and a fragment is still needed, because without one
+    # the browser restores the old position and the page visibly jumps to the top first.
+    return redirect(_back(show, token) + '#sign')
 
 
 def _client_ip(request):

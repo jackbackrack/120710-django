@@ -29,10 +29,19 @@
 
 {% else %}
 
+  {% comment %}
+    Says everything itself rather than leaning on the flash message above it. That message
+    is dismissible and gone on the next reload, and signing scrolls to this box — so if the
+    news that a copy was emailed lives only up there, it is both easy to miss and temporary.
+  {% endcomment %}
   {% if signed and not out_of_date %}
   <div class="card__box p-3 mb-4" id="signed">
     <p class="mb-1"><strong>Signed</strong> on {{ signed.signed_at|date:"j M Y" }} by
-       {{ signed.signed_name }}.</p>
+       {{ signed.signed_name }}. Nothing else to do.</p>
+    <p class="mb-1 small">
+      {% if artist.email %}A copy has been emailed to <strong>{{ artist.email }}</strong>
+      as a PDF.{% else %}You can download your copy here at any time.{% endif %}
+    </p>
     <a class="card__link" href="{% url 'gallery:consignment_pdf' signed.pk %}">
       Download your copy (PDF)</a>
   </div>
@@ -186,9 +195,29 @@
   <ul class="small">{% for p in points %}<li>{{ p }}</li>{% endfor %}</ul>
   {% endfor %}
 
-  {# ── Sign ───────────────────────────────────────────────────────────────── #}
+  {% comment %}
+    Signing leaves the reader here rather than scrolling anywhere, so the confirmation has
+    to be here too — being sent to the top of a long page to find out what happened is the
+    round trip this replaces, and the flash message up there is dismissible and gone on the
+    next reload besides.
+
+    It also replaces the Sign button rather than sitting beside it. Left in place the form
+    invited a second signature, which would supersede a perfectly good agreement with an
+    identical one.
+  {% endcomment %}
   <div class="section-label mt-4" id="sign"><h2>Sign</h2></div>
-  {% if blockers %}
+  {% if signed and not out_of_date %}
+  <div class="card__box p-3">
+    <p class="mb-1"><strong>Signed</strong> on {{ signed.signed_at|date:"j M Y" }} by
+       {{ signed.signed_name }}. Nothing else to do.</p>
+    <p class="mb-1 small">
+      {% if artist.email %}A copy has been emailed to <strong>{{ artist.email }}</strong>
+      as a PDF.{% else %}You can download your copy here at any time.{% endif %}
+    </p>
+    <a class="card__link" href="{% url 'gallery:consignment_pdf' signed.pk %}">
+      Download your copy (PDF)</a>
+  </div>
+  {% elif blockers %}
   <p class="small text-muted">
     The boxes marked in red above still need filling in. Press
     <strong>Save and continue</strong> and the signature appears here.
@@ -212,6 +241,13 @@
   {% endif %}
 {% endif %}
 </div>
+<style>
+  /* Signing scrolls to #signed. Without this the box lands flush against the top of the
+     window and the confirmation message above it — which sits outside this block, over
+     the page content — is pushed out of view. Leaves room for it. */
+  #signed { scroll-margin-top: 7rem; }
+  #missing { scroll-margin-top: 7rem; }
+</style>
 {% comment %}
   The red marks come from what is stored, so without this they stay on a box the moment you
   start typing into it and only clear when you save — a filled-in field shown as wrong,
