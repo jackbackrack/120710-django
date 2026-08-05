@@ -1,0 +1,31 @@
+{% comment %}
+  The artist's own copy, PDF attached. This is the one distribution of a signed agreement
+  that needs no permission check — it goes to the person the document is about.
+{% endcomment %}<!DOCTYPE html>
+<html>
+<body>
+<p>Dear {{ artist.first_name|default:artist }},</p>
+
+<p>
+  Thank you — your consignment agreement for <strong>{{ show.name }}</strong>{% if site %} at
+  {{ site.name }}{% endif %} is signed. A copy is attached for your records.
+</p>
+
+<p>
+  You signed as <strong>{{ consignment.signed_name }}</strong> on
+  {{ consignment.signed_at|date:"j F Y" }}. It covers
+  {{ snapshot.artworks|length }} work{{ snapshot.artworks|length|pluralize }}, with a total
+  agreed value of ${{ snapshot.total_agreed_value|floatformat:"-2" }}.
+</p>
+
+<p>
+  If the work in the show changes, we will ask you to look it over and sign again. We keep
+  every version.
+</p>
+
+<p>
+  Sincerely,<br>
+  The {% if site %}{{ site.name }}{% else %}gallery{% endif %} team
+</p>
+</body>
+</html>

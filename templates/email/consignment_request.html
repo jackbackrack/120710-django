@@ -1,0 +1,45 @@
+{% comment %}
+  Asking one artist to sign before they drop work off. Plain and short, like the nudge: it is
+  a note from a person, not a mailing, and it goes over the transactional path.
+
+  The link is personal and needs no account — an artist whose profile a curator created, or
+  somebody signing for an estate, has no login and must still be able to complete this.
+{% endcomment %}<!DOCTYPE html>
+<html>
+<body>
+<p>Dear {{ artist.first_name|default:artist }},</p>
+
+<p>
+  Before you drop work off for <strong>{{ show.name }}</strong>{% if site %} at
+  {{ site.name }}{% endif %}, we need a consignment agreement from you. It says what we are
+  responsible for while your work is with us, and what we take if it sells.
+</p>
+
+<p>Almost everything is already filled in. It should take a minute:</p>
+
+<p><a href="{{ sign_url }}">{{ sign_url }}</a></p>
+
+<p>
+  In short: our commission is <strong>{{ rate|floatformat:"-2" }}%</strong> of the sale
+  price, and if a piece is lost, stolen or damaged while we have it we pay you its agreed
+  value <strong>in full</strong> — not less our commission. You set that value, and it starts
+  at your asking price.
+</p>
+
+{% if blockers %}
+<p>Two things the form will ask you for:</p>
+<ul>{% for b in blockers %}<li>{{ b.text }}</li>{% endfor %}</ul>
+{% endif %}
+
+<p>
+  {% for row in artworks %}{{ row.title }}{% if not forloop.last %}, {% endif %}{% endfor %}
+</p>
+
+<p>Any questions, just reply to this.</p>
+
+<p>
+  Sincerely,<br>
+  The {% if site %}{{ site.name }}{% else %}gallery{% endif %} team
+</p>
+</body>
+</html>
