@@ -208,6 +208,7 @@ def _sign(request, show, artist, token):
         version=(previous.version + 1) if previous else 1,
         status=Consignment.STATUS_SIGNED,
         commission_rate=rate,
+        terms_version=snapshot['terms_version'],
         snapshot=snapshot,
         fingerprint=fingerprint_of(terms.material_facts(show, artist, rate, rows)),
         signed_at=now,

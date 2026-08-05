@@ -12709,6 +12709,16 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.client.post(self.url, {'action': 'sign', 'signed_name': 'Mag Pie'})
         self.assertFalse(self.Consignment.objects.exists())
 
+    def test_the_stored_terms_version_matches_the_snapshot(self):
+        """The column's default is a fixed literal so that bumping TERMS_VERSION never
+        demands a migration that alters nothing. That only holds if signing sets it."""
+        from gallery.models.consignment import TERMS_VERSION
+
+        self._sign()
+        con = self.Consignment.objects.get()
+        self.assertEqual(con.terms_version, TERMS_VERSION)
+        self.assertEqual(con.snapshot['terms_version'], TERMS_VERSION)
+
     # ── A show that takes no commission ──────────────────────────────────────
 
     def test_zero_commission_reads_as_a_decision_not_a_blank(self):

@@ -51,7 +51,12 @@ class Consignment(models.Model):
     # Copied from the site or the show at signing, never read back through the relation.
     commission_rate = models.DecimalField(max_digits=5, decimal_places=2,
                                           null=True, blank=True)
-    terms_version = models.PositiveSmallIntegerField(default=TERMS_VERSION)
+    # A fixed literal, deliberately not TERMS_VERSION. Django tracks a field's default in
+    # migration state, so pointing it at the constant made every wording change demand a
+    # migration that alters nothing — defaults are applied in Python and never reach the
+    # database. The signing view sets this explicitly, and the snapshot carries its own copy,
+    # which is the authoritative one.
+    terms_version = models.PositiveSmallIntegerField(default=1)
 
     # Everything the agreement says, frozen. See `freeze` in gallery/consignment.py for the
     # shape; it is read straight back out to render the PDF, so nothing outside it can
