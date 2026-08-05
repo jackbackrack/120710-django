@@ -230,6 +230,19 @@ person signs and the document they are sent describing the same period different
 kind of discrepancy that only matters once, expensively. It emits `<b>` rather than
 `<strong>` because HTML and ReportLab both understand it.
 
+## Nothing happens on a finished show
+
+`window_is_open()` — false once the custody period has ended, because by then the work has
+been collected or is out of the gallery's hands either way, and there is nothing left to
+agree.
+
+It exists because of what setting a venue's commission rate does: the rate is per venue, so
+turning it on lights up every show that venue has ever run. Without this, an artist looking at
+a show that closed last year saw "Sign My Consignment Agreement", and pressing "Email N
+unsigned artists" on that show would have written to people about work returned months ago.
+Applied at all four places that ask — the show page button, the scheduling prompt, the signing
+gate, and the chaser that actually sends mail.
+
 ## What makes a signed agreement stale
 
 `material_facts()` decides. It covers the artist, the show, the commission rate, the terms

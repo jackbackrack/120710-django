@@ -13242,6 +13242,30 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         care = dict(consignment.terms_text(25))['While we have it']
         self.assertTrue(any('paid once and divided' in p for p in care))
 
+    def test_a_finished_show_offers_nothing_and_chases_nobody(self):
+        """Setting a venue\u2019s commission rate lit up a sign button on every show it had
+        ever run, and put artists from a show that closed last year on the list "Email N
+        unsigned artists" writes to — about work returned months ago."""
+        from gallery import consignment
+        from gallery.consignment_mail import unsigned_artists
+        from gallery.views.exhibitions import _needs_consignment
+
+        self.assertTrue(consignment.window_is_open(self.show))
+        self.assertTrue(_needs_consignment(self.user, self.show))
+        self.assertIn(self.artist, unsigned_artists(self.show))
+
+        past = datetime.date.today() - datetime.timedelta(days=120)
+        self.show.start, self.show.end = past, past + datetime.timedelta(days=20)
+        self.show.save(update_fields=['start', 'end'])
+        self.show.schedule_windows.all().delete()
+        self.show = Show.objects.get(pk=self.show.pk)
+
+        self.assertFalse(consignment.window_is_open(self.show))
+        self.assertFalse(_needs_consignment(self.user, self.show))
+        self.assertEqual(unsigned_artists(self.show), [])
+        self.assertTrue(any(b.get('fatal') for b in
+                            consignment.blockers(self.show, self.artist)))
+
     # ── Voiding ──────────────────────────────────────────────────────────────
 
     def test_whoever_runs_the_show_can_void_a_signed_agreement(self):

@@ -102,6 +102,19 @@ def artwork_rows(show, artist, rate):
     return rows
 
 
+def window_is_open(show):
+    """Whether there is still anything to agree about this show.
+
+    Once custody has ended the work has been collected or is out of the gallery's hands
+    either way, so a consignment is moot. Without this, setting a venue's commission rate
+    lit up a "Sign My Consignment Agreement" button on every show the venue has ever run —
+    and put every artist in a show that closed last year on the list that "Email N unsigned
+    artists" writes to, about work returned months ago.
+    """
+    ends = custody_for(show).get('until')
+    return not (ends and ends < dt.date.today())
+
+
 def blockers(show, artist, rows=None):
     """What stops this artist signing, in the order the page asks for it.
 
@@ -135,6 +148,15 @@ def blockers(show, artist, rows=None):
             'key': 'address',
             'text': 'Add your address, so we know where to return unsold work.',
             'staff_text': 'No address on file to return unsold work to.',
+        })
+
+    if not window_is_open(show):
+        found.append({
+            'key': 'closed',
+            'text': 'This show has finished and the work is no longer in our care, so there '
+                    'is nothing left to agree.',
+            'staff_text': 'Show finished — nothing left to consign.',
+            'fatal': True,
         })
 
     rows = artwork_rows(show, artist, None) if rows is None else rows

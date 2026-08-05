@@ -29,6 +29,12 @@ def unsigned_artists(show):
     chasing them for a signature they cannot validly give would be both useless and
     confusing.
     """
+    # Nobody is chased about a show that is over. This is the path that actually sends
+    # mail, so it is the one where getting it wrong writes to an artist about work the
+    # gallery gave back months ago.
+    if not terms.window_is_open(show):
+        return []
+
     signed = set(
         Consignment.objects.filter(show=show, status=Consignment.STATUS_SIGNED)
         .values_list('artist_id', flat=True))

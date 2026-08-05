@@ -50,6 +50,8 @@ def _needs_consignment(user, show):
         terms.commission_rate_for(show)
     except terms.NoCommissionRate:
         return False
+    if not terms.window_is_open(show):
+        return False
 
     signed = (Consignment.objects
               .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)

@@ -117,7 +117,8 @@ def artist_schedule(request, slug):
         'show': show, 'artist': artist, 'kinds': kinds_ctx,
         'consignment_signed': signed,
         'consignment_needed': (rate_is_set and signed is None
-                               and not artist.is_represented),
+                               and not artist.is_represented
+                               and consignment_terms.window_is_open(show)),
     })
 
 
