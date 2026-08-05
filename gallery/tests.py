@@ -12500,6 +12500,48 @@ class OnBehalfSubmissionCreditTests(MediaImageMixin, TestCase):
         self.assertEqual(self._counts().get('mag@example.com'), 2)
 
 
+class DoubleSubmitGuardTests(TestCase):
+    """One submit per form.
+
+    Artwork creation uploads a full-size photograph, so the request can take many seconds
+    with nothing on screen to say so — and a second click on a create form makes a second
+    artwork. An artist reported duplicates they had not meant to make and could not remove,
+    because can_delete_artwork refuses once the show has opened.
+    """
+
+    def test_the_guard_is_on_every_page_that_has_a_form(self):
+        """In base.html rather than per template, so it covers every form on the site —
+        artist profiles, artworks, shows, consignments — without each having to remember."""
+        User.objects.create_user(username='g@example.com', email='g@example.com',
+                                 password='pw')
+        self.client.login(username='g@example.com', password='pw')
+        for name in ('gallery:artist_list', 'gallery:artist_new', 'gallery:artwork_new',
+                     'gallery:show_list'):
+            page = self.client.get(reverse(name))
+            if page.status_code != 200:
+                continue
+            self.assertContains(page, 'dataset.submitting',
+                                msg_prefix=f'{name} has no submit guard')
+
+    def test_it_blocks_the_event_rather_than_disabling_the_button(self):
+        """Several forms submit through `<button name="action" value="...">`, and a disabled
+        button sends no name or value — so disabling would quietly change the payload."""
+        # Anchored on rendered output: the {% comment %} explaining this is a Django
+        # comment and never reaches the browser, so slicing from it found nothing.
+        page = self.client.get(reverse('gallery:artist_list')).content.decode()
+        guard = page[page.index("form.dataset.submitting"):]
+        guard = guard[:guard.index('</script>')]
+        self.assertIn('event.preventDefault()', guard)
+        self.assertNotIn('disabled = true', guard)
+        self.assertNotIn("setAttribute('disabled'", guard)
+
+    def test_it_resets_for_the_back_forward_cache(self):
+        """Restored from bfcache the flag would still be set, leaving a form that refuses to
+        submit at all."""
+        page = self.client.get(reverse('gallery:artist_list')).content.decode()
+        self.assertIn("addEventListener('pageshow'", page)
+
+
 class USStateTests(TestCase):
     """States were free text everywhere, and the artist table shows what that produced:
     "c", "b", "ca". `timezone_from_address` keys on the two-letter code, so a lower-case one
