@@ -8,7 +8,7 @@ from gallery.views.campaigns import (campaign_duplicate, campaign_edit, campaign
 from gallery.views.visits import (regenerate_visit_feed, rsvp_csv, visit_detail,
                                   visit_list, visits_ics)
 from gallery.views.consignment import (consign, consignment_pdf, email_consignment_links,
-                                       show_consignments)
+                                       show_consignments, void_consignment)
 from gallery.views.subscribers import (subscriber_add, subscriber_delete,
                                        subscriber_interests, subscriber_list,
                                        subscriber_unsubscribe_all,
@@ -120,6 +120,7 @@ urlpatterns = [
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/consignments/$', show_consignments, name='show_consignments'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/consignments/request/$', email_consignment_links, name='email_consignment_links'),
     path('consignment/<int:pk>/pdf/', consignment_pdf, name='consignment_pdf'),
+    path('consignment/<int:pk>/void/', void_consignment, name='void_consignment'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/promote/$', promote_artworks, name='promote_artworks'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/add-artwork/$', add_artwork_on_behalf, name='add_artwork_on_behalf'),
     re_path(r'^show/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)/artist-emails/$', show_artist_emails, name='show_artist_emails'),

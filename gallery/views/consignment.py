@@ -315,15 +315,22 @@ def show_consignments(request, slug):
     signed_by_artist = {}
     for c in (Consignment.objects.filter(show=show)
               .exclude(status=Consignment.STATUS_SUPERSEDED)
-              .select_related('artist')):
+              .select_related('artist', 'voided_by')
+              .order_by('version')):
         signed_by_artist[c.artist_id] = c
 
     rows, exposure, outstanding, unreachable = [], 0, 0, 0
+    # Per artwork, not per row. A collaboration appears on every credited artist's row, so
+    # summing the rows counted one $1,000 piece as $2,000 of liability — and the total is on
+    # this page precisely so somebody can judge the real exposure before a show opens.
+    counted = set()
     for artist in Artist.objects.filter(artworks__shows=show).distinct().order_by('name'):
         works = terms.artwork_rows(show, artist, rate)
         consigned = signed_by_artist.get(artist.pk)
         value = sum(w['agreed_value'] or 0 for w in works)
-        exposure += value
+        exposure += sum(w['agreed_value'] or 0 for w in works
+                        if w['pk'] not in counted)
+        counted.update(w['pk'] for w in works)
         blocking = terms.blockers(show, artist, rows=works)
         # Two different numbers. `outstanding` is who still owes an agreement;
         # `unreachable` is how many of those have no address to send a link to. Counting
@@ -353,6 +360,44 @@ def show_consignments(request, slug):
         'show': show, 'rows': rows, 'rate': rate, 'rate_error': rate_error,
         'exposure': exposure, 'outstanding': outstanding, 'unreachable': unreachable,
     })
+
+
+@require_POST
+@login_required
+def void_consignment(request, pk):
+    """Cancel a signed agreement, on the record.
+
+    For whoever runs the show — its curators, staff, and the directors of its venue — which
+    is the point: a site director manages this and has no Django admin access, so the only
+    route to correcting a signed agreement cannot be one that requires it.
+
+    Not a delete. The signed document is kept and stays readable, because what the artist
+    agreed to remains a fact about what happened; voiding records that the gallery has since
+    called it off, and who did so. The artist is then asked to sign a fresh one.
+    """
+    consignment = get_object_or_404(
+        Consignment.objects.select_related('show', 'artist'), pk=pk)
+    if not can_manage_show(request.user, consignment.show):
+        raise Http404
+    if not consignment.is_signed:
+        messages.error(request, 'Only a signed agreement can be voided.')
+        return redirect('gallery:show_consignments', slug=consignment.show.slug)
+
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        messages.error(request, 'Say why it is being voided — it goes on the record.')
+        return redirect('gallery:show_consignments', slug=consignment.show.slug)
+
+    consignment.status = Consignment.STATUS_VOIDED
+    consignment.voided_at = timezone.now()
+    consignment.voided_by = request.user
+    consignment.void_reason = reason[:255]
+    consignment.save(update_fields=['status', 'voided_at', 'voided_by', 'void_reason'])
+    messages.success(
+        request,
+        f'{consignment.artist}\u2019s agreement is voided. They now show as unsigned, so '
+        f'you can email them to sign a new one.')
+    return redirect('gallery:show_consignments', slug=consignment.show.slug)
 
 
 @require_POST

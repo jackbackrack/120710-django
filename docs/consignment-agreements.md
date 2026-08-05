@@ -230,6 +230,17 @@ person signs and the document they are sent describing the same period different
 kind of discrepancy that only matters once, expensively. It emits `<b>` rather than
 `<strong>` because HTML and ReportLab both understand it.
 
+## What makes a signed agreement stale
+
+`material_facts()` decides. It covers the artist, the show, the commission rate, the terms
+version, each artwork's price and agreed value, **and the custody dates** — that last one
+because a pickup window moved after signing moves the date the gallery stops being
+responsible, and the signed document would otherwise go on stating the old one with nothing
+to say it had changed.
+
+Deliberately not in it: anything cosmetic. Re-asking an artist to sign because a medium was
+re-typed with different capitalisation would teach them to click through it.
+
 ## The same work in several shows
 
 Most of this collection has been shown more than once, and `Artwork.replacement_cost` is a
@@ -242,11 +253,41 @@ notice the difference and ask the artist to re-sign an agreement for a show that
 ago, about work the gallery has already given back. So `is_out_of_date` stops looking once
 custody has ended. There is nothing left to agree about a show that is over.
 
+## Voiding a signed agreement
+
+The gallery's recourse before drop-off is to query a value or refuse the piece. Afterwards,
+signing is not what creates the liability — **drop-off is** — so a signed agreement over work
+never accepted attaches nothing, because the gallery never took custody.
+
+For everything else there is **Void**, on the consignments page, for whoever runs the show:
+its curators, staff, and the directors of its venue. That last part is the point. A site
+director manages this and has no Django admin access, so the route to correcting a signed
+agreement cannot be one that requires it.
+
+Voiding is not deleting. It records who did it, when, and **why** — a reason is required —
+and the signed document is kept and stays readable, because what the artist agreed to remains
+a fact about what happened. The artist then shows as unsigned and can be asked for a fresh
+signature.
+
+`voided` is deliberately a different state from `superseded`: superseded means the same artist
+replaced it by signing again, voided means the gallery called it off. The record should say
+which.
+
+The model is registered in Django admin too, as a last resort, with everything that
+constitutes the agreement read-only and no add permission. An editable snapshot would make
+every signature deniable, and a consignment exists because somebody signed one.
+
 ## Collaborative works
 
 A work credited to two artists appears on both artists' agreements and both must sign. The
 agreement is per artist, so each is agreeing about their own liability and their own share,
 and neither can bind the other.
+
+**The agreed value is one liability, not two.** The terms say it is paid once and divided as
+those artists direct — otherwise a $2,000 piece destroyed in the gallery's care would cost
+$4,000 to two co-authors who each signed for its full value. For the same reason the
+dashboard's exposure total counts each artwork once rather than summing the rows, which it
+was doing.
 
 ## Represented artists
 

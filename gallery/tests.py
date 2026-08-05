@@ -13183,6 +13183,133 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         keys = [b['key'] for b in consignment.blockers(self.show, self.artist)]
         self.assertIn('representation', keys)
 
+    def test_moving_the_pickup_window_makes_the_agreement_stale(self):
+        """The cutoff is a term. Moving a pickup window moves the date the gallery stops
+        being responsible, and before this the signed document went on stating the old one
+        with nothing to say it had changed."""
+        from gallery import consignment
+        from gallery.models import ScheduleWindow
+
+        self._sign()
+        con = self.Consignment.objects.get()
+        self.assertFalse(consignment.is_out_of_date(con))
+
+        ScheduleWindow.objects.filter(show=self.show, kind='pickup').update(
+            date=self.show.end + datetime.timedelta(days=30))
+        con = self.Consignment.objects.get(pk=con.pk)
+        self.assertTrue(consignment.is_out_of_date(con),
+                        'the custody period changed and nobody was told')
+
+    def test_a_shared_work_is_one_liability_not_two(self):
+        """A collaboration appears on every credited artist's row, so summing rows counted
+        one piece twice — on the page whose whole purpose is judging real exposure."""
+        second = Artist.objects.create(
+            name='Co Author', first_name='Co', last_name='Author',
+            email='co@example.com', zipcode='94710', image=self.TEST_ARTIST_IMAGE)
+        self.work.artists.add(second)
+
+        staff = User.objects.create_user(username='ex@example.com',
+                                         email='ex@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:show_consignments',
+                                       kwargs={'slug': self.show.slug}))
+        self.assertEqual(len(page.context['rows']), 2, 'both artists listed')
+        self.assertEqual(page.context['exposure'], 2000,
+                         'one $2,000 piece is $2,000 of liability, not $4,000')
+
+    def test_the_terms_say_a_shared_value_is_paid_once(self):
+        from gallery import consignment
+
+        care = dict(consignment.terms_text(25))['While we have it']
+        self.assertTrue(any('paid once and divided' in p for p in care))
+
+    # ── Voiding ──────────────────────────────────────────────────────────────
+
+    def test_whoever_runs_the_show_can_void_a_signed_agreement(self):
+        """Not staff-only and not admin-only: a site director manages this and has no Django
+        admin access, so the route to correcting a signed agreement cannot require one."""
+        self._sign()
+        con = self.Consignment.objects.get()
+        staff = User.objects.create_user(username='v1@example.com',
+                                         email='v1@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        self.client.post(reverse('gallery:void_consignment', kwargs={'pk': con.pk}),
+                         {'reason': 'piece not accepted'})
+        con.refresh_from_db()
+        self.assertTrue(con.is_voided)
+        self.assertEqual(con.void_reason, 'piece not accepted')
+        self.assertEqual(con.voided_by, staff)
+        self.assertIsNotNone(con.voided_at)
+
+    def test_voiding_needs_a_reason(self):
+        """It goes on the record, and "voided, no reason given" is not a record."""
+        self._sign()
+        con = self.Consignment.objects.get()
+        staff = User.objects.create_user(username='v2@example.com',
+                                         email='v2@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        self.client.post(reverse('gallery:void_consignment', kwargs={'pk': con.pk}),
+                         {'reason': '  '})
+        con.refresh_from_db()
+        self.assertTrue(con.is_signed, 'voided with no reason')
+
+    def test_a_voided_agreement_is_kept_and_still_readable(self):
+        """What the artist agreed to remains a fact about what happened."""
+        self._sign()
+        con = self.Consignment.objects.get()
+        staff = User.objects.create_user(username='v3@example.com',
+                                         email='v3@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        self.client.post(reverse('gallery:void_consignment', kwargs={'pk': con.pk}),
+                         {'reason': 'value renegotiated'})
+        self.assertEqual(self.Consignment.objects.count(), 1)
+        page = self.client.get(reverse('gallery:consignment_pdf', kwargs={'pk': con.pk}))
+        self.assertEqual(page.status_code, 200)
+
+    def test_voiding_puts_the_artist_back_on_the_chase_list(self):
+        from gallery.consignment_mail import unsigned_artists
+
+        self._sign()
+        con = self.Consignment.objects.get()
+        self.assertNotIn(self.artist, unsigned_artists(self.show))
+        con.status = self.Consignment.STATUS_VOIDED
+        con.save(update_fields=['status'])
+        self.assertIn(self.artist, unsigned_artists(self.show))
+
+    def test_a_stranger_cannot_void(self):
+        self._sign()
+        con = self.Consignment.objects.get()
+        other = User.objects.create_user(username='v4@example.com',
+                                         email='v4@example.com', password='pw')
+        self.client.force_login(other)
+        self.assertEqual(
+            self.client.post(reverse('gallery:void_consignment', kwargs={'pk': con.pk}),
+                             {'reason': 'mine now'}).status_code, 404)
+        con.refresh_from_db()
+        self.assertTrue(con.is_signed)
+
+    def test_the_artist_can_sign_again_after_a_void(self):
+        self._sign()
+        con = self.Consignment.objects.get()
+        con.status = self.Consignment.STATUS_VOIDED
+        con.save(update_fields=['status'])
+        self.client.force_login(self.user)
+        page = self.client.get(self.url)
+        # msg_prefix=, not the third positional argument — that one is `count`, so a
+        # message passed there is read as "expect exactly this many occurrences".
+        self.assertContains(page, 'name="signed_name"',
+                            msg_prefix='a voided agreement must be re-signable')
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(self.url, {'action': 'sign', 'agree': 'on',
+                                        'signed_name': 'Mag Pie'})
+        self.assertEqual(
+            self.Consignment.objects.filter(
+                status=self.Consignment.STATUS_SIGNED).count(), 1)
+
     # ── Who may read it ──────────────────────────────────────────────────────
 
     def test_the_pdf_renders_for_the_artist(self):

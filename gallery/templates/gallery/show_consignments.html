@@ -108,6 +108,11 @@
             <span class="text-warning">Signed {{ row.consignment.signed_at|date:"j M" }},
               but their work has changed since</span>
             <div class="small text-muted">Email them to sign again — the old one is kept.</div>
+          {% elif row.consignment.is_voided %}
+            <span class="text-muted">Voided {{ row.consignment.voided_at|date:"j M" }}
+              {% if row.consignment.voided_by %}by {{ row.consignment.voided_by.get_username }}{% endif %}</span>
+            <div class="small text-muted">{{ row.consignment.void_reason }} — email them to
+              sign a new one.</div>
           {% elif row.consignment %}
             <span class="text-success">Signed {{ row.consignment.signed_at|date:"j M" }}</span>
           {% else %}
@@ -118,6 +123,28 @@
         <td class="small text-nowrap">
           {% if row.consignment %}
           <a class="card__link" href="{% url 'gallery:consignment_pdf' row.consignment.pk %}">PDF</a>
+          {% endif %}
+          {% comment %}
+            Voiding needs a reason, so it is a small form rather than a button with a
+            confirm() — and a <details> rather than a modal so it costs nothing until
+            somebody opens it. Available to whoever runs the show, which includes the
+            venue's directors: they manage this and have no Django admin access, so the
+            only route to correcting a signed agreement must not require one.
+          {% endcomment %}
+          {% if row.consignment.is_signed %}
+          <details class="d-inline-block ms-1">
+            <summary class="card__link" style="cursor:pointer">Void</summary>
+            <form method="post" class="mt-1"
+                  action="{% url 'gallery:void_consignment' row.consignment.pk %}">
+              {% csrf_token %}
+              <input class="form-control form-control-sm" name="reason" required
+                     style="max-width:15rem"
+                     placeholder="Why? e.g. piece not accepted">
+              <button class="btn btn-sm btn-outline-danger mt-1" type="submit"
+                      onclick="return confirm('Void {{ row.artist }}\u2019s signed agreement? It is kept and stays readable; they will show as unsigned.')">
+                Void this agreement</button>
+            </form>
+          </details>
           {% endif %}
           {% if not row.represented %}
             {% if row.artist.email %}

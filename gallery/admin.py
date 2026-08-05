@@ -1,7 +1,7 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 
-from gallery.models import Artist, ArtistSchedule, Artwork, ArtworkImage, Event, LinkTreeEntry, ScheduleWindow, Show, ShowInvitation, Tag
+from gallery.models import Consignment, Artist, ArtistSchedule, Artwork, ArtworkImage, Event, LinkTreeEntry, ScheduleWindow, Show, ShowInvitation, Tag
 from gallery.models.collection import CollectionPiece, SavedArtwork
 from gallery.models.room import RoomConfig, WallObstacle, WallPlacement
 from reviews.models import ShowJuror
@@ -96,3 +96,33 @@ class WallPlacementAdmin(admin.ModelAdmin):
     list_display = ('show', 'artwork', 'wall', 'x_in', 'y_in', 'z_in')
     list_filter = ('wall', 'show')
     raw_id_fields = ('show', 'artwork')
+
+
+@admin.register(Consignment)
+class ConsignmentAdmin(admin.ModelAdmin):
+    """A window onto signed agreements, not a way to edit them.
+
+    Everything that constitutes the agreement is read-only, because the point of the record
+    is that it cannot change after signing — an editable snapshot would make every signature
+    deniable. Voiding is the one thing the gallery may do afterwards, and it belongs on the
+    consignments page rather than here: a site director manages this and has no admin access.
+    """
+
+    list_display = ['artist', 'show', 'version', 'status', 'commission_rate',
+                    'total_agreed_value', 'signed_at', 'signed_name']
+    list_filter = ['status', 'show', 'terms_version']
+    search_fields = ['artist__name', 'artist__email', 'show__name', 'signed_name']
+    date_hierarchy = 'created_at'
+    readonly_fields = ['show', 'artist', 'version', 'commission_rate', 'terms_version',
+                       'snapshot', 'fingerprint', 'signed_at', 'signed_name', 'signed_ip',
+                       'signed_user_agent', 'signed_by', 'voided_at', 'voided_by',
+                       'void_reason', 'created_at', 'updated_at']
+
+    def has_add_permission(self, request):
+        # A consignment exists because somebody signed one. Adding by hand would create a
+        # record of an agreement that was never agreed to.
+        return False
+
+    def total_agreed_value(self, obj):
+        return obj.total_agreed_value
+    total_agreed_value.short_description = 'Agreed value'

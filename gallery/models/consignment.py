@@ -26,7 +26,7 @@ from django.db import models
 
 # Bumped when the boilerplate itself changes. Signed agreements keep the version they were
 # signed under, so old signatures keep meaning what they meant.
-TERMS_VERSION = 4
+TERMS_VERSION = 5
 
 
 class Consignment(models.Model):
@@ -35,10 +35,16 @@ class Consignment(models.Model):
     STATUS_DRAFT = 'draft'
     STATUS_SIGNED = 'signed'
     STATUS_SUPERSEDED = 'superseded'
+    # Cancelled without a replacement, which is a different thing from superseded: a
+    # superseded agreement was replaced by a later signature from the same artist, and a
+    # voided one was called off by the gallery — because the piece was not accepted, or the
+    # value was renegotiated. Kept distinct so the record says which happened.
+    STATUS_VOIDED = 'voided'
     STATUS_CHOICES = [
         (STATUS_DRAFT, 'Not yet signed'),
         (STATUS_SIGNED, 'Signed'),
         (STATUS_SUPERSEDED, 'Superseded by a later version'),
+        (STATUS_VOIDED, 'Voided by the gallery'),
     ]
 
     show = models.ForeignKey('gallery.Show', on_delete=models.CASCADE,
@@ -79,6 +85,16 @@ class Consignment(models.Model):
     signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                   null=True, blank=True, related_name='+')
 
+    # ── Voiding ──────────────────────────────────────────────────────────────
+    #
+    # Recorded rather than deleted, and attributed. The gallery cannot cancel a signature
+    # quietly — a contract one side can undo without saying so is not one — so voiding says
+    # who did it, when, and why, and the signed document is kept and still readable.
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                  null=True, blank=True, related_name='+')
+    void_reason = models.CharField(max_length=255, blank=True, default='')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -96,6 +112,10 @@ class Consignment(models.Model):
     @property
     def is_signed(self):
         return self.status == self.STATUS_SIGNED
+
+    @property
+    def is_voided(self):
+        return self.status == self.STATUS_VOIDED
 
     @property
     def artworks_in_snapshot(self):

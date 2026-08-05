@@ -175,12 +175,18 @@ def material_facts(show, artist, rate, rows):
 
     Only the terms — not display niceties. Re-asking an artist to sign because a medium was
     re-typed with different capitalisation would train them to click through it.
+
+    The custody dates are in here because they are terms: moving a pickup window moves the
+    date the gallery stops being responsible, and without this the signed document would go
+    on stating the old one with nothing to say it had changed.
     """
+    custody = custody_for(show)
     return {
         'artist': artist.pk,
         'show': show.pk,
         'rate': str(rate) if rate is not None else None,
         'terms_version': TERMS_VERSION,
+        'custody': {k: str(v) for k, v in custody.items()},
         'artworks': sorted(
             [{'pk': r['pk'], 'price': r['price'], 'agreed_value': r['agreed_value']}
              for r in rows],
@@ -298,11 +304,18 @@ def current_fingerprint(show, artist):
 def snapshot_fingerprint(consignment):
     snap = consignment.snapshot
     rows = snap.get('artworks', [])
+    frozen = snap.get('custody', {})
     return fingerprint_of({
         'artist': consignment.artist_id,
         'show': consignment.show_id,
         'rate': snap.get('commission_rate'),
         'terms_version': snap.get('terms_version'),
+        # Same keys as custody_for produces, so the two hashes are comparable: the snapshot
+        # stores the end date as 'to' where the live one calls it 'until'.
+        'custody': {'from': str(frozen.get('from')),
+                    'pickup_by': str(frozen.get('pickup_by')),
+                    'grace_days': str(frozen.get('grace_days')),
+                    'until': str(frozen.get('to'))},
         'artworks': sorted(
             [{'pk': r['pk'], 'price': r['price'], 'agreed_value': r['agreed_value']}
              for r in rows],
@@ -431,6 +444,8 @@ def terms_text(rate=None):
             'A piece offered for sale cannot have an agreed value above its asking price. '
             'It may be lower. Work that is not for sale has no asking price to measure '
             'against, so the artist sets the figure and the gallery may query it.',
+            'A work by more than one artist has one agreed value, paid once and divided '
+            'as those artists direct between them — not paid in full to each of them.',
             'The gallery will not alter, copy or lend the work, and will take reasonable '
             'care of it.',
         ]),
