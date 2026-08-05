@@ -79,19 +79,6 @@ alongside the `Show.sites` collapse. Railway runs migrations in pre-deploy while
 is still serving, and old code selecting a column that no longer exists 500s every artwork
 page for the length of the deploy — see [railway-deploys.md](railway-deploys.md).
 
-## An implausible value
-
-There is **no cap**, because a cap refuses honest work that happens to be priced unusually.
-Instead the agreement says the value is *agreed* — the artist proposes it, and the gallery may
-query it or decline the piece before it is dropped off — and the staff dashboard flags any
-figure more than `OUTLIER_RATIO` times the asking price, or over `OUTLIER_ABSOLUTE`, so
-somebody sees it while refusing is still possible. Once the work has been accepted and the
-agreement signed, the figure binds.
-
-The artist never sees the threshold. It marks a row, it does not block anything.
-
-## Collaborative works
-
 ### Paid in full
 
 A destroyed piece is paid at its full agreed value, **not** the agreed value less commission.
@@ -102,6 +89,17 @@ from a loss. This does the opposite deliberately: at these price points the diff
 tens to a few hundred dollars on an event that should be rare, and "we pay what we agreed,
 not what we agreed minus our cut" is worth more to an emerging artist than the money is to
 the gallery.
+
+## An implausible value
+
+There is **no cap**, because a cap refuses honest work that happens to be priced unusually.
+Instead the agreement says the value is *agreed* — the artist proposes it, and the gallery may
+query it or decline the piece before it is dropped off — and the staff dashboard flags any
+figure more than `OUTLIER_RATIO` times the asking price, or over `OUTLIER_ABSOLUTE`, so
+somebody sees it while refusing is still possible. Once the work has been accepted and the
+agreement signed, the figure binds.
+
+The artist never sees the threshold. It marks a row, it does not block anything.
 
 ## The signed thing is frozen
 
