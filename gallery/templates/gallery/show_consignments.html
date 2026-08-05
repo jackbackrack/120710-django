@@ -164,6 +164,18 @@
               <input type="hidden" name="email" value="{{ row.artist.email }}">
               <button class="btn btn-sm btn-link p-0 align-baseline" type="submit">email</button>
             </form>
+            {% comment %}
+              The same shape as the invite page's Nudge column: the date beside the button,
+              because "asked once three weeks ago" and "asked four times" call for different
+              next steps — another email, or picking up the phone. Recorded only on a send
+              that succeeded, so a failed mail does not read as somebody ignoring you.
+            {% endcomment %}
+            {% if row.asked %}
+            <span class="text-muted small hint"
+                  title="Last asked {{ row.asked.last_sent_at|date:'j M Y, H:i' }}{% if row.asked.last_sent_by %} by {{ row.asked.last_sent_by.get_username }}{% endif %}. Asked {{ row.asked.sent_count }} time{{ row.asked.sent_count|pluralize }} in all.">·
+              last {{ row.asked.last_sent_at|date:"j M" }}{% if row.asked.sent_count > 1 %}
+              ({{ row.asked.sent_count }}×){% endif %}</span>
+            {% endif %}
             {% else %}
             <span class="text-muted">no email</span>
             {% endif %}

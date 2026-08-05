@@ -13438,6 +13438,69 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
             found += [f for f in files if f.lower().endswith('.pdf')]
         self.assertEqual(found, [])
 
+    # ── Recording who has been asked ─────────────────────────────────────────
+
+    def test_a_request_records_when_and_by_whom(self):
+        """The invite page shows this and the consignments page did not, so there was no way
+        to tell who had already been chased."""
+        from gallery.models import ConsignmentRequest
+
+        staff = User.objects.create_user(username='r1@example.com',
+                                         email='r1@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        mail.outbox.clear()
+        self.client.post(reverse('gallery:email_consignment_links',
+                                 kwargs={'slug': self.show.slug}))
+        record = ConsignmentRequest.objects.get(show=self.show, artist=self.artist)
+        self.assertEqual(record.sent_count, 1)
+        self.assertEqual(record.last_sent_by, staff)
+        self.assertIsNotNone(record.last_sent_at)
+
+    def test_asking_twice_counts_twice(self):
+        from gallery.models import ConsignmentRequest
+
+        staff = User.objects.create_user(username='r2@example.com',
+                                         email='r2@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        for _ in range(2):
+            self.client.post(reverse('gallery:email_consignment_links',
+                                     kwargs={'slug': self.show.slug}))
+        self.assertEqual(
+            ConsignmentRequest.objects.get(show=self.show, artist=self.artist).sent_count, 2)
+
+    def test_a_failed_send_records_nothing(self):
+        """A failed mail must not read as somebody ignoring you."""
+        from unittest.mock import patch
+
+        from gallery.models import ConsignmentRequest
+
+        staff = User.objects.create_user(username='r3@example.com',
+                                         email='r3@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        with patch('django.core.mail.EmailMultiAlternatives.send',
+                   side_effect=RuntimeError('smtp down')):
+            self.client.post(reverse('gallery:email_consignment_links',
+                                     kwargs={'slug': self.show.slug}))
+        self.assertFalse(ConsignmentRequest.objects.exists())
+
+    def test_the_date_appears_on_the_row(self):
+        from gallery.models import ConsignmentRequest
+
+        staff = User.objects.create_user(username='r4@example.com',
+                                         email='r4@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        self.client.post(reverse('gallery:email_consignment_links',
+                                 kwargs={'slug': self.show.slug}))
+        page = self.client.get(reverse('gallery:show_consignments',
+                                       kwargs={'slug': self.show.slug}))
+        self.assertIsNotNone(page.context['rows'][0]['asked'])
+        self.assertContains(page, 'last ')
+        self.assertContains(page, 'Last asked')
+
     # ── The staff view ───────────────────────────────────────────────────────
 
     def test_the_dashboard_says_what_its_warnings_mean(self):

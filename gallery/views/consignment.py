@@ -323,6 +323,8 @@ def show_consignments(request, slug):
     except terms.NoCommissionRate as exc:
         rate, rate_error = None, str(exc)
 
+    asked = {r.artist_id: r for r in
+             show.consignment_requests.select_related('last_sent_by').all()}
     signed_by_artist = {}
     for c in (Consignment.objects.filter(show=show)
               .exclude(status=Consignment.STATUS_SUPERSEDED)
@@ -361,6 +363,7 @@ def show_consignments(request, slug):
             'outliers': outliers,
             'missing_values': sum(1 for w in works if w['agreed_value'] is None),
             'consignment': consigned,
+            'asked': asked.get(artist.pk),
             'out_of_date': terms.is_out_of_date(consigned) if consigned else False,
             'signed_by_someone_else': bool(
                 consigned and consigned.is_signed and consigned.signed_by_id

@@ -12,7 +12,10 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
 from gallery import consignment as terms
-from gallery.models import Artist, Consignment
+from django.utils import timezone
+
+from gallery.models import (Artist, Consignment,
+                            ConsignmentRequest)
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +95,18 @@ def send_consignment_requests(show, request=None, only_email=None):
         except Exception as exc:                                  # noqa: BLE001
             logger.exception('Consignment request to %s failed: %s', artist.email, exc)
             continue
+
+        # After the send, not before: a failed mail must not leave a record saying somebody
+        # was asked. That is the difference between chasing them again and assuming they
+        # were told and are ignoring it.
+        record, _ = ConsignmentRequest.objects.get_or_create(
+            show=show, artist=artist,
+            defaults={'last_sent_at': timezone.now(), 'sent_count': 0})
+        record.last_sent_at = timezone.now()
+        record.sent_count += 1
+        record.last_sent_by = (request.user if request is not None
+                               and request.user.is_authenticated else None)
+        record.save(update_fields=['last_sent_at', 'sent_count', 'last_sent_by'])
         sent += 1
     return sent
 

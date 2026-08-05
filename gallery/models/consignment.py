@@ -140,3 +140,35 @@ def fingerprint_of(payload):
     """
     blob = json.dumps(payload, sort_keys=True, separators=(',', ':'), default=str)
     return hashlib.sha256(blob.encode('utf-8')).hexdigest()
+
+
+class ConsignmentRequest(models.Model):
+    """When an artist was last asked to sign, and how many times.
+
+    Its own row because there is nowhere else to put it: an artist who has not signed has no
+    Consignment at all, so unlike the invite page — where the timestamp lives on the
+    ShowInvitation that already exists — there is no record to hang it on until they act.
+
+    Not a legal record, unlike Consignment, so these cascade: if a show goes, so does the
+    memory of who was emailed about it.
+    """
+
+    show = models.ForeignKey('gallery.Show', on_delete=models.CASCADE,
+                             related_name='consignment_requests')
+    artist = models.ForeignKey('gallery.Artist', on_delete=models.CASCADE,
+                               related_name='consignment_requests')
+    last_sent_at = models.DateTimeField()
+    last_sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name='+')
+    # Shown next to the date, because "asked once three weeks ago" and "asked four times"
+    # call for different next steps — a second email, or picking up the phone.
+    sent_count = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['show', 'artist'],
+                                    name='one_consignment_request_per_artist_show'),
+        ]
+
+    def __str__(self):
+        return f'{self.artist} asked about {self.show} ({self.sent_count}x)'
