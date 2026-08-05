@@ -16,6 +16,8 @@
     Once this is saved you can add more images of the piece — detail shots, alternative
     views, or it installed — and crop a version for the room layout.
   </p>
+  {# One create per rendered form; a replay of this token redirects to what it made. #}
+  <input type="hidden" name="create_token" value="{{ create_token }}">
   <button class="btn btn-success ms-2" type="submit">Save</button>
 </form>
 {% endblock content %}

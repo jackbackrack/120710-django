@@ -110,6 +110,15 @@ class Artwork(models.Model):
     url = models.URLField(blank=True, null=True, verbose_name='URL (video, website, or other supporting link)')
     installation = models.TextField(verbose_name='Installation: optional instructions for installing your work', blank=True, null=True)
     tags = models.ManyToManyField('gallery.Tag', related_name='artworks', blank=True)
+    # One create per rendered form, enforced by the database rather than by hoping.
+    #
+    # The form carries a random token; the first save keeps it, and a replay of the same
+    # POST — a second click during a slow upload, a back-button resubmit, a retried request
+    # — collides with this unique index and is turned into a redirect to the artwork that
+    # already exists. JavaScript cannot cover the back button at all, because that is a
+    # fresh page with no memory of the first submission.
+    create_token = models.CharField(max_length=64, blank=True, null=True, unique=True,
+                                    editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

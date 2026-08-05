@@ -15,6 +15,9 @@ from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMultiAlternatives
 from django.db import connection
 from django.http import HttpResponse, JsonResponse
+import uuid
+
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
@@ -197,6 +200,18 @@ class ArtworkDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 
 class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Creating an artwork, once per rendered form.
+
+    An artist reported duplicates they had not meant to make. Uploading a photograph takes
+    seconds with nothing on screen to say so, and a second click makes a second artwork —
+    as does a back-button resubmit, or a request the browser retried.
+
+    The form carries a random token and the column is unique, so the second save collides in
+    the database and is turned into a redirect to the artwork that already exists. Done here
+    rather than only in JavaScript because a back-button resubmit is a fresh page with no
+    memory of the first, which no script on the page can see.
+    """
+
     model = Artwork
     form_class = ArtworkForm
     template_name = 'gallery/artwork_new.html'
@@ -206,9 +221,38 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         kwargs['user'] = self.request.user
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Regenerated per render, so a fresh form is always a fresh create and only a
+        # *replay* of one submission is refused.
+        context.setdefault('create_token', uuid.uuid4().hex)
+        return context
+
     def form_valid(self, form):
+        token = (self.request.POST.get('create_token') or '').strip()[:64]
+        if token:
+            existing = Artwork.objects.filter(create_token=token).first()
+            if existing is not None:
+                # Not an error: the person pressed Save twice, or came back and resubmitted.
+                # They wanted one artwork and they have one, so show it to them rather than
+                # complaining about a duplicate they did not intend.
+                messages.info(self.request,
+                              'That was already saved — here it is.')
+                return redirect(existing)
+            form.instance.create_token = token
+
         form.instance.created_by = self.request.user
-        response = super().form_valid(form)
+        try:
+            with transaction.atomic():
+                response = super().form_valid(form)
+        except IntegrityError:
+            # Two requests raced past the check above and one lost. The winner's artwork is
+            # the answer; this one never existed.
+            existing = Artwork.objects.filter(create_token=token).first()
+            if existing is None:
+                raise
+            return redirect(existing)
+
         artist = self.request.user.artists.order_by('-created_at').first()
         if artist:
             self.object.artists.add(artist)

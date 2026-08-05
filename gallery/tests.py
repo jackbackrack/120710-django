@@ -12542,6 +12542,79 @@ class DoubleSubmitGuardTests(TestCase):
         self.assertIn("addEventListener('pageshow'", page)
 
 
+class ArtworkCreateIdempotencyTests(MediaImageMixin, TestCase):
+    """One artwork per rendered form, enforced by the database.
+
+    An artist reported duplicates they had not meant to make: uploading a photograph takes
+    seconds with nothing on screen to say so, and a second click makes a second artwork. So
+    does a back-button resubmit, which no script on the page can see — the browser guard
+    cannot cover it, which is the reason this exists as well.
+    """
+
+    def setUp(self):
+        self._setup_media()
+        self.user = User.objects.create_user(username='mk@example.com',
+                                             email='mk@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            name='Mak Er', first_name='Mak', last_name='Er', email='mk@example.com',
+            zipcode='94710', user=self.user, image=self.TEST_ARTIST_IMAGE)
+        self.client.force_login(self.user)
+        self.url = reverse('gallery:artwork_new')
+
+    def tearDown(self):
+        self._teardown_media()
+
+    def _payload(self, token, name='Sixty Turns'):
+        return {
+            'name': name, 'end_year': 2026, 'medium': 'oil on panel',
+            'width_inches': 24, 'height_inches': 36,
+            'pricing_type': Artwork.PRICING_NFS,
+            'create_token': token,
+            'image': _test_jpg('w.jpg'),
+            'images-TOTAL_FORMS': '0', 'images-INITIAL_FORMS': '0',
+            'images-MIN_NUM_FORMS': '0', 'images-MAX_NUM_FORMS': '1000',
+        }
+
+    def test_the_form_carries_a_token(self):
+        page = self.client.get(self.url)
+        self.assertContains(page, 'name="create_token"')
+
+    def test_a_fresh_token_creates_one_artwork(self):
+        self.client.post(self.url, self._payload('tok-one'))
+        self.assertEqual(Artwork.objects.filter(name='Sixty Turns').count(), 1)
+
+    def test_replaying_the_same_submission_creates_nothing_more(self):
+        """The second click, and the back-button resubmit, are the same thing to the server:
+        the identical POST arriving twice."""
+        self.client.post(self.url, self._payload('tok-two'))
+        self.client.post(self.url, self._payload('tok-two'))
+        self.assertEqual(Artwork.objects.filter(name='Sixty Turns').count(), 1)
+
+    def test_a_replay_shows_them_the_artwork_rather_than_an_error(self):
+        """They wanted one artwork and they have one. Complaining about a duplicate they did
+        not intend would be answering a question nobody asked."""
+        self.client.post(self.url, self._payload('tok-three'))
+        artwork = Artwork.objects.get(name='Sixty Turns')
+        again = self.client.post(self.url, self._payload('tok-three'))
+        self.assertRedirects(again, artwork.get_absolute_url())
+
+    def test_two_genuinely_different_submissions_both_land(self):
+        """The regression to avoid: two untitled pieces by one artist are ordinary, so this
+        must key on the form, not on what was typed into it."""
+        self.client.post(self.url, self._payload('tok-a', name='Untitled'))
+        self.client.post(self.url, self._payload('tok-b', name='Untitled'))
+        self.assertEqual(Artwork.objects.filter(name='Untitled').count(), 2)
+
+    def test_each_render_gets_its_own_token(self):
+        import re
+
+        seen = set()
+        for _ in range(3):
+            body = self.client.get(self.url).content.decode()
+            seen.add(re.search(r'name="create_token" value="([^"]+)"', body).group(1))
+        self.assertEqual(len(seen), 3, 'a reused token would refuse a genuine second artwork')
+
+
 class USStateTests(TestCase):
     """States were free text everywhere, and the artist table shows what that produced:
     "c", "b", "ca". `timezone_from_address` keys on the two-letter code, so a lower-case one
