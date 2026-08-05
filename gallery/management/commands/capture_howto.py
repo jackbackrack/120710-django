@@ -1327,9 +1327,20 @@ def _create_capture_show(name, submission_type, status=None, days_open=30):
 
 
 def _cleanup_capture_shows():
-    """Delete every show this capture machinery has ever created, then the account."""
+    """Delete every show this capture machinery has ever created, then the account.
+
+    The artists and artworks too. Deleting the show only unlinks them, so ten capture runs
+    left ten identical artists and thirty orphan artworks in the development database —
+    which then turn up in the artist list and in every count.
+    """
     Show.objects.filter(slug__startswith=CAPTURE_SHOW_PREFIX).delete()
     Artist.objects.filter(name=ON_BEHALF_ARTIST_NAME, user__isnull=True).delete()
+
+    consignment_artists = Artist.objects.filter(name=CONSIGN_ARTIST_NAME)
+    Artwork.objects.filter(artists__in=consignment_artists).delete()
+    consignment_artists.delete()
+    get_user_model().objects.filter(username=CONSIGN_ARTIST_EMAIL).delete()
+
     _reset_capture_account()
 
 
