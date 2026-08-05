@@ -85,13 +85,16 @@
             possible. Once it is in the door and the agreement signed, the figure binds.
           {% endcomment %}
           {% comment %}
-            Spelled out rather than abbreviated to "— check", which said nothing without
-            hovering for the tooltip and read like a column header.
+            Short, with the explanation in a tooltip. Spelling it out in the cell was
+            accurate and far too long for a table this dense — but a bare "check" with a
+            tooltip nobody knows about is no better, so it carries the dotted underline and
+            help cursor that say there is something to hover.
           {% endcomment %}
           {% for w in row.outliers %}
           <div class="text-warning small">
-            {{ w.title }}: ${{ w.agreed_value|floatformat:"-2"|intcomma }} —
-            high, worth asking about before the work arrives
+            {{ w.title }} ${{ w.agreed_value|floatformat:"-2"|intcomma }} —
+            <span class="hint"
+                  title="Over $5,000. Worth asking about before the work arrives — once it is accepted this figure is what the gallery owes if the piece is lost or damaged. It blocks nothing.">check</span>
           </div>
           {% endfor %}
         </td>
@@ -99,20 +102,18 @@
           {% if row.represented %}
             <span class="text-muted">On paper</span>
           {% comment %}
-            "Out of date" did not say what had gone out of date or what to do. What it means
-            is that the work in the show is no longer what the artist signed for — a piece
-            added, removed or repriced, or the agreement wording itself changed — so the
-            signed document does not cover what is actually on the wall.
+            Same reasoning as "check" above: the full sentence was right and too long for
+            the cell, so it moved into the tooltip with an affordance to say it is there.
           {% endcomment %}
           {% elif row.consignment and row.out_of_date %}
-            <span class="text-warning">Signed {{ row.consignment.signed_at|date:"j M" }},
-              but their work has changed since</span>
-            <div class="small text-muted">Email them to sign again — the old one is kept.</div>
+            <span class="text-warning">Signed {{ row.consignment.signed_at|date:"j M" }} —
+              <span class="hint"
+                    title="The show no longer holds what they signed for: a piece added, removed or repriced, the pickup dates moved, or the agreement wording changed. Email them to sign a new version — the old one is kept either way.">out of date</span></span>
           {% elif row.consignment.is_voided %}
             <span class="text-muted">Voided {{ row.consignment.voided_at|date:"j M" }}
               {% if row.consignment.voided_by %}by {{ row.consignment.voided_by.get_username }}{% endif %}</span>
-            <div class="small text-muted">{{ row.consignment.void_reason }} — email them to
-              sign a new one.</div>
+            <div class="small text-muted hint"
+                 title="Cancelled by the gallery rather than replaced by a later signature. The signed document is kept and still readable; the artist shows as unsigned so they can be asked for a new one.">{{ row.consignment.void_reason }}</div>
           {% elif row.consignment %}
             <span class="text-success">Signed {{ row.consignment.signed_at|date:"j M" }}</span>
           {% else %}
@@ -168,6 +169,12 @@
     </tbody>
   </table>
 </div>
+<style>
+  /* A tooltip nobody knows is there explains nothing. The dotted underline and help cursor
+     are what say "hover me", and they are the reason these labels can stay short in a table
+     that already carries five columns of figures. */
+  .hint { cursor: help; border-bottom: 1px dotted currentColor; }
+</style>
 {% comment %}
   Same handler as the invite page: an artist with no address on file still needs their link,
   and it has to leave by hand.

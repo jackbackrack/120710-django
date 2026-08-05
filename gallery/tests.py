@@ -13360,9 +13360,13 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.client.force_login(staff)
         page = self.client.get(reverse('gallery:show_consignments',
                                        kwargs={'slug': self.show.slug}))
-        self.assertContains(page, 'their work has changed since')
-        self.assertContains(page, 'sign again')
-        self.assertContains(page, 'worth asking about')
+        # Short labels in the cell, with the explanation in the tooltip and a hint class
+        # saying there is one — spelling it out inline was accurate and far too long.
+        self.assertContains(page, '>out of date<')
+        self.assertContains(page, '>check<')
+        self.assertContains(page, 'class="hint"')
+        self.assertContains(page, 'Email them to sign a new version')
+        self.assertContains(page, 'Worth asking about before the work arrives')
         # Thousands separators: an extra zero is invisible in $1000000.
         self.assertContains(page, '$1,000,000')
 
