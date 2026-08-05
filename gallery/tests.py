@@ -12648,6 +12648,34 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertIs(self.artist.is_represented, False)
         self.assertEqual(nfs.agreed_value, 400)
 
+    def test_the_address_is_the_profile_address_not_a_copy(self):
+        """One field, read and written from both places, rather than a consignment copy
+        that could disagree with the profile. So an address already on file arrives
+        pre-filled, and one typed here is on file afterwards."""
+        Artist.objects.filter(pk=self.artist.pk).update(
+            street='7 Ash Ln', city='Berkeley', state='CA')
+        self.client.force_login(self.user)
+        page = self.client.get(self.url).content.decode()
+        self.assertIn('value="7 Ash Ln"', page)
+        self.assertIn('value="Berkeley"', page)
+
+        self.client.post(self.url, {'action': 'save', 'street': '99 Elm St',
+                                    'city': 'Oakland', 'state': 'CA'})
+        self.artist.refresh_from_db()
+        self.assertEqual(self.artist.street, '99 Elm St')
+        self.assertEqual(self.artist.city, 'Oakland')
+
+    def test_a_signed_agreement_keeps_the_address_it_was_signed_with(self):
+        """The consequence of it being one live field: moving house later must not silently
+        rewrite where a signed agreement says unsold work goes back to."""
+        self._sign()
+        con = self.Consignment.objects.get()
+        self.assertEqual(con.snapshot['artist']['street'], '1 Test St')
+
+        Artist.objects.filter(pk=self.artist.pk).update(street='Somewhere Else')
+        con.refresh_from_db()
+        self.assertEqual(con.snapshot['artist']['street'], '1 Test St')
+
     def test_a_missing_address_blocks_signing(self):
         from gallery import consignment
 
@@ -12851,6 +12879,26 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
                                     f'agreed_value_{self.work.pk}': '9999'})
         self.work.refresh_from_db()
         self.assertIsNone(self.work.agreed_value, 'the wild figure was stored anyway')
+
+    def test_a_refusal_lands_on_the_message_and_says_what_the_value_is_now(self):
+        """The refusal was invisible: messages render at the top, and the redirect jumped to
+        the signature at the foot, straight past it. The box then showed the asking price —
+        because that is the fallback — so the whole thing read as the form having quietly
+        rewritten the number and moved on."""
+        self._complete_profile()
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, {
+            'action': 'save', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
+            f'agreed_value_{self.work.pk}': '9999'})
+        self.assertTrue(response['Location'].endswith('#missing'),
+                        'a refusal must not scroll past its own explanation')
+
+        from django.contrib.messages import get_messages
+        notes = [str(m) for m in get_messages(response.wsgi_request)]
+        self.assertTrue(any('was not saved' in n for n in notes), notes)
+        self.assertTrue(any('still $2,000' in n for n in notes), notes)
+        self.assertFalse(any(n == 'Saved.' for n in notes),
+                         'it did not save, so it must not say it did')
 
     def test_a_value_above_the_price_blocks_signing(self):
         """Data can predate the rule, so the gate cannot rely on input validation alone."""

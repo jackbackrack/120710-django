@@ -124,12 +124,14 @@ def consign(request, slug, token=None):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'save':
-            _save_inline(request, show, artist)
-            # Land where the work is. Ready to sign → the signature box; something still
-            # missing → the top, where the summary and the marked fields are. Sending
-            # somebody to a signature they cannot use, to read that the problem is further
-            # up, is what made this feel like a scavenger hunt.
-            anchor = '#sign' if terms.can_sign(show, artist) else '#missing'
+            refused = _save_inline(request, show, artist)
+            # Land where the work is. A refusal goes to the top whatever else is true: the
+            # messages render there, so jumping to the signature scrolls straight past the
+            # explanation and the save reads as having silently changed the number.
+            if refused:
+                anchor = '#missing'
+            else:
+                anchor = '#sign' if terms.can_sign(show, artist) else '#missing'
             return redirect(_back(show, token) + anchor)
         if action == 'sign':
             return _sign(request, show, artist, token)
@@ -148,7 +150,11 @@ def _save_inline(request, show, artist):
 
     All of it saves here rather than on the profile and artwork forms, because the whole
     point of the page is that an artist does not have to visit three of them.
+
+    Returns whether anything was refused, so the caller can land the reader on the
+    explanation rather than past it.
     """
+    refused = False
     changed = []
     for field in ('street', 'city', 'state'):
         if field in request.POST:
@@ -175,22 +181,30 @@ def _save_inline(request, show, artist):
             value = float(raw)
         except ValueError:
             messages.error(request, f'“{raw}” is not an amount — {artwork.name} not saved.')
+            refused = True
             continue
         if value < 0:
             messages.error(request, f'{artwork.name}: an agreed value cannot be negative.')
+            refused = True
             continue
         # Refused, not silently clamped. Quietly changing a number somebody typed into a
-        # document they are about to sign is worse than telling them it will not do.
+        # document they are about to sign is worse than telling them it will not do — and
+        # the message says what the value is *now*, because the box falls back to showing
+        # the asking price, which otherwise reads as the form having quietly rewritten it.
         if terms.too_high(artwork.price, value):
             messages.error(
                 request,
-                f'{artwork.name}: an agreed value cannot be more than the asking price of '
+                f'{artwork.name}: ${value:,.0f} is more than the asking price of '
+                f'${artwork.price:,.0f}, so it was not saved — the agreed value is still '
                 f'${artwork.price:,.0f}. Lower it, or raise the price of the piece.')
+            refused = True
             continue
         if artwork.agreed_value != value:
             artwork.agreed_value = value
             artwork.save(update_fields=['agreed_value'])
-    messages.success(request, 'Saved.')
+    if not refused:
+        messages.success(request, 'Saved.')
+    return refused
 
 
 @transaction.atomic
