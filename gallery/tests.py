@@ -12598,6 +12598,29 @@ class ArtworkCreateIdempotencyTests(MediaImageMixin, TestCase):
         again = self.client.post(self.url, self._payload('tok-three'))
         self.assertRedirects(again, artwork.get_absolute_url())
 
+    def test_going_back_and_entering_a_different_piece_does_not_lose_it(self):
+        """The bug this nearly shipped with. The back/forward cache restores the form with
+        the token it was rendered with, so a second, genuinely different artwork typed into
+        that same page was treated as a replay and silently discarded."""
+        self.client.post(self.url, self._payload('reused', name='First Piece'))
+        self.client.post(self.url, self._payload('reused', name='A Different Piece'))
+        self.assertEqual(Artwork.objects.filter(name='First Piece').count(), 1)
+        self.assertEqual(Artwork.objects.filter(name='A Different Piece').count(), 1,
+                         'a real artwork was thrown away as a duplicate')
+
+    def test_a_true_replay_is_still_deduplicated(self):
+        """The identical POST arriving twice — which is what a second click actually sends."""
+        self.client.post(self.url, self._payload('same', name='One Piece'))
+        self.client.post(self.url, self._payload('same', name='One Piece'))
+        self.assertEqual(Artwork.objects.filter(name='One Piece').count(), 1)
+
+    def test_a_restored_page_is_given_a_fresh_token(self):
+        """The browser half of the same fix: a bfcache restore rewrites the token, so the
+        server never has to reason about it in the first place."""
+        page = self.client.get(self.url).content.decode()
+        self.assertIn('event.persisted', page)
+        self.assertIn("input[name=\"create_token\"]", page)
+
     def test_two_genuinely_different_submissions_both_land(self):
         """The regression to avoid: two untitled pieces by one artist are ordinary, so this
         must key on the form, not on what was typed into it."""
@@ -12668,6 +12691,21 @@ class ArtistCreateIdempotencyTests(MediaImageMixin, TestCase):
         self.client.post(self.url, self._payload('artist-tok'))
         self.client.post(self.url, self._payload('artist-tok'))
         self.assertEqual(Artist.objects.filter(first_name='New').count(), 1)
+
+    def test_going_back_and_entering_a_different_person_does_not_lose_them(self):
+        """Same bug, same fix, on the form curators use to add artists one after another."""
+        curator = User.objects.create_user(username='cu2@example.com',
+                                           email='cu2@example.com', password='pw',
+                                           is_staff=True)
+        self.client.force_login(curator)
+        self.client.post(self.url, self._payload('shared'))
+        second = self._payload('shared')
+        second['first_name'] = 'Someone'
+        second['email'] = 'someone@example.com'
+        self.client.post(self.url, second)
+        self.assertEqual(Artist.objects.filter(first_name='New').count(), 1)
+        self.assertEqual(Artist.objects.filter(first_name='Someone').count(), 1,
+                         'a real artist was thrown away as a duplicate')
 
     def test_a_fresh_form_still_creates_a_second_profile(self):
         """Curators legitimately add several artists in a row."""

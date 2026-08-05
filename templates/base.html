@@ -318,7 +318,18 @@
         function (btn) { btn.style.opacity = '.6'; btn.style.pointerEvents = 'none'; });
     }, true);
 
-    window.addEventListener('pageshow', function () {
+    window.addEventListener('pageshow', function (event) {
+      // A create token identifies one submission. The back/forward cache restores the DOM
+      // verbatim, so going Back to a form you already submitted hands you the same token —
+      // and if you then change the details and save, the server sees a replay and drops a
+      // genuinely different artwork. Restored pages get a fresh one.
+      if (event.persisted) {
+        document.querySelectorAll('input[name="create_token"]').forEach(function (input) {
+          input.value = (crypto.randomUUID
+                         ? crypto.randomUUID().replace(/-/g, '')
+                         : String(Date.now()) + Math.random().toString(16).slice(2));
+        });
+      }
       document.querySelectorAll('form[data-submitting]').forEach(function (form) {
         delete form.dataset.submitting;
         form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(

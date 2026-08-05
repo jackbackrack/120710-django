@@ -339,10 +339,16 @@ class ArtistCreateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, C
         token = (self.request.POST.get('create_token') or '').strip()[:64]
         if token:
             existing = Artist.objects.filter(create_token=token).first()
-            if existing is not None:
+            same = existing is not None and all(
+                getattr(existing, f) == form.cleaned_data.get(f)
+                for f in ('first_name', 'last_name', 'email'))
+            if same:
                 messages.info(self.request, 'That was already saved — here it is.')
                 return redirect(existing)
-            form.instance.create_token = token
+            # Same token, somebody else: a form restored from the back/forward cache carries
+            # the token it was rendered with, so treating this as a replay would discard a
+            # real second profile.
+            form.instance.create_token = None if existing is not None else token
 
         # Claim the new profile for its creator only when the form did not ask. "Linked
         # user account" is shown to whoever may be recording somebody else — staff and

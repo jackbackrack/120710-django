@@ -199,6 +199,21 @@ class ArtworkDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return can_delete_artwork(self.request.user, obj)
 
 
+# What identifies a submission. A replay of one POST has all of these the same, because it
+# is the same bytes; a person who went Back and typed something else has changed at least
+# one. Deliberately not the image: re-picking the same file is normal, and comparing uploads
+# would make a replay look new.
+_IDENTIFYING = ('name', 'end_year', 'medium', 'width_inches', 'height_inches')
+
+
+def _is_replay_of(existing, submitted):
+    """Whether this POST is the same submission that already created `existing`."""
+    for field in _IDENTIFYING:
+        if getattr(existing, field) != submitted.get(field):
+            return False
+    return True
+
+
 def _warn_if_identical(request, artwork):
     """Say so when a new piece matches one the artist already has, exactly.
 
@@ -264,14 +279,21 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         token = (self.request.POST.get('create_token') or '').strip()[:64]
         if token:
             existing = Artwork.objects.filter(create_token=token).first()
-            if existing is not None:
+            if existing is not None and _is_replay_of(existing, form.cleaned_data):
                 # Not an error: the person pressed Save twice, or came back and resubmitted.
                 # They wanted one artwork and they have one, so show it to them rather than
                 # complaining about a duplicate they did not intend.
                 messages.info(self.request,
                               'That was already saved — here it is.')
                 return redirect(existing)
-            form.instance.create_token = token
+            if existing is not None:
+                # Same token, different piece. Somebody went Back to a form they had already
+                # submitted and typed a new artwork into it — the back/forward cache hands
+                # back the same token — so this is a genuine second artwork and treating it
+                # as a replay would silently throw their work away.
+                form.instance.create_token = None
+            else:
+                form.instance.create_token = token
 
         form.instance.created_by = self.request.user
         try:
