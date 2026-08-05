@@ -12639,6 +12639,50 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
                                     'signed_name': 'Mag Pie'})
         self.assertFalse(self.Consignment.objects.exists())
 
+    # ── Finding out what is missing ──────────────────────────────────────────
+
+    def test_the_empty_boxes_are_marked_where_they_are(self):
+        """A list at the foot of the page is no substitute for showing which box. Being
+        told at the bottom what is wrong at the top is what made this disorienting."""
+        self.client.force_login(self.user)
+        page = self.client.get(self.url)
+        self.assertEqual(page.context['missing'],
+                         {'street', 'city', 'state', 'representation'})
+        self.assertEqual(page.context['missing_values'], set())
+        self.assertContains(page, 'is-invalid')
+        self.assertContains(page, 'Before you can sign, we still need')
+
+    def test_an_unpriced_piece_marks_its_own_box(self):
+        nfs = self._work('Study')
+        self.client.force_login(self.user)
+        page = self.client.get(self.url)
+        self.assertEqual(page.context['missing_values'], {nfs.pk})
+
+    def test_saving_lands_on_what_is_left_rather_than_the_signature(self):
+        """Sending somebody to a signature they cannot use, to read that the problem is
+        further up, is the round trip this replaces."""
+        self.client.force_login(self.user)
+        still_blocked = self.client.post(self.url, {'action': 'save',
+                                                    'street': '1 Test St'})
+        self.assertTrue(still_blocked['Location'].endswith('#missing'))
+
+        ready = self.client.post(self.url, {
+            'action': 'save', 'street': '1 Test St', 'city': 'Berkeley', 'state': 'CA',
+            'is_represented': 'no'})
+        self.assertTrue(ready['Location'].endswith('#sign'))
+
+    def test_signing_lands_on_the_confirmation_not_the_old_scroll_position(self):
+        """Without a fragment the browser restores the previous position, so the page
+        visibly jumps to the top and back down to a signature box that is gone."""
+        self._complete_profile()
+        self.client.force_login(self.user)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, {'action': 'sign', 'agree': 'on',
+                                                   'signed_name': 'Mag Pie'})
+        self.assertTrue(response['Location'].endswith('#signed'))
+        page = self.client.get(self.url)
+        self.assertContains(page, 'id="signed"')
+
     # ── Signing, and the freeze ──────────────────────────────────────────────
 
     def test_signing_records_the_signature_and_mails_a_copy(self):

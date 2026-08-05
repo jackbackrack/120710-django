@@ -88,6 +88,13 @@ def _page(request, show, artist, token):
               .filter(show=show, artist=artist, status=Consignment.STATUS_SIGNED)
               .order_by('-version').first())
 
+    # Which individual boxes are empty, so the page can mark them where they are rather
+    # than only listing them in a summary further down.
+    missing = {f for f in ('street', 'city', 'state') if not getattr(artist, f)}
+    if artist.is_represented is None:
+        missing.add('representation')
+    missing_values = {r['pk'] for r in rows if r['agreed_value'] is None}
+
     return render(request, 'gallery/consign.html', {
         'show': show,
         'artist': artist,
@@ -101,6 +108,8 @@ def _page(request, show, artist, token):
         'out_of_date': terms.is_out_of_date(signed) if signed else False,
         'sections': terms.terms_text(rate),
         'custody': terms.custody_for(show),
+        'missing': missing,
+        'missing_values': missing_values,
         'total_agreed_value': sum(r['agreed_value'] or 0 for r in rows),
     })
 
@@ -113,9 +122,12 @@ def consign(request, slug, token=None):
         action = request.POST.get('action')
         if action == 'save':
             _save_inline(request, show, artist)
-            # Land on the signature rather than the top of the page. Saving is the step that
-            # reveals it, and a redirect to the top looks like nothing happened.
-            return redirect(_back(show, token) + '#sign')
+            # Land where the work is. Ready to sign → the signature box; something still
+            # missing → the top, where the summary and the marked fields are. Sending
+            # somebody to a signature they cannot use, to read that the problem is further
+            # up, is what made this feel like a scavenger hunt.
+            anchor = '#sign' if terms.can_sign(show, artist) else '#missing'
+            return redirect(_back(show, token) + anchor)
         if action == 'sign':
             return _sign(request, show, artist, token)
     return _page(request, show, artist, token)
@@ -221,7 +233,10 @@ def _sign(request, show, artist, token):
     # down must not roll back a signature the artist has already given.
     transaction.on_commit(lambda: send_signed_copy(consignment, request=request))
     messages.success(request, 'Signed — thank you. A copy is on its way to you by email.')
-    return redirect(_back(show, token))
+    # To the confirmation at the top, not the bare URL: without a fragment the browser
+    # restores the old scroll position and the page visibly jumps to the top and back down
+    # to the signature box that is no longer there.
+    return redirect(_back(show, token) + '#signed')
 
 
 def _client_ip(request):

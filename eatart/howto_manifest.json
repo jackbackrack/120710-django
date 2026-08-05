@@ -1,33 +1,33 @@
 {
   "consignment": {
     "2": {
-      "bytes": 16774,
-      "height": 63,
-      "key": "consignment/02.81d90e2bef27.webp",
+      "bytes": 51790,
+      "height": 123,
+      "key": "consignment/02.1852bbaf38fc.webp",
       "width": 813
     },
     "3": {
-      "bytes": 217234,
-      "height": 677,
-      "key": "consignment/03.6850d2d7b968.webp",
+      "bytes": 232802,
+      "height": 706,
+      "key": "consignment/03.699e6194022a.webp",
       "width": 813
     },
     "4": {
-      "bytes": 1930,
+      "bytes": 1996,
       "height": 31,
-      "key": "consignment/04.dabede68be3f.webp",
+      "key": "consignment/04.3263105a3039.webp",
       "width": 352
     },
     "5": {
-      "bytes": 38334,
+      "bytes": 39378,
       "height": 192,
-      "key": "consignment/05.89b4e76e15b4.webp",
+      "key": "consignment/05.7990030a155f.webp",
       "width": 813
     },
     "6": {
-      "bytes": 36634,
+      "bytes": 36850,
       "height": 192,
-      "key": "consignment/06.56707a7fc6db.webp",
+      "key": "consignment/06.8274d0ff9e51.webp",
       "width": 813
     },
     "7": {
@@ -37,9 +37,9 @@
       "width": 813
     },
     "8": {
-      "bytes": 10094,
+      "bytes": 29104,
       "height": 84,
-      "key": "consignment/08.3b19daee79a5.webp",
+      "key": "consignment/08.6791e2d8a728.webp",
       "width": 813
     }
   },

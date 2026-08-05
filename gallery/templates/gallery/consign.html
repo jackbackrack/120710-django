@@ -30,14 +30,14 @@
 {% else %}
 
   {% if signed and not out_of_date %}
-  <div class="card__box p-3 mb-4">
+  <div class="card__box p-3 mb-4" id="signed">
     <p class="mb-1"><strong>Signed</strong> on {{ signed.signed_at|date:"j M Y" }} by
        {{ signed.signed_name }}.</p>
     <a class="card__link" href="{% url 'gallery:consignment_pdf' signed.pk %}">
       Download your copy (PDF)</a>
   </div>
   {% elif signed and out_of_date %}
-  <div class="card__box p-3 mb-4">
+  <div class="card__box p-3 mb-4" id="signed">
     <p class="mb-1"><strong>Your work in this show has changed</strong> since you signed on
        {{ signed.signed_at|date:"j M Y" }}. Please look it over and sign again — the new
        agreement replaces the old one, which we keep.</p>
@@ -46,33 +46,55 @@
   </div>
   {% endif %}
 
+  {% comment %}
+    The summary sits here, at the top, because that is where the fields are. It used to
+    appear only beside the signature at the foot of the page, which meant being told at the
+    bottom what was wrong at the top — and saving landed you there, furthest from the work.
+    The individual boxes are marked too: a list of what is missing is no substitute for
+    showing which box it is.
+  {% endcomment %}
+  <div id="missing"></div>
+  {% if blockers %}
+  <div class="card__box p-3 mb-3">
+    <p class="mb-1"><strong>Before you can sign, we still need:</strong></p>
+    <ul class="small mb-0">{% for b in blockers %}<li>{{ b.text }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
   <form method="post">{% csrf_token %}
     <input type="hidden" name="action" value="save">
+    <p class="text-muted small mb-2">
+      Fields marked <span class="text-danger" title="Required">*</span> are needed before you can sign.
+    </p>
 
     {# ── Who, and where unsold work goes back to ─────────────────────────── #}
     <div class="section-label"><h2>You</h2></div>
     <p class="mb-2">{{ artist }} · {{ artist.email }}</p>
     <div class="row g-2">
       <div class="col-12 col-md-6">
-        <label class="form-label small mb-0" for="street">Street address</label>
-        <input class="form-control form-control-sm" id="street" name="street"
+        <label class="form-label small mb-0" for="street">Street address <span class="text-danger" title="Required">*</span></label>
+        <input class="form-control form-control-sm{% if 'street' in missing %} is-invalid{% endif %}"
+               id="street" name="street"
                value="{{ artist.street }}" autocomplete="street-address">
       </div>
       <div class="col-7 col-md-4">
-        <label class="form-label small mb-0" for="city">City</label>
-        <input class="form-control form-control-sm" id="city" name="city"
+        <label class="form-label small mb-0" for="city">City <span class="text-danger" title="Required">*</span></label>
+        <input class="form-control form-control-sm{% if 'city' in missing %} is-invalid{% endif %}"
+               id="city" name="city"
                value="{{ artist.city }}" autocomplete="address-level2">
       </div>
       <div class="col-5 col-md-2">
-        <label class="form-label small mb-0" for="state">State</label>
-        <input class="form-control form-control-sm" id="state" name="state"
+        <label class="form-label small mb-0" for="state">State <span class="text-danger" title="Required">*</span></label>
+        <input class="form-control form-control-sm{% if 'state' in missing %} is-invalid{% endif %}"
+               id="state" name="state"
                value="{{ artist.state }}" autocomplete="address-level1">
       </div>
     </div>
     <p class="text-muted small mt-1">Only used to return unsold work. Never shown publicly.</p>
 
     {% if artist.is_represented is None %}
-    <div class="section-label mt-4"><h2>Representation</h2></div>
+    <div class="section-label mt-4"><h2>Representation
+      <span class="text-danger" id="representation-required" title="Required">*</span></h2></div>
     <p class="mb-1">Are you currently represented by a gallery? If so we arrange this with
        them rather than with you.</p>
     <label class="me-3"><input type="radio" name="is_represented" value="no"> No</label>
@@ -88,7 +110,7 @@
         <tr class="small">
           <th>Work</th><th>Price</th>
           <th title="What we pay you if it is lost, stolen or damaged in our care">
-            Agreed value</th>
+            Agreed value <span class="text-danger" title="Required">*</span></th>
           <th>If it sells</th>
         </tr>
       </thead>
@@ -105,8 +127,8 @@
           <td style="max-width:9rem">
             <div class="input-group input-group-sm">
               <span class="input-group-text">$</span>
-              <input class="form-control" name="agreed_value_{{ row.pk }}"
-                     inputmode="decimal"
+              <input class="form-control{% if row.pk in missing_values %} is-invalid{% endif %}"
+                     name="agreed_value_{{ row.pk }}" inputmode="decimal"
                      value="{% if row.agreed_value %}{{ row.agreed_value|floatformat:"-2" }}{% endif %}">
             </div>
           </td>
@@ -167,11 +189,9 @@
   {# ── Sign ───────────────────────────────────────────────────────────────── #}
   <div class="section-label mt-4" id="sign"><h2>Sign</h2></div>
   {% if blockers %}
-  <p class="mb-1">Nearly there. Still needed:</p>
-  <ul class="small">{% for b in blockers %}<li>{{ b.text }}</li>{% endfor %}</ul>
   <p class="small text-muted">
-    Fill those in above and press <strong>Save and continue</strong> — the signature box
-    appears here once nothing is missing.
+    The boxes marked in red above still need filling in. Press
+    <strong>Save and continue</strong> and the signature appears here.
   </p>
   {% else %}
   <form method="post" class="mt-2">{% csrf_token %}
@@ -192,4 +212,27 @@
   {% endif %}
 {% endif %}
 </div>
+{% comment %}
+  The red marks come from what is stored, so without this they stay on a box the moment you
+  start typing into it and only clear when you save — a filled-in field shown as wrong,
+  which is worse than no marking at all. Nothing here validates; it just stops the page
+  contradicting what the reader can plainly see.
+{% endcomment %}
+<script>
+(function () {
+  document.querySelectorAll('.is-invalid').forEach(function (field) {
+    field.addEventListener('input', function () {
+      if (field.value.trim() !== '') { field.classList.remove('is-invalid'); }
+    });
+  });
+  // The representation question is radios, so "filled in" means one is chosen.
+  var radios = document.querySelectorAll('input[name="is_represented"]');
+  radios.forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      var star = document.querySelector('#representation-required');
+      if (star) { star.remove(); }
+    });
+  });
+})();
+</script>
 {% endblock content %}

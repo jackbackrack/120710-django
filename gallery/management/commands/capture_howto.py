@@ -1711,8 +1711,11 @@ def capture_consignment(rec, facts):
     #           that one page."
     rec.at_step(2)
     rec.goto(url)
-    rec.expect_visible('see what is still needed', '#sign')
-    rec.shot_region(2, 'ul:below(#sign)')
+    rec.expect_visible('see what is still needed',
+                       'div:has(> p > strong:text-is("Before you can sign, we still need:"))')
+    # The summary at the top, where the fields are — it used to sit beside the signature at
+    # the foot of the page, which is where the reader is told about it last.
+    rec.shot_region(2, 'div:has(> p > strong:text-is("Before you can sign, we still need:"))')
 
     # Step 3 — "Your address."
     rec.at_step(3)
