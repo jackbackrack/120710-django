@@ -9,14 +9,17 @@ ReportLab, which is already here for placards.
 """
 import datetime
 import io
+import logging
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table,
                                 TableStyle)
+
+logger = logging.getLogger(__name__)
 
 MUTED = colors.HexColor('#666666')
 RULE = colors.HexColor('#cccccc')
@@ -36,6 +39,8 @@ def _styles():
         'small': ParagraphStyle('sm', parent=base['Normal'], fontSize=8, leading=11,
                                 textColor=MUTED),
         'cell': ParagraphStyle('c', parent=base['Normal'], fontSize=8.5, leading=11),
+        'letterhead': ParagraphStyle('lh', parent=base['Normal'], fontSize=8, leading=11,
+                                     textColor=MUTED, alignment=TA_RIGHT),
     }
 
 
@@ -62,6 +67,33 @@ def _date(iso):
         return iso
 
 
+def _logo_flowable(name, max_height=0.62 * inch):
+    """The venue's mark for the letterhead, or None.
+
+    Never fatal. The file lives in media, which is on S3 in production, so it can be slow,
+    replaced or gone — and a consignment agreement that will not render because a logo
+    moved is a worse outcome than one without a logo.
+    """
+    if not name:
+        return None
+    try:
+        from django.core.files.storage import default_storage
+        from reportlab.lib.utils import ImageReader
+        from reportlab.platypus import Image as RLImage
+
+        with default_storage.open(name, 'rb') as handle:
+            data = io.BytesIO(handle.read())
+        width, height = ImageReader(data).getSize()
+        if not width or not height:
+            return None
+        data.seek(0)
+        scale = max_height / height
+        return RLImage(data, width=width * scale, height=max_height)
+    except Exception:                                          # noqa: BLE001
+        logger.info('Consignment logo %s could not be read; rendering without it', name)
+        return None
+
+
 def render_consignment(consignment):
     """Bytes of the PDF for one signed (or draft) agreement."""
     snap = consignment.snapshot
@@ -80,28 +112,50 @@ def render_consignment(consignment):
     custody = snap.get('custody', {})
     flow = []
 
-    flow.append(Paragraph('Consignment Agreement', st['title']))
+    # ── Letterhead ───────────────────────────────────────────────────────────
+    # The venue's mark, name and address at the top, the way a gallery's own paper looks —
+    # and the only place they appear. The block below names the artist alone: the gallery is
+    # already fully identified here, and printing its address twice on one page reads as a
+    # mistake.
     subtitle = show.get('name', '')
-    if venue.get('name'):
-        subtitle += f' · {venue["name"]}'
     if show.get('start') and show.get('end'):
         subtitle += f' · {_date(show["start"])} – {_date(show["end"])}'
-    flow.append(Paragraph(subtitle, st['sub']))
 
-    # Parties, side by side.
+    venue_head = [f'<b>{venue.get("name", "")}</b>'] if venue.get('name') else []
+    head_town = ' '.join(filter(None, [venue.get('city', ''), venue.get('state', ''),
+                                       venue.get('postal_code', '')]))
+    venue_head += [x for x in (venue.get('street', ''), head_town,
+                               venue.get('website', '')) if x]
+
+    logo = _logo_flowable(venue.get('logo'))
+    left = [Paragraph('Consignment Agreement', st['title']),
+            Paragraph(subtitle, st['sub'])]
+    right = [logo] if logo is not None else []
+    if venue_head:
+        right.append(Paragraph('<br/>'.join(venue_head), st['letterhead']))
+
+    header = Table([[left, right]], colWidths=[4.2 * inch, 2.5 * inch])
+    header.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (0, 0), 'TOP'),
+        ('VALIGN', (1, 0), (1, 0), 'TOP'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    flow.append(header)
+
+    # Who is consigning. The address is a term, not a courtesy: it is where unsold work
+    # goes back to.
     artist_lines = [artist.get('name', '')]
-    street = artist.get('street', '')
     town = ' '.join(filter(None, [artist.get('city', ''), artist.get('state', ''),
                                   artist.get('zipcode', '')]))
-    artist_lines += [x for x in (street, town, artist.get('email', '')) if x]
-    venue_lines = [venue.get('name', '')]
-    venue_town = ' '.join(filter(None, [venue.get('city', ''), venue.get('state', ''),
-                                        venue.get('postal_code', '')]))
-    venue_lines += [x for x in (venue.get('street', ''), venue_town) if x]
+    artist_lines += [x for x in (artist.get('street', ''), town,
+                                 artist.get('email', '')) if x]
 
     parties = Table([[
-        Paragraph('<b>Artist</b><br/>' + '<br/>'.join(artist_lines), st['cell']),
-        Paragraph('<b>Gallery</b><br/>' + '<br/>'.join(venue_lines), st['cell']),
+        Paragraph('<b>Consigned by</b><br/>' + '<br/>'.join(artist_lines), st['cell']),
+        Paragraph(f'<b>Consigned to</b><br/>{venue.get("name", "")}', st['cell']),
     ]], colWidths=[3.35 * inch, 3.35 * inch])
     parties.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),

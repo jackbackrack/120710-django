@@ -12833,6 +12833,19 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertEqual(page.context['exposure'], 2500)
         self.assertEqual(page.context['outstanding'], 1)
 
+    def test_the_dashboard_describes_the_artist_rather_than_addressing_them(self):
+        """The blockers are written for the artist being asked to act. A curator reading a
+        row about somebody else was being told to "Add your address"."""
+        staff = User.objects.create_user(username='s3@example.com',
+                                         email='s3@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:show_consignments',
+                                       kwargs={'slug': self.show.slug}))
+        body = page.content.decode()
+        self.assertIn('No address on file', body)
+        self.assertNotIn('Add your address', body)
+
     def test_a_stranger_cannot_see_the_dashboard(self):
         other = User.objects.create_user(username='nobody@example.com',
                                          email='nobody@example.com', password='pw')

@@ -76,7 +76,7 @@
             <span class="text-success">Signed {{ row.consignment.signed_at|date:"j M" }}</span>
           {% else %}
             <span class="text-muted">Not signed</span>
-            {% for b in row.blockers %}<div class="small text-muted">{{ b.text }}</div>{% endfor %}
+            {% for b in row.blockers %}<div class="small text-muted">{{ b.staff_text }}</div>{% endfor %}
           {% endif %}
         </td>
         <td class="small text-nowrap">

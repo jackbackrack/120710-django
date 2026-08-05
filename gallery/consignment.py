@@ -109,17 +109,23 @@ def blockers(show, artist, rows=None):
     itself — sending somebody to the profile form and then to each artwork form turns this
     into a three-stop errand, and that is where people give up.
     """
+    # Each carries two wordings. `text` addresses the artist, who is being asked to do
+    # something; `staff_text` describes them to somebody else. The dashboard was showing
+    # "Add your address" to a curator reading about a third person.
     found = []
     if artist.is_represented is None:
         found.append({
             'key': 'representation',
             'text': 'Say whether another gallery represents you.',
+            'staff_text': 'Has not said whether a gallery represents them.',
         })
     elif artist.is_represented:
+        gallery = artist.representing_gallery or 'Another gallery'
         found.append({
             'key': 'represented',
             'text': f'{artist.representing_gallery or "Your gallery"} represents you, so we '
                     f'arrange this with them rather than with you.',
+            'staff_text': f'{gallery} represents them — arranged with the gallery.',
             'fatal': True,
         })
 
@@ -128,6 +134,7 @@ def blockers(show, artist, rows=None):
         found.append({
             'key': 'address',
             'text': 'Add your address, so we know where to return unsold work.',
+            'staff_text': 'No address on file to return unsold work to.',
         })
 
     rows = artwork_rows(show, artist, None) if rows is None else rows
@@ -135,12 +142,16 @@ def blockers(show, artist, rows=None):
         found.append({
             'key': 'no_artworks',
             'text': 'You have no work in this show yet.',
+            'staff_text': 'No work in this show.',
             'fatal': True,
         })
     elif any(r['agreed_value'] is None for r in rows):
+        missing = sum(1 for r in rows if r['agreed_value'] is None)
         found.append({
             'key': 'agreed_value',
             'text': 'Set an agreed value for every piece.',
+            'staff_text': f'{missing} piece{"" if missing == 1 else "s"} without an agreed '
+                          f'value.',
         })
     return found
 
@@ -165,6 +176,16 @@ def material_facts(show, artist, rate, rows):
              for r in rows],
             key=lambda r: r['pk']),
     }
+
+
+def _logo_name(venue):
+    """The venue's icon if it has one, else its main image. Either may be missing."""
+    if venue is None:
+        return ''
+    for field in (venue.icon, venue.image):
+        if field:
+            return field.name
+    return ''
 
 
 def venue_of(show):
@@ -230,6 +251,13 @@ def freeze(show, artist, at=None):
             'city': venue.city if venue else '',
             'state': venue.state if venue else '',
             'postal_code': venue.postal_code if venue else '',
+            'email': venue.email if venue else '',
+            'website': (venue.website or '') if venue else '',
+            # The storage path, not the bytes. A snapshot holds what was agreed, and the
+            # venue's mark is not a term — if the logo file is later replaced the old
+            # agreement can render with the new one, and if it is gone the PDF simply has
+            # no logo rather than failing.
+            'logo': _logo_name(venue),
         },
         'show': {
             'name': show.name,

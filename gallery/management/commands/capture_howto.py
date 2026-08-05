@@ -1602,6 +1602,178 @@ def _stamp_capture_nudges(slug):
     ShowInvitation.objects.filter(show__slug=slug).update(nudged_at=timezone.now())
 
 
+
+# ── consignment / consignments-staff ─────────────────────────────────────────
+#
+# Its own show, its own artist, its own invented prices. Deliberately not a real artist's
+# work: these images are published on /howto/, and a fabricated price beside a real person's
+# real titled piece reads as authoritative and is not true.
+
+CONSIGN_ARTIST_NAME = 'Rowan Idris'
+CONSIGN_ARTIST_EMAIL = 'rowan.idris@example.com'
+CONSIGN_PASSWORD = 'consign-capture'
+
+
+def prepare_consignment():
+    """A show with drop-off and pickup windows, and one artist with three pieces in it.
+
+    The artist has an account, because the page is photographed signed in; the emailed
+    token link reaches the same page and needs no separate capture. Their address is left
+    blank on purpose — the guide is largely about the page collecting what is missing, and a
+    complete profile would photograph a form with nothing to do.
+    """
+    import datetime as dt
+
+    from django.contrib.auth import get_user_model
+
+    from gallery.models import ScheduleWindow, Site
+
+    _cleanup_capture_shows()
+    show = _create_capture_show('Howto Consignment', Show.SUBMISSION_INVITED,
+                                Show.STATUS_PUBLISHED)
+
+    site = Site.objects.first()
+    if site is not None and site.commission_rate is None:
+        site.commission_rate = 25
+        site.save(update_fields=['commission_rate'])
+
+    today = dt.date.today()
+    ScheduleWindow.objects.create(show=show, kind='dropoff',
+                                  date=show.start - dt.timedelta(days=2),
+                                  start=dt.time(10), end=dt.time(14))
+    ScheduleWindow.objects.create(show=show, kind='pickup',
+                                  date=show.end + dt.timedelta(days=1),
+                                  start=dt.time(10), end=dt.time(14))
+
+    User = get_user_model()
+    user, _ = User.objects.get_or_create(
+        username=CONSIGN_ARTIST_EMAIL, defaults={'email': CONSIGN_ARTIST_EMAIL})
+    user.set_password(CONSIGN_PASSWORD)
+    user.save()
+    # Verified, or allauth refuses the login and sends a confirmation mail instead — the
+    # page then 404s for an anonymous visitor and the failure looks like a broken flow.
+    from allauth.account.models import EmailAddress
+    EmailAddress.objects.update_or_create(
+        user=user, email=CONSIGN_ARTIST_EMAIL,
+        defaults={'primary': True, 'verified': True})
+    artist = Artist.objects.create(
+        name=CONSIGN_ARTIST_NAME, first_name='Rowan', last_name='Idris',
+        email=CONSIGN_ARTIST_EMAIL, zipcode='94710', user=user,
+        image=_seed_artist_image())
+
+    # One priced, one priced higher, one not for sale — the three cases the page renders
+    # differently. The last has no price to inherit, which is what makes a blocker appear.
+    for name, year, medium, w, h, price, pricing in (
+            ('Sixty Turns', 2026, 'Oil on panel', 24, 36, 2000, Artwork.PRICING_FOR_SALE),
+            ('Weather Diary', 2025, 'Acrylic and thread on canvas', 27, 21, 850,
+             Artwork.PRICING_FOR_SALE),
+            ('Notes for a Wall', 2024, 'Marker on paper', 11, 15, None,
+             Artwork.PRICING_NFS)):
+        artwork = Artwork.objects.create(
+            name=name, end_year=year, medium=medium, width_inches=w, height_inches=h,
+            price=price, pricing_type=pricing)
+        artwork.artists.add(artist)
+        artwork.shows.add(show)
+
+    return {'slug': show.slug, 'artist_pk': artist.pk,
+            'artist_name': CONSIGN_ARTIST_NAME, 'today': today.isoformat(),
+            # Carried through rather than looked up in the capture: the run is inside
+            # Playwright's async context, where a plain ORM call raises
+            # SynchronousOnlyOperation.
+            'site_slug': site.slug if site else ''}
+
+
+def _seed_artist_image():
+    """Reuse a seeded artist's photo rather than shipping another fixture."""
+    existing = Artist.objects.exclude(image='').exclude(image=None).first()
+    return existing.image.name if existing else ''
+
+
+def capture_consignment(rec, facts):
+    """The artist's side: what is missing, filling it in, and signing."""
+    _log_in(rec, CONSIGN_ARTIST_EMAIL, CONSIGN_PASSWORD)
+    url = f'/show/{facts["slug"]}/consign/'
+
+    # Step 1 is where the link comes from — an email and a button, not one screen.
+
+    # Step 2 — "only three things the page may ask you for, and all three can be done on
+    #           that one page."
+    rec.at_step(2)
+    rec.goto(url)
+    rec.expect_visible('see what is still needed', '#sign')
+    rec.shot_region(2, 'ul:below(#sign)')
+
+    # Step 3 — "Your address."
+    rec.at_step(3)
+    rec.fill('add your street address', 'input[name="street"]', '1 Tenth Street')
+    rec.fill('add your city', 'input[name="city"]', 'Berkeley')
+    rec.fill('add your state', 'input[name="state"]', 'CA')
+    rec.shot_region(3, 'form:has(input[name="street"])', 'input[name="state"]')
+
+    # Step 4 — "Whether a gallery represents you."
+    rec.at_step(4)
+    rec.shot_region(4, 'div:has(> input[name="is_represented"])',
+                    'input[name="representing_gallery"]')
+    rec.page.locator('input[name="is_represented"][value="no"]').check()
+
+    # Step 5 — "An agreed value for each piece ... work that is not for sale has no price
+    #           to start from."
+    rec.at_step(5)
+    rec.shot_region(5, 'table')
+
+    # Step 6 — "what the gallery keeps and what you receive in dollars."
+    rec.at_step(6)
+    # The empty one, not a positional index: the schedule is ordered by title, so the
+    # unpriced piece is wherever the alphabet puts it. Picking nth=2 filled a box that
+    # already had a value and left the blocker standing.
+    rec.fill('set a value on the piece that has no price',
+             'input[name^="agreed_value_"][value=""]', '400')
+    rec.submit('press Save and continue', 'form:has(input[name="street"])')
+    rec.expect_visible('the signature box appears', 'input[name="signed_name"]')
+    rec.shot_region(6, 'table')
+
+    # Step 7 — "tick the box, type your name, and click Sign."
+    rec.at_step(7)
+    rec.shot_region(7, 'form:has(input[name="signed_name"])')
+    rec.page.locator('input[name="agree"]').check()
+    rec.submit('click Sign', 'form:has(input[name="signed_name"])')
+
+    # Step 8 — "A copy arrives by email as a PDF, and you can download it again."
+    rec.at_step(8)
+    rec.expect_visible('see it recorded as signed', 'a:has-text("Download your copy")')
+    rec.shot_region(8, 'div:has(> p > strong:text("Signed"))')
+
+    # Step 9 is what happens when the work changes — a state, reached by editing the show.
+
+
+def capture_consignments_staff(rec, facts):
+    """The curator's side: the venue rate, the dashboard, and the totals."""
+    _log_in(rec, CURATOR_EMAIL, SEEDED_PASSWORD)
+
+    # Step 1 — "Sites → the venue → Edit → Commission (%)."
+    rec.at_step(1)
+    rec.goto(f'/site/{facts["site_slug"]}/edit/' if facts.get('site_slug') else '/sites/')
+    rec.shot_region(1, '#div_id_commission_rate', '#div_id_custody_grace_days')
+
+    # Step 2 is the per-show override, a field on the show edit form — prose only, since
+    # step 1 already photographs the same control on the venue.
+
+    # Steps 3-4 — the dashboard and its total.
+    rec.at_step(3)
+    rec.goto(f'/show/{facts["slug"]}/consignments/')
+    # The content, not the page: one row of artists leaves two thirds of a full-page shot
+    # as empty background.
+    rec.shot_region(3, 'p:has-text("Commission")', 'table')
+    rec.at_step(4)
+    rec.shot_region(4, 'p:has-text("Total agreed value")')
+
+    # Step 5 — chasing.
+    rec.at_step(5)
+    rec.shot_region(5, 'form:has(button:has-text("Email"))')
+
+    # Steps 6-8 are policy, an out-of-date state, and the PDF link.
+
+
 # ── show-lifecycle-and-status ────────────────────────────────────────────────
 
 # The status row on the show detail page: the current status and the → transition button
@@ -2746,6 +2918,24 @@ CAPTURE_SCRIPTS = {
         # invitation email's contents; 12 points at the on-behalf guide; 13 and 18 are
         # further uses of the status control photographed in step 11.
         'prose_only': {4, 10, 12, 13, 18},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
+    },
+    'consignment': {
+        'prepare': prepare_consignment,
+        'run': capture_consignment,
+        # 1 is where the link comes from (an email and a button, not a screen); 9 is the
+        # out-of-date state, which needs the show edited underneath a signed agreement.
+        'prose_only': {1, 9},
+        'reset': _cleanup_capture_shows,
+        'cleanup': _cleanup_capture_shows,
+    },
+    'consignments-staff': {
+        'prepare': prepare_consignment,
+        'run': capture_consignments_staff,
+        # 2 is the per-show override field on the show edit form; 6 is policy rather than a
+        # screen; 7 needs a signed agreement gone stale; 8 is the PDF itself.
+        'prose_only': {2, 6, 7, 8},
         'reset': _cleanup_capture_shows,
         'cleanup': _cleanup_capture_shows,
     },

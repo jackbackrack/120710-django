@@ -1,4 +1,74 @@
 {
+  "consignment": {
+    "2": {
+      "bytes": 16774,
+      "height": 63,
+      "key": "consignment/02.81d90e2bef27.webp",
+      "width": 813
+    },
+    "3": {
+      "bytes": 217234,
+      "height": 677,
+      "key": "consignment/03.6850d2d7b968.webp",
+      "width": 813
+    },
+    "4": {
+      "bytes": 1930,
+      "height": 31,
+      "key": "consignment/04.dabede68be3f.webp",
+      "width": 352
+    },
+    "5": {
+      "bytes": 38334,
+      "height": 192,
+      "key": "consignment/05.89b4e76e15b4.webp",
+      "width": 813
+    },
+    "6": {
+      "bytes": 36634,
+      "height": 192,
+      "key": "consignment/06.56707a7fc6db.webp",
+      "width": 813
+    },
+    "7": {
+      "bytes": 39882,
+      "height": 92,
+      "key": "consignment/07.26d52fbeb230.webp",
+      "width": 813
+    },
+    "8": {
+      "bytes": 10094,
+      "height": 84,
+      "key": "consignment/08.3b19daee79a5.webp",
+      "width": 813
+    }
+  },
+  "consignments-staff": {
+    "1": {
+      "bytes": 48964,
+      "height": 248,
+      "key": "consignments-staff/01.8a4507a1883f.webp",
+      "width": 936
+    },
+    "3": {
+      "bytes": 62934,
+      "height": 183,
+      "key": "consignments-staff/03.92b05b375b1b.webp",
+      "width": 993
+    },
+    "4": {
+      "bytes": 20408,
+      "height": 24,
+      "key": "consignments-staff/04.109222f60b85.webp",
+      "width": 993
+    },
+    "5": {
+      "bytes": 5126,
+      "height": 18,
+      "key": "consignments-staff/05.c5ac0737c916.webp",
+      "width": 228
+    }
+  },
   "how-to-add-artwork-on-behalf-of-an-artist-curatorstaff": {
     "2": {
       "bytes": 286308,
