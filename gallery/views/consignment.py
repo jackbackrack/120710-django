@@ -288,15 +288,23 @@ def show_consignments(request, slug):
               .select_related('artist')):
         signed_by_artist[c.artist_id] = c
 
-    rows, exposure, outstanding = [], 0, 0
+    rows, exposure, outstanding, unreachable = [], 0, 0, 0
     for artist in Artist.objects.filter(artworks__shows=show).distinct().order_by('name'):
         works = terms.artwork_rows(show, artist, rate)
         consigned = signed_by_artist.get(artist.pk)
         value = sum(w['agreed_value'] or 0 for w in works)
         exposure += value
         blocking = terms.blockers(show, artist, rows=works)
-        if not consigned or not consigned.is_signed:
-            outstanding += 1
+        # Two different numbers. `outstanding` is who still owes an agreement;
+        # `unreachable` is how many of those have no address to send a link to. Counting
+        # them together made the button offer to email 21 people and reach 5, which is the
+        # kind of quiet shortfall nobody discovers until an artist turns up unsigned.
+        needs_signing = (not consigned or not consigned.is_signed) and not artist.is_represented
+        if needs_signing:
+            if artist.email:
+                outstanding += 1
+            else:
+                unreachable += 1
         outliers = [w for w in works if terms.is_outlier(w)]
         rows.append({
             'artist': artist,
@@ -313,7 +321,7 @@ def show_consignments(request, slug):
 
     return render(request, 'gallery/show_consignments.html', {
         'show': show, 'rows': rows, 'rate': rate, 'rate_error': rate_error,
-        'exposure': exposure, 'outstanding': outstanding,
+        'exposure': exposure, 'outstanding': outstanding, 'unreachable': unreachable,
     })
 
 

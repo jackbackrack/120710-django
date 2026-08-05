@@ -40,6 +40,17 @@
       Email {{ outstanding }} unsigned artist{{ outstanding|pluralize }} their link</button>
   </form>
   {% endif %}
+  {% comment %}
+    Said plainly rather than folded into the count above. An artist with no address on file
+    cannot be mailed, and a button that claims to reach them is worse than one that admits
+    it does not — their link has to go by hand, so the row offers it.
+  {% endcomment %}
+  {% if unreachable %}
+  <p class="small text-warning mb-0">
+    {{ unreachable }} more {{ unreachable|pluralize:"has,have" }} no email address on file
+    and cannot be sent anything — use <strong>Copy link</strong> on their row.
+  </p>
+  {% endif %}
 
   <table class="table table-sm align-middle mt-3">
     <thead>
@@ -97,11 +108,18 @@
           <a class="card__link" href="{% url 'gallery:consignment_pdf' row.consignment.pk %}">PDF</a>
           {% endif %}
           {% if not row.represented %}
-          <form method="post" action="{% url 'gallery:email_consignment_links' show.slug %}"
-                style="display:inline">{% csrf_token %}
-            <input type="hidden" name="email" value="{{ row.artist.email }}">
-            <button class="btn btn-sm btn-link p-0 align-baseline" type="submit">email</button>
-          </form>
+            {% if row.artist.email %}
+            <form method="post" action="{% url 'gallery:email_consignment_links' show.slug %}"
+                  style="display:inline">{% csrf_token %}
+              <input type="hidden" name="email" value="{{ row.artist.email }}">
+              <button class="btn btn-sm btn-link p-0 align-baseline" type="submit">email</button>
+            </form>
+            {% else %}
+            <span class="text-muted">no email</span>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-link p-0 align-baseline ss-copy-link"
+                    data-link="{{ row.sign_url }}"
+                    title="Copy this artist's personal signing link, to send by text, DM or another address">copy link</button>
           {% endif %}
         </td>
       </tr>
@@ -111,4 +129,21 @@
     </tbody>
   </table>
 </div>
+{% comment %}
+  Same handler as the invite page: an artist with no address on file still needs their link,
+  and it has to leave by hand.
+{% endcomment %}
+<script>
+document.querySelectorAll('.ss-copy-link').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var link = btn.dataset.link, old = btn.textContent;
+    var done = function () { btn.textContent = 'Copied!'; setTimeout(function () { btn.textContent = old; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(done, function () { window.prompt('Copy this signing link:', link); });
+    } else {
+      window.prompt('Copy this signing link:', link);
+    }
+  });
+});
+</script>
 {% endblock content %}

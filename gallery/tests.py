@@ -13036,6 +13036,29 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.assertIn('No address on file', body)
         self.assertNotIn('Add your address', body)
 
+    def test_the_button_does_not_offer_to_email_people_with_no_address(self):
+        """It offered to email 21 artists and reached 5. Sixteen of this gallery\u2019s
+        artists have no address on file, and a mailing that silently reaches a quarter of
+        who it names is the failure mode that matters most here."""
+        no_email = Artist.objects.create(
+            name='No Address', first_name='No', last_name='Address', email='',
+            zipcode='94710', image=self.TEST_ARTIST_IMAGE)
+        work = Artwork.objects.create(name='Theirs', end_year=2026, price=100,
+                                      pricing_type=Artwork.PRICING_FOR_SALE)
+        work.artists.add(no_email)
+        work.shows.add(self.show)
+
+        staff = User.objects.create_user(username='s5@example.com',
+                                         email='s5@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:show_consignments',
+                                       kwargs={'slug': self.show.slug}))
+        self.assertEqual(page.context['outstanding'], 1, 'only the one we can reach')
+        self.assertEqual(page.context['unreachable'], 1)
+        self.assertContains(page, 'no email address on file')
+        self.assertContains(page, 'copy link')
+
     def test_a_stranger_cannot_see_the_dashboard(self):
         other = User.objects.create_user(username='nobody@example.com',
                                          email='nobody@example.com', password='pw')
