@@ -94,6 +94,15 @@ def _logo_flowable(name, max_height=0.62 * inch):
         return None
 
 
+def _venue_logo_now(consignment):
+    """The show's venue logo as it stands today. Never fatal — see _logo_flowable."""
+    try:
+        from gallery.consignment import _logo_name, venue_of
+        return _logo_name(venue_of(consignment.show))
+    except Exception:                                          # noqa: BLE001
+        return ''
+
+
 def render_consignment(consignment):
     """Bytes of the PDF for one signed (or draft) agreement."""
     snap = consignment.snapshot
@@ -127,7 +136,12 @@ def render_consignment(consignment):
     venue_head += [x for x in (venue.get('street', ''), head_town,
                                venue.get('website', '')) if x]
 
-    logo = _logo_flowable(venue.get('logo'))
+    # Falls back to the venue's logo now when the snapshot has none — agreements signed
+    # before this existed, or a venue that had no mark at the time. Safe precisely because
+    # a logo is not a term: it is the same reasoning that stores a path rather than bytes,
+    # so an old document already renders with a replaced logo. Applying it only to the
+    # frozen value and not to its absence would have been inconsistent.
+    logo = _logo_flowable(venue.get('logo') or _venue_logo_now(consignment))
     left = [Paragraph('Consignment Agreement', st['title']),
             Paragraph(subtitle, st['sub'])]
     right = [logo] if logo is not None else []
@@ -178,6 +192,10 @@ def render_consignment(consignment):
             desc += f'<br/><font size="8" color="#666666">{detail}</font>'
         if not row.get('for_sale'):
             sale = f'<font color="#666666">{row.get("pricing") or "Not for sale"}</font>'
+        elif not row.get('gallery_share'):
+            # "gallery $0" is a line nobody needs to read. On a no-commission show the only
+            # fact is that the artist gets all of it.
+            sale = f'you {_money(row.get("artist_share"))}, in full'
         else:
             sale = (f'gallery {_money(row.get("gallery_share"))}<br/>'
                     f'you {_money(row.get("artist_share"))}')
@@ -204,13 +222,24 @@ def render_consignment(consignment):
     flow.append(table)
 
     flow.append(Spacer(1, 6))
+    zero_rate = rate is not None and float(rate) == 0
     flow.append(Paragraph(
-        f'Commission: <b>{_pct(rate)}%</b> of the sale price.', st['body']))
-    flow.append(Paragraph(
-        f'In our care from <b>{_date(custody.get("from"))}</b>. Please collect by '
-        f'<b>{_date(custody.get("pickup_by"))}</b>. Our responsibility ends '
-        f'{custody.get("grace_days")} days later, on <b>{_date(custody.get("to"))}</b>, '
-        f'whether or not the work has been collected.', st['body']))
+        'Commission: <b>none</b> — the artist receives the full sale price.' if zero_rate
+        else f'Commission: <b>{_pct(rate)}%</b> of the sale price.', st['body']))
+    # Agreements signed before the cutoff existed have no `grace_days`, and they are
+    # rendered in the wording they were signed under. Printing a cutoff on one of those
+    # would state a term the artist never agreed to — which is the same failure as letting a
+    # signed document rewrite itself, just spelled differently.
+    if custody.get('grace_days') is not None:
+        custody_line = (
+            f'In our care from <b>{_date(custody.get("from"))}</b>. Please collect by '
+            f'<b>{_date(custody.get("pickup_by"))}</b>. Our responsibility ends '
+            f'{custody.get("grace_days")} days later, on <b>{_date(custody.get("to"))}</b>, '
+            f'whether or not the work has been collected.')
+    else:
+        custody_line = (f'In our care from <b>{_date(custody.get("from"))}</b> to '
+                        f'<b>{_date(custody.get("to"))}</b>.')
+    flow.append(Paragraph(custody_line, st['body']))
 
     # ── Terms ────────────────────────────────────────────────────────────────
     for heading, points in snap.get('terms', []):

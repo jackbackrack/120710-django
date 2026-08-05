@@ -7,7 +7,7 @@ documents with a standing question about which governs.
 
 The important property is that **a signed agreement never changes**. Everything material is
 copied into `snapshot` at the moment of signing and read from there afterwards. Rendering it
-live from `Artwork.replacement_cost` and the site's commission rate would mean an artist
+live from `Artwork.agreed_value` and the site's commission rate would mean an artist
 editing a price next month silently rewrote what they had signed, and so would any change to
 the gallery's own rate. A contract that rewrites itself is not one.
 

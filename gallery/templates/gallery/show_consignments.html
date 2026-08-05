@@ -26,7 +26,8 @@
   </div>
   {% else %}
   <p class="mb-1">
-    Commission <strong>{{ rate|floatformat:"-2" }}%</strong> ·
+    {% if rate %}Commission <strong>{{ rate|floatformat:"-2" }}%</strong>
+    {% else %}<strong>No commission</strong>{% endif %} ·
     Total agreed value <strong>${{ exposure|floatformat:"-2" }}</strong>
     <span class="text-muted small">— what we would owe if every piece were lost</span>
   </p>
@@ -65,6 +66,18 @@
           {% if row.missing_values %}
           <div class="text-warning small">{{ row.missing_values }} without a value</div>
           {% endif %}
+          {% comment %}
+            The gallery is liable for the full stated value and the artist sets it. There is
+            no cap — a cap would refuse honest work that happens to be priced unusually —
+            so instead the outliers are surfaced here, while declining the piece is still
+            possible. Once it is in the door and the agreement signed, the figure binds.
+          {% endcomment %}
+          {% for w in row.outliers %}
+          <div class="text-warning small"
+               title="Well above its asking price, or large in absolute terms. Worth asking about before the work arrives.">
+            {{ w.title }} ${{ w.agreed_value|floatformat:"-2" }} — check
+          </div>
+          {% endfor %}
         </td>
         <td class="small">
           {% if row.represented %}

@@ -92,7 +92,19 @@ class Artwork(models.Model):
         verbose_name='Pricing',
     )
     price = models.FloatField(verbose_name='Price ($)', blank=True, null=True)
-    replacement_cost = models.FloatField(verbose_name='Replacement value: what the artist is paid if the piece is lost, stolen or damaged in our care', blank=True, null=True)
+    # What the gallery pays the artist, in full, if this piece is lost, stolen or damaged
+    # while in its care. Named for the consignment agreement, which is the only document
+    # that uses it and calls it exactly this. It was `replacement_cost`, which read to
+    # artists as materials-and-labour and produced figures well below what a piece is worth.
+    agreed_value = models.FloatField(
+        verbose_name='Agreed value: what the artist is paid if the piece is lost, stolen '
+                     'or damaged in our care',
+        blank=True, null=True)
+    # Retired, dropped in a later deploy. Kept for now because Railway's pre-deploy runs
+    # migrations while the *old* code is still serving, and old code selecting a column
+    # that no longer exists 500s every artwork page for the length of the deploy.
+    # See docs/railway-deploys.md.
+    replacement_cost = models.FloatField(blank=True, null=True, editable=False)
     is_sold = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True, verbose_name='URL (video, website, or other supporting link)')

@@ -58,8 +58,8 @@ def agreed_value_for(artwork):
     instead of low. Works that are not for sale have no price to inherit, so those are the
     ones an artist has to fill in.
     """
-    if artwork.replacement_cost is not None:
-        return Decimal(str(artwork.replacement_cost))
+    if artwork.agreed_value is not None:
+        return Decimal(str(artwork.agreed_value))
     if artwork.price is not None:
         return Decimal(str(artwork.price))
     return None
@@ -275,7 +275,7 @@ def freeze(show, artist, at=None):
         'commission_rate': str(rate),
         'artworks': rows,
         'total_agreed_value': sum(r['agreed_value'] or 0 for r in rows),
-        'terms': terms_text(),
+        'terms': terms_text(rate),
     }
 
 
@@ -308,7 +308,7 @@ def is_out_of_date(consignment):
     question. Better to notice and re-sign.
 
     Only while the gallery still has the work, though. A piece may be in several shows —
-    most of this collection is — and `Artwork.replacement_cost` is one field shared across
+    most of this collection is — and `Artwork.agreed_value` is one field shared across
     all of them. Setting an agreed value while signing for this autumn's show therefore
     changes the number last year's agreement was signed against, and without this guard the
     artist would be asked to re-sign an agreement for a show that ended months ago, about
@@ -325,8 +325,36 @@ def is_out_of_date(consignment):
         return False
 
 
-def terms_text():
+# A stated value this far above the asking price is worth a human look before the work is
+# accepted. Not a limit and never shown to the artist — it only marks a row on the staff
+# dashboard, where somebody can ask about it before the piece is in the building.
+OUTLIER_RATIO = 3
+OUTLIER_ABSOLUTE = 5000
+
+
+def is_outlier(row):
+    """Whether this piece's agreed value deserves a second look.
+
+    The gallery is liable for the full stated value, and the artist sets it. There is no
+    cap — a cap would refuse honest work priced unusually — but a figure several times the
+    asking price, or large in absolute terms, is worth querying while refusing the piece is
+    still possible. Once the work is in the door and the agreement signed, the number binds.
+    """
+    value = row.get('agreed_value')
+    if value is None:
+        return False
+    price = row.get('price')
+    if price:
+        return value > price * OUTLIER_RATIO or value >= OUTLIER_ABSOLUTE
+    return value >= OUTLIER_ABSOLUTE
+
+
+def terms_text(rate=None):
     """The boilerplate, versioned.
+
+    Takes the rate because "the gallery keeps the commission shown above" is nonsense when
+    the commission is nothing. A show on those terms should say so plainly rather than
+    print 0% and leave the artist working out what it means.
 
     Kept in code rather than the database so it is reviewed like code and its history is in
     git. Signed agreements store the rendered text, so editing this never alters what
@@ -349,10 +377,16 @@ def terms_text():
             'If a piece is lost, stolen or damaged beyond repair while in the gallery’s '
             'care, the gallery pays the artist that piece’s agreed value in full — not the '
             'agreed value less commission.',
+            'The agreed value is exactly that — agreed. The artist proposes it, and the '
+            'gallery may query it or decline to take a piece before it is dropped off. '
+            'Once the work has been accepted the figure above is what applies.',
             'The gallery will not alter, copy or lend the work, and will take reasonable '
             'care of it.',
         ]),
         ('If it sells', [
+            'The gallery takes no commission on this show. The artist receives the full '
+            'sale price.'
+            if rate is not None and rate == 0 else
             'The gallery keeps the commission shown above; the artist receives the rest.',
             'The artist is paid within 30 days of the gallery being paid.',
             'The work is not sold above or below the listed price without asking the artist '

@@ -28,9 +28,13 @@ What was missing is a commission **rate**, and the agreement itself.
     Site.commission_rate     percent, nullable
     Show.commission_rate     percent, nullable — overrides the site's
 
-The site sets the normal rate; a show overrides it for a benefit or members' show. Null on
-both means no commission is claimed, and the agreement says so rather than printing "0%",
-which reads like a mistake.
+The site sets the normal rate; a show overrides it for a benefit or members' show.
+
+**Null is not zero.** Null means nobody has decided, and no agreement generates at all until
+somebody does — a contract is the wrong place to discover what the gallery takes. Zero means a
+show that deliberately takes nothing, and it is a real answer: the agreement then says "no
+commission — the artist receives the full sale price" rather than printing "0%" and a row of
+"gallery $0", which reads like a bug.
 
 A show can be at more than one site. If it is, and the sites disagree, the rate is not
 guessable and no agreement generates until a show-level rate is set. Failing loudly is the
@@ -61,8 +65,32 @@ Defaulting to the retail price means:
 - only works that are not for sale, or priced on request, need a number typed, because they
   have no price to inherit.
 
-`Artwork.replacement_cost` stays as the field, and is the override when the artist wants a
-figure different from their price. It is the default that changed, not the schema.
+The field is `Artwork.agreed_value`, named for the one document that uses it. It was
+`replacement_cost`, and the rename is the point: a field called replacement cost will keep
+producing materials-and-labour figures however its label is worded, and having the artwork
+form say one thing while the agreement says another is how an artist comes to believe they
+are two different numbers.
+
+It is the **override** now, not the primary — blank means "use my asking price", which is
+usually right. Only work with no price needs a figure typed.
+
+The old column is still there, unused and `editable=False`, and is dropped in a later deploy
+alongside the `Show.sites` collapse. Railway runs migrations in pre-deploy while the old code
+is still serving, and old code selecting a column that no longer exists 500s every artwork
+page for the length of the deploy — see [railway-deploys.md](railway-deploys.md).
+
+## An implausible value
+
+There is **no cap**, because a cap refuses honest work that happens to be priced unusually.
+Instead the agreement says the value is *agreed* — the artist proposes it, and the gallery may
+query it or decline the piece before it is dropped off — and the staff dashboard flags any
+figure more than `OUTLIER_RATIO` times the asking price, or over `OUTLIER_ABSOLUTE`, so
+somebody sees it while refusing is still possible. Once the work has been accepted and the
+agreement signed, the figure binds.
+
+The artist never sees the threshold. It marks a row, it does not block anything.
+
+## Collaborative works
 
 ### Paid in full
 

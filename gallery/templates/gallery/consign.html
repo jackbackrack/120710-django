@@ -111,9 +111,12 @@
             </div>
           </td>
           <td class="small">
-            {% if row.for_sale and row.gallery_share is not None %}
+            {% if row.for_sale and row.gallery_share %}
               gallery ${{ row.gallery_share|floatformat:"-2" }}<br>
               <strong>you ${{ row.artist_share|floatformat:"-2" }}</strong>
+            {% elif row.for_sale and row.artist_share is not None %}
+              {# No commission on this show, so "gallery $0" is a line nobody needs. #}
+              <strong>you ${{ row.artist_share|floatformat:"-2" }}</strong>, in full
             {% else %}
               <span class="text-muted">—</span>
             {% endif %}
@@ -140,7 +143,8 @@
   {# ── Terms ──────────────────────────────────────────────────────────────── #}
   <div class="section-label mt-4"><h2>The agreement</h2></div>
   <p class="small">
-    Commission <strong>{{ rate|floatformat:"-2" }}%</strong> of the sale price.
+    {% if rate %}Commission <strong>{{ rate|floatformat:"-2" }}%</strong> of the sale price.
+    {% else %}<strong>No commission</strong> — you receive the full sale price.{% endif %}
     Total agreed value <strong>${{ total_agreed_value|floatformat:"-2" }}</strong>.
   </p>
   {% comment %}

@@ -99,7 +99,7 @@ def _page(request, show, artist, token):
         'can_sign': not blocking,
         'signed': signed,
         'out_of_date': terms.is_out_of_date(signed) if signed else False,
-        'sections': terms.terms_text(),
+        'sections': terms.terms_text(rate),
         'custody': terms.custody_for(show),
         'total_agreed_value': sum(r['agreed_value'] or 0 for r in rows),
     })
@@ -164,9 +164,9 @@ def _save_inline(request, show, artist):
         if value < 0:
             messages.error(request, f'{artwork.name}: an agreed value cannot be negative.')
             continue
-        if artwork.replacement_cost != value:
-            artwork.replacement_cost = value
-            artwork.save(update_fields=['replacement_cost'])
+        if artwork.agreed_value != value:
+            artwork.agreed_value = value
+            artwork.save(update_fields=['agreed_value'])
     messages.success(request, 'Saved.')
 
 
@@ -273,10 +273,12 @@ def show_consignments(request, slug):
         blocking = terms.blockers(show, artist, rows=works)
         if not consigned or not consigned.is_signed:
             outstanding += 1
+        outliers = [w for w in works if terms.is_outlier(w)]
         rows.append({
             'artist': artist,
             'artworks': works,
             'agreed_value': value,
+            'outliers': outliers,
             'missing_values': sum(1 for w in works if w['agreed_value'] is None),
             'consignment': consigned,
             'out_of_date': terms.is_out_of_date(consigned) if consigned else False,

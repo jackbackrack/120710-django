@@ -379,7 +379,7 @@ class ArtworkForm(UserAwareModelForm):
             'layout_image',
             'pricing_type',
             'price',
-            'replacement_cost',
+            'agreed_value',
             'is_sold',
             'description',
             'url',
@@ -458,12 +458,15 @@ class ArtworkForm(UserAwareModelForm):
         # damaged while in its care, so it is yours to set — the old wording ("what it
         # would cost to remake this piece") invited artists to state their materials cost
         # and under-value their own work.
-        self.fields['replacement_cost'].label = 'Replacement value (optional)'
-        self.fields['replacement_cost'].help_text = (
+        # "Agreed value", matching the consignment agreement exactly. Two names for one
+        # number is how an artist ends up believing they are different things.
+        self.fields['agreed_value'].label = 'Agreed value (optional)'
+        self.fields['agreed_value'].help_text = (
             'What this piece is worth to you if it were lost, stolen or damaged beyond '
-            'repair. You set this figure — it can be the sale price, or more, or less. '
-            'It is what we guarantee to pay you while the work is in our care. Required '
-            'before a piece can be consigned; never shown publicly.')
+            'repair. Leave it blank and we use your asking price, which is usually right. '
+            'It is what we pay you, in full, while the work is in our care — so we may ask '
+            'about a figure well above the price before taking the piece. Never shown '
+            'publicly.')
 
         self._require_explicit_pricing()
 
@@ -514,7 +517,7 @@ class ArtworkForm(UserAwareModelForm):
                      'these when present; leave blank otherwise.</p>'),
                 framed_dims_row,
                 'hang_drop_inches',
-                'replacement_cost',
+                'agreed_value',
                 'description',
                 'url',
                 'installation',

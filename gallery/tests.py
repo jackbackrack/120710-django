@@ -609,7 +609,7 @@ class AuthorizationWorkflowTests(MediaImageMixin, TestCase):
             'depth_inches': '',
             'pricing_type': self.private_artwork.pricing_type,
             'price': '',
-            'replacement_cost': '',
+            'agreed_value': '',
             'is_sold': '',
             'description': self.private_artwork.description or '',
             'installation': self.private_artwork.installation or '',
@@ -6212,10 +6212,10 @@ class ArtworkFormPricingTests(TestCase):
         self.assertNotIn('', [c[0] for c in form.fields['pricing_type'].choices])
         self.assertEqual(form.instance.pricing_type, Artwork.PRICING_BEST_OFFER)
 
-    def test_replacement_cost_is_optional_detail_not_pricing(self):
+    def test_agreed_value_is_optional_detail_not_pricing(self):
         from gallery.forms import ArtworkForm
         form = ArtworkForm(user=self.user)
-        self.assertFalse(form.fields['replacement_cost'].required)
+        self.assertFalse(form.fields['agreed_value'].required)
         def legend_holding(field_name):
             for section in form.helper.layout.fields:
                 legend = getattr(section, 'legend', None)
@@ -6232,7 +6232,7 @@ class ArtworkFormPricingTests(TestCase):
                     out.extend(_flatten(child))
             return out
 
-        self.assertEqual(legend_holding('replacement_cost'),
+        self.assertEqual(legend_holding('agreed_value'),
                          'Additional details (optional)')
         self.assertEqual(legend_holding('pricing_type'), 'Pricing')
 
@@ -12557,8 +12557,8 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
     def test_a_stated_value_overrides_the_price(self):
         from gallery import consignment
 
-        self.work.replacement_cost = 1200
-        self.work.save(update_fields=['replacement_cost'])
+        self.work.agreed_value = 1200
+        self.work.save(update_fields=['agreed_value'])
         rows = consignment.artwork_rows(self.show, self.artist, 25)
         self.assertEqual(rows[0]['agreed_value'], 1200)
 
@@ -12623,7 +12623,7 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         nfs.refresh_from_db()
         self.assertEqual(self.artist.street, '1 Test St')
         self.assertIs(self.artist.is_represented, False)
-        self.assertEqual(nfs.replacement_cost, 400)
+        self.assertEqual(nfs.agreed_value, 400)
 
     def test_a_missing_address_blocks_signing(self):
         from gallery import consignment
@@ -12709,6 +12709,73 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         self.client.post(self.url, {'action': 'sign', 'signed_name': 'Mag Pie'})
         self.assertFalse(self.Consignment.objects.exists())
 
+    # ── A show that takes no commission ──────────────────────────────────────
+
+    def test_zero_commission_reads_as_a_decision_not_a_blank(self):
+        """Zero is a real answer — a benefit show — and must not read like a bug. Null is
+        the one that means nobody decided, and that refuses to generate anything."""
+        from gallery import consignment
+
+        self.show.commission_rate = 0
+        self.show.save(update_fields=['commission_rate'])
+        self.assertEqual(consignment.commission_rate_for(self.show), 0)
+
+        sells = dict(consignment.terms_text(0))['If it sells'][0]
+        self.assertIn('no commission', sells.lower())
+        self.assertNotIn('keeps the commission', sells)
+
+        self._complete_profile()
+        self.client.force_login(self.user)
+        page = self.client.get(self.url)
+        self.assertContains(page, 'No commission')
+        self.assertNotContains(page, 'gallery $0')
+
+    def test_the_pdf_says_none_rather_than_zero_percent(self):
+        from gallery.consignment_pdf import render_consignment
+
+        self.show.commission_rate = 0
+        self.show.save(update_fields=['commission_rate'])
+        self._sign()
+        pdf = render_consignment(self.Consignment.objects.get())
+        self.assertTrue(pdf.startswith(b'%PDF-'))
+
+    # ── An implausible value ─────────────────────────────────────────────────
+
+    def test_a_wild_agreed_value_is_flagged_to_staff(self):
+        """No cap — a cap would refuse honest work priced unusually — but the gallery is
+        liable for the full stated figure, so somebody should see it while declining the
+        piece is still possible."""
+        from gallery import consignment
+
+        self.work.agreed_value = 50000            # a $2,000 piece
+        self.work.save(update_fields=['agreed_value'])
+        rows = consignment.artwork_rows(self.show, self.artist, 25)
+        self.assertTrue(consignment.is_outlier(rows[0]))
+
+        staff = User.objects.create_user(username='s4@example.com',
+                                         email='s4@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        page = self.client.get(reverse('gallery:show_consignments',
+                                       kwargs={'slug': self.show.slug}))
+        self.assertContains(page, 'check')
+        self.assertEqual(len(page.context['rows'][0]['outliers']), 1)
+
+    def test_an_ordinary_value_is_not_flagged(self):
+        """It has to stay quiet for normal work or nobody will read the warnings."""
+        from gallery import consignment
+
+        rows = consignment.artwork_rows(self.show, self.artist, 25)
+        self.assertFalse(consignment.is_outlier(rows[0]))
+
+    def test_the_agreement_says_the_value_is_agreed_not_declared(self):
+        """That sentence is the recourse: the gallery may query a figure or decline the
+        piece before it arrives. Without it "agreed value" is a misnomer."""
+        from gallery import consignment
+
+        care = dict(consignment.terms_text(25))['While we have it']
+        self.assertTrue(any('decline to take a piece' in p for p in care))
+
     # ── When responsibility ends ─────────────────────────────────────────────
 
     def test_liability_ends_a_set_time_after_pickup_closes(self):
@@ -12755,6 +12822,37 @@ class ConsignmentTests(MediaImageMixin, TestCase):  # noqa: E303
         while_we_have_it = dict(consignment.terms_text())['While we have it']
         self.assertTrue(any('whether or not it sells' in p for p in while_we_have_it))
         self.assertTrue(any('no longer responsible' in p for p in while_we_have_it))
+
+    def test_an_older_agreement_renders_in_the_wording_it_was_signed_under(self):
+        """A pre-cutoff snapshot has no grace period. Printing one would state a term the
+        artist never agreed to — the same failure as a document rewriting itself — and
+        before this it rendered the literal "None days later"."""
+        self._sign()
+        con = self.Consignment.objects.get()
+        # An agreement as it was stored before the cutoff existed.
+        con.snapshot['custody'] = {'from': '2026-08-11', 'to': '2026-10-01'}
+        con.snapshot['terms_version'] = 1
+        con.save(update_fields=['snapshot'])
+
+        from gallery.consignment_pdf import render_consignment
+        pdf = render_consignment(con)
+        self.assertTrue(pdf.startswith(b'%PDF-'))
+        page = self.client.get(reverse('gallery:consignment_pdf', kwargs={'pk': con.pk}))
+        self.assertEqual(page.status_code, 200)
+
+    def test_an_agreement_without_a_stored_logo_still_gets_one(self):
+        """A logo is not a term — that is why a path is stored rather than bytes, so a
+        replaced logo shows on old documents. An absent one has to behave the same way."""
+        from gallery.consignment_pdf import _venue_logo_now
+
+        self._sign()
+        con = self.Consignment.objects.get()
+        con.snapshot['venue'].pop('logo', None)
+        con.save(update_fields=['snapshot'])
+        # .update(), not .save(): Site.save() processes the image and would try to read a
+        # file that does not exist. The name is all this needs.
+        Site.objects.filter(pk=self.site.pk).update(icon='site_icons/whatever.png')
+        self.assertEqual(_venue_logo_now(con), 'site_icons/whatever.png')
 
     # ── Represented artists ──────────────────────────────────────────────────
 

@@ -723,7 +723,7 @@ ROLE_DOCUMENTATION = {
     {'name': 'layout_image', 'input_type': 'file upload', 'purpose': 'Optional cropped image of just the artwork, used only in the room layout editor and 3D viewer. Upload your own, or use the "Crop layout / 3D image from main image" button on the edit page to crop it in-browser (crop freely to the actual artwork — the corners drag independently). Defaults to the main image if left blank; not shown in cards.'},
                     {'name': 'pricing_type', 'input_type': 'dropdown select', 'purpose': 'Pricing type: For Sale (requires a price), Price on Request, Best Offer (optionally set a minimum), or Not For Sale.'},
                     {'name': 'price', 'input_type': 'numeric input', 'purpose': 'Required for For Sale; optional minimum for Best Offer. Hidden for Price on Request and Not For Sale.'},
-                    {'name': 'replacement_cost', 'input_type': 'numeric input', 'purpose': 'Insurance or replacement value.'},
+                    {'name': 'agreed_value', 'input_type': 'numeric input', 'purpose': 'Insurance or replacement value.'},
                     {'name': 'is_sold', 'input_type': 'checkbox', 'purpose': 'Marks the work as sold.'},
                     {'name': 'description', 'input_type': 'multi-line text area', 'purpose': 'Public description of the work.'},
                     {'name': 'installation', 'input_type': 'multi-line text area', 'purpose': 'Display or installation notes for the venue.'},
