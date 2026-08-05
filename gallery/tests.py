@@ -12663,6 +12663,79 @@ class ArtworkCreateIdempotencyTests(MediaImageMixin, TestCase):
         self.assertEqual(len(seen), 3, 'a reused token would refuse a genuine second artwork')
 
 
+class OtherCreatePathIdempotencyTests(MediaImageMixin, TestCase):
+    """The two create paths that are not the artwork page: the quick form inside the submit
+    flow, and adding a piece on an artist's behalf. Both upload a photograph, so both have
+    the window in which somebody clicks again."""
+
+    def setUp(self):
+        self._setup_media()
+        today = datetime.date.today()
+        self.site = Site.objects.create(name='120710', slug='120710',
+                                        status=Site.STATUS_PUBLISHED)
+        self.show = Show.objects.create(
+            name='Quick Show', status=Show.STATUS_OPEN_CALL,
+            submission_type=Show.SUBMISSION_OPEN,
+            start=today + datetime.timedelta(days=30),
+            end=today + datetime.timedelta(days=60),
+            submission_deadline=today + datetime.timedelta(days=10))
+        self.show.sites.add(self.site)
+        self.user = User.objects.create_user(username='q@example.com',
+                                             email='q@example.com', password='pw')
+        self.artist = Artist.objects.create(
+            name='Quick Artist', first_name='Quick', last_name='Artist',
+            email='q@example.com', zipcode='94710', user=self.user,
+            street='1 A St', city='Berkeley', state='CA',
+            image=self.TEST_ARTIST_IMAGE)
+
+    def tearDown(self):
+        self._teardown_media()
+
+    def _artwork_fields(self, token, name):
+        return {'name': name, 'end_year': 2026, 'medium': 'oil', 'width_inches': 10,
+                'height_inches': 10, 'pricing_type': Artwork.PRICING_NFS,
+                'create_token': token, 'image': _test_jpg('q.jpg')}
+
+    def test_the_submit_flow_quick_form_carries_a_token(self):
+        self.client.force_login(self.user)
+        page = self.client.get(reverse('gallery:artwork_submit',
+                                       kwargs={'slug': self.show.slug}))
+        self.assertContains(page, 'name="create_token"')
+
+    def test_the_submit_flow_quick_form_does_not_duplicate(self):
+        self.client.force_login(self.user)
+        url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        for _ in range(2):
+            data = self._artwork_fields('quick-tok', 'Quick Piece')
+            data['action'] = 'create_artwork'
+            self.client.post(url, data)
+        self.assertEqual(Artwork.objects.filter(name='Quick Piece').count(), 1)
+
+    def test_the_submit_flow_still_takes_a_second_real_piece(self):
+        self.client.force_login(self.user)
+        url = reverse('gallery:artwork_submit', kwargs={'slug': self.show.slug})
+        for token, name in (('t1', 'One'), ('t2', 'Two')):
+            data = self._artwork_fields(token, name)
+            data['action'] = 'create_artwork'
+            self.client.post(url, data)
+        self.assertEqual(Artwork.objects.filter(name__in=['One', 'Two']).count(), 2)
+
+    def test_on_behalf_carries_a_token_and_does_not_duplicate(self):
+        staff = User.objects.create_user(username='sb@example.com',
+                                         email='sb@example.com', password='pw')
+        add_staff_role(staff)
+        self.client.force_login(staff)
+        url = reverse('gallery:add_artwork_on_behalf', kwargs={'slug': self.show.slug})
+        self.assertContains(self.client.get(url + f'?artist={self.artist.pk}'),
+                            'name="create_token"')
+        for _ in range(2):
+            data = self._artwork_fields('behalf-tok', 'On Behalf Piece')
+            data.update({'action': 'create_new', 'artist': self.artist.pk})
+            self.client.post(url, data)
+        self.assertEqual(Artwork.objects.filter(name='On Behalf Piece').count(), 1,
+                         'a duplicate here also lands on the invite scoreboard')
+
+
 class ArtistCreateIdempotencyTests(MediaImageMixin, TestCase):
     """One profile per rendered form. Same window as the artwork form: it uploads a photo."""
 

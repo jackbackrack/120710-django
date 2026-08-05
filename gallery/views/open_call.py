@@ -16,6 +16,7 @@ from django.utils.html import strip_tags
 logger = logging.getLogger(__name__)
 from gallery.forms import ArtworkForm, ArtworkSubmissionForm
 from gallery import submission_area
+from gallery import create_tokens
 from gallery.models import Artist, Artwork, ArtworkSubmission, Show, ShowArtworkNumber, ShowInvitation
 from gallery.permissions import can_manage_show, can_view_reviews
 from reviews.views import _compute_weighted_scores
@@ -643,11 +644,21 @@ def artwork_submit(request, slug):
         if action == 'create_artwork':
             quick_form = ArtworkForm(request.POST, request.FILES, user=request.user)
             if quick_form.is_valid():
+                # Same rule as the full artwork form: one piece per rendered form, and a
+                # second click during the photo upload gets what the first one made.
+                token = create_tokens.token_from(request)
+                existing, is_replay = create_tokens.prior_for(
+                    Artwork, token, quick_form.cleaned_data, create_tokens.ARTWORK_FIELDS)
+                url = reverse('gallery:artwork_submit', kwargs={'slug': slug})
+                if is_replay:
+                    messages.info(request, 'That was already saved — here it is.')
+                    return redirect(f'{url}?new_pk={existing.pk}')
                 artwork = quick_form.save(commit=False)
                 artwork.created_by = request.user
+                artwork.create_token = create_tokens.token_to_store(
+                    existing, is_replay, token)
                 artwork.save()
                 artwork.artists.add(artist)
-                url = reverse('gallery:artwork_submit', kwargs={'slug': slug})
                 return redirect(f'{url}?new_pk={artwork.pk}')
             form = ArtworkSubmissionForm(show=show, artist=artist)
             preseed_pk = None
@@ -685,6 +696,7 @@ def artwork_submit(request, slug):
         'has_any_artworks': artist.artworks.exists(),
         'preseed_pk': preseed_pk,
         'show_quick_form': action == 'create_artwork' if request.method == 'POST' else False,
+        'create_token': create_tokens.new_token(),
         'submission_limit': submission_limit,
         'submitted_count': submitted_count,
         'submissions_remaining': submissions_remaining,
@@ -1001,8 +1013,20 @@ def add_artwork_on_behalf(request, slug):
         elif action == 'create_new':
             new_form = _new_form(request.POST, request.FILES)
             if new_form.is_valid():
+                # Staff double-clicking during an upload duplicated a piece here too, and
+                # this one then gets added to the show as a submission — so the duplicate
+                # arrives on the invite scoreboard as well as in the artist's work.
+                token = create_tokens.token_from(request)
+                existing, is_replay = create_tokens.prior_for(
+                    Artwork, token, new_form.cleaned_data, create_tokens.ARTWORK_FIELDS)
+                if is_replay:
+                    messages.info(request,
+                                  f'"{existing.name}" was already added — here it is.')
+                    return redirect('gallery:show_submissions', slug=show.slug)
                 artwork = new_form.save(commit=False)
                 artwork.created_by = request.user
+                artwork.create_token = create_tokens.token_to_store(
+                    existing, is_replay, token)
                 artwork.save()
                 artwork.artists.add(artist)
         if artwork:
@@ -1018,6 +1042,7 @@ def add_artwork_on_behalf(request, slug):
     return render(request, 'gallery/add_artwork_on_behalf.html', {
         'show': show, 'artists': artists, 'artist': artist,
         'existing_artworks': existing_artworks, 'new_form': new_form,
+        'create_token': create_tokens.new_token(),
     })
 
 

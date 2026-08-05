@@ -57,6 +57,8 @@
       {% csrf_token %}
       <input type="hidden" name="artist" value="{{ artist.pk }}">
       {% crispy new_form %}
+      {# One piece per rendered form; a replay redirects to what it already added. #}
+      <input type="hidden" name="create_token" value="{{ create_token }}">
       <button type="submit" name="action" value="create_new" class="btn btn-success">Create &amp; add to show</button>
     </form>
   {% endif %}

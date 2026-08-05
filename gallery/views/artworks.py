@@ -15,8 +15,6 @@ from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMultiAlternatives
 from django.db import connection
 from django.http import HttpResponse, JsonResponse
-import uuid
-
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -28,6 +26,7 @@ from django.db.models import Max
 
 from honeypot.decorators import check_honeypot
 
+from gallery import create_tokens
 from gallery.forms import ArtworkForm, ArtworkImageFormSet, ArtworkInquiryForm
 from gallery.models import Artwork, ArtworkImage, Tag
 from gallery.permissions import can_delete_artwork, can_manage_artwork, is_artist_user, is_curator_user, is_staff_user, tag_filter_queryset, visible_artwork_queryset, is_site_director
@@ -199,21 +198,6 @@ class ArtworkDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return can_delete_artwork(self.request.user, obj)
 
 
-# What identifies a submission. A replay of one POST has all of these the same, because it
-# is the same bytes; a person who went Back and typed something else has changed at least
-# one. Deliberately not the image: re-picking the same file is normal, and comparing uploads
-# would make a replay look new.
-_IDENTIFYING = ('name', 'end_year', 'medium', 'width_inches', 'height_inches')
-
-
-def _is_replay_of(existing, submitted):
-    """Whether this POST is the same submission that already created `existing`."""
-    for field in _IDENTIFYING:
-        if getattr(existing, field) != submitted.get(field):
-            return False
-    return True
-
-
 def _warn_if_identical(request, artwork):
     """Say so when a new piece matches one the artist already has, exactly.
 
@@ -272,28 +256,19 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         context = super().get_context_data(**kwargs)
         # Regenerated per render, so a fresh form is always a fresh create and only a
         # *replay* of one submission is refused.
-        context.setdefault('create_token', uuid.uuid4().hex)
+        context.setdefault('create_token', create_tokens.new_token())
         return context
 
     def form_valid(self, form):
-        token = (self.request.POST.get('create_token') or '').strip()[:64]
-        if token:
-            existing = Artwork.objects.filter(create_token=token).first()
-            if existing is not None and _is_replay_of(existing, form.cleaned_data):
-                # Not an error: the person pressed Save twice, or came back and resubmitted.
-                # They wanted one artwork and they have one, so show it to them rather than
-                # complaining about a duplicate they did not intend.
-                messages.info(self.request,
-                              'That was already saved — here it is.')
-                return redirect(existing)
-            if existing is not None:
-                # Same token, different piece. Somebody went Back to a form they had already
-                # submitted and typed a new artwork into it — the back/forward cache hands
-                # back the same token — so this is a genuine second artwork and treating it
-                # as a replay would silently throw their work away.
-                form.instance.create_token = None
-            else:
-                form.instance.create_token = token
+        token = create_tokens.token_from(self.request)
+        existing, is_replay = create_tokens.prior_for(
+            Artwork, token, form.cleaned_data, create_tokens.ARTWORK_FIELDS)
+        if is_replay:
+            # Not an error: they pressed Save twice, or came back and resubmitted. They
+            # wanted one artwork and they have one, so show it to them.
+            messages.info(self.request, 'That was already saved — here it is.')
+            return redirect(existing)
+        form.instance.create_token = create_tokens.token_to_store(existing, is_replay, token)
 
         form.instance.created_by = self.request.user
         try:
@@ -302,10 +277,10 @@ class ArtworkCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         except IntegrityError:
             # Two requests raced past the check above and one lost. The winner's artwork is
             # the answer; this one never existed.
-            existing = Artwork.objects.filter(create_token=token).first()
-            if existing is None:
+            clash = Artwork.objects.filter(create_token=token).first() if token else None
+            if clash is None:
                 raise
-            return redirect(existing)
+            return redirect(clash)
 
         artist = self.request.user.artists.order_by('-created_at').first()
         if artist:

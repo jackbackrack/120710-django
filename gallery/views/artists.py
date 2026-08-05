@@ -6,8 +6,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import Http404
-import uuid
-
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -15,6 +13,7 @@ from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
+from gallery import create_tokens
 from gallery.forms import ArtistForm
 from gallery.models import Artist, Tag
 from django.db.models import Max
@@ -329,26 +328,20 @@ class ArtistCreateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, C
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.setdefault('create_token', uuid.uuid4().hex)
+        context.setdefault('create_token', create_tokens.new_token())
         return context
 
     def form_valid(self, form):
         # One profile per rendered form. This uploads a photograph, so there is the same
         # multi-second window in which somebody clicks Save again — and a back-button
         # resubmit is a fresh page that no script can see.
-        token = (self.request.POST.get('create_token') or '').strip()[:64]
-        if token:
-            existing = Artist.objects.filter(create_token=token).first()
-            same = existing is not None and all(
-                getattr(existing, f) == form.cleaned_data.get(f)
-                for f in ('first_name', 'last_name', 'email'))
-            if same:
-                messages.info(self.request, 'That was already saved — here it is.')
-                return redirect(existing)
-            # Same token, somebody else: a form restored from the back/forward cache carries
-            # the token it was rendered with, so treating this as a replay would discard a
-            # real second profile.
-            form.instance.create_token = None if existing is not None else token
+        token = create_tokens.token_from(self.request)
+        existing, is_replay = create_tokens.prior_for(
+            Artist, token, form.cleaned_data, create_tokens.ARTIST_FIELDS)
+        if is_replay:
+            messages.info(self.request, 'That was already saved — here it is.')
+            return redirect(existing)
+        form.instance.create_token = create_tokens.token_to_store(existing, is_replay, token)
 
         # Claim the new profile for its creator only when the form did not ask. "Linked
         # user account" is shown to whoever may be recording somebody else — staff and
@@ -368,10 +361,10 @@ class ArtistCreateView(ReturnsToNext, LoginRequiredMixin, UserPassesTestMixin, C
             with transaction.atomic():
                 return super().form_valid(form)
         except IntegrityError:
-            existing = Artist.objects.filter(create_token=token).first() if token else None
-            if existing is None:
+            clash = Artist.objects.filter(create_token=token).first() if token else None
+            if clash is None:
                 raise
-            return redirect(existing)
+            return redirect(clash)
 
     def test_func(self):
         # Two separate reasons to be here: you have no profile and are creating your own,
