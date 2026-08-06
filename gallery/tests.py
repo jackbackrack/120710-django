@@ -12879,6 +12879,104 @@ class ImportSubscribersStatusTests(TestCase):
                          'a later subscribed file re-subscribed somebody who had opted out')
 
 
+class ImportSubscribersBulkTests(TestCase):
+    """The bulk write must mean exactly what the row-at-a-time one did.
+
+    It was four round trips per person, which against the production database from a laptop
+    — the way it has to be run, since the CSV is local — took a quarter of an hour for 1,200
+    people. Rewriting it in bulk is worth it and is also where the semantics could quietly
+    change: bulk_create does not call save(), so anything save() did has to be done here.
+    """
+
+    def _csv(self, tmp, rows, header=('Email Address', 'First Name', 'Last Name', 'Status')):
+        import csv as csvmod
+        import pathlib as pl
+
+        path = pl.Path(tmp) / 'in.csv'
+        with open(path, 'w', newline='') as handle:
+            writer = csvmod.writer(handle)
+            writer.writerow(header)
+            writer.writerows(rows)
+        return str(path)
+
+    def _run(self, rows, **kwargs):
+        import tempfile
+
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            call_command('import_subscribers', self._csv(tmp, rows), **kwargs)
+
+    def test_addresses_are_stored_lower_case(self):
+        """Subscriber.save() lower-cases, and bulk_create skips save(). Uniqueness is
+        case-insensitive only because the address is normalised, so this cannot drift."""
+        from gallery.models import Subscriber
+
+        self._run([['MiXeD@Example.COM', 'A', 'B', 'subscribed']])
+        self.assertEqual(Subscriber.objects.get().email, 'mixed@example.com')
+
+    def test_the_same_address_in_different_case_is_one_person(self):
+        from gallery.models import Subscriber
+
+        self._run([['a@example.com', 'A', 'B', 'subscribed'],
+                   ['A@EXAMPLE.COM', '', '', 'subscribed']])
+        self.assertEqual(Subscriber.objects.count(), 1)
+
+    def test_an_opt_out_unsubscribes_somebody_already_subscribed(self):
+        from gallery.models import Subscription
+
+        self._run([['a@example.com', 'A', 'B', 'subscribed']])
+        self.assertTrue(Subscription.objects.get().is_subscribed)
+        self._run([['a@example.com', 'A', 'B', 'unsubscribed']])
+        subscription = Subscription.objects.get()
+        self.assertFalse(subscription.is_subscribed)
+        self.assertIsNotNone(subscription.unsubscribed_at)
+        self.assertEqual(subscription.unsubscribed_reason, Subscription.UNSUB_REQUESTED)
+
+    def test_a_later_subscribed_row_never_re_subscribes(self):
+        from gallery.models import Subscription
+
+        self._run([['a@example.com', 'A', 'B', 'unsubscribed']])
+        self._run([['a@example.com', 'A', 'B', 'subscribed']])
+        self.assertFalse(Subscription.objects.get().is_subscribed)
+
+    def test_a_name_already_on_file_outranks_the_export(self):
+        from gallery.models import Subscriber
+
+        self._run([['a@example.com', 'Correct', 'Name', 'subscribed']])
+        self._run([['a@example.com', 'Wrong', 'Name', 'subscribed']])
+        self.assertEqual(Subscriber.objects.get().first_name, 'Correct')
+
+    def test_a_missing_name_is_filled_in(self):
+        from gallery.models import Subscriber
+
+        self._run([['a@example.com', '', '', 'subscribed']])
+        self._run([['a@example.com', 'Later', 'Name', 'subscribed']])
+        subscriber = Subscriber.objects.get()
+        self.assertEqual(subscriber.first_name, 'Later')
+        self.assertEqual(subscriber.last_name, 'Name')
+
+    def test_created_at_is_set_despite_bulk_create(self):
+        """auto_now_add runs through the field's pre_save, which bulk_create does call —
+        pinned because a null timestamp here would be invisible until something sorted by it."""
+        from gallery.models import Subscriber, Subscription
+
+        self._run([['a@example.com', 'A', 'B', 'subscribed']])
+        self.assertIsNotNone(Subscriber.objects.get().created_at)
+        self.assertIsNotNone(Subscription.objects.get().created_at)
+
+    def test_it_stays_within_a_handful_of_queries(self):
+        """The point of the rewrite. Row-at-a-time was about four per person, so this would
+        have been over a hundred."""
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        rows = [[f'p{n}@example.com', 'A', 'B', 'subscribed'] for n in range(25)]
+        with CaptureQueriesContext(connection) as queries:
+            self._run(rows)
+        self.assertLess(len(queries), 20, f'{len(queries)} queries for 25 people')
+
+
 class USStateTests(TestCase):
     """States were free text everywhere, and the artist table shows what that produced:
     "c", "b", "ca". `timezone_from_address` keys on the two-letter code, so a lower-case one

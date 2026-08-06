@@ -40,6 +40,7 @@ import csv
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
 from gallery.models import Site, Subscriber, Subscription
 
@@ -211,39 +212,99 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING('  Nothing was written (--dry-run).'))
 
     def _write(self, people, site):
-        created = updated = filled = opted_out = 0
+        """Everything in a handful of queries rather than four per person.
 
+        This was a `get_or_create` for the subscriber and another for the subscription,
+        which is roughly four round trips each. Run the way it has to be run — locally
+        against the production database, because the CSV is on somebody's laptop — that is
+        about 180 ms a trip, so 1,200 people took a quarter of an hour with nothing on
+        screen. The same work in bulk is a dozen queries.
+
+        The semantics are unchanged and are the part worth being careful about: an opt-out
+        always wins, an existing subscription is never re-subscribed, and a name already on
+        file outranks the export.
+        """
+        emails = list(people)
+        existing = {s.email: s for s in
+                    Subscriber.objects.filter(email__in=emails).only(
+                        'id', 'email', 'first_name', 'last_name')}
+        self._say(f'  {len(existing)} of {len(emails)} already had a record.')
+
+        # ── People ───────────────────────────────────────────────────────────
+        to_create = [
+            Subscriber(email=email,
+                       first_name=record['first_name'], last_name=record['last_name'])
+            for email, record in people.items() if email not in existing
+        ]
+        for done in self._in_batches(to_create, 'people'):
+            pass
+        created = len(to_create)
+        if to_create:
+            existing.update({s.email: s for s in
+                             Subscriber.objects.filter(email__in=[s.email for s in to_create])})
+
+        # Fill gaps only. A name corrected here outranks the export it came from.
+        fill = []
         for email, record in people.items():
-            subscriber, made = Subscriber.objects.get_or_create(
-                email=email,
-                defaults={'first_name': record['first_name'],
-                          'last_name': record['last_name']})
-            if not made:
-                # Fill gaps only. A name corrected here outranks the export it came from.
-                missing = [f for f in ('first_name', 'last_name')
-                           if not getattr(subscriber, f) and record[f]]
-                if missing:
-                    for field in missing:
-                        setattr(subscriber, field, record[field])
-                    subscriber.save(update_fields=missing + ['updated_at'])
-                    filled += 1
+            subscriber = existing[email]
+            missing = [f for f in ('first_name', 'last_name')
+                       if not getattr(subscriber, f) and record[f]]
+            if missing:
+                for field in missing:
+                    setattr(subscriber, field, record[field])
+                fill.append(subscriber)
+        if fill:
+            Subscriber.objects.bulk_update(fill, ['first_name', 'last_name'])
+        filled = len(fill)
 
-            subscription, was_created = Subscription.objects.get_or_create(
-                subscriber=subscriber, site=site,
-                defaults={'source': Subscription.SOURCE_IMPORT,
-                          'is_subscribed': record['subscribed'],
-                          'unsubscribed_reason': ('' if record['subscribed']
-                                                  else Subscription.UNSUB_REQUESTED)})
-            if was_created:
-                created += 1
-            else:
-                updated += 1
+        # ── Their membership of this list ────────────────────────────────────
+        by_id = {s.pk: s.email for s in existing.values()}
+        have = {sub.subscriber_id: sub for sub in
+                Subscription.objects.filter(site=site, subscriber_id__in=by_id)}
 
-            if not record['subscribed']:
-                opted_out += 1
-                # Never re-subscribe someone the export says opted out, even if a row for
-                # them already existed as subscribed. Their most recent choice wins.
-                if subscription.is_subscribed:
-                    subscription.unsubscribe(reason=Subscription.UNSUB_REQUESTED)
+        new_subs, opt_out_existing = [], []
+        for email, record in people.items():
+            subscriber = existing[email]
+            subscription = have.get(subscriber.pk)
+            if subscription is None:
+                new_subs.append(Subscription(
+                    subscriber=subscriber, site=site,
+                    source=Subscription.SOURCE_IMPORT,
+                    is_subscribed=record['subscribed'],
+                    unsubscribed_reason=('' if record['subscribed']
+                                         else Subscription.UNSUB_REQUESTED),
+                    unsubscribed_at=None if record['subscribed'] else timezone.now()))
+            elif not record['subscribed'] and subscription.is_subscribed:
+                # Never re-subscribe somebody the export says opted out, even if the row
+                # here already said subscribed. Their most recent choice wins.
+                subscription.is_subscribed = False
+                subscription.unsubscribed_reason = Subscription.UNSUB_REQUESTED
+                subscription.unsubscribed_at = timezone.now()
+                opt_out_existing.append(subscription)
 
+        for _ in self._in_batches(new_subs, 'subscriptions'):
+            pass
+        if opt_out_existing:
+            Subscription.objects.bulk_update(
+                opt_out_existing,
+                ['is_subscribed', 'unsubscribed_reason', 'unsubscribed_at'])
+            self._say(f'  {len(opt_out_existing)} existing subscription(s) unsubscribed.')
+
+        updated = len(people) - created
+        opted_out = sum(1 for r in people.values() if not r['subscribed'])
         return created, updated, filled, opted_out
+
+    def _in_batches(self, objects, label, size=200):
+        """bulk_create in chunks, saying so, because silence for minutes reads as hung."""
+        if not objects:
+            return
+        model = type(objects[0])
+        for start in range(0, len(objects), size):
+            model.objects.bulk_create(objects[start:start + size])
+            self._say(f'  {min(start + size, len(objects))} of {len(objects)} '
+                      f'{label} written…')
+            yield start
+
+    def _say(self, message):
+        self.stdout.write(message)
+        self.stdout.flush()
