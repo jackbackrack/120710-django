@@ -12793,6 +12793,92 @@ class ArtistCreateIdempotencyTests(MediaImageMixin, TestCase):
         self.assertEqual(Artist.objects.filter(last_name='Person').count(), 2)
 
 
+class ImportSubscribersStatusTests(TestCase):
+    """Who opted out, when the export does not say.
+
+    Mailchimp's per-status downloads — subscribed.csv, unsubscribed.csv, cleaned.csv —
+    carry no status column. A missing status used to default to subscribed, so importing
+    all three reported "0 opted out" and would have mailed every unsubscribed and cleaned
+    member. That is the one mistake here that cannot be taken back.
+    """
+
+    def _csv(self, tmp, name, rows, with_status=None):
+        import csv as csvmod
+        import pathlib as pl
+
+        path = pl.Path(tmp) / name
+        header = ['Email Address', 'First Name', 'Last Name']
+        if with_status:
+            header.append('Status')
+        with open(path, 'w', newline='') as handle:
+            writer = csvmod.writer(handle)
+            writer.writerow(header)
+            for row in rows:
+                writer.writerow(row)
+        return str(path)
+
+    def test_a_file_with_no_status_column_is_refused(self):
+        """Rather than guessed at."""
+        import tempfile
+
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._csv(tmp, 'unsubscribed.csv', [['a@example.com', 'A', 'B']])
+            with self.assertRaises(CommandError) as caught:
+                call_command('import_subscribers', path, '--dry-run')
+        self.assertIn('no status column', str(caught.exception))
+        self.assertIn('--status', str(caught.exception))
+
+    def test_declaring_the_status_opts_them_out(self):
+        import tempfile
+
+        from django.core.management import call_command
+
+        from gallery.models import Subscription
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._csv(tmp, 'unsubscribed.csv', [['a@example.com', 'A', 'B']])
+            call_command('import_subscribers', path, '--status', 'unsubscribed')
+        self.assertFalse(Subscription.objects.get().is_subscribed)
+
+    def test_a_blank_status_in_a_column_is_treated_as_opted_out(self):
+        """The safe direction for a value that cannot be read."""
+        import tempfile
+
+        from django.core.management import call_command
+
+        from gallery.models import Subscription
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._csv(tmp, 'mixed.csv',
+                             [['a@example.com', 'A', 'B', 'subscribed'],
+                              ['b@example.com', 'C', 'D', '']],
+                             with_status=True)
+            call_command('import_subscribers', path)
+        self.assertTrue(Subscription.objects.get(subscriber__email='a@example.com')
+                        .is_subscribed)
+        self.assertFalse(Subscription.objects.get(subscriber__email='b@example.com')
+                         .is_subscribed)
+
+    def test_importing_the_subscribed_file_later_does_not_undo_an_opt_out(self):
+        """The files are imported one status at a time, so order must not matter."""
+        import tempfile
+
+        from django.core.management import call_command
+
+        from gallery.models import Subscription
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self._csv(tmp, 'unsubscribed.csv', [['a@example.com', 'A', 'B']])
+            call_command('import_subscribers', out, '--status', 'unsubscribed')
+            sub = self._csv(tmp, 'subscribed.csv', [['a@example.com', 'A', 'B']])
+            call_command('import_subscribers', sub, '--status', 'subscribed')
+        self.assertFalse(Subscription.objects.get().is_subscribed,
+                         'a later subscribed file re-subscribed somebody who had opted out')
+
+
 class USStateTests(TestCase):
     """States were free text everywhere, and the artist table shows what that produced:
     "c", "b", "ca". `timezone_from_address` keys on the two-letter code, so a lower-case one

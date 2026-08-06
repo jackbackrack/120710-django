@@ -4,6 +4,16 @@
     manage.py import_subscribers export.csv --site 120710
     manage.py import_subscribers audience-1.csv audience-2.csv segment.csv
 
+Mailchimp's per-status downloads carry no status column, so those are imported one status
+at a time and told what they are:
+
+    manage.py import_subscribers subscribed.csv   --status subscribed
+    manage.py import_subscribers unsubscribed.csv --status unsubscribed
+    manage.py import_subscribers cleaned.csv      --status cleaned
+
+Order does not matter: an opt-out always wins, and a subscribed file never re-subscribes
+somebody who has already said no.
+
 The important part is the opt-out status. A Mailchimp export contains unsubscribed and
 cleaned members alongside subscribed ones, and importing the lot as subscribed would mail
 people who have already said no — which is both unlawful and the fastest way to earn spam
@@ -75,6 +85,11 @@ class Command(BaseCommand):
                                            "network-wide list.")
         parser.add_argument('--dry-run', action='store_true',
                             help='Report what would happen and change nothing.')
+        parser.add_argument(
+            '--status', choices=sorted(SUBSCRIBED | OPTED_OUT),
+            help="What these files are, for exports that carry no status column — "
+                 "Mailchimp's per-status downloads do not. Applies to every file in this "
+                 "run, so import one status at a time.")
 
     def handle(self, *args, **options):
         site = None
@@ -83,7 +98,8 @@ class Command(BaseCommand):
             if site is None:
                 raise CommandError(f'No site with slug {options["site"]!r}.')
 
-        people, rows_read, unusable = self._collate(options['csv_paths'])
+        people, rows_read, unusable = self._collate(options['csv_paths'],
+                                                    options.get('status'))
         if not people:
             raise CommandError('No usable rows in those files.')
 
@@ -112,7 +128,7 @@ class Command(BaseCommand):
         total = Subscription.objects.filter(site=site, is_subscribed=True).count()
         self.stdout.write(self.style.SUCCESS(f'  {total} subscribed in total'))
 
-    def _collate(self, paths):
+    def _collate(self, paths, declared_status=None):
         """Every occurrence of an address folded into one record, before any writing.
 
         Returns ({email: {first_name, last_name, subscribed}}, rows_read, unusable).
@@ -136,14 +152,39 @@ class Command(BaseCommand):
                     f'No email column in {path}. '
                     f'Columns are: {", ".join(fieldnames or [])}')
 
+            # A file with no status column cannot say who opted out, and guessing is the one
+            # mistake here that cannot be taken back: it mails people who said no. Mailchimp's
+            # per-status downloads — subscribed.csv, unsubscribed.csv, cleaned.csv — are all
+            # like this, so this is the normal case rather than an odd one.
+            #
+            # This used to default to subscribed, which imported every unsubscribed and
+            # cleaned member as mailable and reported "0 opted out" while doing it.
+            file_has_status = _has_column(fieldnames, STATUS_KEYS)
+            if not file_has_status and declared_status is None:
+                raise CommandError(
+                    f'{path} has no status column, so there is no way to tell who opted '
+                    f'out.\n'
+                    f'Columns are: {", ".join(fieldnames or [])}\n\n'
+                    f'Either export the whole audience as one file, which carries a status '
+                    f'column,\nor say what this one is and import a status at a time:\n\n'
+                    f'    manage.py import_subscribers subscribed.csv   --status subscribed\n'
+                    f'    manage.py import_subscribers unsubscribed.csv --status unsubscribed\n'
+                    f'    manage.py import_subscribers cleaned.csv      --status cleaned\n\n'
+                    f'Order does not matter: an opt-out always wins, and importing a '
+                    f'subscribed file\nnever re-subscribes somebody who has already said no.')
+
             for row in rows:
                 rows_read += 1
                 email = _get(row, EMAIL_KEYS).lower()
                 if not email or '@' not in email:
                     unusable += 1
                     continue
-                status = _get(row, STATUS_KEYS).lower()
-                subscribed = status in SUBSCRIBED if status else True
+                status = _get(row, STATUS_KEYS).lower() if file_has_status else ''
+                if not status:
+                    status = (declared_status or '').lower()
+                # Anything not positively subscribed is treated as opted out, including a
+                # blank — the safe direction for a value we cannot read.
+                subscribed = status in SUBSCRIBED
 
                 record = people.setdefault(
                     email, {'first_name': '', 'last_name': '', 'subscribed': True})
